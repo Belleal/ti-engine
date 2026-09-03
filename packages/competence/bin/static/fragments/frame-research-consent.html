@@ -1,0 +1,58 @@
+<div class="ti-page" x-data="competenceResearchConsentConfig">
+
+    <div class="ti-page-head">
+        <div>
+            <div class="ti-page-eyebrow" x-text-label="interface.research-consent.eyebrow">Administration</div>
+            <h1 class="ti-page-title" x-text-label="interface.research-consent.title">Research-Use Consent</h1>
+            <p class="ti-page-subtitle" x-text-label="interface.research-consent.intro">The statement employees are shown once per cycle when asked whether their anonymized evaluation data may be used for research. Every answer already given records the version it was given under, so changing any wording requires a new version number.</p>
+        </div>
+    </div>
+
+    <section class="ti-panel">
+        <div class="ti-panel-head bar">
+            <div class="ti-panel-head-text">
+                <div class="ti-panel-title" x-text-label="interface.research-consent.panel-title">Statement</div>
+                <div class="ti-panel-subtitle" x-text="statusSummary()"></div>
+            </div>
+            <div class="ti-panel-head-aside">
+                <button class="ti-btn primary" type="button" x-bind:disabled="saving" @click="save()" x-text-label="interface.research-consent.save">Save</button>
+            </div>
+        </div>
+
+        <div class="competence-panel-body">
+            <template x-if="saveErrors.length > 0">
+                <div class="ti-form-section">
+                    <template x-for="(issue, idx) in saveErrors" x-bind:key="idx">
+                        <div class="ti-form-readonly">
+                            <span class="ti-tag mono" x-text="issue.label"></span>
+                            <span class="ti-form-error" x-text="issue.message"></span>
+                        </div>
+                    </template>
+                </div>
+            </template>
+
+            <div class="ti-form-row">
+                <label class="ti-field-label" for="consent-enabled" x-text-label="interface.research-consent.enabled">Collect consent</label>
+                <select class="ti-select" id="consent-enabled" x-bind:value="enabledValue()" @change="setEnabled($event.target.value)">
+                    <option value="true" x-text-label="interface.research-consent.enabled-yes">Yes — ask every employee once per cycle</option>
+                    <option value="false" x-text-label="interface.research-consent.enabled-no">No — do not ask, and release nothing for research</option>
+                </select>
+
+                <label class="ti-field-label" for="consent-version" x-text-label="interface.research-consent.version">Statement version</label>
+                <input class="ti-input" type="text" id="consent-version" x-bind:value="version" @input="setVersion($event.target.value)">
+            </div>
+
+            <p class="ti-form-hint" x-text-label="interface.research-consent.version-hint">Two numbers separated by a dot, for example 1.1. Bump it whenever you change any wording below — the save is refused otherwise, because answers already on record name the version they were given under.</p>
+
+            <template x-for="(entry, index) in texts" x-bind:key="entry.language">
+                <div class="ti-form-section">
+                    <label class="ti-field-label" x-bind:for="'consent-body-' + entry.language" x-text="languageLabel(entry.language)"></label>
+                    <textarea class="ti-input" rows="10" x-bind:id="'consent-body-' + entry.language" x-bind:value="entry.body" @input="setBody(index, $event.target.value)"></textarea>
+                </div>
+            </template>
+
+            <p class="ti-form-hint" x-text-label="interface.research-consent.body-hint">Plain text only. A blank line starts a new paragraph.</p>
+        </div>
+    </section>
+
+</div>

@@ -12309,6 +12309,14 @@
         "en": "Work Sites",
         "bg": "Работни обекти"
       },
+      "organization-structure": {
+        "en": "Organization Structure",
+        "bg": "Организационна структура"
+      },
+      "research-consent": {
+        "en": "Research-Use Consent",
+        "bg": "Съгласие за проучвания"
+      },
       "competency-text-editor": {
         "en": "Competency Texts",
         "bg": "Текстове на компетенции"
@@ -14868,6 +14876,186 @@
       "confirm": {
         "en": "Apply",
         "bg": "Приложи"
+      }
+    },
+    "research-consent": {
+      "eyebrow": {
+        "en": "Administration",
+        "bg": "Администрация"
+      },
+      "title": {
+        "en": "Research-Use Consent",
+        "bg": "Съгласие за използване в проучвания"
+      },
+      "intro": {
+        "en": "The statement employees are shown once per cycle when asked whether their anonymized evaluation data may be used for research. Every answer already given records the version it was given under, so changing any wording requires a new version number.",
+        "bg": "Текстът, който служителите виждат веднъж на цикъл, когато биват попитани дали анонимизираните данни от тяхното оценяване могат да се използват за проучвания. Всеки вече даден отговор записва версията, при която е даден, затова промяна в текста изисква нов номер на версия."
+      },
+      "panel-title": {
+        "en": "Statement",
+        "bg": "Текст на съгласието"
+      },
+      "status-on": {
+        "en": "Being collected — version {v}",
+        "bg": "Събира се — версия {v}"
+      },
+      "status-off": {
+        "en": "Not being collected",
+        "bg": "Не се събира"
+      },
+      "enabled": {
+        "en": "Collect consent",
+        "bg": "Събиране на съгласие"
+      },
+      "enabled-yes": {
+        "en": "Yes — ask every employee once per cycle",
+        "bg": "Да — питай всеки служител веднъж на цикъл"
+      },
+      "enabled-no": {
+        "en": "No — do not ask, and release nothing for research",
+        "bg": "Не — не питай и не предоставяй нищо за проучвания"
+      },
+      "version": {
+        "en": "Statement version",
+        "bg": "Версия на текста"
+      },
+      "version-hint": {
+        "en": "Two numbers separated by a dot, for example 1.1. Bump it whenever you change any wording below — the save is refused otherwise, because answers already on record name the version they were given under.",
+        "bg": "Две числа, разделени с точка, например 1.1. Повишавайте я при всяка промяна в текста по-долу — в противен случай запазването се отказва, защото вече записаните отговори посочват версията, при която са дадени."
+      },
+      "version-invalid": {
+        "en": "The version must be two numbers separated by a dot, for example 1.1.",
+        "bg": "Версията трябва да е две числа, разделени с точка, например 1.1."
+      },
+      "body-en": {
+        "en": "Statement (English)",
+        "bg": "Текст (английски)"
+      },
+      "body-bg": {
+        "en": "Statement (Bulgarian)",
+        "bg": "Текст (български)"
+      },
+      "body-hint": {
+        "en": "Plain text only. A blank line starts a new paragraph.",
+        "bg": "Само обикновен текст. Празен ред започва нов абзац."
+      },
+      "body-required": {
+        "en": "At least one language needs a statement.",
+        "bg": "Поне един език се нуждае от текст."
+      },
+      "save": {
+        "en": "Save",
+        "bg": "Запази"
+      },
+      "saved": {
+        "en": "Consent statement saved.",
+        "bg": "Текстът на съгласието е запазен."
+      },
+      "save-note": {
+        "en": "Research-use consent edit",
+        "bg": "Редакция на съгласието за проучвания"
+      },
+      "save-invalid": {
+        "en": "Some changes are invalid — see the issues listed.",
+        "bg": "Някои промени са невалидни — вижте изброените проблеми."
+      },
+      "save-conflict": {
+        "en": "Configuration changed elsewhere — reloading the latest version.",
+        "bg": "Конфигурацията е променена другаде — зареждане на последната версия."
+      }
+    },
+    "organization-structure": {
+      "eyebrow": {
+        "en": "Administration",
+        "bg": "Администрация"
+      },
+      "title": {
+        "en": "Organization Structure",
+        "bg": "Организационна структура"
+      },
+      "intro": {
+        "en": "The unit tree employees are assigned to. Exactly one unit is the root — leave its parent blank. A unit's manager becomes a Manager in the application, so a unit with no manager leaves its people without one.",
+        "bg": "Дървото от организационни единици, към които се назначават служителите. Точно една единица е коренна — оставете полето за родител празно. Ръководителят на единица получава роля Ръководител в приложението, така че единица без ръководител оставя хората в нея без такъв."
+      },
+      "count": {
+        "en": "{n} units",
+        "bg": "{n} единици"
+      },
+      "add": {
+        "en": "Add unit",
+        "bg": "Добави единица"
+      },
+      "save": {
+        "en": "Save",
+        "bg": "Запази"
+      },
+      "remove": {
+        "en": "Remove",
+        "bg": "Премахни"
+      },
+      "empty": {
+        "en": "No units configured yet.",
+        "bg": "Все още няма конфигурирани организационни единици."
+      },
+      "id": {
+        "en": "Unit ID",
+        "bg": "Идентификатор на единица"
+      },
+      "name": {
+        "en": "Name",
+        "bg": "Наименование"
+      },
+      "type": {
+        "en": "Type",
+        "bg": "Вид"
+      },
+      "parent": {
+        "en": "Parent unit ID",
+        "bg": "Идентификатор на родителска единица"
+      },
+      "manager": {
+        "en": "Manager employee ID",
+        "bg": "Служебен номер на ръководителя"
+      },
+      "location": {
+        "en": "Location",
+        "bg": "Местоположение"
+      },
+      "hint": {
+        "en": "Child units are worked out from the parent IDs, so moving a unit needs only its own Parent field changed. Removing a unit that still has children is refused until they are re-parented or removed too.",
+        "bg": "Подчинените единици се извеждат от идентификаторите на родителите, така че преместването на единица изисква промяна само в нейното поле за родител. Премахването на единица, която още има подчинени единици, се отказва, докато те не бъдат преместени или също премахнати."
+      },
+      "id-required": {
+        "en": "Every unit needs an ID.",
+        "bg": "Всяка единица се нуждае от идентификатор."
+      },
+      "id-duplicate": {
+        "en": "This unit ID is used twice.",
+        "bg": "Този идентификатор на единица се използва два пъти."
+      },
+      "name-required": {
+        "en": "Every unit needs a name.",
+        "bg": "Всяка единица се нуждае от наименование."
+      },
+      "type-required": {
+        "en": "Every unit needs a type.",
+        "bg": "Всяка единица се нуждае от вид."
+      },
+      "saved": {
+        "en": "Organization structure saved.",
+        "bg": "Организационната структура е запазена."
+      },
+      "save-note": {
+        "en": "Organization structure edit",
+        "bg": "Редакция на организационната структура"
+      },
+      "save-invalid": {
+        "en": "Some changes are invalid — see the issues listed.",
+        "bg": "Някои промени са невалидни — вижте изброените проблеми."
+      },
+      "save-conflict": {
+        "en": "Configuration changed elsewhere — reloading the latest version.",
+        "bg": "Конфигурацията е променена другаде — зареждане на последната версия."
       }
     },
     "work-sites": {

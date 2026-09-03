@@ -1,0 +1,67 @@
+<div class="ti-page" x-data="competenceOrganizationStructure">
+
+    <div class="ti-page-head">
+        <div>
+            <div class="ti-page-eyebrow" x-text-label="interface.organization-structure.eyebrow">Administration</div>
+            <h1 class="ti-page-title" x-text-label="interface.organization-structure.title">Organization Structure</h1>
+            <p class="ti-page-subtitle" x-text-label="interface.organization-structure.intro">The unit tree employees are assigned to. Exactly one unit is the root — leave its parent blank. A unit's manager becomes a Manager in the application, so a unit with no manager leaves its people without one.</p>
+        </div>
+    </div>
+
+    <section class="ti-panel">
+        <div class="ti-panel-head bar">
+            <div class="ti-panel-head-text">
+                <div class="ti-panel-title" x-text-label="interface.organization-structure.title">Organization Structure</div>
+                <div class="ti-panel-subtitle" x-text="countSummary()"></div>
+            </div>
+            <div class="ti-panel-head-aside">
+                <button class="ti-btn" type="button" @click="addUnit()" x-text-label="interface.organization-structure.add">Add unit</button>
+                <button class="ti-btn primary" type="button" x-bind:disabled="saving" @click="save()" x-text-label="interface.organization-structure.save">Save</button>
+            </div>
+        </div>
+
+        <div class="competence-panel-body">
+            <template x-if="saveErrors.length > 0">
+                <div class="ti-form-section">
+                    <template x-for="(issue, idx) in saveErrors" x-bind:key="idx">
+                        <div class="ti-form-readonly">
+                            <span class="ti-tag mono" x-text="issue.label"></span>
+                            <span class="ti-form-error" x-text="issue.message"></span>
+                        </div>
+                    </template>
+                </div>
+            </template>
+
+            <template x-if="isEmpty()">
+                <p class="ti-form-hint" x-text-label="interface.organization-structure.empty">No units configured yet.</p>
+            </template>
+
+            <template x-for="(unit, index) in units" x-bind:key="index">
+                <div class="ti-form-row">
+                    <label class="ti-field-label" x-bind:for="'org-unit-id-' + index" x-text-label="interface.organization-structure.id">Unit ID</label>
+                    <input class="ti-input" type="text" x-bind:id="'org-unit-id-' + index" x-bind:value="unit.id" @input="setField(index, 'id', $event.target.value)">
+
+                    <label class="ti-field-label" x-bind:for="'org-unit-name-' + index" x-text-label="interface.organization-structure.name">Name</label>
+                    <input class="ti-input" type="text" x-bind:id="'org-unit-name-' + index" x-bind:value="unit.name" @input="setField(index, 'name', $event.target.value)">
+
+                    <label class="ti-field-label" x-bind:for="'org-unit-type-' + index" x-text-label="interface.organization-structure.type">Type</label>
+                    <input class="ti-input" type="text" x-bind:id="'org-unit-type-' + index" x-bind:value="unit.type" @input="setField(index, 'type', $event.target.value)">
+
+                    <label class="ti-field-label" x-bind:for="'org-unit-parent-' + index" x-text-label="interface.organization-structure.parent">Parent unit ID</label>
+                    <input class="ti-input" type="text" x-bind:id="'org-unit-parent-' + index" x-bind:value="unit.parent" @input="setField(index, 'parent', $event.target.value)">
+
+                    <label class="ti-field-label" x-bind:for="'org-unit-manager-' + index" x-text-label="interface.organization-structure.manager">Manager employee ID</label>
+                    <input class="ti-input" type="text" x-bind:id="'org-unit-manager-' + index" x-bind:value="unit.managerID" @input="setField(index, 'managerID', $event.target.value)">
+
+                    <label class="ti-field-label" x-bind:for="'org-unit-location-' + index" x-text-label="interface.organization-structure.location">Location</label>
+                    <input class="ti-input" type="text" x-bind:id="'org-unit-location-' + index" x-bind:value="unit.location" @input="setField(index, 'location', $event.target.value)">
+
+                    <button class="ti-btn" type="button" @click="removeUnit(index)" x-text-label="interface.organization-structure.remove">Remove</button>
+                </div>
+            </template>
+
+            <p class="ti-form-hint" x-text-label="interface.organization-structure.hint">Child units are worked out from the parent IDs, so moving a unit needs only its own Parent field changed. Removing a unit that still has children is refused until they are re-parented or removed too.</p>
+        </div>
+    </section>
+
+</div>

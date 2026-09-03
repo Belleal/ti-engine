@@ -612,6 +612,266 @@ function decomposeWorkSites( editedView, docs ) {
 }
 
 /* ============================================================================
+ * organization-structure — the org unit tree (add/edit/remove; `children` derived from `parent`)
+ * ========================================================================== */
+
+/**
+ * Optional string properties of a unit. Omitted from the rebuilt document when blank rather than written as `""`,
+ * which keeps a hand-typed tree free of empty keys — the schema requires none of them.
+ *
+ * @constant
+ * @type {string[]}
+ */
+const ORGANIZATION_OPTIONAL_FIELDS = [ "displayName", "description", "branch", "location" ];
+
+/**
+ * Orders unit IDs root-first, then depth-first through each unit's `children`, so the screen reads as a tree rather
+ * than as whatever order the map happens to hold. Falls back to appending any unit the walk never reaches (an
+ * orphan whose parent does not exist, or a member of a cycle) so a structurally broken document is still fully
+ * editable — which is exactly when an admin needs to see it.
+ *
+ * @method
+ * @param {Object} units The organization-structure document.
+ * @returns {string[]} Every key of `units`, in display order.
+ * @private
+ */
+function organizationDisplayOrder( units ) {
+    const ordered = [];
+    const seen = new Set();
+
+    const visit = ( unitID ) => {
+        if ( seen.has( unitID ) || !Object.prototype.hasOwnProperty.call( units, unitID ) ) {
+            return;
+        }
+        seen.add( unitID );
+        ordered.push( unitID );
+        const children = ( units[ unitID ] && units[ unitID ].children ) || [];
+        if ( Array.isArray( children ) ) {
+            children.forEach( ( childID ) => visit( String( childID ) ) );
+        }
+    };
+
+    Object.keys( units ).filter( ( unitID ) => {
+        const parent = units[ unitID ] && units[ unitID ].parent;
+        return parent === null || parent === undefined || parent === "";
+    } ).forEach( visit );
+
+    Object.keys( units ).forEach( ( unitID ) => {
+        if ( !seen.has( unitID ) ) {
+            ordered.push( unitID );
+        }
+    } );
+
+    return ordered;
+}
+
+/**
+ * Projects the organization structure as a flat list of editable rows in tree order.
+ * <br/>
+ * `children` is deliberately **not** part of the editable surface: it is derived from the rows' `parent` values on
+ * the way back in (see {@link decomposeOrganizationStructure}), which makes `organizationParentChildSymmetry`
+ * unfailable from this screen instead of something an admin has to keep in sync by hand. `depth` is carried for
+ * indentation only and is never written back.
+ *
+ * @method
+ * @param {Object} docs `{ "organization-structure" }`
+ * @returns {{units: Array<Object>}}
+ * @public
+ */
+function composeOrganizationStructure( docs ) {
+    const units = ( docs && docs[ "organization-structure" ] ) || {};
+
+    const depthOf = ( unitID, guard ) => {
+        let depth = 0;
+        let cursor = units[ unitID ];
+        const walked = guard || new Set( [ unitID ] );
+        while ( cursor && cursor.parent !== null && cursor.parent !== undefined && cursor.parent !== "" ) {
+            const parentID = String( cursor.parent );
+            // A cycle would otherwise spin here; the acyclicity validator reports it, this just stops counting.
+            if ( walked.has( parentID ) || !Object.prototype.hasOwnProperty.call( units, parentID ) ) {
+                break;
+            }
+            walked.add( parentID );
+            depth += 1;
+            cursor = units[ parentID ];
+        }
+        return depth;
+    };
+
+    const rows = organizationDisplayOrder( units ).map( ( unitID ) => {
+        const unit = units[ unitID ] || {};
+        const row = {
+            id: unitID,
+            name: ( typeof unit.name === "string" ) ? unit.name : "",
+            type: ( typeof unit.type === "string" ) ? unit.type : "",
+            parent: ( unit.parent === null || unit.parent === undefined ) ? "" : String( unit.parent ),
+            managerID: ( unit.managerID === null || unit.managerID === undefined ) ? "" : String( unit.managerID ),
+            depth: depthOf( unitID )
+        };
+        ORGANIZATION_OPTIONAL_FIELDS.forEach( ( field ) => {
+            row[ field ] = ( typeof unit[ field ] === "string" ) ? unit[ field ] : "";
+        } );
+        return row;
+    } );
+
+    return { units: rows };
+}
+
+/**
+ * Rebuilds the organization-structure document from the edited rows. **The submitted list is the complete set** — a
+ * unit absent from it is removed, the same contract as {@link decomposeWorkSites}.
+ * <br/>
+ * Three things are derived rather than trusted from the payload, each removing a way for the document to contradict
+ * itself:
+ * <ul>
+ *   <li>`id` is stamped from the row's own key, so `organizationIdMatchesKey` cannot be tripped.</li>
+ *   <li>`children` is rebuilt from the `parent` values, so `organizationParentChildSymmetry` cannot be tripped —
+ *       and a re-parented unit needs no edit on either old or new parent.</li>
+ *   <li>An empty `parent` or `managerID` becomes `null`, never `""`: the schema admits `null` or a non-empty
+ *       string, and `""` is neither. A blank `parent` therefore means "this is the root", which is what the single-root
+ *       validator then judges.</li>
+ * </ul>
+ * A child ID naming a unit that is not in the submitted set is dropped from `children` rather than written, since a
+ * dangling child is an asymmetry the validator would reject; the orphan itself still keeps its `parent` value, so the
+ * error the admin sees is the real one (a parent that does not exist) rather than a derived symmetry complaint.
+ *
+ * @method
+ * @param {Array<Object>|{units: Array<Object>}} editedView rows from {@link composeOrganizationStructure}
+ * @param {Object} docs current `{ "organization-structure" }`
+ * @returns {Object<string, Object>} `{ "organization-structure": newValue }`
+ * @public
+ */
+function decomposeOrganizationStructure( editedView, docs ) {
+    const rows = Array.isArray( editedView ) ? editedView : ( ( editedView && editedView.units ) || [] );
+    const existing = ( docs && docs[ "organization-structure" ] ) || {};
+    const next = {};
+
+    const trimmed = ( value ) => String( value === null || value === undefined ? "" : value ).trim();
+
+    rows.forEach( ( row ) => {
+        if ( !row ) {
+            return;
+        }
+        const unitID = trimmed( row.id );
+        if ( !unitID ) {
+            return;
+        }
+        const stored = existing[ unitID ] || {};
+        const parent = trimmed( row.parent );
+        const managerID = trimmed( row.managerID );
+
+        const unit = {
+            id: unitID,
+            name: ( typeof row.name === "string" ) ? row.name.trim() : ( stored.name || "" ),
+            type: ( typeof row.type === "string" ) ? row.type.trim() : ( stored.type || "" ),
+            parent: parent === "" ? null : parent,
+            children: [],
+            managerID: managerID === "" ? null : managerID
+        };
+
+        ORGANIZATION_OPTIONAL_FIELDS.forEach( ( field ) => {
+            const value = ( typeof row[ field ] === "string" ) ? row[ field ].trim() : trimmed( stored[ field ] );
+            if ( value !== "" ) {
+                unit[ field ] = value;
+            }
+        } );
+
+        next[ unitID ] = unit;
+    } );
+
+    // Derive `children` from the parent pointers, in the submitted row order so the tree stays stable across saves.
+    rows.forEach( ( row ) => {
+        const unitID = trimmed( row && row.id );
+        const parentID = trimmed( row && row.parent );
+        if ( !unitID || !parentID || !next[ parentID ] || !next[ unitID ] ) {
+            return;
+        }
+        if ( !next[ parentID ].children.includes( unitID ) ) {
+            next[ parentID ].children.push( unitID );
+        }
+    } );
+
+    return { "organization-structure": next };
+}
+
+/* ============================================================================
+ * research-consent — the consent statement per locale + the kill switch
+ * ========================================================================== */
+
+/**
+ * The locales the consent statement is authored in. Fixed rather than derived from the stored document so the screen
+ * always offers both, including on a deployment whose stored value happens to carry only one.
+ *
+ * @constant
+ * @type {string[]}
+ */
+const CONSENT_LANGUAGES = [ "en", "bg" ];
+
+/**
+ * Projects the research-consent document as the kill switch, the wording version, and one body per locale.
+ *
+ * @method
+ * @param {Object} docs `{ "research-consent" }`
+ * @returns {{enabled: boolean, version: string, texts: Array<{language: string, body: string}>}}
+ * @public
+ */
+function composeResearchConsent( docs ) {
+    const consent = ( docs && docs[ "research-consent" ] ) || {};
+    const text = consent.text || {};
+    return {
+        enabled: consent.enabled === true,
+        version: ( typeof consent.version === "string" ) ? consent.version : "",
+        texts: CONSENT_LANGUAGES.map( ( language ) => ( {
+            language: language,
+            body: ( text[ language ] && typeof text[ language ].body === "string" ) ? text[ language ].body : ""
+        } ) )
+    };
+}
+
+/**
+ * Rebuilds the research-consent document from the edited view.
+ * <br/>
+ * A locale whose body is blank after trimming is **omitted** rather than written as `""`: the schema requires a
+ * non-empty body on any locale present, so writing an empty one would fail validation on a field the admin simply
+ * left alone. The schema's `minProperties: 1` still refuses a document with no locale at all.
+ * <br/>
+ * The version is deliberately **not** derived or auto-incremented here. `consentTextVersionBumped` refuses a body
+ * change that does not move the version, and that refusal is the point: every stored consent record references the
+ * version in force, so a silent wording change would misrepresent what people actually agreed to. Bumping it is the
+ * admin's explicit act.
+ *
+ * @method
+ * @param {Object} editedView view from {@link composeResearchConsent}
+ * @param {Object} docs current `{ "research-consent" }`
+ * @returns {Object<string, Object>} `{ "research-consent": newValue }`
+ * @public
+ */
+function decomposeResearchConsent( editedView, docs ) {
+    const current = ( docs && docs[ "research-consent" ] ) || {};
+    const view = editedView || {};
+    const rows = Array.isArray( view.texts ) ? view.texts : [];
+
+    const text = {};
+    rows.forEach( ( row ) => {
+        if ( !row || CONSENT_LANGUAGES.indexOf( row.language ) === -1 ) {
+            return;
+        }
+        const body = ( typeof row.body === "string" ) ? row.body.trim() : "";
+        if ( body !== "" ) {
+            text[ row.language ] = { body: body };
+        }
+    } );
+
+    return {
+        "research-consent": {
+            enabled: view.enabled === true,
+            version: ( typeof view.version === "string" ) ? view.version.trim() : ( current.version || "" ),
+            text: text
+        }
+    };
+}
+
+/* ============================================================================
  * Editor definitions + registration
  * ========================================================================== */
 
@@ -681,6 +941,41 @@ const workSitesEditor = {
 };
 
 /**
+ * The `organization-structure` composite editor definition (the org unit tree; `children` derived from `parent`).
+ * <br/>
+ * This is the only write path to the document. It was registered `editable: true` from the start (CA-106) on the
+ * assumption that a generic document editor would serve it, but the framework's admin API exposes reads for a
+ * document and writes only through a composite editor — so until this editor existed the tree could be seeded and
+ * read but never changed, leaving a fresh install permanently on the shipped sample org.
+ *
+ * @constant
+ * @type {Object}
+ */
+const organizationStructureEditor = {
+    documents: [ "organization-structure" ],
+    compose: composeOrganizationStructure,
+    decompose: decomposeOrganizationStructure,
+    metadata: { label: "organization.structure", writes: [ "organization-structure" ] }
+};
+
+/**
+ * The `research-consent` composite editor definition (the statement per locale, its version, and the kill switch).
+ * <br/>
+ * Like the organization structure, this document was registered `editable: true` from the start (CA-93) — its design
+ * calls the statement "admin-editable per locale" — but nothing wrote it, so the shipped wording could never be
+ * changed without a redeploy.
+ *
+ * @constant
+ * @type {Object}
+ */
+const researchConsentEditor = {
+    documents: [ "research-consent" ],
+    compose: composeResearchConsent,
+    decompose: decomposeResearchConsent,
+    metadata: { label: "consent.research", writes: [ "research-consent" ] }
+};
+
+/**
  * Registers competence's composite editors with the framework config service.
  *
  * @method
@@ -694,6 +989,8 @@ function registerCompetenceEditors( app ) {
     app.registerConfigEditor( "relevancy-archetype", relevancyArchetypeEditor );
     app.registerConfigEditor( "role-families", roleFamiliesEditor );
     app.registerConfigEditor( "work-sites", workSitesEditor );
+    app.registerConfigEditor( "organization-structure", organizationStructureEditor );
+    app.registerConfigEditor( "research-consent", researchConsentEditor );
     return app;
 }
 
@@ -710,10 +1007,16 @@ module.exports = {
     decomposeRoleFamilies,
     composeWorkSites,
     decomposeWorkSites,
+    composeOrganizationStructure,
+    decomposeOrganizationStructure,
+    composeResearchConsent,
+    decomposeResearchConsent,
     competencyTextEditor,
     archetypeAssignmentEditor,
     relevancyArchetypeEditor,
     roleFamiliesEditor,
     workSitesEditor,
+    organizationStructureEditor,
+    researchConsentEditor,
     registerCompetenceEditors
 };

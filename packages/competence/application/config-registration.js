@@ -78,7 +78,12 @@ function registerCompetenceConfig( app ) {
         schema: activeCompetencySetsSchema,
         validators: [ validators.activeSetsReferenceIntegrity, validators.activeSetsFloorCoverage, validators.activeSetsCap, validators.activeSetsWithinPool ],
         defaultValue: configurationLoader.fileDefaults[ "active-competency-sets" ],
-        metadata: { path: "bin/config/config.active-competency-sets.json", label: "active.competency.sets", editable: true }
+        // Read-only for the same reason as `role-family-competencies`: the runtime baselines an operator actually
+        // edits live in the `ti:competence:data:active-competency-sets` collection behind the Cycle Setup screen,
+        // and no composite editor writes this document. Claiming `editable: true` for a document with no write path
+        // is what left the organization structure unchangeable for three releases; it stays exportable and
+        // restorable either way.
+        metadata: { path: "bin/config/config.active-competency-sets.json", label: "active.competency.sets", editable: false }
     } );
     app.registerConfigDocument( "role-families", {
         schema: roleFamiliesSchema,
