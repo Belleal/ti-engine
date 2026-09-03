@@ -93,3 +93,43 @@ describe( "organization structure semantic validators", () => {
     } );
 
 } );
+
+describe( "organizationSafeUnitIDs", () => {
+
+    // The editors no longer corrupt a document when a unit is keyed `__proto__`, but the key would still reach the
+    // store and force every later `units[ id ]` lookup against a plain object to be defensive about it. Refusing it
+    // once here is the same trade as the UNSAFE_PATH_SEGMENTS guard on employee field paths (CA-91).
+
+    const unit = ( id ) => ( { id: id, name: id, type: "Unit", parent: null, children: [] } );
+
+    // Object.fromEntries, not an object literal: `{ "__proto__": x }` assigns the prototype and creates no key at
+    // all, so a literal fixture would test nothing. fromEntries defines the property, which is what JSON.parse also
+    // does when a stored document comes back from Redis — the shape this validator actually meets.
+    const documentOf = ( ...ids ) => Object.fromEntries( ids.map( ( id ) => [ id, unit( id ) ] ) );
+
+    it( "accepts ordinary unit identifiers", async () => {
+        assert.deepEqual( await validators.organizationSafeUnitIDs( documentOf( "ROOT", "ENG" ) ), [] );
+    } );
+
+    it( "refuses a unit keyed __proto__", async () => {
+        const issues = await validators.organizationSafeUnitIDs( documentOf( "__proto__" ) );
+        assert.equal( issues.length, 1 );
+        assert.equal( issues[ 0 ].code, "unsafe-key" );
+        assert.match( issues[ 0 ].message, /__proto__/ );
+    } );
+
+    it( "refuses constructor and prototype too", async () => {
+        const issues = await validators.organizationSafeUnitIDs( documentOf( "constructor", "prototype" ) );
+        assert.deepEqual( issues.map( ( issue ) => issue.path ).sort(), [ ".constructor", ".prototype" ] );
+    } );
+
+    it( "reports only the offending key when safe ones sit beside it", async () => {
+        const issues = await validators.organizationSafeUnitIDs( documentOf( "ROOT", "__proto__" ) );
+        assert.deepEqual( issues.map( ( issue ) => issue.path ), [ ".__proto__" ] );
+    } );
+
+    it( "tolerates an absent document", async () => {
+        assert.deepEqual( await validators.organizationSafeUnitIDs( undefined ), [] );
+    } );
+
+} );

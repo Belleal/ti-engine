@@ -16,6 +16,7 @@ const {
     composeRelevancyArchetype, decomposeRelevancyArchetype,
     composeRoleFamilies, decomposeRoleFamilies,
     composeOrganizationStructure, decomposeOrganizationStructure,
+    decomposeWorkSites,
     composeResearchConsent, decomposeResearchConsent,
     competencyTextEditor, registerCompetenceEditors
 } = require( "../application/config-editors" );
@@ -497,6 +498,62 @@ describe( "config-editors — composeResearchConsent / decomposeResearchConsent"
         view.texts.push( { language: "de", body: "Deutscher Text." } );
         const result = decomposeResearchConsent( view, docs )[ "research-consent" ];
         assert.deepEqual( Object.keys( result.text ).sort(), [ "bg", "en" ] );
+    } );
+
+} );
+
+/* ============================================================================
+ * prototype-polluting keys in the entity editors
+ * ========================================================================== */
+
+describe( "config-editors — decompose is safe against prototype-polluting keys", () => {
+
+    // `decompose` runs BEFORE applyEdits validates, so anything it throws escapes as a 500 instead of arriving as
+    // `{ ok: false, errors }` on the screen. Building on a plain `{}` gave three ways for that to happen.
+
+    it( "does not throw when a row's parent is __proto__", () => {
+        const doc = decomposeOrganizationStructure( { units: [
+            { id: "ROOT", name: "Acme", type: "Organization", parent: "" },
+            { id: "ENG", name: "Eng", type: "Unit", parent: "__proto__" }
+        ] }, {} )[ "organization-structure" ];
+        // Object.prototype.children is undefined, so the old code called .includes on it and threw.
+        assert.deepEqual( doc.ROOT.children, [] );
+        assert.equal( doc.ENG.parent, "__proto__", "the bad parent is preserved so the validator can name it" );
+    } );
+
+    it( "keeps a __proto__ unit id as a real key instead of losing it to the setter", () => {
+        const doc = decomposeOrganizationStructure( { units: [
+            { id: "__proto__", name: "Evil", type: "Unit", parent: "" }
+        ] }, {} )[ "organization-structure" ];
+        assert.ok( Object.prototype.hasOwnProperty.call( doc, "__proto__" ), "present as an own key, not swallowed" );
+        assert.equal( Object.getPrototypeOf( doc ), Object.prototype, "and the document's own prototype is untouched" );
+    } );
+
+    it( "keeps a __proto__ work-site code as a real key too", () => {
+        const doc = decomposeWorkSites( { sites: [
+            { code: "__proto__", type: "office", name: { en: "x", bg: "х" } }
+        ] }, {} )[ "work-sites" ];
+        assert.ok( Object.prototype.hasOwnProperty.call( doc, "__proto__" ) );
+        assert.equal( Object.getPrototypeOf( doc ), Object.prototype );
+    } );
+
+    it( "does not treat an inherited member as an already-submitted unit", () => {
+        // `next[ "constructor" ]` is truthy on a plain object, so a parent of "constructor" used to pass the guard
+        // and have a child pushed onto a member of Object.prototype.
+        const doc = decomposeOrganizationStructure( { units: [
+            { id: "ROOT", name: "Acme", type: "Organization", parent: "" },
+            { id: "ENG", name: "Eng", type: "Unit", parent: "constructor" }
+        ] }, {} )[ "organization-structure" ];
+        assert.deepEqual( Object.keys( doc ).sort(), [ "ENG", "ROOT" ] );
+        assert.deepEqual( doc.ROOT.children, [] );
+    } );
+
+    it( "leaves an ordinary document byte-identical", () => {
+        // The hardening must not change the shape of a normal save.
+        const docs = orgFixture();
+        const result = decomposeOrganizationStructure( composeOrganizationStructure( docs ), docs );
+        assert.deepEqual( result[ "organization-structure" ], orgFixture()[ "organization-structure" ] );
+        assert.equal( Object.getPrototypeOf( result[ "organization-structure" ] ), Object.prototype );
     } );
 
 } );

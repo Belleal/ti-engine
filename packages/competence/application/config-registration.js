@@ -111,13 +111,13 @@ function registerCompetenceConfig( app ) {
     } );
     app.registerConfigDocument( "organization-structure", {
         schema: organizationStructureSchema,
-        validators: [ validators.organizationSingleRoot, validators.organizationParentChildSymmetry, validators.organizationNoCycles, validators.organizationIdMatchesKey ],
+        validators: [ validators.organizationSingleRoot, validators.organizationParentChildSymmetry, validators.organizationNoCycles, validators.organizationIdMatchesKey, validators.organizationSafeUnitIDs ],
         defaultValue: configurationLoader.fileDefaults[ "organization-structure" ],
         metadata: { path: "bin/config/config.organization-structure.json", label: "organization.structure", editable: true, driftTracked: false }
     } );
     app.registerConfigDocument( "work-sites", {
         schema: workSitesSchema,
-        validators: [ validators.workSiteIdMatchesKey, validators.workSitesReferentialIntegrity ],
+        validators: [ validators.workSiteIdMatchesKey, validators.workSiteSafeCodes, validators.workSitesReferentialIntegrity ],
         defaultValue: configurationLoader.fileDefaults[ "work-sites" ],
         metadata: { path: "bin/config/config.work-sites.json", label: "work.sites", editable: true, driftTracked: false }
     } );

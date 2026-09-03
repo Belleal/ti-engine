@@ -44,6 +44,17 @@ organization.
   boot.
 * test(config): fail the build when a document is registered `editable: true` with no editor that writes it. That
   invariant is what went unnoticed for three releases, and it found two of the three cases above on its first run.
+* fix(config): harden the entity editors against prototype-polluting map keys. `decompose` runs before `applyEdits`
+  validates, so anything it throws escapes as a 500 rather than arriving on the screen as `{ ok: false, errors }`.
+  Building the rebuilt document on a plain `{}` gave three ways for that to happen: a unit ID of `__proto__` hit the
+  inherited setter, silently dropping the unit and replacing the map's prototype; a *parent* of `__proto__` resolved
+  `Object.prototype`, whose `children` is undefined, and threw; and an inherited member such as `constructor` read as
+  an already-submitted unit. Both `decomposeOrganizationStructure` and the pre-existing `decomposeWorkSites` now
+  build on `Object.create( null )` and return a plain object by spread — `Object.assign` would re-introduce the
+  setter. New `organizationSafeUnitIDs` / `workSiteSafeCodes` validators then refuse such a key outright with a
+  message, so it never reaches the store where every later `units[ id ]` lookup would have to be defensive about it.
+  Same defect `tools.decycle` carried in core 1.11.0, and the same reasoning as the `UNSAFE_PATH_SEGMENTS` guard on
+  employee field paths (CA-91).
 * build(deps): requires `@ti-engine/web-framework` >= 1.26.0 for `listSchemaViolations()`.
 
 ## Version 3.31.0

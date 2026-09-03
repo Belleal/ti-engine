@@ -590,7 +590,9 @@ function composeWorkSites( docs ) {
 function decomposeWorkSites( editedView, docs ) {
     const rows = Array.isArray( editedView ) ? editedView : ( ( editedView && editedView.sites ) || [] );
     const existing = ( docs && docs[ "work-sites" ] ) || {};
-    const next = {};
+    // See the note in decomposeOrganizationStructure: a code of `__proto__` on a plain object silently drops the
+    // site and replaces the map's prototype. This one predates the organization editor and had the same hole.
+    const next = Object.create( null );
 
     rows.forEach( ( row ) => {
         if ( !row || !row.code ) {
@@ -608,7 +610,7 @@ function decomposeWorkSites( editedView, docs ) {
         };
     } );
 
-    return { "work-sites": next };
+    return { "work-sites": { ...next } };
 }
 
 /* ============================================================================
@@ -744,7 +746,12 @@ function composeOrganizationStructure( docs ) {
 function decomposeOrganizationStructure( editedView, docs ) {
     const rows = Array.isArray( editedView ) ? editedView : ( ( editedView && editedView.units ) || [] );
     const existing = ( docs && docs[ "organization-structure" ] ) || {};
-    const next = {};
+    // Object.create( null ), not {}: a unit ID of `__proto__` assigned onto a plain object hits the inherited
+    // setter instead of creating a key — the unit vanishes and the map's prototype is replaced — and a *parent* of
+    // `__proto__` then resolves `Object.prototype`, whose `children` is undefined, throwing out of decompose before
+    // any validator can turn it into `{ ok: false, errors }`. Same defect `tools.decycle` carried (core 1.11.0) and
+    // the same fix. `organizationSafeUnitIDs` rejects such an ID with a message; this makes the rejection reachable.
+    const next = Object.create( null );
 
     const trimmed = ( value ) => String( value === null || value === undefined ? "" : value ).trim();
 
@@ -780,10 +787,12 @@ function decomposeOrganizationStructure( editedView, docs ) {
     } );
 
     // Derive `children` from the parent pointers, in the submitted row order so the tree stays stable across saves.
+    const isSubmitted = ( key ) => key !== "" && Object.prototype.hasOwnProperty.call( next, key );
+
     rows.forEach( ( row ) => {
         const unitID = trimmed( row && row.id );
         const parentID = trimmed( row && row.parent );
-        if ( !unitID || !parentID || !next[ parentID ] || !next[ unitID ] ) {
+        if ( !isSubmitted( unitID ) || !isSubmitted( parentID ) ) {
             return;
         }
         if ( !next[ parentID ].children.includes( unitID ) ) {
@@ -791,7 +800,10 @@ function decomposeOrganizationStructure( editedView, docs ) {
         }
     } );
 
-    return { "organization-structure": next };
+    // Spread rather than Object.assign: spread copies own properties by definition, while assign uses [[Set]] and
+    // would re-introduce the very setter this function avoided. The result is an ordinary object, so it compares and
+    // serializes like every other document.
+    return { "organization-structure": { ...next } };
 }
 
 /* ============================================================================
