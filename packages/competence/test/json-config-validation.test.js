@@ -349,7 +349,7 @@ const LEVELS = configurationLoader.getArchetypeStageLevels();
         assert.deepEqual( failures, [], `Archetype-resolution failures:\n  ${ failures.join( "\n  " ) }` );
     } );
 
-    it( "every archetype curve has all twelve stage-level weights in range 1-10", () => {
+    it( "every archetype curve has all thirteen stage-level weights in range 1-10", () => {
         const archetypes = readJSON( path.join( CONFIG_DIR, "config.relevancy-archetypes.json" ) );
         const failures = [];
         for ( const [ id, archetype ] of Object.entries( archetypes ) ) {

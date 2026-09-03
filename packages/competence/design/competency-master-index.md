@@ -2,7 +2,7 @@
 
 Authoritative code → name → applicability reference. Full descriptions and stage-level anchors live in `competency-definitions-final.md`; Bulgarian in `competency-bg-translations.md`; archetypes in `competency-relevancy-model.md`; deltas in `competency-change-log.md`.
 
-**Reflects Increments 1–6** (QE · architecture · management set · T2 · XD · SE specializations · DA · MC). Regenerated from the definitions file, not reconstructed from memory.
+**Reflects Increments 1–8** (QE · architecture · management set · T2 · XD · SE specializations · DA · MC · PD · TC). Regenerated from the definitions file, not reconstructed from memory.
 
 ---
 
@@ -13,7 +13,7 @@ Authoritative code → name → applicability reference. Full descriptions and s
 - **Gaps are intentional.** Dropped or merged competencies leave their numbers vacant. New codes continue above all previously-used numbers, including retired ones.
 - **Applicability is not encoded in the code.** It lives in `config.role-family-competencies.json` (per-family pool), `config.relevancy-archetypes.json` together with each competency's `relevancyArchetype` pointer (weights), and `config.active-competency-sets.json` (per-cycle selection).
 
-**Next free codes:** `E1-85` · `E2-100` · `E3-40` · `I1-20` · `I2-14` · `I3-4` · `C1-9` · `C2-8` · `C3-10`
+**Next free codes:** `E1-103` · `E2-116` · `E3-46` · `I1-26` · `I2-14` · `I3-4` · `C1-9` · `C2-8` · `C3-10`
 
 ## Stage-levels (13 sub-levels)
 
