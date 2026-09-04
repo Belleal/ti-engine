@@ -148,7 +148,7 @@ describe( "config-registration (competence)", () => {
             Object.keys( registered ).sort(),
             [ "active-competency-sets", "competence-labels", "competencies", "organization-structure", "relevancy-archetypes", "research-consent", "role-families", "role-family-competencies", "stage-levels", "work-sites" ]
         );
-        assert.deepEqual( Object.keys( editors ).sort(), [ "archetype-assignment", "competency-text", "relevancy-archetype", "role-families", "work-sites" ] );
+        assert.deepEqual( Object.keys( editors ).sort(), [ "archetype-assignment", "competency-text", "organization-structure", "relevancy-archetype", "research-consent", "role-families", "work-sites" ] );
         assert.deepEqual( editors[ "competency-text" ].documents, [ "competencies", "competence-labels" ] );
         assert.ok( registered[ "relevancy-archetypes" ].validators.length >= 1, "relevancy-archetypes carries the referential-integrity validator" );
         assert.ok( registered[ "role-families" ].validators.length >= 1, "role-families carries the referential-integrity validator" );
@@ -156,6 +156,7 @@ describe( "config-registration (competence)", () => {
         assert.equal( registered[ "role-families" ].metadata.editable, true );
         assert.ok( registered[ "active-competency-sets" ].validators.length >= 4, "active-competency-sets carries the pool-membership validator too" );
         assert.equal( registered[ "role-family-competencies" ].metadata.editable, false, "the pool is registered read-only (exportable, not inline-editable yet)" );
+        assert.equal( registered[ "active-competency-sets" ].metadata.editable, false, "the shipped active sets are read-only too: Cycle Setup edits the runtime collection, not this document" );
         assert.ok( registered[ "role-family-competencies" ].validators.length >= 1, "the pool carries its reference-integrity validator" );
         assert.ok( registered.competencies.defaultValue && registered.competencies.defaultValue.competencies );
         assert.ok( registered[ "relevancy-archetypes" ].defaultValue && registered[ "relevancy-archetypes" ].defaultValue.A );
@@ -165,6 +166,33 @@ describe( "config-registration (competence)", () => {
         assert.ok( registered[ "work-sites" ].validators.length >= 1, "work-sites carries its id-matches-key validator" );
         assert.equal( registered[ "work-sites" ].metadata.editable, true );
         assert.equal( registered[ "work-sites" ].metadata.driftTracked, false, "work-sites holds deployment data and is drift-exempt" );
+    } );
+
+    it( "gives every document registered editable a composite editor that writes it", () => {
+        // `editable: true` is a claim about the deployment, not a decoration: the framework's admin API exposes
+        // GET for a document but no generic write, so the ONLY way to change one is a composite editor naming it in
+        // `metadata.writes`. `organization-structure` carried `editable: true` from CA-106 with no such editor,
+        // which left a fresh install permanently on the shipped sample org — seeded, readable, and unchangeable.
+        // This guard makes that combination fail here instead of on someone's first install.
+        const registered = {};
+        const editors = {};
+        const stubApp = {
+            registerConfigDocument( key, definition ) { registered[ key ] = definition; return this; },
+            registerConfigEditor( key, definition ) { editors[ key ] = definition; return this; }
+        };
+        registerCompetenceConfig( stubApp );
+
+        const written = new Set();
+        Object.keys( editors ).forEach( ( editorKey ) => {
+            const writes = ( editors[ editorKey ].metadata && editors[ editorKey ].metadata.writes ) || editors[ editorKey ].documents || [];
+            writes.forEach( ( configKey ) => written.add( configKey ) );
+        } );
+
+        const unwritable = Object.keys( registered ).filter( ( configKey ) => {
+            return registered[ configKey ].metadata && registered[ configKey ].metadata.editable === true && !written.has( configKey );
+        } );
+
+        assert.deepEqual( unwritable, [], `documents registered editable with no editor that writes them: ${ unwritable.join( ", " ) }` );
     } );
 
     it( "keeps competence-labels' default reading the directly-required labels constant, and pins a default for every store-backed document", () => {

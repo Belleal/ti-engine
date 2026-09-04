@@ -15,6 +15,9 @@ const {
     composeArchetypeAssignment, decomposeArchetypeAssignment,
     composeRelevancyArchetype, decomposeRelevancyArchetype,
     composeRoleFamilies, decomposeRoleFamilies,
+    composeOrganizationStructure, decomposeOrganizationStructure,
+    decomposeWorkSites,
+    composeResearchConsent, decomposeResearchConsent,
     competencyTextEditor, registerCompetenceEditors
 } = require( "../application/config-editors" );
 
@@ -258,7 +261,8 @@ describe( "config-editors — composeRelevancyArchetype / decomposeRelevancyArch
         const editors = {};
         const stubApp = { registerConfigEditor( key, definition ) { editors[ key ] = definition; return this; } };
         registerCompetenceEditors( stubApp );
-        assert.deepEqual( Object.keys( editors ).sort(), [ "archetype-assignment", "competency-text", "relevancy-archetype", "role-families", "work-sites" ] );
+        assert.deepEqual( Object.keys( editors ).sort(), [ "archetype-assignment", "competency-text", "organization-structure", "relevancy-archetype", "research-consent", "role-families", "work-sites" ] );
+        assert.deepEqual( editors[ "organization-structure" ].metadata.writes, [ "organization-structure" ] );
         assert.deepEqual( editors[ "archetype-assignment" ].metadata.writes, [ "competencies" ] );
         assert.deepEqual( editors[ "relevancy-archetype" ].metadata.writes, [ "relevancy-archetypes", "competence-labels" ] );
         assert.deepEqual( editors[ "role-families" ].metadata.writes, [ "role-families", "competence-labels" ] );
@@ -343,6 +347,213 @@ describe( "config-editors — composeRoleFamilies / decomposeRoleFamilies", () =
         assert.equal( result[ "role-families" ].ZZ, undefined, "unknown family ignored" );
         assert.ok( result[ "role-families" ].SE.specializations.FRONTEND, "existing family untouched" );
         assert.ok( docs[ "role-families" ].SE.specializations.FRONTEND, "input not mutated" );
+    } );
+
+} );
+
+/* ============================================================================
+ * organization-structure
+ * ========================================================================== */
+
+const orgFixture = () => ( {
+    "organization-structure": {
+        ROOT: { id: "ROOT", name: "Acme", type: "Organization", parent: null, children: [ "ENG" ], managerID: "100" },
+        ENG: { id: "ENG", name: "Engineering", type: "Department", parent: "ROOT", children: [ "QA" ], managerID: "200", location: "Sofia" },
+        QA: { id: "QA", name: "Quality", type: "Unit", parent: "ENG", children: [], managerID: null }
+    }
+} );
+
+describe( "config-editors — composeOrganizationStructure / decomposeOrganizationStructure", () => {
+
+    it( "projects rows in tree order with a depth for each", () => {
+        const view = composeOrganizationStructure( orgFixture() );
+        assert.deepEqual( view.units.map( ( u ) => u.id ), [ "ROOT", "ENG", "QA" ] );
+        assert.deepEqual( view.units.map( ( u ) => u.depth ), [ 0, 1, 2 ] );
+    } );
+
+    it( "presents a null parent and a null managerID as empty strings the form can bind", () => {
+        const view = composeOrganizationStructure( orgFixture() );
+        assert.equal( view.units[ 0 ].parent, "" );
+        assert.equal( view.units[ 2 ].managerID, "" );
+    } );
+
+    it( "round-trips a document unchanged", () => {
+        const docs = orgFixture();
+        const result = decomposeOrganizationStructure( composeOrganizationStructure( docs ), docs );
+        assert.deepEqual( result[ "organization-structure" ], orgFixture()[ "organization-structure" ] );
+    } );
+
+    it( "derives children from the parent pointers, so re-parenting needs one field on one row", () => {
+        const docs = orgFixture();
+        const view = composeOrganizationStructure( docs );
+        view.units[ 2 ].parent = "ROOT";
+        const result = decomposeOrganizationStructure( view, docs )[ "organization-structure" ];
+        assert.deepEqual( result.ROOT.children, [ "ENG", "QA" ] );
+        assert.deepEqual( result.ENG.children, [], "the old parent lets go without being edited" );
+    } );
+
+    it( "writes an empty parent and manager back as null, never as an empty string", () => {
+        // The schema admits null or a non-empty string; "" is neither, so a blank field must not survive as one.
+        const result = decomposeOrganizationStructure(
+            { units: [ { id: "SOLO", name: "Solo", type: "Organization", parent: "  ", managerID: "" } ] }, {} )[ "organization-structure" ];
+        assert.equal( result.SOLO.parent, null );
+        assert.equal( result.SOLO.managerID, null );
+    } );
+
+    it( "stamps id from the row key and drops a row with no id", () => {
+        const result = decomposeOrganizationStructure(
+            { units: [ { id: " ROOT ", name: "Acme", type: "Organization", parent: "" }, { id: "  ", name: "Ghost", type: "Unit", parent: "ROOT" } ] }, {} )[ "organization-structure" ];
+        assert.deepEqual( Object.keys( result ), [ "ROOT" ] );
+        assert.equal( result.ROOT.id, "ROOT" );
+    } );
+
+    it( "omits a blank optional field rather than writing an empty string", () => {
+        const result = decomposeOrganizationStructure(
+            { units: [ { id: "ROOT", name: "Acme", type: "Organization", parent: "", location: "", description: "HQ" } ] }, {} )[ "organization-structure" ];
+        assert.equal( Object.prototype.hasOwnProperty.call( result.ROOT, "location" ), false );
+        assert.equal( result.ROOT.description, "HQ" );
+    } );
+
+    it( "drops a child reference to a unit that is not in the submitted set", () => {
+        // The orphan keeps its own parent, so the error the admin sees is the real one (a parent that is gone)
+        // rather than a derived symmetry complaint about a list they never edited.
+        const docs = orgFixture();
+        const view = composeOrganizationStructure( docs );
+        view.units = view.units.filter( ( u ) => u.id !== "ENG" );
+        const result = decomposeOrganizationStructure( view, docs )[ "organization-structure" ];
+        assert.deepEqual( result.ROOT.children, [] );
+        assert.equal( result.QA.parent, "ENG" );
+    } );
+
+    it( "still lists every unit when the stored tree has no root at all", () => {
+        // A structurally broken document is exactly when an admin needs to see all of it.
+        const broken = { "organization-structure": {
+            A: { id: "A", name: "A", type: "Unit", parent: "B", children: [] },
+            B: { id: "B", name: "B", type: "Unit", parent: "A", children: [] }
+        } };
+        assert.deepEqual( composeOrganizationStructure( broken ).units.map( ( u ) => u.id ).sort(), [ "A", "B" ] );
+    } );
+
+} );
+
+/* ============================================================================
+ * research-consent
+ * ========================================================================== */
+
+const consentFixture = () => ( {
+    "research-consent": {
+        enabled: true,
+        version: "1.0",
+        text: { en: { body: "English statement." }, bg: { body: "Български текст." } }
+    }
+} );
+
+describe( "config-editors — composeResearchConsent / decomposeResearchConsent", () => {
+
+    it( "projects the switch, the version and one body per locale", () => {
+        const view = composeResearchConsent( consentFixture() );
+        assert.equal( view.enabled, true );
+        assert.equal( view.version, "1.0" );
+        assert.deepEqual( view.texts.map( ( t ) => t.language ), [ "en", "bg" ] );
+        assert.equal( view.texts[ 1 ].body, "Български текст." );
+    } );
+
+    it( "offers both locales even when the stored document carries only one", () => {
+        const view = composeResearchConsent( { "research-consent": { enabled: true, version: "2.0", text: { en: { body: "Only English." } } } } );
+        assert.deepEqual( view.texts.map( ( t ) => t.language ), [ "en", "bg" ] );
+        assert.equal( view.texts[ 1 ].body, "" );
+    } );
+
+    it( "round-trips a document unchanged", () => {
+        const docs = consentFixture();
+        const result = decomposeResearchConsent( composeResearchConsent( docs ), docs );
+        assert.deepEqual( result[ "research-consent" ], consentFixture()[ "research-consent" ] );
+    } );
+
+    it( "omits a locale left blank rather than writing an empty body the schema refuses", () => {
+        const docs = consentFixture();
+        const view = composeResearchConsent( docs );
+        view.texts[ 1 ].body = "   ";
+        const result = decomposeResearchConsent( view, docs )[ "research-consent" ];
+        assert.deepEqual( Object.keys( result.text ), [ "en" ] );
+    } );
+
+    it( "never invents a version bump — that refusal is the validator's, and the point of it", () => {
+        const docs = consentFixture();
+        const view = composeResearchConsent( docs );
+        view.texts[ 0 ].body = "Reworded.";
+        const result = decomposeResearchConsent( view, docs )[ "research-consent" ];
+        assert.equal( result.version, "1.0" );
+    } );
+
+    it( "coerces the switch to a real boolean", () => {
+        const docs = consentFixture();
+        const result = decomposeResearchConsent( { ...composeResearchConsent( docs ), enabled: "yes" }, docs )[ "research-consent" ];
+        assert.equal( result.enabled, false, "only a true boolean enables collection — fail closed" );
+    } );
+
+    it( "ignores a locale the statement is not authored in", () => {
+        const docs = consentFixture();
+        const view = composeResearchConsent( docs );
+        view.texts.push( { language: "de", body: "Deutscher Text." } );
+        const result = decomposeResearchConsent( view, docs )[ "research-consent" ];
+        assert.deepEqual( Object.keys( result.text ).sort(), [ "bg", "en" ] );
+    } );
+
+} );
+
+/* ============================================================================
+ * prototype-polluting keys in the entity editors
+ * ========================================================================== */
+
+describe( "config-editors — decompose is safe against prototype-polluting keys", () => {
+
+    // `decompose` runs BEFORE applyEdits validates, so anything it throws escapes as a 500 instead of arriving as
+    // `{ ok: false, errors }` on the screen. Building on a plain `{}` gave three ways for that to happen.
+
+    it( "does not throw when a row's parent is __proto__", () => {
+        const doc = decomposeOrganizationStructure( { units: [
+            { id: "ROOT", name: "Acme", type: "Organization", parent: "" },
+            { id: "ENG", name: "Eng", type: "Unit", parent: "__proto__" }
+        ] }, {} )[ "organization-structure" ];
+        // Object.prototype.children is undefined, so the old code called .includes on it and threw.
+        assert.deepEqual( doc.ROOT.children, [] );
+        assert.equal( doc.ENG.parent, "__proto__", "the bad parent is preserved so the validator can name it" );
+    } );
+
+    it( "keeps a __proto__ unit id as a real key instead of losing it to the setter", () => {
+        const doc = decomposeOrganizationStructure( { units: [
+            { id: "__proto__", name: "Evil", type: "Unit", parent: "" }
+        ] }, {} )[ "organization-structure" ];
+        assert.ok( Object.prototype.hasOwnProperty.call( doc, "__proto__" ), "present as an own key, not swallowed" );
+        assert.equal( Object.getPrototypeOf( doc ), Object.prototype, "and the document's own prototype is untouched" );
+    } );
+
+    it( "keeps a __proto__ work-site code as a real key too", () => {
+        const doc = decomposeWorkSites( { sites: [
+            { code: "__proto__", type: "office", name: { en: "x", bg: "х" } }
+        ] }, {} )[ "work-sites" ];
+        assert.ok( Object.prototype.hasOwnProperty.call( doc, "__proto__" ) );
+        assert.equal( Object.getPrototypeOf( doc ), Object.prototype );
+    } );
+
+    it( "does not treat an inherited member as an already-submitted unit", () => {
+        // `next[ "constructor" ]` is truthy on a plain object, so a parent of "constructor" used to pass the guard
+        // and have a child pushed onto a member of Object.prototype.
+        const doc = decomposeOrganizationStructure( { units: [
+            { id: "ROOT", name: "Acme", type: "Organization", parent: "" },
+            { id: "ENG", name: "Eng", type: "Unit", parent: "constructor" }
+        ] }, {} )[ "organization-structure" ];
+        assert.deepEqual( Object.keys( doc ).sort(), [ "ENG", "ROOT" ] );
+        assert.deepEqual( doc.ROOT.children, [] );
+    } );
+
+    it( "leaves an ordinary document byte-identical", () => {
+        // The hardening must not change the shape of a normal save.
+        const docs = orgFixture();
+        const result = decomposeOrganizationStructure( composeOrganizationStructure( docs ), docs );
+        assert.deepEqual( result[ "organization-structure" ], orgFixture()[ "organization-structure" ] );
+        assert.equal( Object.getPrototypeOf( result[ "organization-structure" ] ), Object.prototype );
     } );
 
 } );

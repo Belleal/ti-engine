@@ -197,13 +197,7 @@ class ConfigRegistry {
             return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { reason: "unknown-config", configKey: configKey } ) );
         }
 
-        const errors = [];
-        const validateSchema = this.#schemaValidator( registration );
-        if ( !validateSchema( value ) ) {
-            for ( const error of ( validateSchema.errors || [] ) ) {
-                errors.push( { path: error.dataPath || instancePathToDataPath( error.instancePath ), message: error.message || "schema violation", code: "schema", params: error.params } );
-            }
-        }
+        const errors = this.validateSchema( configKey, value ).errors.slice();
 
         return Promise.all( registration.validators.map( ( validator ) => {
             return Promise.resolve( validator( value, context ) ).then( ( issues ) => ( Array.isArray( issues ) ? issues : [] ) );
@@ -215,6 +209,38 @@ class ConfigRegistry {
             }
             return { valid: errors.length === 0, errors: errors };
         } );
+    }
+
+    /**
+     * Validates a value against a document's registered schema **only**, skipping the semantic validators.
+     * <br/>
+     * Separate from {@link ConfigRegistry#validate} because the two answer different questions. A semantic validator
+     * may need a {@link ValidatorContext} the caller has no reason to build, and several of them are about an edit
+     * (did the version move? does this removal orphan a reference?) rather than about the document standing alone.
+     * A caller that just wants to know whether a value is structurally admissible — a boot-time check on what the
+     * store already holds, say — needs this half and not the other.
+     *
+     * @method
+     * @param {string} configKey
+     * @param {Object} value
+     * @returns {{valid: boolean, errors: ConfigValidationIssue[]}}
+     * @throws {TiException.E_WEB_INVALID_REQUEST_PARAMETERS} If the document is not registered.
+     * @public
+     */
+    validateSchema( configKey, value ) {
+        const registration = this.#registrations.get( configKey );
+        if ( !registration ) {
+            throw exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { reason: "unknown-config", configKey: configKey } );
+        }
+
+        const errors = [];
+        const validateSchema = this.#schemaValidator( registration );
+        if ( !validateSchema( value ) ) {
+            for ( const error of ( validateSchema.errors || [] ) ) {
+                errors.push( { path: error.dataPath || instancePathToDataPath( error.instancePath ), message: error.message || "schema violation", code: "schema", params: error.params } );
+            }
+        }
+        return { valid: errors.length === 0, errors: errors };
     }
 
     /* Private interface */

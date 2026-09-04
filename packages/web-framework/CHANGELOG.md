@@ -2,6 +2,22 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.26.0
+
+* feat(config-management): report stored documents that no longer satisfy their registered schema.
+  `ConfigService.listSchemaViolations()` returns one entry per registered document whose **stored** value fails its
+  schema, and `ConfigRegistry.validateSchema( configKey, value )` exposes the schema half of validation on its own.
+  Nothing validated a stored value on the way out before this: the store hands back whatever it holds and a consumer
+  freezes it into its config exports, so a release that tightens a schema — adding a required top-level key, say —
+  leaves any deployment seeded before the change serving a document that can no longer be saved. The failure used to
+  surface much later, as an admin edit rejected for a key the admin never touched, in a screen unrelated to the
+  change. Schema-only by design: a semantic validator may need a `ValidatorContext` the caller has no reason to
+  build, and several are about an *edit* rather than the document standing alone. Read-only by design too —
+  reconciling a stale document is the drift panel's job, under audit; an automatic repair here would write config
+  outside the change-set machinery. A document that has never been stored is not a violation.
+* refactor(config-management): `ConfigRegistry.validate()` now delegates its schema step to `validateSchema()`, so
+  the two can never disagree about what is structurally admissible.
+
 ## Version 1.25.1
 
 * fix(ti-framework): resolve a label key whose own name contains a literal dot. `getLabel` split the key on every

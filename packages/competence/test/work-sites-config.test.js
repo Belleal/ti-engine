@@ -80,3 +80,29 @@ describe( "workSiteIdMatchesKey", () => {
     } );
 
 } );
+
+describe( "workSiteSafeCodes", () => {
+
+    // Same rule and reasoning as organizationSafeUnitIDs — an employee's `personal.workSite` is matched against this
+    // key, so a code colliding with an object member makes the lookup answer for a site nobody created.
+
+    const site = ( code ) => ( { id: code, type: "office", name: { en: code, bg: code } } );
+    // See the note in organization-structure-config.test.js on why this is not an object literal.
+    const documentOf = ( ...codes ) => Object.fromEntries( codes.map( ( code ) => [ code, site( code ) ] ) );
+
+    it( "accepts ordinary site codes", async () => {
+        assert.deepEqual( await validators.workSiteSafeCodes( documentOf( "HQ", "OF1" ) ), [] );
+    } );
+
+    it( "refuses a site keyed __proto__", async () => {
+        const issues = await validators.workSiteSafeCodes( documentOf( "__proto__" ) );
+        assert.equal( issues.length, 1 );
+        assert.equal( issues[ 0 ].code, "unsafe-key" );
+        assert.match( issues[ 0 ].message, /work site identifier/ );
+    } );
+
+    it( "refuses constructor and prototype too", async () => {
+        assert.equal( ( await validators.workSiteSafeCodes( documentOf( "constructor", "prototype" ) ) ).length, 2 );
+    } );
+
+} );

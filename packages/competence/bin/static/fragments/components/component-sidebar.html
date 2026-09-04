@@ -175,6 +175,14 @@
                 <span class="ti-sidebar-item-label" x-text-label="interface.topbar.employee-import">Employee Import</span>
             </button>
 
+            <button hx-get="/app/organization-structure" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" @click="active = 'organization-structure'"
+                    x-bind:class="{ active: active === 'organization-structure' }" class="ti-sidebar-item" data-tip="Organization Structure" aria-label="Organization Structure" type="button">
+                <span class="ti-sidebar-item-icon">
+                    <span class="ti-icon users md" aria-hidden="true"></span>
+                </span>
+                <span class="ti-sidebar-item-label" x-text-label="interface.topbar.organization-structure">Organization Structure</span>
+            </button>
+
             <button hx-get="/app/work-sites" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" @click="active = 'work-sites'"
                     x-bind:class="{ active: active === 'work-sites' }" class="ti-sidebar-item" data-tip="Work Sites" aria-label="Work Sites" type="button">
                 <span class="ti-sidebar-item-icon">

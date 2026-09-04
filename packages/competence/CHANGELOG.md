@@ -2,6 +2,61 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.32.0
+
+Launch readiness: three things that made a fresh, blank-slate install impossible to configure into a real
+organization.
+
+* feat(config): add the `organization-structure` composite editor and its admin screen. The document was registered
+  `editable: true` in 3.22.0 on the assumption that a generic document editor would serve it, but the framework's
+  admin API exposes `GET /admin/config/documents/:configKey` and no generic write — the only write paths are a
+  composite editor, a change-set restore and a drift apply. So the org tree could be seeded from the file default and
+  read, never changed, and a fresh install came up permanently on the shipped four-unit sample org. Because unit
+  managers are where `MANAGER` and `SUPERVISOR` are derived from, and the employee importer refuses a row whose unit
+  is not already in the tree, that left a real deployment unable to describe its own organization at all. `children`
+  is derived from the rows' `parent` values rather than edited, which makes `organizationParentChildSymmetry`
+  unfailable from the screen and re-parenting a one-field edit; `id` is stamped from the row key, closing
+  `organizationIdMatchesKey` the same way. An empty parent or manager is written as `null`, never `""` — the schema
+  admits neither an empty string nor a missing key.
+* feat(config): add the `research-consent` composite editor and its admin screen. Same defect, same shape: CA-93
+  describes the statement as "admin-editable per locale" and registered the document `editable: true`, but nothing
+  wrote it, so the shipped wording could not be changed without a redeploy. The version is typed rather than
+  derived — `consentTextVersionBumped` refuses a wording change that leaves it alone, because every consent already
+  on record names the version it was given under.
+* fix(data): separate the bootstrap content shipped with a release from the demo data behind
+  `COMPETENCE_PRELOAD_DATA`. The role families and the active competency sets are product content — the runtime reads
+  both from their data collections, not from the frozen config — but they arrived only with the demo flag, so a real
+  install came up with **no baselines at all**: `getActiveCompetencySet` threw 422 for every family and cycle lock
+  failed `no-empty-baseline` across the board, while the repository shipped a complete curated set the whole time.
+  The only workaround was to enable the demo flag and accept eleven demo employees permanently, since an employee is
+  never deleted, only terminated. Both collections are now seeded as their initial value — once, on a store that has
+  never held them — so an operator who later trims a baseline does not find it restored on the next boot. Employees,
+  evaluations and the derived cycles stay behind the flag and are still re-applied on every boot while it is set.
+* fix(config): register `active-competency-sets` read-only. It claimed `editable: true` with no write path either,
+  but there the flag was simply wrong: Cycle Setup edits the runtime collection, not this document. It stays
+  exportable and restorable, alongside `role-family-competencies`.
+* feat(config): log an ERROR at startup for any store-backed document whose stored value no longer satisfies the
+  schema shipped with this build, via the new web-framework `listSchemaViolations()`. Distinct from drift: drift
+  means the deployment serves *older* content, which someone may have chosen deliberately; this means it serves
+  content the application no longer considers well-formed. `role-families` is the worked example — it requires one
+  key per family and forbids the rest, so a store written before the TC family existed fails its own schema, and the
+  first sign of it used to be an unrelated admin edit rejected for "must have required property 'TC'". Never gates
+  boot.
+* test(config): fail the build when a document is registered `editable: true` with no editor that writes it. That
+  invariant is what went unnoticed for three releases, and it found two of the three cases above on its first run.
+* fix(config): harden the entity editors against prototype-polluting map keys. `decompose` runs before `applyEdits`
+  validates, so anything it throws escapes as a 500 rather than arriving on the screen as `{ ok: false, errors }`.
+  Building the rebuilt document on a plain `{}` gave three ways for that to happen: a unit ID of `__proto__` hit the
+  inherited setter, silently dropping the unit and replacing the map's prototype; a *parent* of `__proto__` resolved
+  `Object.prototype`, whose `children` is undefined, and threw; and an inherited member such as `constructor` read as
+  an already-submitted unit. Both `decomposeOrganizationStructure` and the pre-existing `decomposeWorkSites` now
+  build on `Object.create( null )` and return a plain object by spread — `Object.assign` would re-introduce the
+  setter. New `organizationSafeUnitIDs` / `workSiteSafeCodes` validators then refuse such a key outright with a
+  message, so it never reaches the store where every later `units[ id ]` lookup would have to be defensive about it.
+  Same defect `tools.decycle` carried in core 1.11.0, and the same reasoning as the `UNSAFE_PATH_SEGMENTS` guard on
+  employee field paths (CA-91).
+* build(deps): requires `@ti-engine/web-framework` >= 1.26.0 for `listSchemaViolations()`.
+
 ## Version 3.31.0
 
 Increment 8 adds **Technical Communication** — 23 competencies, dictionary 255 → **278**, and the ninth populated

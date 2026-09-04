@@ -421,13 +421,29 @@ reaches it once `deploy.sh` is re-run.
 
 ## 11. First run & data
 
-- **Demo data:** `COMPETENCE_PRELOAD_DATA=true` seeds demo data (employees, a cycle, sample evaluations) by merging it into the collections on startup. It does **not** wipe existing data — collections are only initialized when empty, so data you create persists across restarts. While the flag stays `true` the seed is re-applied on every boot (re-adding seeded records), so set it back to `false` once seeded. Leave it `false` for a real install (you start empty).
-- **Organization structure:** the org chart is a store-backed configuration document, editable in
-  **Administration → Configuration** like any other. The file baked into the image is only the bootstrap default,
-  seeded on a first run; from then on the stored value wins. Reflecting *your* organization is therefore a
-  configuration task, not a rebuild. It is deliberately excluded from the configuration-drift report: it holds your
-  data rather than content shipped with the release, so it differs from the image default by design.
-- **Admin access:** the admin configuration screens are gated to identities listed in the web-server config `auth.admins` (empty by default → no admins). Set it per environment with **`TI_WEB_AUTH_ADMINS`** (comma-separated; matched against the session user's user ID, username or email — so an OpenID deployment lists emails), or in the config file for a baked-in default. Other non-env config such as the organization structure remains a configuration step — coordinate with the application owner.
+- **What a blank install already has.** The competency dictionary, the role families and the **active competency
+  set baselines** are content shipped with the release, and land on the first boot whatever `COMPETENCE_PRELOAD_DATA`
+  says. They are written once, as each collection's initial value — so a baseline you trim later stays trimmed. The
+  shipped baselines are keyed to the **`2026-H2`** cycle; name your first cycle `2026-H2` to inherit them, or expect
+  to build the baselines yourself in Cycle Setup for a differently-named one.
+- **Demo data:** `COMPETENCE_PRELOAD_DATA=true` additionally seeds **eleven demo employees, a cycle and sample
+  evaluations**. It does **not** wipe existing data. While the flag stays `true` that seed is re-applied on every
+  boot, so set it back to `false` once seeded. **Leave it `false` for a real install** — and mean it: an employee is
+  never deleted, only marked terminated, so demo people seeded into a production store stay there for good. You lose
+  nothing by leaving it off; the baselines arrive either way.
+- **Organization structure — do this first.** The shipped default is a four-unit *sample* org (`Parent Organization
+  → Engineering → Platform / Product Engineering`) whose managers name employees that will not exist on your
+  install. Replace it in **Administration → Organization Structure** before importing anybody: the employee importer
+  refuses a row whose organization unit is not already in the tree, and `MANAGER` / `SUPERVISOR` are derived from a
+  unit's `managerID`, so a tree that does not describe your organization leaves your people with no manager and the
+  appraisal workflow unreachable.
+  Each row is one unit. Leave **exactly one** row's parent blank — that is the root. Child lists are worked out from
+  the parent IDs, so moving a unit means editing that one field. A manager ID that names nobody yet is expected at
+  this stage and is reported, not refused: save the tree, import the employees, and the warning clears.
+  The document is deliberately excluded from the configuration-drift report — it holds your data, not content
+  shipped with the release, so it differs from the image default by design.
+- **Admin access:** the admin configuration screens are gated to identities listed in the web-server config `auth.admins` (empty by default → no admins). Set it per environment with **`TI_WEB_AUTH_ADMINS`** (comma-separated; matched against the session user's user ID, username or email — so an OpenID deployment lists emails), or in the config file for a baked-in default. **Set at least one before the first boot:** on an empty install nobody has an employee record yet, and an admin identity is admitted without one precisely so the configuration screens stay reachable — it is the only way in. Such a session carries no application roles at all, so it reaches the admin screens (Organization Structure, Employee Import, Configuration) and nothing else — Cycles and Cycle Setup need `SUPERVISOR`. The order that follows from this: configure the tree, import the employees, then sign in as somebody the tree makes a Supervisor.
+- **Research-use consent:** enabled by default, with a complete statement in English and Bulgarian at version `1.0`. Review the wording with whoever owns data protection before the first appraisal cycle — employees answer it once per cycle and each answer records the version it was given under. Edit it in **Administration → Research-Use Consent**; changing any wording requires bumping the version, and the save is refused otherwise. Setting it to *not collected* is fail-closed: the prompt disappears, the submit gate stops applying, and nothing is released for research.
 - **First login:** browse to your HTTPS host. With the default `TI_WEB_AUTH_METHODS=openid-azure`, you sign in via Azure — so Azure must be configured (§7), otherwise the page shows "no sign-in method is configured." (Adding `local` to `TI_WEB_AUTH_METHODS` makes its sign-in form appear immediately — the form itself does not depend on a users file existing — but no sign-in can *succeed* until you provision a record for that identity in the file at `TI_WEB_AUTH_LOCAL_USERS_PATH`; with no matching record, or a wrong password, it's refused; dev/break-glass only, see §1 and §7, "Local auth".)
 
 ### Importing employee data

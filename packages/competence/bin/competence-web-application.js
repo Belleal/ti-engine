@@ -153,6 +153,16 @@ class CompetenceWebApplication extends TiWebAppManager {
             path: "fragments/frame-work-sites.html",
             roles: [ "admin" ]
         } );
+        this.addFragment( "organization-structure", {
+            title: "Organization Structure",
+            path: "fragments/frame-organization-structure.html",
+            roles: [ "admin" ]
+        } );
+        this.addFragment( "research-consent", {
+            title: "Research-Use Consent",
+            path: "fragments/frame-research-consent.html",
+            roles: [ "admin" ]
+        } );
         this.addFragment( "competency-text-editor", {
             title: "Competency Texts",
             path: "fragments/frame-competency-text-editor.html",
@@ -335,6 +345,8 @@ class CompetenceWebApplication extends TiWebAppManager {
                     // "cycle-setup" and "competency-text-editor"); a top-level item maps to itself.
                     "employee-import": "employee-import",
                     "work-sites": "work-sites",
+                    "organization-structure": "organization-structure",
+                    "research-consent": "research-consent",
                     "competency-text-editor": "administration",
                     "archetype-assignment": "administration",
                     "archetype-editor": "administration",

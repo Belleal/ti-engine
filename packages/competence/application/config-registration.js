@@ -78,7 +78,12 @@ function registerCompetenceConfig( app ) {
         schema: activeCompetencySetsSchema,
         validators: [ validators.activeSetsReferenceIntegrity, validators.activeSetsFloorCoverage, validators.activeSetsCap, validators.activeSetsWithinPool ],
         defaultValue: configurationLoader.fileDefaults[ "active-competency-sets" ],
-        metadata: { path: "bin/config/config.active-competency-sets.json", label: "active.competency.sets", editable: true }
+        // Read-only for the same reason as `role-family-competencies`: the runtime baselines an operator actually
+        // edits live in the `ti:competence:data:active-competency-sets` collection behind the Cycle Setup screen,
+        // and no composite editor writes this document. Claiming `editable: true` for a document with no write path
+        // is what left the organization structure unchangeable for three releases; it stays exportable and
+        // restorable either way.
+        metadata: { path: "bin/config/config.active-competency-sets.json", label: "active.competency.sets", editable: false }
     } );
     app.registerConfigDocument( "role-families", {
         schema: roleFamiliesSchema,
@@ -106,13 +111,13 @@ function registerCompetenceConfig( app ) {
     } );
     app.registerConfigDocument( "organization-structure", {
         schema: organizationStructureSchema,
-        validators: [ validators.organizationSingleRoot, validators.organizationParentChildSymmetry, validators.organizationNoCycles, validators.organizationIdMatchesKey ],
+        validators: [ validators.organizationSingleRoot, validators.organizationParentChildSymmetry, validators.organizationNoCycles, validators.organizationIdMatchesKey, validators.organizationSafeUnitIDs ],
         defaultValue: configurationLoader.fileDefaults[ "organization-structure" ],
         metadata: { path: "bin/config/config.organization-structure.json", label: "organization.structure", editable: true, driftTracked: false }
     } );
     app.registerConfigDocument( "work-sites", {
         schema: workSitesSchema,
-        validators: [ validators.workSiteIdMatchesKey, validators.workSitesReferentialIntegrity ],
+        validators: [ validators.workSiteIdMatchesKey, validators.workSiteSafeCodes, validators.workSitesReferentialIntegrity ],
         defaultValue: configurationLoader.fileDefaults[ "work-sites" ],
         metadata: { path: "bin/config/config.work-sites.json", label: "work.sites", editable: true, driftTracked: false }
     } );

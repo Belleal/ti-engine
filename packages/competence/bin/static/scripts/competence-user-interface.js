@@ -6329,6 +6329,352 @@ function configureWorkSites() {
 }
 
 /**
+ * Alpine component for the admin organization-structure screen (frame-organization-structure.html). Edits the org
+ * unit tree through the `organization-structure` composite editor — the document's only write path.
+ *
+ * The rows arrive in tree order (root first, then depth-first) and carry no `children`: child lists are derived
+ * server-side from the `parent` values, so moving a unit means editing one field on one row and nothing else. The
+ * screen therefore cannot produce an asymmetric tree at all; the errors it can produce — two roots, a cycle, a
+ * parent that does not exist — are real structural mistakes and come back from the validators on save.
+ *
+ * A dangling `managerID` is deliberately NOT an error here: the employee importer refuses a row whose unit is not
+ * already in the tree, so on a fresh install the tree has to be saved before any employee exists. It surfaces as a
+ * startup warning and clears once the employees are loaded.
+ *
+ * Per-row fields bind with x-bind:value + @input rather than x-model, matching configureWorkSites.
+ *
+ * @returns {Object}
+ */
+function configureOrganizationStructure() {
+    const tiToolbox = Alpine.store( "tiToolbox" );
+    const tiApplication = Alpine.store( "tiApplication" );
+    const EDITOR_KEY = "organization-structure";
+
+    return {
+        loaded: false,
+        saving: false,
+        units: [],
+        versions: {},
+        saveErrors: [],
+
+        init() {
+            const onInitialized = () => {
+                if ( !tiApplication.hasRole( "admin" ) ) {
+                    tiApplication.notify( tiApplication.getLabel( "interface.admin.not-authorized", "Administrator access required." ) );
+                    tiApplication.openScreen( "dashboard" );
+                    return;
+                }
+                this.loadData();
+            };
+            if ( tiApplication.isInitialized ) {
+                onInitialized();
+            } else {
+                this.$watch( () => tiApplication.isInitialized, ( isInitialized ) => {
+                    if ( isInitialized ) {
+                        onInitialized();
+                    }
+                } );
+            }
+        },
+
+        getLabel( key, fallback = "" ) {
+            return tiApplication.getLabel( key, fallback );
+        },
+
+        loadData() {
+            tiApplication.sendRequest( "/admin/config/editors/" + EDITOR_KEY ).then( ( result ) => {
+                const data = ( result && result.data ) || {};
+                const view = ( data.rows && typeof data.rows === "object" && !Array.isArray( data.rows ) ) ? data.rows : {};
+                this.units = Array.isArray( view.units ) ? tiToolbox.structuredClone( view.units ) : [];
+                this.versions = data.versions ? tiToolbox.structuredClone( data.versions ) : {};
+                this.saveErrors = [];
+                this.loaded = true;
+            } ).catch( ( error ) => {
+                if ( error && ( error.name === "AbortError" || error.isAborted ) ) {
+                    return;
+                }
+                this.loaded = true;
+                tiApplication.notify( tiApplication.formatException( error ) );
+                const httpCode = error && error.exception && error.exception.httpCode;
+                if ( httpCode === 401 || httpCode === 403 ) {
+                    tiApplication.openScreen( "dashboard" );
+                }
+            } );
+        },
+
+        // Alpine's CSP build cannot call Array/Object inside a template expression, so every derived value the
+        // fragment needs is a method here.
+        isEmpty() {
+            return this.units.length === 0;
+        },
+
+        countSummary() {
+            return tiApplication.getLabel( "interface.organization-structure.count", "{n} units" ).replace( "{n}", String( this.units.length ) );
+        },
+
+        addUnit() {
+            this.units.push( { id: "", name: "", type: "", parent: "", managerID: "", displayName: "", description: "", branch: "", location: "" } );
+        },
+
+        removeUnit( index ) {
+            // Removes the row and nothing else. Whether the removal leaves the tree valid — an orphaned child, or
+            // the loss of the only root — is the validators' answer and arrives on save.
+            this.units.splice( index, 1 );
+        },
+
+        setField( index, field, value ) {
+            if ( this.units[ index ] ) {
+                this.units[ index ][ field ] = value;
+            }
+        },
+
+        save() {
+            this.saveErrors = this.localIssues();
+            if ( this.saveErrors.length > 0 ) {
+                return;
+            }
+            this.saving = true;
+            const body = {
+                edited: { units: this.units },
+                expectedVersions: this.versions,
+                note: tiApplication.getLabel( "interface.organization-structure.save-note", "Organization structure edit" )
+            };
+            tiApplication.sendRequest( "/admin/config/editors/" + EDITOR_KEY, "POST", body ).then( ( result ) => {
+                this.saving = false;
+                const data = ( result && result.data ) || {};
+                // A REFUSED save arrives here with ok === false and HTTP 200, not in the catch — same contract as
+                // the work-sites screen. This is the branch that renders "2 root units" or a parent cycle.
+                if ( data.ok === false ) {
+                    this.saveErrors = this.flattenErrors( data.errors );
+                    tiApplication.notify( tiApplication.getLabel( "interface.organization-structure.save-invalid", "Some changes are invalid — see the issues listed." ) );
+                    return;
+                }
+                tiApplication.notify( tiApplication.getLabel( "interface.organization-structure.saved", "Organization structure saved." ) );
+                this.loadData();
+            } ).catch( ( error ) => {
+                this.saving = false;
+                const httpCode = error && error.exception && error.exception.httpCode;
+                if ( httpCode === 409 ) {
+                    tiApplication.notify( tiApplication.getLabel( "interface.organization-structure.save-conflict", "Configuration changed elsewhere — reloading the latest version." ) );
+                    this.loadData();
+                    return;
+                }
+                tiApplication.notify( tiApplication.formatException( error ) );
+            } );
+        },
+
+        flattenErrors( errors ) {
+            const out = [];
+            const byKey = errors || {};
+            Object.keys( byKey ).forEach( ( key ) => {
+                ( byKey[ key ] || [] ).forEach( ( issue ) => {
+                    const rawPath = ( issue && ( issue.path || issue.dataPath ) ) || "";
+                    const parts = rawPath.split( "." ).filter( Boolean );
+                    out.push( { label: parts[ 0 ] || "—", message: ( issue && issue.message ) || "" } );
+                } );
+            } );
+            return out;
+        },
+
+        // Only what the form can phrase better than the server: a missing ID, a duplicate ID, and the two required
+        // text fields. Everything structural — root count, cycles, orphans — is the validators' answer.
+        localIssues() {
+            const issues = [];
+            // A Set, not a plain object: a unit ID of "toString" would otherwise match Object.prototype's own
+            // member and read as an already-seen duplicate.
+            const seen = new Set();
+            for ( const unit of this.units ) {
+                const unitID = ( unit.id || "" ).trim();
+                if ( unitID.length === 0 ) {
+                    issues.push( { label: "—", message: tiApplication.getLabel( "interface.organization-structure.id-required", "Every unit needs an ID." ) } );
+                    continue;
+                }
+                if ( seen.has( unitID ) ) {
+                    issues.push( { label: unitID, message: tiApplication.getLabel( "interface.organization-structure.id-duplicate", "This unit ID is used twice." ) } );
+                }
+                seen.add( unitID );
+                if ( ( unit.name || "" ).trim().length === 0 ) {
+                    issues.push( { label: unitID, message: tiApplication.getLabel( "interface.organization-structure.name-required", "Every unit needs a name." ) } );
+                }
+                if ( ( unit.type || "" ).trim().length === 0 ) {
+                    issues.push( { label: unitID, message: tiApplication.getLabel( "interface.organization-structure.type-required", "Every unit needs a type." ) } );
+                }
+            }
+            return issues;
+        }
+    };
+}
+
+/**
+ * Alpine component for the admin research-consent screen (frame-research-consent.html). Edits the consent statement,
+ * its version and the kill switch through the `research-consent` composite editor.
+ *
+ * The version is typed, never derived: `consentTextVersionBumped` refuses a wording change that leaves the version
+ * where it was, and that refusal is the feature — every consent already on record names the version it was given
+ * under, so a silent edit would misrepresent what people agreed to. The refusal arrives as a save error like any
+ * other validator's.
+ *
+ * Turning the switch off is fail-closed by design: the prompt disappears, the submit gate stops applying, and the
+ * export chokepoint returns nothing. It does not delete anything already recorded.
+ *
+ * @returns {Object}
+ */
+function configureResearchConsentConfig() {
+    const tiToolbox = Alpine.store( "tiToolbox" );
+    const tiApplication = Alpine.store( "tiApplication" );
+    const EDITOR_KEY = "research-consent";
+
+    return {
+        loaded: false,
+        saving: false,
+        enabled: true,
+        version: "",
+        texts: [],
+        versions: {},
+        saveErrors: [],
+
+        init() {
+            const onInitialized = () => {
+                if ( !tiApplication.hasRole( "admin" ) ) {
+                    tiApplication.notify( tiApplication.getLabel( "interface.admin.not-authorized", "Administrator access required." ) );
+                    tiApplication.openScreen( "dashboard" );
+                    return;
+                }
+                this.loadData();
+            };
+            if ( tiApplication.isInitialized ) {
+                onInitialized();
+            } else {
+                this.$watch( () => tiApplication.isInitialized, ( isInitialized ) => {
+                    if ( isInitialized ) {
+                        onInitialized();
+                    }
+                } );
+            }
+        },
+
+        getLabel( key, fallback = "" ) {
+            return tiApplication.getLabel( key, fallback );
+        },
+
+        loadData() {
+            tiApplication.sendRequest( "/admin/config/editors/" + EDITOR_KEY ).then( ( result ) => {
+                const data = ( result && result.data ) || {};
+                const view = ( data.rows && typeof data.rows === "object" && !Array.isArray( data.rows ) ) ? data.rows : {};
+                this.enabled = view.enabled === true;
+                this.version = ( typeof view.version === "string" ) ? view.version : "";
+                this.texts = Array.isArray( view.texts ) ? tiToolbox.structuredClone( view.texts ) : [];
+                this.versions = data.versions ? tiToolbox.structuredClone( data.versions ) : {};
+                this.saveErrors = [];
+                this.loaded = true;
+            } ).catch( ( error ) => {
+                if ( error && ( error.name === "AbortError" || error.isAborted ) ) {
+                    return;
+                }
+                this.loaded = true;
+                tiApplication.notify( tiApplication.formatException( error ) );
+                const httpCode = error && error.exception && error.exception.httpCode;
+                if ( httpCode === 401 || httpCode === 403 ) {
+                    tiApplication.openScreen( "dashboard" );
+                }
+            } );
+        },
+
+        // Alpine's CSP build cannot call Array/Object inside a template expression, so derived values are methods.
+        enabledValue() {
+            return this.enabled ? "true" : "false";
+        },
+
+        statusSummary() {
+            const key = this.enabled ? "interface.research-consent.status-on" : "interface.research-consent.status-off";
+            const fallback = this.enabled ? "Being collected — version {v}" : "Not being collected";
+            return tiApplication.getLabel( key, fallback ).replace( "{v}", this.version || "—" );
+        },
+
+        languageLabel( language ) {
+            return tiApplication.getLabel( "interface.research-consent.body-" + language, language.toUpperCase() );
+        },
+
+        setEnabled( value ) {
+            this.enabled = ( value === "true" );
+        },
+
+        setVersion( value ) {
+            this.version = value;
+        },
+
+        setBody( index, value ) {
+            if ( this.texts[ index ] ) {
+                this.texts[ index ].body = value;
+            }
+        },
+
+        save() {
+            this.saveErrors = this.localIssues();
+            if ( this.saveErrors.length > 0 ) {
+                return;
+            }
+            this.saving = true;
+            const body = {
+                edited: { enabled: this.enabled, version: this.version, texts: this.texts },
+                expectedVersions: this.versions,
+                note: tiApplication.getLabel( "interface.research-consent.save-note", "Research-use consent edit" )
+            };
+            tiApplication.sendRequest( "/admin/config/editors/" + EDITOR_KEY, "POST", body ).then( ( result ) => {
+                this.saving = false;
+                const data = ( result && result.data ) || {};
+                // A REFUSED save arrives here with ok === false and HTTP 200. This is the branch that renders the
+                // version-bump refusal.
+                if ( data.ok === false ) {
+                    this.saveErrors = this.flattenErrors( data.errors );
+                    tiApplication.notify( tiApplication.getLabel( "interface.research-consent.save-invalid", "Some changes are invalid — see the issues listed." ) );
+                    return;
+                }
+                tiApplication.notify( tiApplication.getLabel( "interface.research-consent.saved", "Consent statement saved." ) );
+                this.loadData();
+            } ).catch( ( error ) => {
+                this.saving = false;
+                const httpCode = error && error.exception && error.exception.httpCode;
+                if ( httpCode === 409 ) {
+                    tiApplication.notify( tiApplication.getLabel( "interface.research-consent.save-conflict", "Configuration changed elsewhere — reloading the latest version." ) );
+                    this.loadData();
+                    return;
+                }
+                tiApplication.notify( tiApplication.formatException( error ) );
+            } );
+        },
+
+        flattenErrors( errors ) {
+            const out = [];
+            const byKey = errors || {};
+            Object.keys( byKey ).forEach( ( key ) => {
+                ( byKey[ key ] || [] ).forEach( ( issue ) => {
+                    const rawPath = ( issue && ( issue.path || issue.dataPath ) ) || "";
+                    const parts = rawPath.split( "." ).filter( Boolean );
+                    out.push( { label: parts[ 0 ] || "—", message: ( issue && issue.message ) || "" } );
+                } );
+            } );
+            return out;
+        },
+
+        // The version shape and "at least one body" are worth catching here; the version-BUMP rule is the
+        // validator's, since only the server knows the committed wording.
+        localIssues() {
+            const issues = [];
+            const version = ( this.version || "" ).trim();
+            if ( !/^[0-9]+\.[0-9]+$/.test( version ) ) {
+                issues.push( { label: "version", message: tiApplication.getLabel( "interface.research-consent.version-invalid", "The version must be two numbers separated by a dot, for example 1.1." ) } );
+            }
+            const filled = this.texts.filter( ( entry ) => ( entry.body || "" ).trim().length > 0 );
+            if ( filled.length === 0 ) {
+                issues.push( { label: "text", message: tiApplication.getLabel( "interface.research-consent.body-required", "At least one language needs a statement." ) } );
+            }
+            return issues;
+        }
+    };
+}
+
+/**
  * Alpine component for the admin employee-import screen (frame-employee-import.html). Reads the chosen CSV in the
  * browser and posts its TEXT through the ordinary service call — there is no multipart handling in the framework,
  * and none is needed at this size. Preview writes nothing; applying re-derives the plan server-side, so the plan
@@ -6778,6 +7124,8 @@ document.addEventListener( "alpine:init", () => {
     Alpine.data( "competenceArchetypeEditor", configureArchetypeEditor );
     Alpine.data( "competenceRoleFamilies", configureRoleFamilies );
     Alpine.data( "competenceWorkSites", configureWorkSites );
+    Alpine.data( "competenceOrganizationStructure", configureOrganizationStructure );
+    Alpine.data( "competenceResearchConsentConfig", configureResearchConsentConfig );
     Alpine.data( "competenceEmployeeImport", configureEmployeeImport );
     Alpine.data( "insightsCycle", configureInsightsCycle );
     Alpine.data( "insightsTeam", configureInsightsTeam );

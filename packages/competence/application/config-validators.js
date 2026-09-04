@@ -611,6 +611,75 @@ function organizationIdMatchesKey( value ) {
 }
 
 /**
+ * The map keys that cannot safely be used as an identifier. `__proto__` is the dangerous one — assigning it onto a
+ * plain object replaces the prototype instead of creating a key — while `constructor` and `prototype` resolve to
+ * inherited members and make a `map[ id ]` lookup answer truthily for an entry that was never stored.
+ *
+ * @constant
+ * @type {Set<string>}
+ * @private
+ */
+const UNSAFE_DOCUMENT_KEYS = new Set( [ "__proto__", "constructor", "prototype" ] );
+
+/**
+ * Refuses a document whose map keys include one that cannot be used safely as an identifier.
+ * <br/>
+ * The editors build their documents on a null-prototype map, so such a key no longer corrupts the document on the
+ * way in — it arrives as an ordinary key. This is the other half: it stops the key reaching the store at all, where
+ * every later `units[ id ]` or `sites[ code ]` lookup against a plain object would have to be defensive about it.
+ * Rejecting once, here, is cheaper than being careful everywhere afterwards — the same reasoning behind the
+ * `UNSAFE_PATH_SEGMENTS` guard on employee field paths (CA-91).
+ *
+ * @method
+ * @param {Object} value
+ * @param {string} noun Singular label used in the message, e.g. "unit" or "work site".
+ * @returns {Array<ValidationIssue>}
+ * @private
+ */
+function unsafeKeyIssues( value, noun ) {
+    const issues = [];
+    for ( const rawID of Object.keys( value || {} ) ) {
+        if ( UNSAFE_DOCUMENT_KEYS.has( rawID ) ) {
+            issues.push( {
+                path: `.${ rawID }`,
+                message: `'${ rawID }' cannot be used as a ${ noun } identifier — it collides with a JavaScript object member`,
+                code: "unsafe-key"
+            } );
+        }
+    }
+    return issues;
+}
+
+/**
+ * organization-structure: no unit may be keyed by a name that collides with a JavaScript object member.
+ *
+ * Document-intrinsic — no `context` parameter needed; see {@link organizationSingleRoot}.
+ *
+ * @method
+ * @param {Object} value
+ * @returns {Promise<Array<ValidationIssue>>}
+ * @public
+ */
+function organizationSafeUnitIDs( value ) {
+    return Promise.resolve( unsafeKeyIssues( value, "unit" ) );
+}
+
+/**
+ * work-sites: no site may be keyed by a name that collides with a JavaScript object member. Same rule and the same
+ * reasoning as {@link organizationSafeUnitIDs}.
+ *
+ * Document-intrinsic — no `context` parameter needed; see {@link organizationSingleRoot}.
+ *
+ * @method
+ * @param {Object} value
+ * @returns {Promise<Array<ValidationIssue>>}
+ * @public
+ */
+function workSiteSafeCodes( value ) {
+    return Promise.resolve( unsafeKeyIssues( value, "work site" ) );
+}
+
+/**
  * work-sites: every site's `id` must equal its map key. Same constraint, and the same reason, as
  * {@link organizationIdMatchesKey}: JSON Schema cannot express "this property's value equals its property name", and
  * the map key is what an operator actually edits — an employee's `personal.workSite` is matched against the key, so
@@ -711,6 +780,8 @@ module.exports = {
     organizationParentChildSymmetry,
     organizationNoCycles,
     organizationIdMatchesKey,
+    organizationSafeUnitIDs,
     workSiteIdMatchesKey,
+    workSiteSafeCodes,
     workSitesReferentialIntegrity
 };
