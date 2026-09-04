@@ -17,6 +17,7 @@ The web server configuration (host, port, TLS, cookies, etc.) is normally provid
 * `TI_WEB_USE_TLS` (`true`/`false`) toggles in-app TLS. Set `false` when a reverse proxy / ingress terminates TLS.
 * `TI_WEB_TLS_CERT_PATH` / `TI_WEB_TLS_KEY_PATH` override the TLS certificate/key paths (only used when TLS is enabled).
 * `TI_WEB_COOKIE_SECRET` sets the session cookie signing secret. Set a stable, private value for durable sessions and multi-replica deployments (otherwise a random per-process value is used).
+* `TI_WEB_TLS_CERT_PATH` is also read by the container liveness probe (below), which verifies against that certificate.
 * `TI_WEB_SESSION_IDLE_TIMEOUT` (whole minutes) sets how long a signed-in session survives **without activity**, overriding `cookies.maxAge`. The window is rolling: every response re-stamps the cookie, so a session ends only after that long with no request at all. Note that a user typing into a form makes no requests, so set this comfortably longer than the longest form a user fills in one sitting. Defaults to 480 (eight hours).
 * `TI_WEB_AUTH_METHODS` (comma-separated) **replaces** the enabled authentication methods (`auth.enabledMethods`), e.g. `openid-google` or `local,openid-google`.
 * `TI_WEB_AUTH_LOCAL_USERS_PATH` overrides the local user directory's file path (`auth.local.usersPath`), which backs `local` sign-in. An explicitly empty value means *no directory*, so every local sign-in is refused. See [Local (username/password) authentication](#local-usernamepassword-authentication).
@@ -129,3 +130,24 @@ mkcert localhost 127.0.0.1 ::1
 ## License
 
 Apache-2.0 © Boris Kostadinov. See [LICENSE](LICENSE).
+
+## Container liveness probe
+
+`bin/healthcheck.js` asks a running server whether it is still serving and exits 0 only if it says yes. Point a
+Dockerfile `HEALTHCHECK` at it:
+
+```dockerfile
+HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
+  CMD ["node", "/app/node_modules/@ti-engine/web-framework/bin/healthcheck.js"]
+```
+
+It reads `TI_WEB_USE_TLS` through the same `tools.toBool` the server uses, so the probe's transport cannot drift
+from the server's, and calls `/health` — the unprotected route `webHandlers.healthHandler` serves. Writing this
+inline in a Dockerfile is the mistake it exists to prevent: an `http://` URL hardcoded there reports a TLS-enabled
+container unhealthy forever, and Docker restarts a server that is answering correctly.
+
+With TLS on it verifies the certificate rather than skipping verification, anchoring trust to the server's own
+certificate at `TI_WEB_TLS_CERT_PATH` and taking the name to check from that certificate — so a certificate issued
+for a public hostname still passes while the probe connects to `127.0.0.1`. Set that variable when you terminate
+TLS inside the container. Without it there is nothing to anchor to and the probe falls back to establishing that
+the port accepts connections, which is weaker but neither disables verification nor restarts a healthy container.

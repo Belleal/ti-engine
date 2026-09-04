@@ -1,21 +1,29 @@
 /*
  * The ti-engine is an open source, free to use—both for personal and commercial projects—framework for the creation of microservice-based solutions using node.js.
  * Copyright © 2021-2026 Boris Kostadinov <kostadinov.boris@gmail.com>
- * This program is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more details.
- * You should have received a copy of the GNU Affero General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
 */
 
 /*
- * The container's liveness probe.
+ * The container liveness probe every TiWebServer application shares.
  *
- * It used to be an inline `node -e` in the Dockerfile that hardcoded `require('http')` and an `http://` URL. The
- * image bakes TI_WEB_USE_TLS=false so it worked — until the image was run with TLS on, which is supported
- * (a mounted certificate, rather than terminating at a proxy). The probe then spoke plain HTTP to a TLS listener,
- * failed every single time, and Docker marked a perfectly healthy container unhealthy: a restart loop for a server
- * that was answering correctly.
+ * The shape it replaces is an inline `node -e` in a Dockerfile hardcoding `require('http')` and an `http://` URL:
+ * fine while TLS is off, and the moment an image runs with TLS on it speaks plain HTTP to a TLS listener, fails
+ * every single time, and Docker marks a perfectly healthy container unhealthy — a restart loop for a server that is
+ * answering correctly.
  *
- * The probe is run here as the container runs it — a child process, exit code only.
+ * The probe is run here as a container runs it: a child process, exit code only.
  */
 
 const { describe, it, before, after } = require( "node:test" );
@@ -250,27 +258,15 @@ describe( "Container healthcheck", () => {
 
 } );
 
-describe( "Dockerfile wiring", () => {
+describe( "The probe never disables certificate verification", () => {
 
-    const dockerfile = fs.readFileSync( path.join( path.resolve( __dirname, ".." ), "Dockerfile" ), "utf8" );
-
-    it( "runs the probe script rather than an inline one-liner", () => {
-        assert.match( dockerfile, /HEALTHCHECK[\s\S]*?CMD \[\s*"node",\s*"bin\/healthcheck\.js"\s*\]/ );
-    } );
-
-    it( "disables certificate verification nowhere", () => {
-        const probeSource = fs.readFileSync( path.join( path.resolve( __dirname, ".." ), "bin", "healthcheck.js" ), "utf8" );
-        // Only in the comment explaining why it is not used. CodeQL flagged the real thing as high severity on #143,
-        // and it was right: this is the line that gets copied out of a health probe into a client that crosses a
-        // network.
-        const code = probeSource.replace( /\/\*[\s\S]*?\*\//g, "" );
-        assert.equal( /rejectUnauthorized/.test( code ), false, "verification is narrowed to the server's own certificate, never switched off" );
-    } );
-
-    it( "hardcodes no scheme in the healthcheck", () => {
-        const healthcheck = /HEALTHCHECK[\s\S]*?(?=\n[A-Z]|$)/.exec( dockerfile )[ 0 ];
-        assert.equal( /http:\/\//.test( healthcheck ), false, "the scheme belongs to TI_WEB_USE_TLS, not the Dockerfile" );
-        assert.equal( /require\('http'\)/.test( healthcheck ), false );
+    it( "mentions rejectUnauthorized only in the comment explaining why it is not used", () => {
+        const source = fs.readFileSync( PROBE, "utf8" );
+        // CodeQL flagged the real thing as a high-severity alert when this was first written, and it was right:
+        // this is the line that gets copied out of a health probe into a client that crosses a network. Verification
+        // is narrowed to the server's own certificate instead.
+        const code = source.replace( /\/\*[\s\S]*?\*\//g, "" );
+        assert.equal( /rejectUnauthorized/.test( code ), false );
     } );
 
 } );
