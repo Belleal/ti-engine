@@ -2,6 +2,30 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.27.0
+
+Session lifetime. Two defects that together threw a signed-in user out roughly ten minutes after sign-in, however
+hard they were working.
+
+* fix(web-server): `cookies.maxAge` was `604800` — seven days expressed in **seconds**, written into a field
+  express-session reads as **milliseconds** (`set maxAge(ms)`). Every session therefore lasted 604.8 seconds. The
+  value is now `28800000`: eight hours, in the unit the field actually takes.
+* fix(web-server): enable `rolling: true`, making the window slide with use. express-session re-sends the cookie
+  only when the session is new, when `rolling` is on, or when the session data itself changed
+  (`shouldSetCookie`) — and nothing changes it after sign-in, since `augmentSession` runs once inside
+  `regenerateAndSaveSession` and the CSRF handler writes its token only when absent. The limit was therefore
+  absolute from sign-in rather than an idle timeout. The store side was never the problem: `SessionStore.touch`
+  slid the Redis TTL correctly the whole time, which is precisely why the fault was invisible from the server —
+  the browser was dropping an expired cookie the server still considered live. `resave: false` is unchanged, so
+  this adds no store writes.
+* feat(config): `TI_WEB_SESSION_IDLE_TIMEOUT` overrides the idle window, in whole **minutes**. The unit is named in
+  the variable and converted internally, so the confusion above is not expressible through it. A non-integer or
+  non-positive value is ignored, leaving the config value standing — the same posture as `TI_WEB_STATIC_MAX_AGE`.
+
+Note for consumers choosing a value: a rolling window is refreshed by requests, and a browser filling in a form
+makes none. Set it longer than the longest uninterrupted form-filling sitting your application expects, or that
+user loses unsaved work when they finally submit.
+
 ## Version 1.26.0
 
 * feat(config-management): report stored documents that no longer satisfy their registered schema.

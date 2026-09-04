@@ -60,6 +60,17 @@ function applyWebConfigEnvOverrides( config, env = process.env ) {
         config.cookies = config.cookies || {};
         config.cookies.secret = env.TI_WEB_COOKIE_SECRET;
     }
+    if ( env.TI_WEB_SESSION_IDLE_TIMEOUT !== undefined ) {
+        // MINUTES, because that is the unit a deployment actually reasons in — and because the millisecond field it
+        // feeds is what went wrong here in the first place: `604800` was written into `cookies.maxAge` meaning seven
+        // days, and express-session read it as 604800 MILLISECONDS, giving every user a ten-minute session. Naming
+        // the unit in the variable and converting here keeps that mistake from being expressible.
+        const minutes = Number( env.TI_WEB_SESSION_IDLE_TIMEOUT );
+        if ( Number.isInteger( minutes ) && minutes > 0 ) {
+            config.cookies = config.cookies || {};
+            config.cookies.maxAge = minutes * 60 * 1000;
+        }
+    }
     if ( env.TI_WEB_AUTH_METHODS !== undefined ) {
         config.auth = config.auth || {};
         config.auth.enabledMethods = env.TI_WEB_AUTH_METHODS.split( "," ).map( ( method ) => method.trim() ).filter( ( method ) => method.length > 0 );
