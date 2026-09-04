@@ -83,7 +83,7 @@ git push origin competence-v3.31.0
 Omit `<commit>` to tag `HEAD`. This path is unchanged and needs no dispatch.
 
 > The dispatch path builds and publishes inside the run that creates the tag rather than relying on the `push: tags:` trigger, because a tag pushed with `GITHUB_TOKEN` does not start another workflow.
-- **Base:** `node:22-alpine`, non-root (`node` user), `NODE_ENV=production`.
+- **Base:** `node:24-alpine` (Node 24 "Krypton", the Active LTS line), non-root (`node` user), `NODE_ENV=production`.
 - **Pulling:** if the package is public, `docker pull ghcr.io/belleal/ti-engine-competence:3.19.1`. If private, authenticate to GHCR first:
   ```bash
   echo "$GITHUB_TOKEN" | docker login ghcr.io -u <your-username> --password-stdin
@@ -203,7 +203,10 @@ Sign-in is refused when:
 **Recovery.** An identity listed in `TI_WEB_AUTH_ADMINS` (or `auth.admins`) may sign in *without* an employee record.
 That session has no employee identity and no application roles — it reaches only the administration screens — and
 exists so a deployment with wrong or missing employee data can still be fixed through the admin UI. Set at least one
-admin before enabling SSO.
+admin before enabling SSO. The application reflects this rather than fighting it: the Workspace section of the
+sidebar is hidden for such a session (every screen in it is about an employee the session does not have), and the
+landing screen shows the setup steps instead of the dashboard's widgets. Once an employee record carries that same
+email, the next sign-in resolves to it and the workspace appears, with the admin allowlist still applying on top.
 
 **Local auth.** A local user is a record — `username`, `email`, `name` and a `passwordHash` — in the JSON file at
 `TI_WEB_AUTH_LOCAL_USERS_PATH` (see "Authentication methods" above). Generate `passwordHash` with
@@ -452,7 +455,7 @@ reaches it once `deploy.sh` is re-run.
   this stage and is reported, not refused: save the tree, import the employees, and the warning clears.
   The document is deliberately excluded from the configuration-drift report — it holds your data, not content
   shipped with the release, so it differs from the image default by design.
-- **Admin access:** the admin configuration screens are gated to identities listed in the web-server config `auth.admins` (empty by default → no admins). Set it per environment with **`TI_WEB_AUTH_ADMINS`** (comma-separated; matched against the session user's user ID, username or email — so an OpenID deployment lists emails), or in the config file for a baked-in default. **Set at least one before the first boot:** on an empty install nobody has an employee record yet, and an admin identity is admitted without one precisely so the configuration screens stay reachable — it is the only way in. Such a session carries no application roles at all, so it reaches the admin screens (Organization Structure, Employee Import, Configuration) and nothing else — Cycles and Cycle Setup need `SUPERVISOR`. The order that follows from this: configure the tree, import the employees, then sign in as somebody the tree makes a Supervisor.
+- **Admin access:** the admin configuration screens are gated to identities listed in the web-server config `auth.admins` (empty by default → no admins). Set it per environment with **`TI_WEB_AUTH_ADMINS`** (comma-separated; matched against the session user's user ID, username or email — so an OpenID deployment lists emails), or in the config file for a baked-in default. **Set at least one before the first boot:** on an empty install nobody has an employee record yet, and an admin identity is admitted without one precisely so the configuration screens stay reachable — it is the only way in. Such a session carries no application roles at all, so it reaches the admin screens (Organization Structure, Employee Import, Work Sites, Research-Use Consent, Configuration) and nothing else — Cycles and Cycle Setup need `SUPERVISOR`. The sidebar shows only those, and the landing screen spells the order out: configure the tree, import the employees (including a row carrying your own sign-in email), then sign out and back in — you then hold both your appraisal roles and admin.
 - **Research-use consent:** enabled by default, with a complete statement in English and Bulgarian at version `1.0`. Review the wording with whoever owns data protection before the first appraisal cycle — employees answer it once per cycle and each answer records the version it was given under. Edit it in **Administration → Research-Use Consent**; changing any wording requires bumping the version, and the save is refused otherwise. Setting it to *not collected* is fail-closed: the prompt disappears, the submit gate stops applying, and nothing is released for research.
 - **First login:** browse to your HTTPS host. With the default `TI_WEB_AUTH_METHODS=openid-azure`, you sign in via Azure — so Azure must be configured (§7), otherwise the page shows "no sign-in method is configured." (Adding `local` to `TI_WEB_AUTH_METHODS` makes its sign-in form appear immediately — the form itself does not depend on a users file existing — but no sign-in can *succeed* until you provision a record for that identity in the file at `TI_WEB_AUTH_LOCAL_USERS_PATH`; with no matching record, or a wrong password, it's refused; dev/break-glass only, see §1 and §7, "Local auth".)
 

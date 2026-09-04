@@ -2,6 +2,46 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.33.1
+
+* fix(ui): route a session with no appraisal identity to the account-level profile instead of refusing it. The same
+  bug as 3.33.0's dashboard, in the screen next door, and missed by that release: `getProfileInfo` has always
+  documented a fallback to the framework's account sections for "a signed-in user without an employee record", but
+  only reached it from the not-found catch on `fetchEmployee` — which `#requireSessionUser` refused to let it get
+  to, since an allowlisted administrator has `employeeID` null. The user menu carries a Profile entry for every
+  session, so this was a 401 on a screen the chrome itself points at. Found by CodeRabbit reviewing #141. An audit
+  of every other screen such a session can reach — About, Help, Process Guide and the five admin screens — found no
+  others: the employee-facing consent prompt belongs to the evaluation screen, which the hidden Workspace section
+  no longer offers.
+
+## Version 3.33.0
+
+The break-glass administrator's first five minutes. An identity admitted through `TI_WEB_AUTH_ADMINS` with no
+employee record behind it carries `employeeID: null` and no application roles by design — it is what keeps the
+configuration screens reachable on an install with nobody in it yet — but the application did not reflect that
+anywhere, so a correct first sign-in looked like a broken one.
+
+* fix(ui): stop answering the dashboard with a 401 for a session that has no appraisal identity. The dashboard is
+  the landing screen, loaded by `frame-application.html` before such an administrator has had any chance to
+  navigate, and `#requireSessionUser` refused it — so the very first thing a new deployment did was raise an
+  unauthorized-access toast at the person setting it up. `#loadDashboard` now answers that one case with an empty
+  payload of the same shape flagged `hasAppraisalIdentity: false`, reading nothing at all (there is no employee to
+  read for), and the screen renders the three setup steps in place of the widgets: the org tree, the employee
+  import, and the sign-out-and-back-in that turns the administrator into an employee too. Nobody else reaches the
+  branch — a non-admin with no record is refused at login outright, and a caller with no `userID` still gets the
+  401, as does the route's own authentication middleware before either.
+* fix(ui): hide the Workspace sidebar section for a session with no employee record, the way Manage, Insights and
+  Administration are already hidden by role. Dashboard, Org Chart, My Evaluation and My Scores all answer
+  `#requireSessionUser`, so offering them was offering four ways to reach an error.
+
+## Version 3.32.1
+
+* fix(ui): add the Research-Use Consent screen to the Administration sidebar. The screen shipped in 3.32.0 complete
+  in every respect except that nothing linked to it — the fragment was registered, the composite editor saved, the
+  labels were translated, and the only way to reach it was to type `/app/research-consent`. A guard test now fails
+  when an admin-gated fragment is offered by neither the sidebar nor a card on the Configuration screen, which are
+  the only two ways into an admin screen.
+
 ## Version 3.32.0
 
 Launch readiness: three things that made a fresh, blank-slate install impossible to configure into a real
