@@ -9,8 +9,19 @@ services:
       - "6379:6379"
     volumes:
       - redis-data:/data
+    environment:
+      # redis-stack-server appends REDIS_ARGS to the redis-server it launches. Empty by default, which leaves the
+      # dev Redis open — set TI_MEMORY_CACHE_AUTH_KEY in `.env` and both the server and the app pick it up.
+      REDIS_ARGS: "${TI_MEMORY_CACHE_AUTH_KEY:+--requirepass ${TI_MEMORY_CACHE_AUTH_KEY}}"
+      # redis-cli reads REDISCLI_AUTH from its own environment, so the healthcheck below needs no shell
+      # conditional and the password never appears on a command line where `ps` would show it.
+      REDISCLI_AUTH: "${TI_MEMORY_CACHE_AUTH_KEY:-}"
     healthcheck:
-      test: [ "CMD", "redis-cli", "ping" ]
+      # Matches the reply text rather than trusting the exit code: `redis-cli ping` exits 0 even when the server
+      # answers "NOAUTH Authentication required", so the previous unauthenticated check reported a
+      # password-protected Redis as healthy while the app could not reach it at all. Verified against a live
+      # server in all four states — open with no password, and protected with the right, wrong and absent one.
+      test: [ "CMD-SHELL", "redis-cli ping | grep -q PONG" ]
       interval: 10s
       timeout: 3s
       retries: 5
