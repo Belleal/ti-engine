@@ -28,9 +28,15 @@ Three things a real user would have met on their first day.
   hardcoding `require('http')` and an `http://` URL; the image bakes TLS off, so it worked until somebody ran the
   image with TLS on — a supported configuration — at which point the probe spoke plain HTTP to a TLS listener,
   failed every time, and Docker reported a healthy container unhealthy, restarting it on a loop. It is now
-  `bin/healthcheck.js`, which picks the transport with the server's own `tools.toBool` so the two cannot drift, and
-  does not verify the certificate: a process asking itself over loopback whether it is still serving establishes
-  liveness, not trust, and a self-signed or externally-issued certificate must not read as a dead container.
+  `bin/healthcheck.js`, which picks the transport with the server's own `tools.toBool` so the two cannot drift.
+  Certificate verification stays **on**: rather than the usual `rejectUnauthorized: false` — correct enough over
+  loopback, and exactly the line that gets copied out of a health probe into a client that does cross a network —
+  the trust anchor is narrowed to the server's own certificate (`TI_WEB_TLS_CERT_PATH`), with the name to verify
+  read out of that certificate instead of assumed to be `127.0.0.1`, since a certificate issued for a public
+  hostname is the normal case. Where no certificate path is configured there is nothing to anchor to and the probe
+  degrades to establishing that the port accepts connections — weaker, but it neither disables verification nor
+  restarts a container that is serving perfectly well. Set `TI_WEB_TLS_CERT_PATH` when terminating TLS inside the
+  container so the probe takes the strong path.
 
 ## Version 3.33.1
 

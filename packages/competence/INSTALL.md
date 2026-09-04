@@ -135,7 +135,7 @@ All configuration is via environment variables. **Bold = must set for production
 | `TI_WEB_HOST`                                  | `0.0.0.0`       | Bind address. Keep `0.0.0.0` in a container.                        |
 | `TI_WEB_PORT`                                  | `3000`          | Listen port.                                                        |
 | `TI_WEB_USE_TLS`                               | `false`         | Keep `false` — TLS is terminated by the proxy (§9).                 |
-| `TI_WEB_TLS_CERT_PATH` / `TI_WEB_TLS_KEY_PATH` | —               | Only if you terminate TLS *inside* the container (not recommended). |
+| `TI_WEB_TLS_CERT_PATH` / `TI_WEB_TLS_KEY_PATH` | —               | Only if you terminate TLS *inside* the container (not recommended). Set `TI_WEB_TLS_CERT_PATH` when you do: the container healthcheck verifies against that certificate, and without it falls back to a weaker check that only confirms the port is accepting connections. |
 | `TI_WEB_APP_STATIC_CACHE_DISABLED`             | `false`         | Leave `false` in production so static assets are cached.            |
 
 ### Application identity (shown on the in-app **About** screen)

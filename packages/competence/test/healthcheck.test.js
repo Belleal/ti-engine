@@ -52,11 +52,61 @@ function opensslAvailable() {
     return spawnSync( "openssl", [ "version" ], { encoding: "utf8" } ).status === 0;
 }
 
+/**
+ * Generates a throwaway self-signed certificate carrying the given subjectAltName, runs `body` with it, and removes
+ * it afterwards.
+ *
+ * @param {string} san e.g. "IP:127.0.0.1" or "DNS:competence.example.com".
+ * @param {function({certPath: string, keyPath: string}): Promise<void>} body
+ * @returns {Promise<void>}
+ */
+async function withCertificate( san, body ) {
+    const dir = fs.mkdtempSync( path.join( os.tmpdir(), "ti-healthcheck-" ) );
+    try {
+        const keyPath = path.join( dir, "key.pem" );
+        const certPath = path.join( dir, "cert.pem" );
+        execFileSync( "openssl", [
+            "req", "-x509", "-newkey", "rsa:2048", "-nodes",
+            "-keyout", keyPath, "-out", certPath,
+            "-days", "1", "-subj", "/CN=competence.example.com",
+            "-addext", `subjectAltName=${ san }`
+        ], { stdio: "ignore" } );
+        await body( { certPath: certPath, keyPath: keyPath } );
+    } finally {
+        fs.rmSync( dir, { recursive: true, force: true } );
+    }
+}
+
+/**
+ * Serves /health over TLS with the given certificate for the duration of `body`.
+ *
+ * @param {{certPath: string, keyPath: string}} certificate
+ * @param {function(number): Promise<void>} body Receives the listening port.
+ * @returns {Promise<void>}
+ */
+async function withTlsServer( certificate, body ) {
+    const server = https.createServer(
+        { key: fs.readFileSync( certificate.keyPath ), cert: fs.readFileSync( certificate.certPath ) },
+        ( request, response ) => {
+            response.writeHead( request.url === "/health" ? 200 : 404 );
+            response.end();
+        }
+    );
+    await new Promise( ( resolve ) => server.listen( 0, "127.0.0.1", resolve ) );
+    try {
+        await body( server.address().port );
+    } finally {
+        server.close();
+    }
+}
+
 let plainServer;
 let plainPort;
+let httpRequestsSeen = 0;
 
 before( async () => {
     plainServer = http.createServer( ( request, response ) => {
+        httpRequestsSeen += 1;
         response.writeHead( request.url === "/health" ? 200 : 404 );
         response.end();
     } );
@@ -91,60 +141,111 @@ describe( "Container healthcheck", () => {
         }
     } );
 
-    it( "actually switches transport when TLS is on", async () => {
-        // The regression, provable without a certificate: the SAME plain-HTTP server, the SAME port, only the
-        // variable differs. An HTTPS client cannot complete a handshake against it, so a probe that switched
-        // transport must fail here. The old hardcoded-http one-liner returned 0 for both, which is precisely how it
-        // reported success while being wrong.
+    it( "actually stops speaking HTTP when TLS is on", async () => {
+        // The regression, provable without a certificate — and by evidence rather than by exit code, since the
+        // no-certificate fallback would report a live listener either way. The same plain-HTTP server counts the
+        // HTTP requests it serves: with TLS off it sees the probe, with TLS on it must not, because the probe is no
+        // longer speaking that protocol. The old hardcoded-http one-liner sent a plain GET in both cases.
+        httpRequestsSeen = 0;
         assert.equal( await probe( { TI_WEB_USE_TLS: "false", TI_WEB_PORT: String( plainPort ) } ), 0 );
-        assert.equal( await probe( { TI_WEB_USE_TLS: "true", TI_WEB_PORT: String( plainPort ) } ), 1 );
+        assert.equal( httpRequestsSeen, 1, "TLS off must reach /health over HTTP" );
+
+        httpRequestsSeen = 0;
+        await probe( { TI_WEB_USE_TLS: "true", TI_WEB_PORT: String( plainPort ) } );
+        assert.equal( httpRequestsSeen, 0, "TLS on must never send a plain-HTTP request" );
     } );
 
     it( "reads the flag the way the server does", async () => {
         // `tools.toBool`: unset and false/0/no/N are false, everything else is true. The probe imports that same
-        // function rather than reimplementing it, and these pin the values an operator actually types.
+        // function rather than reimplementing it, and these pin the values an operator actually types — again by
+        // what reaches the HTTP server, which is the thing that differs.
         for ( const off of [ "false", "FALSE", "0", "no", "N", "" ] ) {
+            httpRequestsSeen = 0;
             assert.equal( await probe( { TI_WEB_USE_TLS: off, TI_WEB_PORT: String( plainPort ) } ), 0, `'${ off }' must mean plain HTTP` );
+            assert.equal( httpRequestsSeen, 1, `'${ off }' must mean plain HTTP` );
         }
         for ( const on of [ "true", "TRUE", "1", "yes" ] ) {
-            assert.equal( await probe( { TI_WEB_USE_TLS: on, TI_WEB_PORT: String( plainPort ) } ), 1, `'${ on }' must mean HTTPS` );
+            httpRequestsSeen = 0;
+            await probe( { TI_WEB_USE_TLS: on, TI_WEB_PORT: String( plainPort ) } );
+            assert.equal( httpRequestsSeen, 0, `'${ on }' must not mean plain HTTP` );
         }
     } );
 
-    it( "reports healthy against a real TLS server with a self-signed certificate", async ( t ) => {
-        // The case the fix exists for. Skipped rather than failed where no certificate can be generated — the
-        // transport-switch test above still covers the branch everywhere.
+    it( "reports healthy against a TLS server, verifying against its own certificate", async ( t ) => {
+        // The case the fix exists for, and the reason it is not `rejectUnauthorized: false`: verification stays on,
+        // anchored to the certificate the deployment configured. Skipped rather than failed where no certificate can
+        // be generated — the transport-switch test above covers the branch everywhere.
         if ( !opensslAvailable() ) {
             t.skip( "openssl is unavailable, so no throwaway certificate can be generated" );
             return;
         }
-        const dir = fs.mkdtempSync( path.join( os.tmpdir(), "ti-healthcheck-" ) );
-        try {
-            const keyPath = path.join( dir, "key.pem" );
-            const certPath = path.join( dir, "cert.pem" );
-            execFileSync( "openssl", [
-                "req", "-x509", "-newkey", "rsa:2048", "-nodes",
-                "-keyout", keyPath, "-out", certPath,
-                "-days", "1", "-subj", "/CN=localhost"
-            ], { stdio: "ignore" } );
+        await withCertificate( "IP:127.0.0.1", async ( certificate ) => {
+            await withTlsServer( certificate, async ( tlsPort ) => {
+                assert.equal( await probe( {
+                    TI_WEB_USE_TLS: "true",
+                    TI_WEB_PORT: String( tlsPort ),
+                    TI_WEB_TLS_CERT_PATH: certificate.certPath
+                } ), 0, "a self-signed loopback certificate must not read as a dead container" );
+            } );
+        } );
+    } );
 
-            const server = https.createServer(
-                { key: fs.readFileSync( keyPath ), cert: fs.readFileSync( certPath ) },
-                ( request, response ) => {
-                    response.writeHead( request.url === "/health" ? 200 : 404 );
-                    response.end();
-                }
-            );
-            await new Promise( ( resolve ) => server.listen( 0, "127.0.0.1", resolve ) );
-            try {
-                assert.equal( await probe( { TI_WEB_USE_TLS: "true", TI_WEB_PORT: String( server.address().port ) } ), 0,
-                    "a self-signed loopback certificate must not read as a dead container" );
-            } finally {
-                server.close();
-            }
-        } finally {
-            fs.rmSync( dir, { recursive: true, force: true } );
+    it( "verifies a certificate issued for a hostname, not the loopback address", async ( t ) => {
+        // The normal case: the certificate names the public hostname, and the probe still connects to 127.0.0.1.
+        // The name to check is read out of the certificate rather than assumed, so this passes without weakening
+        // anything — an earlier draft would have had to disable the identity check to survive it.
+        if ( !opensslAvailable() ) {
+            t.skip( "openssl is unavailable" );
+            return;
         }
+        await withCertificate( "DNS:competence.example.com", async ( certificate ) => {
+            await withTlsServer( certificate, async ( tlsPort ) => {
+                assert.equal( await probe( {
+                    TI_WEB_USE_TLS: "true",
+                    TI_WEB_PORT: String( tlsPort ),
+                    TI_WEB_TLS_CERT_PATH: certificate.certPath
+                } ), 0 );
+            } );
+        } );
+    } );
+
+    it( "refuses a certificate that is not the one it was told to trust", async ( t ) => {
+        // The test that makes the two above mean something. The server presents one certificate and the probe is
+        // anchored to a different one; if verification had been disabled this would pass, and the fix would be a
+        // comment rather than a change.
+        if ( !opensslAvailable() ) {
+            t.skip( "openssl is unavailable" );
+            return;
+        }
+        await withCertificate( "IP:127.0.0.1", async ( served ) => {
+            await withCertificate( "IP:127.0.0.1", async ( unrelated ) => {
+                await withTlsServer( served, async ( tlsPort ) => {
+                    assert.equal( await probe( {
+                        TI_WEB_USE_TLS: "true",
+                        TI_WEB_PORT: String( tlsPort ),
+                        TI_WEB_TLS_CERT_PATH: unrelated.certPath
+                    } ), 1, "verification must be real, not nominal" );
+                } );
+            } );
+        } );
+    } );
+
+    it( "falls back to a connection check when no certificate is configured", async ( t ) => {
+        // Nothing to anchor to, so the probe cannot ask /health — but refusing to answer would restart a container
+        // that is serving. It establishes that the port accepts connections instead, which is weaker and honest.
+        if ( !opensslAvailable() ) {
+            t.skip( "openssl is unavailable" );
+            return;
+        }
+        await withCertificate( "IP:127.0.0.1", async ( certificate ) => {
+            await withTlsServer( certificate, async ( tlsPort ) => {
+                assert.equal( await probe( { TI_WEB_USE_TLS: "true", TI_WEB_PORT: String( tlsPort ) } ), 0 );
+            } );
+        } );
+    } );
+
+    it( "the fallback still reports a dead port as dead", async () => {
+        assert.equal( await probe( { TI_WEB_USE_TLS: "true", TI_WEB_PORT: "1" } ), 1 );
     } );
 
 } );
@@ -155,6 +256,15 @@ describe( "Dockerfile wiring", () => {
 
     it( "runs the probe script rather than an inline one-liner", () => {
         assert.match( dockerfile, /HEALTHCHECK[\s\S]*?CMD \[\s*"node",\s*"bin\/healthcheck\.js"\s*\]/ );
+    } );
+
+    it( "disables certificate verification nowhere", () => {
+        const probeSource = fs.readFileSync( path.join( path.resolve( __dirname, ".." ), "bin", "healthcheck.js" ), "utf8" );
+        // Only in the comment explaining why it is not used. CodeQL flagged the real thing as high severity on #143,
+        // and it was right: this is the line that gets copied out of a health probe into a client that crosses a
+        // network.
+        const code = probeSource.replace( /\/\*[\s\S]*?\*\//g, "" );
+        assert.equal( /rejectUnauthorized/.test( code ), false, "verification is narrowed to the server's own certificate, never switched off" );
     } );
 
     it( "hardcodes no scheme in the healthcheck", () => {
