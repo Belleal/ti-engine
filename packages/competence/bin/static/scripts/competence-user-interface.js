@@ -2805,6 +2805,11 @@ const configureDashboard = () => {
 
     return {
         isLoading: true,
+        // False only for an allowlisted administrator with no employee record — the break-glass identity that keeps
+        // the configuration screens reachable on an install with nobody in it. The widgets are all about an employee
+        // this session does not have, so the screen offers the setup steps instead. Defaults to true so a payload
+        // from an older server (which never sends the flag) renders the dashboard, not the notice.
+        hasAppraisalIdentity: true,
         isManager: false,
         cycle: {},
         myEvaluation: null,
@@ -2835,6 +2840,7 @@ const configureDashboard = () => {
             this.isLoading = true;
             tiApplication.sendRequest( "/app/load-dashboard" ).then( ( result ) => {
                 const data = ( result?.data && typeof result.data === "object" ) ? result.data : {};
+                this.hasAppraisalIdentity = ( data.hasAppraisalIdentity !== false );
                 this.isManager = !!data.isManager;
                 this.cycle = data.cycle ? tiToolbox.structuredClone( data.cycle ) : {};
                 this.myEvaluation = data.myEvaluation ? tiToolbox.structuredClone( data.myEvaluation ) : null;
@@ -2857,6 +2863,44 @@ const configureDashboard = () => {
                 this.isLoading = false;
                 tiApplication.notify( tiApplication.formatException( error ) );
             } );
+        },
+
+        /**
+         * True while the dashboard has an employee to be about. Both this and its counterpart below fold in the
+         * loading state, so the fragment reads one call per branch rather than spelling the conjunction out in three
+         * template expressions the CSP evaluator would each have to parse.
+         *
+         * @method
+         * @returns {boolean}
+         * @public
+         */
+        showWidgets() {
+            return !this.isLoading && this.hasAppraisalIdentity;
+        },
+
+        /**
+         * True once loading has finished for a session with no employee record behind it — the state in which the
+         * screen offers the setup steps instead of widgets that would all be about nobody.
+         *
+         * @method
+         * @returns {boolean}
+         * @public
+         */
+        showSetupNotice() {
+            return !this.isLoading && !this.hasAppraisalIdentity;
+        },
+
+        /**
+         * Navigates to another screen. A pass-through to the application store, mirroring `openMyEvaluation` below:
+         * the fragment names a screen and this component decides how to get there, rather than each @click reaching
+         * through the store itself.
+         *
+         * @method
+         * @param {string} screen - The screen name, as registered with `addFragment`.
+         * @public
+         */
+        openScreen( screen ) {
+            tiApplication.openScreen( screen );
         },
 
         openMyEvaluation() {

@@ -9,8 +9,19 @@ services:
       - "6379:6379"
     volumes:
       - redis-data:/data
+    environment:
+      # redis-stack-server appends REDIS_ARGS to the redis-server it launches. Empty by default, which leaves the
+      # dev Redis open — set TI_MEMORY_CACHE_AUTH_KEY in `.env` and both the server and the app pick it up.
+      REDIS_ARGS: "${TI_MEMORY_CACHE_AUTH_KEY:+--requirepass ${TI_MEMORY_CACHE_AUTH_KEY}}"
+      # redis-cli reads REDISCLI_AUTH from its own environment, so the healthcheck below needs no shell
+      # conditional and the password never appears on a command line where `ps` would show it.
+      REDISCLI_AUTH: "${TI_MEMORY_CACHE_AUTH_KEY:-}"
     healthcheck:
-      test: [ "CMD", "redis-cli", "ping" ]
+      # Matches the reply text rather than trusting the exit code: `redis-cli ping` exits 0 even when the server
+      # answers "NOAUTH Authentication required", so the previous unauthenticated check reported a
+      # password-protected Redis as healthy while the app could not reach it at all. Verified against a live
+      # server in all four states — open with no password, and protected with the right, wrong and absent one.
+      test: [ "CMD-SHELL", "redis-cli ping | grep -q PONG" ]
       interval: 10s
       timeout: 3s
       retries: 5
@@ -32,9 +43,13 @@ services:
       TI_WEB_PORT: "3000"
       TI_WEB_USE_TLS: "false"
       TI_AUDITING_LOG_MIN_LEVEL: "0"
-      # Dev-only: the image defaults to Azure SSO (openid-azure); dev has no Azure creds, so use local auth here.
-      # In production, leave this unset to keep the Azure-only default, or set your enabled methods explicitly.
-      TI_WEB_AUTH_METHODS: local
+      # Defaults to local auth because a bare checkout has no Azure credentials. Set TI_WEB_AUTH_METHODS in `.env`
+      # (e.g. `openid-azure`) to run the stack against a real identity provider without editing this file.
+      TI_WEB_AUTH_METHODS: "${TI_WEB_AUTH_METHODS:-local}"
+      # The admin allowlist. Empty means NO admins, and on an empty install an admin identity is the only way in —
+      # nobody has an employee record yet, and the admin exception is what keeps the configuration screens reachable.
+      # Set it to your sign-in email in `.env` before the first boot.
+      TI_WEB_AUTH_ADMINS: "${TI_WEB_AUTH_ADMINS:-}"
       # Trust the external origin the app is served under (needed behind proxies that don't present the real host,
       # e.g. GitHub Codespaces port forwarding). Passed through from the environment (the devcontainer sets it from
       # $CODESPACE_NAME); empty for plain local runs, where the reconstructed localhost origin already matches.
@@ -45,10 +60,24 @@ services:
       # Seed once with `COMPETENCE_PRELOAD_DATA=true docker compose up -d`, then run without it (default "false")
       # so the seed isn't re-applied. The named redis-data volume persists your data across restarts.
       COMPETENCE_PRELOAD_DATA: "${COMPETENCE_PRELOAD_DATA:-false}"
-      COMPETENCE_TEST_USER_ENABLED: "true"    # dev-only login test panel; MUST be false in production
+      # Dev-only login test panel; MUST be false in production, and must be false when using a real identity
+      # provider — it overrides the resolved identity.
+      COMPETENCE_TEST_USER_ENABLED: "${COMPETENCE_TEST_USER_ENABLED:-true}"
       # Secrets — dev-only fallbacks; ALWAYS override with real values in production:
       TI_MESSAGE_EXCHANGE_SECURITY_HASH_KEY: "${TI_MESSAGE_EXCHANGE_SECURITY_HASH_KEY:-dev-only-not-for-prod-change-me}"
       TI_WEB_COOKIE_SECRET: "${TI_WEB_COOKIE_SECRET:-dev-only-not-for-prod-change-me}"
+      # Redis auth — empty for the unauthenticated dev Redis above.
+      TI_MEMORY_CACHE_AUTH_KEY: "${TI_MEMORY_CACHE_AUTH_KEY:-}"
+      # OpenID Connect. Empty by default, which drops the provider with a warning rather than failing to start —
+      # but only the CLIENT ID is checked for that. A client ID with no discovery URL passes the check and then
+      # fails during discovery, taking the instance down with it, so set all four together or none.
+      TI_AZURE_AUTH_CLIENT_ID: "${TI_AZURE_AUTH_CLIENT_ID:-}"
+      TI_AZURE_AUTH_CLIENT_SECRET: "${TI_AZURE_AUTH_CLIENT_SECRET:-}"
+      TI_AZURE_AUTH_CALLBACK_URL: "${TI_AZURE_AUTH_CALLBACK_URL:-}"
+      TI_AZURE_AUTH_DISCOVERY_URL: "${TI_AZURE_AUTH_DISCOVERY_URL:-}"
+      TI_GCLOUD_AUTH_CLIENT_ID: "${TI_GCLOUD_AUTH_CLIENT_ID:-}"
+      TI_GCLOUD_AUTH_CLIENT_SECRET: "${TI_GCLOUD_AUTH_CLIENT_SECRET:-}"
+      TI_GCLOUD_AUTH_CALLBACK_URL: "${TI_GCLOUD_AUTH_CALLBACK_URL:-}"
 
 volumes:
   redis-data:

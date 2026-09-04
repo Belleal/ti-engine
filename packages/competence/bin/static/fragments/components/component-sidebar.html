@@ -16,63 +16,70 @@
     <!-- Workspace: items every user works inside (their own evaluation, My Results, their team's org chart).
          Availability (managers only) and Interviews (managers + supervisors) are role-gated here to match their
          backend #requireRole(...) — without it employees saw screens they cannot use. x-show (not x-if) keeps htmx
-         able to wire the hx-* buttons at page load even before the role store has resolved. -->
-    <div class="ti-sidebar-section-label" x-text-label="interface.navigation.workspace">Workspace</div>
-    <div class="ti-sidebar-nav">
-        <button hx-get="/app/dashboard" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" @click="active = 'dashboard'"
-                x-bind:class="{ active: active === 'dashboard' }" class="ti-sidebar-item" data-tip="Dashboard" aria-label="Dashboard" type="button">
-            <span class="ti-sidebar-item-icon">
-                <span class="ti-icon dashboard-grid md" aria-hidden="true"></span>
-            </span>
-            <span class="ti-sidebar-item-label" x-text-label="interface.topbar.dashboard">Dashboard</span>
-        </button>
+         able to wire the hx-* buttons at page load even before the role store has resolved.
 
-        <button hx-get="/app/employees-list" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" @click="active = 'employees'"
-                x-bind:class="{ active: active === 'employees' }" class="ti-sidebar-item" data-tip="Org chart" aria-label="Org chart" type="button">
-            <span class="ti-sidebar-item-icon">
-                <span class="ti-icon users md" aria-hidden="true"></span>
-            </span>
-            <span class="ti-sidebar-item-label" x-text-label="interface.topbar.employees">Org chart</span>
-        </button>
+         The whole section is gated on the session having an employee record. An allowlisted administrator on an
+         install with no record for them has employeeID null by design (IdentityResolver#applyIdentity), and every
+         screen in here is about an employee — each one answers #requireSessionUser, which refuses a session without
+         one. Offering them was offering four ways to reach an error. -->
+    <div x-show="$store.tiApplication.user && $store.tiApplication.user.employeeID">
+        <div class="ti-sidebar-section-label" x-text-label="interface.navigation.workspace">Workspace</div>
+        <div class="ti-sidebar-nav">
+            <button hx-get="/app/dashboard" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" @click="active = 'dashboard'"
+                    x-bind:class="{ active: active === 'dashboard' }" class="ti-sidebar-item" data-tip="Dashboard" aria-label="Dashboard" type="button">
+                <span class="ti-sidebar-item-icon">
+                    <span class="ti-icon dashboard-grid md" aria-hidden="true"></span>
+                </span>
+                <span class="ti-sidebar-item-label" x-text-label="interface.topbar.dashboard">Dashboard</span>
+            </button>
 
-        <button @click="navigate('evaluation', 'competence-evaluation')"
-                x-bind:class="{ active: active === 'evaluation' }" class="ti-sidebar-item" data-tip="My Evaluation" aria-label="My Evaluation"
-                type="button">
-            <span class="ti-sidebar-item-icon">
-                <span class="ti-icon check-clipboard md" aria-hidden="true"></span>
-            </span>
-            <span class="ti-sidebar-item-label" x-text-label="interface.topbar.evaluation">My Evaluation</span>
-        </button>
+            <button hx-get="/app/employees-list" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" @click="active = 'employees'"
+                    x-bind:class="{ active: active === 'employees' }" class="ti-sidebar-item" data-tip="Org chart" aria-label="Org chart" type="button">
+                <span class="ti-sidebar-item-icon">
+                    <span class="ti-icon users md" aria-hidden="true"></span>
+                </span>
+                <span class="ti-sidebar-item-label" x-text-label="interface.topbar.employees">Org chart</span>
+            </button>
 
-        <button @click="navigate('my-results', 'my-results')"
-                x-bind:class="{ active: active === 'my-results' }" class="ti-sidebar-item"
-                x-text-label:data-tip="interface.navigation.my-results" x-text-label:aria-label="interface.navigation.my-results"
-                type="button">
-            <span class="ti-sidebar-item-icon">
-                <span class="ti-icon bar-chart md" aria-hidden="true"></span>
-            </span>
-            <span class="ti-sidebar-item-label" x-text-label="interface.navigation.my-results">My Results</span>
-        </button>
+            <button @click="navigate('evaluation', 'competence-evaluation')"
+                    x-bind:class="{ active: active === 'evaluation' }" class="ti-sidebar-item" data-tip="My Evaluation" aria-label="My Evaluation"
+                    type="button">
+                <span class="ti-sidebar-item-icon">
+                    <span class="ti-icon check-clipboard md" aria-hidden="true"></span>
+                </span>
+                <span class="ti-sidebar-item-label" x-text-label="interface.topbar.evaluation">My Evaluation</span>
+            </button>
 
-        <button hx-get="/app/manager-calendar" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" @click="active = 'calendar'"
-                x-show="$store.tiApplication.hasRole(2)"
-                x-bind:class="{ active: active === 'calendar' }" class="ti-sidebar-item" data-tip="Availability" aria-label="My Availability Calendar"
-                type="button">
-            <span class="ti-sidebar-item-icon">
-                <span class="ti-icon calendar-blank md" aria-hidden="true"></span>
-            </span>
-            <span class="ti-sidebar-item-label" x-text-label="interface.topbar.calendar">Availability</span>
-        </button>
+            <button @click="navigate('my-results', 'my-results')"
+                    x-bind:class="{ active: active === 'my-results' }" class="ti-sidebar-item"
+                    x-text-label:data-tip="interface.navigation.my-results" x-text-label:aria-label="interface.navigation.my-results"
+                    type="button">
+                <span class="ti-sidebar-item-icon">
+                    <span class="ti-icon bar-chart md" aria-hidden="true"></span>
+                </span>
+                <span class="ti-sidebar-item-label" x-text-label="interface.navigation.my-results">My Results</span>
+            </button>
 
-        <button hx-get="/app/interview-schedule" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" @click="active = 'interviews'"
-                x-show="$store.tiApplication.hasRole(2) || $store.tiApplication.hasRole(3)"
-                x-bind:class="{ active: active === 'interviews' }" class="ti-sidebar-item" data-tip="Interviews" aria-label="Interview Schedule"
-                type="button">
-            <span class="ti-sidebar-item-icon">
-                <span class="ti-icon clock md" aria-hidden="true"></span>
-            </span>
-            <span class="ti-sidebar-item-label" x-text-label="interface.topbar.interviews">Interviews</span>
-        </button>
+            <button hx-get="/app/manager-calendar" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" @click="active = 'calendar'"
+                    x-show="$store.tiApplication.hasRole(2)"
+                    x-bind:class="{ active: active === 'calendar' }" class="ti-sidebar-item" data-tip="Availability" aria-label="My Availability Calendar"
+                    type="button">
+                <span class="ti-sidebar-item-icon">
+                    <span class="ti-icon calendar-blank md" aria-hidden="true"></span>
+                </span>
+                <span class="ti-sidebar-item-label" x-text-label="interface.topbar.calendar">Availability</span>
+            </button>
+
+            <button hx-get="/app/interview-schedule" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" @click="active = 'interviews'"
+                    x-show="$store.tiApplication.hasRole(2) || $store.tiApplication.hasRole(3)"
+                    x-bind:class="{ active: active === 'interviews' }" class="ti-sidebar-item" data-tip="Interviews" aria-label="Interview Schedule"
+                    type="button">
+                <span class="ti-sidebar-item-icon">
+                    <span class="ti-icon clock md" aria-hidden="true"></span>
+                </span>
+                <span class="ti-sidebar-item-label" x-text-label="interface.topbar.interviews">Interviews</span>
+            </button>
+        </div>
     </div>
 
     <!-- Manage: cross-team / cross-cycle administration. Visible only to managers and supervisors.
@@ -189,6 +196,14 @@
                     <span class="ti-icon briefcase md" aria-hidden="true"></span>
                 </span>
                 <span class="ti-sidebar-item-label" x-text-label="interface.topbar.work-sites">Work Sites</span>
+            </button>
+
+            <button hx-get="/app/research-consent" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" @click="active = 'research-consent'"
+                    x-bind:class="{ active: active === 'research-consent' }" class="ti-sidebar-item" data-tip="Research-Use Consent" aria-label="Research-Use Consent" type="button">
+                <span class="ti-sidebar-item-icon">
+                    <span class="ti-icon lock md" aria-hidden="true"></span>
+                </span>
+                <span class="ti-sidebar-item-label" x-text-label="interface.topbar.research-consent">Research-Use Consent</span>
             </button>
         </div>
     </div>

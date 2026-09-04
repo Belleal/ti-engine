@@ -491,6 +491,15 @@ class CompetenceWebApplication extends TiWebAppManager {
      * @public
      */
     getProfileInfo( session ) {
+        // The account-level fallback documented above was unreachable for the one session that most needs it. It is
+        // only entered from the not-found catch below, which requires `fetchEmployee` to have been called — and an
+        // allowlisted administrator with no employee record has `employeeID` null, so `#requireSessionUser` refused
+        // first. The Profile entry sits in the user menu for every session, so that was a 401 on a screen the chrome
+        // itself points at. Same shape as the dashboard's: answer it, do not refuse it.
+        if ( session?.user?.userID && !session?.user?.employeeID ) {
+            return super.getProfileInfo( session );
+        }
+
         return new Promise( ( resolve, reject ) => {
             const { userID, userRoles } = this.#requireSessionUser( session );
 
@@ -2539,6 +2548,19 @@ class CompetenceWebApplication extends TiWebAppManager {
      * @private
      */
     #loadDashboard( session ) {
+        // An administrator admitted through the allowlist has no employee record and therefore no appraisal identity:
+        // `IdentityResolver#applyIdentity` sets `employeeID` to null and `roles` to empty for exactly that case, which
+        // is what keeps the configuration screens reachable on an install that has nobody in it yet. The dashboard is
+        // the application's landing screen, loaded by `frame-application.html` before such an administrator has had
+        // any chance to navigate, so refusing it turned an ordinary first sign-in into an unauthorized-access toast.
+        // It answers with an empty dashboard instead and the screen offers the setup steps in place of the widgets.
+        // Nobody else reaches this branch: a non-admin with no employee record is refused at login outright
+        // (`IdentityResolver#refuse`), and an unauthenticated caller has no `userID`, so it falls through to the 401
+        // below — as does the route's own authentication middleware before either.
+        if ( session?.user?.userID && !session?.user?.employeeID ) {
+            return Promise.resolve( this.#dashboardWithoutIdentity() );
+        }
+
         return new Promise( ( resolve, reject ) => {
             const { userID, userRoles } = this.#requireSessionUser( session );
 
@@ -2675,6 +2697,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                 };
 
                 resolve( {
+                    hasAppraisalIdentity: true,
                     userID: userID,
                     isManager: isManager,
                     cycle: currentCycle ? {
@@ -2743,6 +2766,36 @@ class CompetenceWebApplication extends TiWebAppManager {
                 reject( exceptions.raise( error ) );
             } );
         } );
+    }
+
+    /**
+     * The dashboard payload for a session that carries no appraisal identity — an allowlisted administrator on an
+     * install with no employee record for them. Deliberately the same shape as a loaded dashboard, every collection
+     * empty, so the screen needs no null checks it does not already have; `hasAppraisalIdentity` is what it branches
+     * on to render the setup notice instead of the widgets. Reads nothing at all: there is no employee to read for,
+     * and an empty payload is the only thing that can be served without inventing an identity.
+     *
+     * @method
+     * @returns {Object}
+     * @private
+     */
+    #dashboardWithoutIdentity() {
+        return {
+            hasAppraisalIdentity: false,
+            userID: null,
+            isManager: false,
+            cycle: null,
+            myEvaluation: null,
+            teamEvaluations: [],
+            stats: { total: 0, open: 0, inReview: 0, ready: 0 },
+            tasks: [],
+            employeeMetrics: {
+                peerFeedback: { submitted: 0, requested: 0 },
+                selfGrades: { completed: 0, total: 0 },
+                teamCoverage: { started: 0, total: 0 }
+            },
+            activity: []
+        };
     }
 
     /* ------------------------------------------------------------------ */

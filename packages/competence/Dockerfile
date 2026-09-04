@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # ---------- deps stage: install workspace deps + materialize static libs ----------
-FROM node:22-alpine AS deps
+FROM node:24-alpine AS deps
 WORKDIR /app
 
 # Manifest-only layer first for better dependency-layer caching.
@@ -24,7 +24,7 @@ COPY packages/competence ./packages/competence
 RUN npm run postinstall -w @ti-engine/web-framework
 
 # ---------- runtime stage: minimal, non-root ----------
-FROM node:22-alpine AS runtime
+FROM node:24-alpine AS runtime
 ENV NODE_ENV=production \
     TI_INSTANCE_NAME=ti-competence \
     TI_INSTANCE_CLASS=bin/competence-web-server.js \
