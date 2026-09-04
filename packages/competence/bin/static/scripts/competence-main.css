@@ -324,7 +324,10 @@
 
 .competence-dash-cols {
     display: grid;
-    grid-template-columns: 1.2fr 1fr;
+    /* One column since the Recent Activity panel was removed: it served four hardcoded entries to every user,
+       including one asserting by name that they had submitted a self-evaluation. A real feed is a designed
+       feature — in an appraisal tool it has to decide whose events each person may see. */
+    grid-template-columns: 1fr;
     gap: var(--s-3);
     align-items: start;
 }
@@ -5766,4 +5769,23 @@
 
 .competence-admin-drift-apply .ti-input {
     flex: 1;
+}
+
+/* Autosave indicator beside the evaluation action buttons. Quiet by default — it reports, it does not interrupt;
+   only a failure earns the danger ink, because that is the one state the user has to act on. Tokens are the
+   framework's own (--fg-tertiary, --success, --danger), matching .ti-form-hint and .ti-form-error. */
+.competence-autosave-state {
+    align-self: center;
+    font-size: var(--fs-xs);
+    color: var(--fg-tertiary);
+    white-space: nowrap;
+}
+
+.competence-autosave-state.saved {
+    color: var(--success);
+}
+
+.competence-autosave-state.failed {
+    color: var(--danger);
+    font-weight: 600;
 }

@@ -294,7 +294,7 @@
                 </div>
             </template>
 
-            <!-- Two-column: tasks + activity -->
+            <!-- Tasks. Once the two-panel row lost its fabricated Activity feed, this is the row. -->
             <div class="competence-dash-cols">
                 <!-- Tasks for you -->
                 <div class="ti-panel">
@@ -304,9 +304,6 @@
                             <span x-text="tasks.length"></span>
                             <span x-text-label="interface.dashboard.tasks-count-suffix">items</span>
                         </span>
-                        <div class="ti-panel-head-actions">
-                            <button class="ti-btn sm ghost" type="button" x-text-label="interface.dashboard.view-all">View all</button>
-                        </div>
                     </div>
 
                     <template x-if="tasks.length > 0">
@@ -329,45 +326,6 @@
                     <template x-if="tasks.length === 0">
                         <div class="ti-empty-state">
                             <div class="ti-empty-state-title" x-text-label="interface.dashboard.no-tasks">All caught up!</div>
-                        </div>
-                    </template>
-                </div>
-
-                <!-- Activity feed -->
-                <div class="ti-panel">
-                    <div class="ti-panel-head">
-                        <div class="ti-panel-title" x-text-label="interface.dashboard.activity-title">Recent Activity</div>
-                        <div class="ti-panel-head-actions">
-                            <button class="ti-btn sm ghost" type="button" x-text-label="interface.dashboard.view-all">View all</button>
-                        </div>
-                    </div>
-                    <template x-if="activity.length > 0">
-                        <div class="competence-activity-list">
-                            <template x-for="item in activity" x-bind:key="item.id">
-                                <div class="competence-activity-item">
-                                    <div class="ti-avatar xs"
-                                         x-bind:style="$store.tiToolbox.generateAvatarStyle(item.actorID || item.id, item.actorName)"
-                                         x-bind:aria-label="item.actorName">
-                                        <span x-text="(item.actorName || '?').charAt(0).toUpperCase()"></span>
-                                    </div>
-                                    <div>
-                                        <div class="competence-activity-text">
-                                            <strong x-text="item.actorName"></strong>
-                                            <span x-text="item.action"></span>
-                                            <span class="ti-status-pill" x-bind:class="item.statusTone" x-show="item.statusLabel">
-                                                <span class="dot"></span>
-                                                <span x-text="item.statusLabel"></span>
-                                            </span>
-                                        </div>
-                                        <div class="competence-activity-time" x-text="item.time"></div>
-                                    </div>
-                                </div>
-                            </template>
-                        </div>
-                    </template>
-                    <template x-if="activity.length === 0">
-                        <div class="ti-empty-state">
-                            <div class="ti-empty-state-title" x-text-label="interface.dashboard.no-activity">No recent activity</div>
                         </div>
                     </template>
                 </div>

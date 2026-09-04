@@ -95,7 +95,6 @@ describe( "Dashboard for a session with no appraisal identity", () => {
         const data = await app.processDataRequest( administratorSession(), "load-dashboard" );
         assert.deepEqual( data.teamEvaluations, [] );
         assert.deepEqual( data.tasks, [] );
-        assert.deepEqual( data.activity, [] );
         assert.deepEqual( data.stats, { total: 0, open: 0, inReview: 0, ready: 0 } );
         assert.equal( data.cycle, null );
         assert.equal( data.myEvaluation, null );
