@@ -171,6 +171,16 @@ All three are display-only — nothing behaves differently based on them. Signed
 | **`TI_MESSAGE_EXCHANGE_SECURITY_HASH_KEY`** | Keyed HMAC for message-integrity/tamper protection. If unset, a startup **warning** is logged and tamper protection is ineffective.                              |
 | **`TI_WEB_COOKIE_SECRET`**                  | Session cookie signing secret. Set a stable, private value so sessions survive restarts and work across replicas (otherwise a random per-process value is used). |
 
+### Session lifetime
+| Variable                            | Default        | Purpose                                                                                                                                                                                                                                                                                                                       |
+|-------------------------------------|----------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `TI_WEB_SESSION_IDLE_TIMEOUT`       | `480` (8 hours)| Whole **minutes** a signed-in session survives **without activity**. The window is rolling — every response re-stamps the cookie, so it ends only after this long with no request at all. Signing in again is an Azure round trip, not a password prompt, so a shorter value costs little; but see the caveat below before lowering it. |
+
+Filling in an evaluation makes **no requests** — grades and written feedback are held in the browser until *Save draft*
+or *Submit*. The idle clock therefore keeps running while somebody types, so this value must comfortably exceed the
+longest uninterrupted sitting you expect, or a user can lose unsaved work on save. Eight hours covers a working day.
+Encourage *Save draft*, and prefer raising this over lowering it until the form autosaves.
+
 ### Application flags
 | Variable                           | Default | Purpose                                                                    |
 |------------------------------------|---------|----------------------------------------------------------------------------|

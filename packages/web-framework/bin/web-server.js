@@ -319,6 +319,15 @@ class TiWebServer extends ServiceConsumer {
                     secret: this.serviceConfig.cookies.secret || randomBytes( 32 ).toString( "base64" ),
                     resave: false,
                     saveUninitialized: false,
+                    // Slide the window with use, rather than expiring a fixed interval after sign-in. Without this,
+                    // express-session re-sends the cookie only when the session data itself changes
+                    // (`shouldSetCookie`), and nothing changes it after login — `augmentSession` runs once inside
+                    // `regenerateAndSaveSession`, and the CSRF handler writes its token only when absent. The cookie
+                    // was therefore stamped at sign-in and never refreshed: an absolute limit that expired people
+                    // mid-task however hard they were working. `resave: false` keeps the store write-free; the
+                    // session's TTL there is kept alive by `SessionStore.touch`, which express-session calls per
+                    // request.
+                    rolling: true,
                     cookie: {
                         path: this.serviceConfig.cookies.path,
                         httpOnly: this.serviceConfig.cookies.httpOnly,
