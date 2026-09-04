@@ -43,11 +43,12 @@ USER node
 WORKDIR /app/packages/competence
 EXPOSE 3000
 
-# Liveness probe: the dedicated /health endpoint returns 200 whenever the server is serving. The script picks http
-# or https from TI_WEB_USE_TLS using the server's own parser — an inline one-liner hardcoded http:// and reported a
-# TLS-enabled container unhealthy forever. Exec form, so no shell touches it.
+# Liveness probe: the framework's own, since every input it reads is the framework's — TI_WEB_USE_TLS, TI_WEB_PORT,
+# TI_WEB_TLS_CERT_PATH and the /health route it calls. An inline one-liner here hardcoded http:// and reported a
+# TLS-enabled container unhealthy forever; a copy of the probe would be the same mistake one step removed. Exec
+# form, so no shell touches it. Path style matches the CMD below.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
-  CMD ["node", "bin/healthcheck.js"]
+  CMD ["node", "/app/node_modules/@ti-engine/web-framework/bin/healthcheck.js"]
 
 # @ti-engine/core is hoisted to /app/node_modules and symlinked to /app/packages/core.
 CMD ["node", "/app/node_modules/@ti-engine/core/bin/start-instance.js"]

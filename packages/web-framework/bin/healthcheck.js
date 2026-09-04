@@ -1,18 +1,37 @@
 /*
  * The ti-engine is an open source, free to use—both for personal and commercial projects—framework for the creation of microservice-based solutions using node.js.
  * Copyright © 2021-2026 Boris Kostadinov <kostadinov.boris@gmail.com>
- * This program is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
- * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more details.
- * You should have received a copy of the GNU Affero General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
 */
 
 /**
- * Container liveness probe: ask the server whether it is still serving, and exit 0 only if it says yes.
+ * Container liveness probe for any application built on {@link TiWebServer}: ask the server whether it is still
+ * serving, and exit 0 only if it says yes. Invoke it from a Dockerfile `HEALTHCHECK`, the way the competence image
+ * does:
  * <br/>
- * This replaced an inline `node -e` in the Dockerfile that hardcoded `require('http')` and an `http://` URL. The
- * image bakes `TI_WEB_USE_TLS=false`, so it worked — until the image was run with TLS on, which is supported
- * (a mounted certificate rather than terminating at a proxy). The probe then spoke plain HTTP to a TLS listener,
- * failed every time, and Docker reported a healthy container unhealthy, restarting it on a loop.
+ * `HEALTHCHECK CMD ["node", "/app/node_modules/@ti-engine/web-framework/bin/healthcheck.js"]`
+ * <br/>
+ * It lives here rather than in an application because every input it reads is the framework's: `TI_WEB_USE_TLS`,
+ * `TI_WEB_PORT` and `TI_WEB_TLS_CERT_PATH` are the framework's environment overrides, `/health` is the framework's
+ * route, and the endpoint it calls is `webHandlers.healthHandler`. An application copying this file would be
+ * copying framework behaviour, and would silently keep the old behaviour when the framework's changed.
+ * <br/>
+ * The obvious implementation is an inline `node -e` in the Dockerfile, and the obvious mistake is what that
+ * encourages: hardcoding `require('http')` and an `http://` URL. That works for as long as TLS is off, and the
+ * moment an image is run with TLS on — supported, via a mounted certificate rather than terminating at a proxy —
+ * the probe speaks plain HTTP to a TLS listener, fails every time, and Docker reports a healthy container
+ * unhealthy, restarting it on a loop.
  * <br/>
  * The transport comes from the same variable and the same parser the server uses, so the two cannot drift:
  * `tools.toBool` treats an unset value and `false`/`0`/`no`/`N` as false, and anything else as true.

@@ -2,6 +2,22 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.28.0
+
+* feat(deploy): add `bin/healthcheck.js`, the container liveness probe for any `TiWebServer` application. Point a
+  Dockerfile `HEALTHCHECK` at `node /app/node_modules/@ti-engine/web-framework/bin/healthcheck.js`. It belongs here
+  rather than in each application because every input it reads is the framework's: `TI_WEB_USE_TLS`, `TI_WEB_PORT`
+  and `TI_WEB_TLS_CERT_PATH` are the framework's environment overrides, and `/health` is the framework's own route,
+  served by `webHandlers.healthHandler`. The framework has always provided the endpoint and never anything to call
+  it, which left every consumer writing an inline `node -e` — and the obvious inline version hardcodes `http://`,
+  so it reports a TLS-enabled container unhealthy forever and Docker restarts a server that is answering correctly.
+  The transport comes from the same `tools.toBool` the server uses, so the two cannot drift. With TLS on the
+  certificate is verified rather than skipped: trust is anchored to the server's own certificate and the name to
+  check is read out of it, so one issued for a public hostname passes while the probe connects to `127.0.0.1`.
+  Without a configured certificate the probe falls back to establishing that the port accepts connections — weaker,
+  but it neither disables verification nor restarts a healthy container. Arrived in competence 3.34.0 and moved
+  here unchanged in behaviour.
+
 ## Version 1.27.0
 
 Session lifetime. Two defects that together threw a signed-in user out roughly ten minutes after sign-in, however

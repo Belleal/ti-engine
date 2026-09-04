@@ -2,6 +2,18 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.34.1
+
+* refactor(deploy): move the container liveness probe into the framework (web-framework 1.28.0) and point the
+  Dockerfile at it. 3.34.0 put `bin/healthcheck.js` in this package, which was the wrong home: every input it reads
+  is the framework's — `TI_WEB_USE_TLS`, `TI_WEB_PORT`, `TI_WEB_TLS_CERT_PATH` and the `/health` route it calls —
+  and the framework has shipped that endpoint all along with nothing to call it, so every application on it would
+  have written the same file. Behaviour is unchanged; the `HEALTHCHECK` now runs
+  `/app/node_modules/@ti-engine/web-framework/bin/healthcheck.js`, matching how `CMD` already reaches
+  `@ti-engine/core/bin/start-instance.js`. What stays here is a wiring guard: the Dockerfile must call the
+  framework's probe, the file it names must exist, the framework must publish `bin/`, and the `HEALTHCHECK` must
+  reimplement none of it.
+
 ## Version 3.34.0
 
 Three things a real user would have met on their first day.
