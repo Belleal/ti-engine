@@ -50,15 +50,20 @@ const webServerSource = fs.readFileSync( path.join( PACKAGE_ROOT, "bin", "web-se
 const MINUTE = 60 * 1000;
 
 /**
- * Signs in against a throwaway express-session app wired with the given options, then makes one ordinary follow-up
- * request carrying the resulting cookie. Answers the only two questions that matter: how long the browser was told
- * to keep the session, and whether an ordinary request restarts that clock.
+ * Signs in against a throwaway express-session app wired the way `TiWebServer` wires the real one, then makes one
+ * ordinary follow-up request carrying the resulting cookie. Answers the only two questions that matter: how long the
+ * browser was told to keep the session, and whether an ordinary request restarts that clock.
+ * <br/>
+ * The cookie attributes are fixed here rather than taken from the caller so every measurement is of the shape the
+ * framework actually serves — `secure: "auto"` and `sameSite` included. Over plain HTTP on loopback, "auto" leaves
+ * the Secure attribute off, so the cookie still travels and the measurement is unaffected; the point is that the
+ * option is the framework's, not the test's invention.
  *
- * @param {Object} cookieOptions Passed through as express-session's `cookie`.
+ * @param {number} maxAge The cookie lifetime in milliseconds, as express-session reads it.
  * @param {boolean} rolling
  * @returns {Promise<{lifetimeMs: number, slidOnUse: boolean, stillSignedIn: boolean}>}
  */
-function measureSession( cookieOptions, rolling ) {
+function measureSession( maxAge, rolling ) {
     return new Promise( ( resolve, reject ) => {
         const app = express();
         app.use( session( {
@@ -66,7 +71,7 @@ function measureSession( cookieOptions, rolling ) {
             resave: false,
             saveUninitialized: false,
             rolling: rolling,
-            cookie: cookieOptions,
+            cookie: { path: "/", httpOnly: true, secure: "auto", sameSite: "lax", maxAge: maxAge },
             unset: "destroy"
         } ) );
         app.get( "/sign-in", ( request, response ) => {
@@ -119,7 +124,7 @@ describe( "Session lifetime — the shipped configuration", () => {
 describe( "Session lifetime — express-session semantics we depend on", () => {
 
     it( "restarts the clock on an ordinary request once rolling is on", async () => {
-        const result = await measureSession( { path: "/", httpOnly: true, maxAge: 30 * MINUTE }, true );
+        const result = await measureSession( 30 * MINUTE, true );
         assert.equal( result.slidOnUse, true, "a request that does not modify the session must still re-stamp the cookie" );
         assert.equal( result.stillSignedIn, true );
     } );
@@ -127,18 +132,18 @@ describe( "Session lifetime — express-session semantics we depend on", () => {
     it( "does NOT restart it without rolling — the defect this replaces", async () => {
         // Pins the reason `rolling` is needed rather than trusting the option name: with it off, an ordinary
         // request leaves the original expiry standing, so the limit runs from sign-in whatever the user does.
-        const result = await measureSession( { path: "/", httpOnly: true, maxAge: 30 * MINUTE }, false );
+        const result = await measureSession( 30 * MINUTE, false );
         assert.equal( result.slidOnUse, false );
     } );
 
     it( "reads maxAge as milliseconds, which is what made 604800 a ten-minute session", async () => {
-        const result = await measureSession( { path: "/", httpOnly: true, maxAge: 604800 }, true );
+        const result = await measureSession( 604800, true );
         assert.ok( result.lifetimeMs < 11 * MINUTE,
             `604800 in that field yielded ${ Math.round( result.lifetimeMs / 1000 ) }s — it is milliseconds, not seconds` );
     } );
 
     it( "gives the shipped value the lifetime the config intends", async () => {
-        const result = await measureSession( { path: "/", httpOnly: true, maxAge: shippedConfig.cookies.maxAge }, true );
+        const result = await measureSession( shippedConfig.cookies.maxAge, true );
         // Second-granularity Expires header, so allow a couple of seconds of slack.
         assert.ok( Math.abs( result.lifetimeMs - shippedConfig.cookies.maxAge ) < 2000 );
     } );
