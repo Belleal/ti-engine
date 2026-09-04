@@ -162,6 +162,138 @@ describe( "Evaluation autosave — who may write", () => {
 
 } );
 
+describe( "Evaluation autosave — one writer at a time", () => {
+
+    /**
+     * A component whose draft writes are held open until the test releases each one.
+     *
+     * @returns {{component: Object, calls: Array, release: function(number): void}}
+     */
+    function withHeldWrites() {
+        const calls = [];
+        const component = editableEvaluation( {}, {
+            tiApplication: {
+                sendRequest: ( url, method, body ) => {
+                    const record = { url, method, body };
+                    record.promise = new Promise( ( resolve, reject ) => {
+                        record.settle = ( error ) => ( error ? reject( error ) : resolve( { isSuccessful: true, data: {} } ) );
+                    } );
+                    calls.push( record );
+                    return record.promise;
+                }
+            }
+        } );
+        return { component: component, calls: calls };
+    }
+
+    it( "does not let Save Draft overtake an autosave already on the wire", async () => {
+        // Found by CodeRabbit on #143. cancelPendingAutosave clears the timer and the queue, but cannot recall a
+        // request already sent. So: autosave posts draft A, the user types B, then presses Save Draft — and B was
+        // sent alongside A. If A landed second the server kept the older grades, silently, with the screen saying
+        // the draft was saved. Both writers now queue behind one in-flight flag.
+        const { component, calls } = withHeldWrites();
+
+        component.setItemGrade( "E1-1", "employee", "S" );
+        harness.flushTimers();
+        assert.equal( calls.length, 1, "the autosave is on the wire" );
+
+        component.setItemGrade( "E1-1", "employee", "R" );
+        component.saveDraft();
+        assert.equal( calls.length, 1, "the explicit save must wait, not race the autosave" );
+
+        calls[ 0 ].settle();
+        await calls[ 0 ].promise;
+        await Promise.resolve();
+        await Promise.resolve();
+
+        assert.equal( calls.length, 2, "and is sent once the first settles" );
+        assert.equal( calls[ 1 ].body.evaluation.grades[ "E1-1" ].employee, "R", "carrying the newer grade" );
+    } );
+
+    it( "answers a queued explicit save with its toast once it actually runs", async () => {
+        const { component, calls } = withHeldWrites();
+        component.setItemGrade( "E1-1", "employee", "S" );
+        harness.flushTimers();
+        component.saveDraft();
+
+        calls[ 0 ].settle();
+        await calls[ 0 ].promise;
+        await Promise.resolve();
+        await Promise.resolve();
+        calls[ 1 ].settle();
+        await calls[ 1 ].promise;
+        await Promise.resolve();
+
+        assert.equal( harness.notices.length, 1, "the press is still answered, late but answered" );
+    } );
+
+} );
+
+describe( "Evaluation autosave — failure reporting", () => {
+
+    /**
+     * A component whose draft writes all reject.
+     *
+     * @returns {Object} the component
+     */
+    function alwaysFailing() {
+        return editableEvaluation( {}, {
+            tiApplication: {
+                sendRequest: () => Promise.reject( new Error( "network down" ) )
+            }
+        } );
+    }
+
+    it( "announces a run of failures once, not once per attempt", async () => {
+        // Found by CodeRabbit on #143. The suppression read `autosaveState`, which every attempt sets to "saving"
+        // before sending — so the check could never see "failed", and every retry toasted. Exactly the spam the
+        // code claimed in a comment to be preventing. The flag now lives in closure state.
+        const component = alwaysFailing();
+
+        for ( let attempt = 0; attempt < 3; attempt += 1 ) {
+            component.setItemGrade( "E1-1", "employee", "S" );
+            harness.flushTimers();
+            await Promise.resolve();
+            await Promise.resolve();
+            await Promise.resolve();
+        }
+
+        assert.equal( component.autosaveState, "failed" );
+        assert.equal( harness.notices.length, 1, "three failures, one notice" );
+    } );
+
+    it( "speaks up again after a failure run ends in a success", async () => {
+        let succeed = false;
+        const component = editableEvaluation( {}, {
+            tiApplication: {
+                sendRequest: () => ( succeed ? Promise.resolve( { isSuccessful: true, data: {} } ) : Promise.reject( new Error( "network down" ) ) )
+            }
+        } );
+
+        const settle = async () => {
+            harness.flushTimers();
+            await Promise.resolve();
+            await Promise.resolve();
+            await Promise.resolve();
+        };
+
+        component.setItemGrade( "E1-1", "employee", "S" );
+        await settle();
+        assert.equal( harness.notices.length, 1 );
+
+        succeed = true;
+        component.setItemGrade( "E1-1", "employee", "R" );
+        await settle();
+        assert.equal( component.autosaveState, "saved" );
+
+        succeed = false;
+        component.setItemGrade( "E1-1", "employee", "U" );
+        await settle();
+        assert.equal( harness.notices.length, 2, "a new run of failures is a new thing to say" );
+    } );
+
+} );
+
 describe( "Evaluation autosave — the explicit button still wins", () => {
 
     it( "Save Draft supersedes a pending autosave rather than racing it", () => {

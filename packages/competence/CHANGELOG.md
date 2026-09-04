@@ -19,9 +19,11 @@ Three things a real user would have met on their first day.
 * feat(ui): autosave the evaluation draft. Grades and written feedback lived only in the browser until somebody
   pressed Save Draft, and filling in the form issues no requests at all, so a closed tab, a refresh or an expired
   session discarded the work and the person found out when they finally tried to save. Edits now schedule a
-  debounced write two seconds after the last change: a burst of typing is one request, writes never overlap (an
-  edit arriving mid-flight waits and then writes once, so arrival order cannot decide what is stored), and the
-  state is reported beside the buttons rather than through a toast per save. Gated exactly as the server gates the
+  debounced write two seconds after the last change: a burst of typing is one request, writes never overlap — one
+  in-flight flag covers the timer and the Save Draft button alike, since cancelling a timer cannot recall a request
+  already sent, and an explicit save overtaking an older autosave would have let the server keep the earlier grades
+  — and the state is reported beside the buttons rather than through a toast per save, with a run of failures
+  announced once. Gated exactly as the server gates the
   endpoint — a peer reviewer (role 4) has no draft to save, so nothing is attempted for them. Save Draft still
   supersedes a pending autosave and keeps its confirmation, because an explicit action deserves an explicit answer.
 * fix(deploy): the container healthcheck now follows `TI_WEB_USE_TLS`. It was an inline `node -e` in the Dockerfile

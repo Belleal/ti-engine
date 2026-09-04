@@ -29,9 +29,18 @@ const configureCompetenceEvaluation = () => {
     // Two seconds is long enough that a burst of typing produces one request, short enough that the work at risk
     // is a sentence rather than a session.
     const AUTOSAVE_DELAY_MS = 2000;
+    const DRAFT_URL = "/app/save-evaluation-draft";
     let autosaveTimer = null;
-    let autosaveInFlight = false;
-    let autosaveQueued = false;
+    // One in-flight flag for BOTH writers. Serialising autosave against itself is not enough: cancelling the timer
+    // does not recall a request already on the wire, so an explicit Save Draft could overtake an autosave carrying
+    // older grades, and whichever landed second won. Everything now queues behind this.
+    let draftWriteInFlight = false;
+    let queuedAutosave = false;
+    let queuedExplicitSave = false;
+    // Whether the current run of failures has already been announced. Derived state cannot serve here: the status is
+    // set to "saving" at the start of every attempt, so reading it back in the catch always says "saving" and every
+    // retry would toast.
+    let failureAnnounced = false;
     const MODAL_FOCUSABLE_SELECTOR = "button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex=\"-1\"])";
     const modalFocusables = ( dialog ) => dialog
         ? Array.from( dialog.querySelectorAll( MODAL_FOCUSABLE_SELECTOR ) ).filter( ( el ) => el.offsetParent !== null )
@@ -219,20 +228,10 @@ const configureCompetenceEvaluation = () => {
 
         saveDraft() {
             // An explicit press supersedes anything the autosave had queued, and keeps its toast: the user asked, so
-            // the user gets an answer.
+            // the user gets an answer. Not gated on canAutosave — the button is not inside a canEdit guard, and the
+            // server is the authority on whether this session may write.
             this.cancelPendingAutosave();
-            this.autosaveState = "saving";
-            tiApplication.sendRequest( "/app/save-evaluation-draft", "POST", { evaluation: this.evaluation } ).then( () => {
-                this.autosaveState = "saved";
-                tiApplication.notify( tiApplication.getLabel( "interface.evaluation.messages.draft-saved" ) );
-            } ).catch( ( error ) => {
-                if ( error && ( error.name === "AbortError" || error.isAborted ) ) {
-                    this.autosaveState = "idle";
-                    return;
-                }
-                this.autosaveState = "failed";
-                tiApplication.notify( tiApplication.formatException( error ) );
-            } );
+            this.writeDraft( true );
         },
 
         /**
@@ -279,13 +278,12 @@ const configureCompetenceEvaluation = () => {
                 clearTimeout( autosaveTimer );
                 autosaveTimer = null;
             }
-            autosaveQueued = false;
+            queuedAutosave = false;
         },
 
         /**
-         * Writes the draft. Never overlaps itself: edits arriving mid-flight set a flag and are written once the
-         * current request settles, so a fast typist produces a queue of one rather than a pile of racing POSTs whose
-         * arrival order decides what is stored.
+         * The autosave path into the writer. The role gate lives here rather than in `writeDraft`, because the
+         * explicit button is the user's own decision and the server is the authority on whether it is allowed.
          *
          * @method
          * @public
@@ -294,32 +292,63 @@ const configureCompetenceEvaluation = () => {
             if ( !this.canAutosave() ) {
                 return;
             }
-            if ( autosaveInFlight ) {
-                autosaveQueued = true;
+            this.writeDraft( false );
+        },
+
+        /**
+         * The single path through which a draft reaches the server. Both the timer and the button go through it, so
+         * two writes are never in flight together: whichever arrives while one is running is queued, and an explicit
+         * save outranks a queued autosave because somebody is waiting on it. Without this, cancelling the timer left
+         * an already-sent autosave running, and an explicit save could be overtaken by that older payload.
+         *
+         * @method
+         * @param {boolean} isExplicit Whether this write came from the Save Draft button, which is answered with a toast.
+         * @public
+         */
+        writeDraft( isExplicit ) {
+            if ( draftWriteInFlight ) {
+                if ( isExplicit ) {
+                    queuedExplicitSave = true;
+                } else {
+                    queuedAutosave = true;
+                }
                 return;
             }
-            autosaveInFlight = true;
+            draftWriteInFlight = true;
             this.autosaveState = "saving";
-            tiApplication.sendRequest( "/app/save-evaluation-draft", "POST", { evaluation: this.evaluation } ).then( () => {
+            tiApplication.sendRequest( DRAFT_URL, "POST", { evaluation: this.evaluation } ).then( () => {
                 this.autosaveState = "saved";
+                // A success ends the run of failures, so the next one is announced again.
+                failureAnnounced = false;
+                if ( isExplicit ) {
+                    tiApplication.notify( tiApplication.getLabel( "interface.evaluation.messages.draft-saved" ) );
+                }
             } ).catch( ( error ) => {
                 if ( error && ( error.name === "AbortError" || error.isAborted ) ) {
                     // Navigating away aborts the request; that is not a failure worth alarming anyone about.
                     this.autosaveState = "idle";
                     return;
                 }
-                // Announced once per run of failures, not once per attempt: the indicator carries the standing state,
-                // and a toast every two seconds would bury the very message that matters.
-                const wasFailed = ( this.autosaveState === "failed" );
                 this.autosaveState = "failed";
-                if ( !wasFailed ) {
+                if ( isExplicit ) {
+                    // The user pressed a button; they are told what happened whatever went before.
+                    tiApplication.notify( tiApplication.formatException( error ) );
+                    failureAnnounced = true;
+                } else if ( !failureAnnounced ) {
+                    // Once per run of failures, not once per attempt: the indicator carries the standing state, and a
+                    // toast every two seconds would bury the very message that matters.
+                    failureAnnounced = true;
                     tiApplication.notify( tiApplication.getLabel( "interface.evaluation.autosave.failed-notice", "Your changes could not be saved automatically. Use Save draft, and check your connection." ) );
                 }
             } ).then( () => {
-                autosaveInFlight = false;
-                if ( autosaveQueued ) {
-                    autosaveQueued = false;
-                    this.runAutosave();
+                draftWriteInFlight = false;
+                if ( queuedExplicitSave ) {
+                    queuedExplicitSave = false;
+                    queuedAutosave = false;
+                    this.writeDraft( true );
+                } else if ( queuedAutosave ) {
+                    queuedAutosave = false;
+                    this.writeDraft( false );
                 }
             } );
         },
