@@ -83,7 +83,7 @@ git push origin competence-v3.31.0
 Omit `<commit>` to tag `HEAD`. This path is unchanged and needs no dispatch.
 
 > The dispatch path builds and publishes inside the run that creates the tag rather than relying on the `push: tags:` trigger, because a tag pushed with `GITHUB_TOKEN` does not start another workflow.
-- **Base:** `node:22-alpine`, non-root (`node` user), `NODE_ENV=production`.
+- **Base:** `node:24-alpine` (Node 24 "Krypton", the Active LTS line), non-root (`node` user), `NODE_ENV=production`.
 - **Pulling:** if the package is public, `docker pull ghcr.io/belleal/ti-engine-competence:3.19.1`. If private, authenticate to GHCR first:
   ```bash
   echo "$GITHUB_TOKEN" | docker login ghcr.io -u <your-username> --password-stdin

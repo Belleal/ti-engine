@@ -21,7 +21,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 22
+          node-version: 24
       # No npm cache: it keys off package-lock.json, which is gitignored in this repo.
       # setup-node's automatic cache also stays off by itself, because it only activates when
       # package.json declares `packageManager` / `devEngines.packageManager` and none of ours do.
