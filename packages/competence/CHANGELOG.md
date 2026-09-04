@@ -2,6 +2,44 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.34.0
+
+Three things a real user would have met on their first day.
+
+* fix(ui): remove the fabricated "Recent Activity" panel from the dashboard. It returned four hardcoded entries,
+  unconditionally, to every user on every load — not behind `COMPETENCE_PRELOAD_DATA`, not sample data anyone had
+  opted into. One named the signed-in employee, resolved through the real org chart, and asserted they had
+  submitted a self-evaluation a day ago; another said their manager had started the manager review two hours ago,
+  with an "In Review" pill beside it. On a fresh install with no evaluations at all, every employee's first screen
+  made four false claims about their own appraisal, in English regardless of locale (`action`, `time` and
+  `statusLabel` were bound raw, with no label lookup). In an appraisal tool that is not cosmetic: somebody can
+  reasonably act on "my manager already started the review". The panel is removed rather than rebuilt — a real
+  feed here has to decide whose events each person may see, which is a design question, not a rendering one. The
+  two "View all" buttons went with it: neither had ever had a handler.
+* feat(ui): autosave the evaluation draft. Grades and written feedback lived only in the browser until somebody
+  pressed Save Draft, and filling in the form issues no requests at all, so a closed tab, a refresh or an expired
+  session discarded the work and the person found out when they finally tried to save. Edits now schedule a
+  debounced write two seconds after the last change: a burst of typing is one request, writes never overlap — one
+  in-flight flag covers the timer and the Save Draft button alike, since cancelling a timer cannot recall a request
+  already sent, and an explicit save overtaking an older autosave would have let the server keep the earlier grades
+  — and the state is reported beside the buttons rather than through a toast per save, with a run of failures
+  announced once. Gated exactly as the server gates the
+  endpoint — a peer reviewer (role 4) has no draft to save, so nothing is attempted for them. Save Draft still
+  supersedes a pending autosave and keeps its confirmation, because an explicit action deserves an explicit answer.
+* fix(deploy): the container healthcheck now follows `TI_WEB_USE_TLS`. It was an inline `node -e` in the Dockerfile
+  hardcoding `require('http')` and an `http://` URL; the image bakes TLS off, so it worked until somebody ran the
+  image with TLS on — a supported configuration — at which point the probe spoke plain HTTP to a TLS listener,
+  failed every time, and Docker reported a healthy container unhealthy, restarting it on a loop. It is now
+  `bin/healthcheck.js`, which picks the transport with the server's own `tools.toBool` so the two cannot drift.
+  Certificate verification stays **on**: rather than the usual `rejectUnauthorized: false` — correct enough over
+  loopback, and exactly the line that gets copied out of a health probe into a client that does cross a network —
+  the trust anchor is narrowed to the server's own certificate (`TI_WEB_TLS_CERT_PATH`), with the name to verify
+  read out of that certificate instead of assumed to be `127.0.0.1`, since a certificate issued for a public
+  hostname is the normal case. Where no certificate path is configured there is nothing to anchor to and the probe
+  degrades to establishing that the port accepts connections — weaker, but it neither disables verification nor
+  restarts a container that is serving perfectly well. Set `TI_WEB_TLS_CERT_PATH` when terminating TLS inside the
+  container so the probe takes the strong path.
+
 ## Version 3.33.1
 
 * fix(ui): route a session with no appraisal identity to the account-level profile instead of refusing it. The same

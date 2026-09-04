@@ -2718,49 +2718,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                         peerFeedback: peerFeedback,
                         selfGrades: selfGrades,
                         teamCoverage: teamCoverage
-                    },
-                    activity: [
-                        {
-                            id: 1,
-                            type: "cycle_opened",
-                            actorID: null,
-                            actorName: "System",
-                            action: "opened the evaluation cycle",
-                            statusLabel: null,
-                            statusTone: null,
-                            time: "2 days ago"
-                        },
-                        {
-                            id: 2,
-                            type: "self_eval",
-                            actorID: userID,
-                            actorName: organizationManager.instance.resolveEmployeeName( userID ) || "You",
-                            action: "submitted a self-evaluation",
-                            statusLabel: "Open",
-                            statusTone: "info",
-                            time: "1 day ago"
-                        },
-                        {
-                            id: 3,
-                            type: "peer_eval",
-                            actorID: null,
-                            actorName: "A colleague",
-                            action: "submitted peer feedback for you",
-                            statusLabel: null,
-                            statusTone: null,
-                            time: "6 hours ago"
-                        },
-                        {
-                            id: 4,
-                            type: "review_started",
-                            actorID: null,
-                            actorName: "Your manager",
-                            action: "started the manager review",
-                            statusLabel: "In Review",
-                            statusTone: "warn",
-                            time: "2 hours ago"
-                        }
-                    ]
+                    }
                 } );
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
@@ -2793,8 +2751,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                 peerFeedback: { submitted: 0, requested: 0 },
                 selfGrades: { completed: 0, total: 0 },
                 teamCoverage: { started: 0, total: 0 }
-            },
-            activity: []
+            }
         };
     }
 

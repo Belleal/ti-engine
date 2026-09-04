@@ -749,6 +749,8 @@
                             x-text-label="interface.evaluation.actions.reset"></button>
                     <button type="button" class="ti-btn sm" x-show="userRole !== 4" @click="saveDraft()"
                             x-text-label="interface.evaluation.actions.save-draft"></button>
+                    <span class="competence-autosave-state" x-show="autosaveState !== 'idle'"
+                          x-bind:class="autosaveState" x-text="autosaveLabel()" aria-live="polite"></span>
                     <button type="button" class="ti-btn primary sm" @click="openSubmitModal( $event )"
                             x-text-label="interface.evaluation.actions.submit"></button>
                 </div>

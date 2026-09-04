@@ -23,6 +23,24 @@ const configureCompetenceEvaluation = () => {
     // so focus can return to it on close, and the focusable query is used to move focus into the dialog on open and to
     // trap Tab within it while it stays open.
     let modalReturnFocus = null;
+
+    // Autosave bookkeeping, deliberately in closure state rather than on the reactive object: a timer id and two
+    // flags that nothing renders, and a Proxy-wrapped timer id would only invite a reactive read of it.
+    // Two seconds is long enough that a burst of typing produces one request, short enough that the work at risk
+    // is a sentence rather than a session.
+    const AUTOSAVE_DELAY_MS = 2000;
+    const DRAFT_URL = "/app/save-evaluation-draft";
+    let autosaveTimer = null;
+    // One in-flight flag for BOTH writers. Serialising autosave against itself is not enough: cancelling the timer
+    // does not recall a request already on the wire, so an explicit Save Draft could overtake an autosave carrying
+    // older grades, and whichever landed second won. Everything now queues behind this.
+    let draftWriteInFlight = false;
+    let queuedAutosave = false;
+    let queuedExplicitSave = false;
+    // Whether the current run of failures has already been announced. Derived state cannot serve here: the status is
+    // set to "saving" at the start of every attempt, so reading it back in the catch always says "saving" and every
+    // retry would toast.
+    let failureAnnounced = false;
     const MODAL_FOCUSABLE_SELECTOR = "button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex=\"-1\"])";
     const modalFocusables = ( dialog ) => dialog
         ? Array.from( dialog.querySelectorAll( MODAL_FOCUSABLE_SELECTOR ) ).filter( ( el ) => el.offsetParent !== null )
@@ -41,6 +59,10 @@ const configureCompetenceEvaluation = () => {
         // CA-104 — per-round reason code when a rating round closed without producing any grades ("waived",
         // "no-responses", "none-assigned"), or null when the round was answered or is still genuinely open.
         missedRounds: { self: null, team: null },
+        // "idle" | "pending" | "saving" | "saved" | "failed" — drives the line beside the action buttons. Grades and
+        // written feedback used to live only in the browser until somebody pressed Save draft, so an expired session,
+        // a closed tab or a stray refresh silently discarded an hour of considered work.
+        autosaveState: "idle",
         manager: {},
         personal: {},
         evaluation: {
@@ -205,11 +227,145 @@ const configureCompetenceEvaluation = () => {
         },
 
         saveDraft() {
-            tiApplication.sendRequest( "/app/save-evaluation-draft", "POST", { evaluation: this.evaluation } ).then( () => {
-                tiApplication.notify( tiApplication.getLabel( "interface.evaluation.messages.draft-saved" ) );
+            // An explicit press supersedes anything the autosave had queued, and keeps its toast: the user asked, so
+            // the user gets an answer. Not gated on canAutosave — the button is not inside a canEdit guard, and the
+            // server is the authority on whether this session may write.
+            this.cancelPendingAutosave();
+            this.writeDraft( true );
+        },
+
+        /**
+         * Whether this session may write a draft at all. Mirrors the Save draft button's own condition, and the
+         * server's: `#saveEvaluationDraft` accepts the evaluatee's self round and a manager's or supervisor's review
+         * round, and refuses everything else. A peer reviewer (role 4) therefore has no draft to save — autosaving
+         * for them would be a 422 every two seconds.
+         *
+         * @method
+         * @returns {boolean}
+         * @public
+         */
+        canAutosave() {
+            return this.canEdit === true && this.userRole !== 4;
+        },
+
+        /**
+         * Restarts the idle timer after an edit. Called from the mutators rather than from a watcher, so loading an
+         * evaluation — which replaces `this.evaluation` wholesale in `applyData` — never schedules a write.
+         *
+         * @method
+         * @public
+         */
+        scheduleAutosave() {
+            if ( !this.canAutosave() ) {
+                return;
+            }
+            this.autosaveState = "pending";
+            if ( autosaveTimer ) {
+                clearTimeout( autosaveTimer );
+            }
+            autosaveTimer = setTimeout( () => {
+                autosaveTimer = null;
+                this.runAutosave();
+            }, AUTOSAVE_DELAY_MS );
+        },
+
+        /**
+         * @method
+         * @public
+         */
+        cancelPendingAutosave() {
+            if ( autosaveTimer ) {
+                clearTimeout( autosaveTimer );
+                autosaveTimer = null;
+            }
+            queuedAutosave = false;
+        },
+
+        /**
+         * The autosave path into the writer. The role gate lives here rather than in `writeDraft`, because the
+         * explicit button is the user's own decision and the server is the authority on whether it is allowed.
+         *
+         * @method
+         * @public
+         */
+        runAutosave() {
+            if ( !this.canAutosave() ) {
+                return;
+            }
+            this.writeDraft( false );
+        },
+
+        /**
+         * The single path through which a draft reaches the server. Both the timer and the button go through it, so
+         * two writes are never in flight together: whichever arrives while one is running is queued, and an explicit
+         * save outranks a queued autosave because somebody is waiting on it. Without this, cancelling the timer left
+         * an already-sent autosave running, and an explicit save could be overtaken by that older payload.
+         *
+         * @method
+         * @param {boolean} isExplicit Whether this write came from the Save Draft button, which is answered with a toast.
+         * @public
+         */
+        writeDraft( isExplicit ) {
+            if ( draftWriteInFlight ) {
+                if ( isExplicit ) {
+                    queuedExplicitSave = true;
+                } else {
+                    queuedAutosave = true;
+                }
+                return;
+            }
+            draftWriteInFlight = true;
+            this.autosaveState = "saving";
+            tiApplication.sendRequest( DRAFT_URL, "POST", { evaluation: this.evaluation } ).then( () => {
+                this.autosaveState = "saved";
+                // A success ends the run of failures, so the next one is announced again.
+                failureAnnounced = false;
+                if ( isExplicit ) {
+                    tiApplication.notify( tiApplication.getLabel( "interface.evaluation.messages.draft-saved" ) );
+                }
             } ).catch( ( error ) => {
-                tiApplication.notify( tiApplication.formatException( error ) );
+                if ( error && ( error.name === "AbortError" || error.isAborted ) ) {
+                    // Navigating away aborts the request; that is not a failure worth alarming anyone about.
+                    this.autosaveState = "idle";
+                    return;
+                }
+                this.autosaveState = "failed";
+                if ( isExplicit ) {
+                    // The user pressed a button; they are told what happened whatever went before.
+                    tiApplication.notify( tiApplication.formatException( error ) );
+                    failureAnnounced = true;
+                } else if ( !failureAnnounced ) {
+                    // Once per run of failures, not once per attempt: the indicator carries the standing state, and a
+                    // toast every two seconds would bury the very message that matters.
+                    failureAnnounced = true;
+                    tiApplication.notify( tiApplication.getLabel( "interface.evaluation.autosave.failed-notice", "Your changes could not be saved automatically. Use Save draft, and check your connection." ) );
+                }
+            } ).then( () => {
+                draftWriteInFlight = false;
+                if ( queuedExplicitSave ) {
+                    queuedExplicitSave = false;
+                    queuedAutosave = false;
+                    this.writeDraft( true );
+                } else if ( queuedAutosave ) {
+                    queuedAutosave = false;
+                    this.writeDraft( false );
+                }
             } );
+        },
+
+        /**
+         * The line shown beside the action buttons. Empty while idle, so an untouched form carries no chrome.
+         *
+         * @method
+         * @returns {string}
+         * @public
+         */
+        autosaveLabel() {
+            if ( this.autosaveState === "pending" ) return tiApplication.getLabel( "interface.evaluation.autosave.pending", "Unsaved changes" );
+            if ( this.autosaveState === "saving" ) return tiApplication.getLabel( "interface.evaluation.autosave.saving", "Saving…" );
+            if ( this.autosaveState === "saved" ) return tiApplication.getLabel( "interface.evaluation.autosave.saved", "Draft saved" );
+            if ( this.autosaveState === "failed" ) return tiApplication.getLabel( "interface.evaluation.autosave.failed", "Not saved" );
+            return "";
         },
 
         // Research-use consent (CA-93).
@@ -396,6 +552,7 @@ const configureCompetenceEvaluation = () => {
                         this.evaluation.grades[ key ][ role ] = "";
                     }
                 } );
+                this.scheduleAutosave();
             }
         },
 
@@ -411,6 +568,7 @@ const configureCompetenceEvaluation = () => {
             this.evaluation.grades = this.evaluation.grades || {};
             this.evaluation.grades[ competencyCode ] = this.evaluation.grades[ competencyCode ] || {};
             this.evaluation.grades[ competencyCode ][ role ] = value;
+            this.scheduleAutosave();
         },
 
         setFeedbackComment( role, value ) {
@@ -423,6 +581,7 @@ const configureCompetenceEvaluation = () => {
                 this.evaluation.feedback = this.evaluation.feedback || {};
                 this.evaluation.feedback.teamComments = value;
             }
+            this.scheduleAutosave();
         },
 
         getEvaluationWarning() {
@@ -2815,7 +2974,6 @@ const configureDashboard = () => {
         myEvaluation: null,
         teamEvaluations: [],
         stats: { total: 0, open: 0, inReview: 0, ready: 0 },
-        activity: [],
         tasks: [],
         serverTasks: [],
         employeeMetrics: { peerFeedback: { submitted: 0, requested: 0 }, selfGrades: { completed: 0, total: 0 }, teamCoverage: { started: 0, total: 0 } },
@@ -2846,7 +3004,6 @@ const configureDashboard = () => {
                 this.myEvaluation = data.myEvaluation ? tiToolbox.structuredClone( data.myEvaluation ) : null;
                 this.teamEvaluations = Array.isArray( data.teamEvaluations ) ? tiToolbox.structuredClone( data.teamEvaluations ) : [];
                 this.stats = data.stats ? tiToolbox.structuredClone( data.stats ) : { total: 0, open: 0, inReview: 0, ready: 0 };
-                this.activity = Array.isArray( data.activity ) ? tiToolbox.structuredClone( data.activity ) : [];
                 this.serverTasks = Array.isArray( data.tasks ) ? tiToolbox.structuredClone( data.tasks ) : [];
                 this.tasks = this._buildTasks();
                 this.employeeMetrics = data.employeeMetrics ? tiToolbox.structuredClone( data.employeeMetrics ) : {

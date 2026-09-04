@@ -11185,6 +11185,28 @@
           "bg": "Заключено"
         }
       },
+      "autosave": {
+        "pending": {
+          "en": "Unsaved changes",
+          "bg": "Незапазени промени"
+        },
+        "saving": {
+          "en": "Saving…",
+          "bg": "Запазва…"
+        },
+        "saved": {
+          "en": "Draft saved",
+          "bg": "Черновата е запазена"
+        },
+        "failed": {
+          "en": "Not saved",
+          "bg": "Не е запазено"
+        },
+        "failed-notice": {
+          "en": "Your changes could not be saved automatically. Use Save Draft, and check your connection.",
+          "bg": "Промените ви не можаха да бъдат запазени автоматично. Използвайте „Запази Драфт“ и проверете връзката си."
+        }
+      },
       "actions": {
         "save-draft": {
           "en": "Save Draft",
@@ -11895,10 +11917,6 @@
         "en": "My Evaluation Status",
         "bg": "Статус на моята оценка"
       },
-      "view-all": {
-        "en": "View all",
-        "bg": "Виж всички"
-      },
       "no-team-evals": {
         "en": "No active evaluations",
         "bg": "Няма активни оценки"
@@ -11930,14 +11948,6 @@
       "no-my-eval-desc": {
         "en": "No active evaluation exists for you in this cycle.",
         "bg": "Няма активна оценка за вас в този цикъл."
-      },
-      "activity-title": {
-        "en": "Recent Activity",
-        "bg": "Последна активност"
-      },
-      "no-activity": {
-        "en": "No recent activity",
-        "bg": "Няма последна активност"
       },
       "tasks-title": {
         "en": "Tasks for you",
