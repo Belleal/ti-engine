@@ -491,6 +491,15 @@ class CompetenceWebApplication extends TiWebAppManager {
      * @public
      */
     getProfileInfo( session ) {
+        // The account-level fallback documented above was unreachable for the one session that most needs it. It is
+        // only entered from the not-found catch below, which requires `fetchEmployee` to have been called — and an
+        // allowlisted administrator with no employee record has `employeeID` null, so `#requireSessionUser` refused
+        // first. The Profile entry sits in the user menu for every session, so that was a 401 on a screen the chrome
+        // itself points at. Same shape as the dashboard's: answer it, do not refuse it.
+        if ( session?.user?.userID && !session?.user?.employeeID ) {
+            return super.getProfileInfo( session );
+        }
+
         return new Promise( ( resolve, reject ) => {
             const { userID, userRoles } = this.#requireSessionUser( session );
 

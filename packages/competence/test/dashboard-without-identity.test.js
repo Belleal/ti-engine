@@ -135,6 +135,52 @@ describe( "Dashboard for a session with no appraisal identity", () => {
 
 } );
 
+describe( "Profile for a session with no appraisal identity", () => {
+
+    // The other screen the chrome offers such a session. The user menu carries a Profile entry for everyone, and
+    // `getProfileInfo` documents an account-level fallback for a session with no employee record — but only reached
+    // it from the not-found catch on `fetchEmployee`, which `#requireSessionUser` refused to let it get to. Found by
+    // CodeRabbit on #141, as an out-of-diff comment: the same bug as the dashboard's, in the screen next door.
+
+    const app = new CompetenceWebApplication( "test-competence-profile-identity" );
+
+    it( "serves the framework's account-level profile instead of refusing", async ( t ) => {
+        t.mock.method( DataManagerPrototype, "fetchEmployee", () => Promise.reject( new Error( "must not be reached" ) ) );
+        const profile = await app.getProfileInfo( administratorSession() );
+        assert.ok( profile.identity, "an account still has an identity worth showing" );
+        assert.ok( Array.isArray( profile.sections ) );
+        assert.equal( DataManagerPrototype.fetchEmployee.mock.callCount(), 0, "there is no employee to fetch" );
+    } );
+
+    it( "is dispatched the same way through processDataRequest", async ( t ) => {
+        t.mock.method( DataManagerPrototype, "fetchEmployee", () => Promise.reject( new Error( "must not be reached" ) ) );
+        const profile = await app.processDataRequest( administratorSession(), "profile" );
+        assert.ok( profile.identity );
+    } );
+
+    it( "still refuses a caller with no session user at all", async () => {
+        await assert.rejects(
+            () => app.getProfileInfo( { language: "en" } ),
+            ( error ) => {
+                assert.equal( error.httpCode, exceptions.httpCode.C_401 );
+                return true;
+            }
+        );
+    } );
+
+    it( "still reads the employee record for a session that has one", async ( t ) => {
+        t.mock.method( DataManagerPrototype, "fetchEmployee", () => Promise.reject(
+            exceptions.raise( exceptions.exceptionCode.E_APP_RESOURCE_NOT_FOUND, { details: "gone" } )
+        ) );
+        // The pre-existing fallback — a session WITH an employeeID whose record has since disappeared — must still
+        // work, and must still go through the fetch rather than short-circuiting on the new branch.
+        const profile = await app.getProfileInfo( employeeSession() );
+        assert.ok( profile.identity );
+        assert.equal( DataManagerPrototype.fetchEmployee.mock.callCount(), 1 );
+    } );
+
+} );
+
 describe( "Dashboard setup notice — screen wiring", () => {
 
     it( "branches the widgets and the notice on the identity, not just on loading", () => {

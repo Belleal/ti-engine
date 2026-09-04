@@ -2,6 +2,18 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.33.1
+
+* fix(ui): route a session with no appraisal identity to the account-level profile instead of refusing it. The same
+  bug as 3.33.0's dashboard, in the screen next door, and missed by that release: `getProfileInfo` has always
+  documented a fallback to the framework's account sections for "a signed-in user without an employee record", but
+  only reached it from the not-found catch on `fetchEmployee` — which `#requireSessionUser` refused to let it get
+  to, since an allowlisted administrator has `employeeID` null. The user menu carries a Profile entry for every
+  session, so this was a 401 on a screen the chrome itself points at. Found by CodeRabbit reviewing #141. An audit
+  of every other screen such a session can reach — About, Help, Process Guide and the five admin screens — found no
+  others: the employee-facing consent prompt belongs to the evaluation screen, which the hidden Workspace section
+  no longer offers.
+
 ## Version 3.33.0
 
 The break-glass administrator's first five minutes. An identity admitted through `TI_WEB_AUTH_ADMINS` with no
