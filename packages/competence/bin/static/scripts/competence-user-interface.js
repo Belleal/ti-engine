@@ -2866,17 +2866,39 @@ const configureDashboard = () => {
         },
 
         /**
-         * True while the dashboard has an employee to be about. The two are exclusive with the loading state, so the
-         * fragment reads them rather than spelling the conjunction out in three places.
+         * True while the dashboard has an employee to be about. Both this and its counterpart below fold in the
+         * loading state, so the fragment reads one call per branch rather than spelling the conjunction out in three
+         * template expressions the CSP evaluator would each have to parse.
+         *
+         * @method
+         * @returns {boolean}
+         * @public
          */
         showWidgets() {
             return !this.isLoading && this.hasAppraisalIdentity;
         },
 
+        /**
+         * True once loading has finished for a session with no employee record behind it — the state in which the
+         * screen offers the setup steps instead of widgets that would all be about nobody.
+         *
+         * @method
+         * @returns {boolean}
+         * @public
+         */
         showSetupNotice() {
             return !this.isLoading && !this.hasAppraisalIdentity;
         },
 
+        /**
+         * Navigates to another screen. A pass-through to the application store, mirroring `openMyEvaluation` below:
+         * the fragment names a screen and this component decides how to get there, rather than each @click reaching
+         * through the store itself.
+         *
+         * @method
+         * @param {string} screen - The screen name, as registered with `addFragment`.
+         * @public
+         */
         openScreen( screen ) {
             tiApplication.openScreen( screen );
         },
