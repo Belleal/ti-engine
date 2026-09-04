@@ -2,6 +2,14 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.32.1
+
+* fix(ui): add the Research-Use Consent screen to the Administration sidebar. The screen shipped in 3.32.0 complete
+  in every respect except that nothing linked to it — the fragment was registered, the composite editor saved, the
+  labels were translated, and the only way to reach it was to type `/app/research-consent`. A guard test now fails
+  when an admin-gated fragment is offered by neither the sidebar nor a card on the Configuration screen, which are
+  the only two ways into an admin screen.
+
 ## Version 3.32.0
 
 Launch readiness: three things that made a fresh, blank-slate install impossible to configure into a real

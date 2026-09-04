@@ -190,6 +190,14 @@
                 </span>
                 <span class="ti-sidebar-item-label" x-text-label="interface.topbar.work-sites">Work Sites</span>
             </button>
+
+            <button hx-get="/app/research-consent" hx-target="#ti-content" hx-swap="innerHTML" hx-push-url="true" @click="active = 'research-consent'"
+                    x-bind:class="{ active: active === 'research-consent' }" class="ti-sidebar-item" data-tip="Research-Use Consent" aria-label="Research-Use Consent" type="button">
+                <span class="ti-sidebar-item-icon">
+                    <span class="ti-icon lock md" aria-hidden="true"></span>
+                </span>
+                <span class="ti-sidebar-item-label" x-text-label="interface.topbar.research-consent">Research-Use Consent</span>
+            </button>
         </div>
     </div>
 
