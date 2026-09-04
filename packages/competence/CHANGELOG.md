@@ -2,6 +2,26 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.33.0
+
+The break-glass administrator's first five minutes. An identity admitted through `TI_WEB_AUTH_ADMINS` with no
+employee record behind it carries `employeeID: null` and no application roles by design — it is what keeps the
+configuration screens reachable on an install with nobody in it yet — but the application did not reflect that
+anywhere, so a correct first sign-in looked like a broken one.
+
+* fix(ui): stop answering the dashboard with a 401 for a session that has no appraisal identity. The dashboard is
+  the landing screen, loaded by `frame-application.html` before such an administrator has had any chance to
+  navigate, and `#requireSessionUser` refused it — so the very first thing a new deployment did was raise an
+  unauthorized-access toast at the person setting it up. `#loadDashboard` now answers that one case with an empty
+  payload of the same shape flagged `hasAppraisalIdentity: false`, reading nothing at all (there is no employee to
+  read for), and the screen renders the three setup steps in place of the widgets: the org tree, the employee
+  import, and the sign-out-and-back-in that turns the administrator into an employee too. Nobody else reaches the
+  branch — a non-admin with no record is refused at login outright, and a caller with no `userID` still gets the
+  401, as does the route's own authentication middleware before either.
+* fix(ui): hide the Workspace sidebar section for a session with no employee record, the way Manage, Insights and
+  Administration are already hidden by role. Dashboard, Org Chart, My Evaluation and My Scores all answer
+  `#requireSessionUser`, so offering them was offering four ways to reach an error.
+
 ## Version 3.32.1
 
 * fix(ui): add the Research-Use Consent screen to the Administration sidebar. The screen shipped in 3.32.0 complete

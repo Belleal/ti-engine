@@ -11817,6 +11817,52 @@
         "en": "Loading dashboard…",
         "bg": "Зарежда таблото…"
       },
+      "setup": {
+        "eyebrow": {
+          "en": "Setup",
+          "bg": "Настройка"
+        },
+        "title": {
+          "en": "Let's set up your organization",
+          "bg": "Да настроим вашата организация"
+        },
+        "intro": {
+          "en": "You are signed in as an administrator. There is no employee record for your account yet, so the appraisal screens have nothing to show — describe the organization first, then import its people.",
+          "bg": "Влезли сте като администратор. Все още няма служителски запис за вашия акаунт, затова екраните за оценяване нямат какво да покажат — първо опишете организацията, след което импортирайте хората в нея."
+        },
+        "step-org-title": {
+          "en": "1. Organization Structure",
+          "bg": "1. Организационна структура"
+        },
+        "step-org-desc": {
+          "en": "Enter the unit tree. Exactly one unit is the root. A unit's manager becomes a Manager in the application, and the employee import refuses a row whose unit is not already here — so this comes first.",
+          "bg": "Въведете дървото от звена. Точно едно звено е коренното. Ръководителят на звено става Мениджър в приложението, а импортът на служители отхвърля ред със звено, което още не е тук — затова това е първата стъпка."
+        },
+        "step-people-title": {
+          "en": "2. Employee Import",
+          "bg": "2. Импорт на служители"
+        },
+        "step-people-desc": {
+          "en": "Import the people, each assigned to a unit. Include your own row with the email address you sign in with — that is what gives your account an appraisal identity.",
+          "bg": "Импортирайте хората, всеки причислен към звено. Включете и собствения си ред с имейл адреса, с който влизате — това е, което дава на акаунта ви самоличност за оценяване."
+        },
+        "step-signin-title": {
+          "en": "3. Sign in again",
+          "bg": "3. Влезте отново"
+        },
+        "step-signin-desc": {
+          "en": "Your identity is resolved once, when you sign in. Sign out and back in after the import and the workspace appears, with your administrator access kept alongside it.",
+          "bg": "Самоличността ви се определя веднъж — при влизане. Излезте и влезте отново след импорта и работната зона ще се появи, като администраторският ви достъп се запазва наред с нея."
+        },
+        "open-org": {
+          "en": "Open",
+          "bg": "Отвори"
+        },
+        "open-import": {
+          "en": "Open",
+          "bg": "Отвори"
+        }
+      },
       "my-eval-status": {
         "en": "Your evaluation is currently",
         "bg": "Вашата оценка е в момента"
