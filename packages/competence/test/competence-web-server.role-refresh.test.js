@@ -62,6 +62,15 @@ function stubOrgFacts( t, grants ) {
     t.mock.method( DataManagerPrototype, "hasSupervisorGrant", ( employeeID ) => grants.has( employeeID ) );
 }
 
+/**
+ * Shadows the `serviceConfig` getter (which lives on the prototype chain, so `t.mock.method` cannot reach it) with an
+ * own property for the duration of one test.
+ */
+function stubAdmins( t, admins ) {
+    Object.defineProperty( server, "serviceConfig", { value: { auth: { admins: admins } }, configurable: true, writable: true } );
+    t.after( () => { delete server.serviceConfig; } );
+}
+
 /** One request: hand the session to the hook and report the roles it leaves behind. */
 function afterRequest( user ) {
     const session = { user: user };
@@ -168,6 +177,41 @@ describe( "IdentityResolver — pinning the dev role override", () => {
         assert.equal( session.user.rolesPinned, undefined );
     } );
 
+    it( "marks a cookie-chosen IDENTITY separately from a cookie-chosen role set", () => {
+        // The cookie can override the identity without overriding the roles, and the two markers answer different
+        // questions: rolesPinned stops re-derivation, testUserIdentity waives the employment-status rule.
+        const identityOnly = { user: {} };
+        identityResolver.instance.applyIdentity( identityOnly, { employeeID: "1", overrideRoles: null, adminOnly: false, reason: null, viaTestUser: true }, () => [ EMPLOYEE ] );
+        assert.equal( identityOnly.user.testUserIdentity, true );
+        assert.equal( identityOnly.user.rolesPinned, undefined, "roles were derived, so nothing is pinned" );
+
+        const emailIdentity = { user: {} };
+        identityResolver.instance.applyIdentity( emailIdentity, { employeeID: "1", overrideRoles: null, adminOnly: false, reason: null }, () => [ EMPLOYEE ] );
+        assert.equal( emailIdentity.user.testUserIdentity, undefined, "an e-mail sign-in claims no waiver" );
+    } );
+
+    it( "marks an identity the resolver admitted through the cookie branch", () => {
+        const outcome = identityResolver.instance.resolve( {
+            testUserEnabled: true,
+            testUserCookie: encodeURIComponent( JSON.stringify( { employeeID: "1" } ) ),
+            lookupByEmail: () => null,
+            employeeExists: () => true
+        } );
+
+        assert.equal( outcome.viaTestUser, true );
+        assert.equal( outcome.employeeID, "1" );
+    } );
+
+    it( "does not mark an identity resolved from the authenticated e-mail", () => {
+        const outcome = identityResolver.instance.resolve( {
+            email: "someone@example.com",
+            lookupByEmail: () => ( { employeeID: "1", employmentStatus: "active" } ),
+            employeeExists: () => true
+        } );
+
+        assert.equal( outcome.viaTestUser, false );
+    } );
+
 } );
 
 describe( "CompetenceWebServer — a session must stay entitled to exist", () => {
@@ -214,10 +258,63 @@ describe( "CompetenceWebServer — a session must stay entitled to exist", () =>
         assert.equal( server.verifySession( sessionFor( "3" ) ), false );
     } );
 
-    it( "keeps an allowlisted administrator with no employee record", ( t ) => {
+    it( "keeps an administrator with no employee record while they are still allowlisted", ( t ) => {
         stubStatus( t, {} );
+        stubAdmins( t, [ "admin@example.com" ] );
         // No employment status to judge, and theirs is the access that exists to repair the employee data.
         assert.equal( server.verifySession( { user: { userID: "admin@example.com", employeeID: null, roles: [ "admin" ] } } ), true );
+    } );
+
+    it( "ends the session of an administrator removed from the allowlist", ( t ) => {
+        stubStatus( t, {} );
+        stubAdmins( t, [ "someone-else@example.com" ] );
+
+        // The no-employeeID branch has to re-ask the allowlist rather than trust it was true at sign-in. It reads the
+        // config directly rather than the session's `admin` role because resourceProtectionHandler runs ahead of the
+        // refresh middleware that reconciles that role, so the role on the session is a request behind.
+        assert.equal( server.verifySession( { user: { userID: "admin@example.com", employeeID: null, roles: [ "admin" ] } } ), false );
+    } );
+
+    it( "ends a no-employeeID session that was never an administrator", ( t ) => {
+        stubStatus( t, {} );
+        stubAdmins( t, [] );
+
+        assert.equal( server.verifySession( { user: { userID: "nobody@example.com", employeeID: null, roles: [] } } ), false );
+    } );
+
+    it( "honours the dev test-user waiver of the employment-status rule while the flag is on", ( t ) => {
+        stubStatus( t, { "1": "terminated" } );
+        const previous = process.env.COMPETENCE_TEST_USER_ENABLED;
+        t.after( () => { process.env.COMPETENCE_TEST_USER_ENABLED = previous === undefined ? "" : previous; } );
+
+        // IdentityResolver's cookie branch deliberately admits an employee whatever their status, so a terminated one
+        // stays testable. Without the waiver here the panel would break: sign-in succeeds, then the first protected
+        // request destroys the session.
+        process.env.COMPETENCE_TEST_USER_ENABLED = "true";
+        assert.equal( server.verifySession( { user: { userID: "login:1", employeeID: "1", roles: [ EMPLOYEE ], testUserIdentity: true } } ), true );
+
+        // Re-checked against the LIVE flag, not just the marker stamped at sign-in.
+        process.env.COMPETENCE_TEST_USER_ENABLED = "false";
+        assert.equal( server.verifySession( { user: { userID: "login:1", employeeID: "1", roles: [ EMPLOYEE ], testUserIdentity: true } } ), false );
+    } );
+
+    it( "still requires a test-user identity to exist in the organization chart", ( t ) => {
+        stubStatus( t, {} );
+        const previous = process.env.COMPETENCE_TEST_USER_ENABLED;
+        t.after( () => { process.env.COMPETENCE_TEST_USER_ENABLED = previous === undefined ? "" : previous; } );
+        process.env.COMPETENCE_TEST_USER_ENABLED = "true";
+
+        // Only the STATUS rule is waived; the cookie branch checks existence too, and so does this.
+        assert.equal( server.verifySession( { user: { userID: "login:1", employeeID: "1", roles: [ EMPLOYEE ], testUserIdentity: true } } ), false );
+    } );
+
+    it( "does not waive the rule for an ordinary session, flag on or not", ( t ) => {
+        stubStatus( t, { "1": "terminated" } );
+        const previous = process.env.COMPETENCE_TEST_USER_ENABLED;
+        t.after( () => { process.env.COMPETENCE_TEST_USER_ENABLED = previous === undefined ? "" : previous; } );
+        process.env.COMPETENCE_TEST_USER_ENABLED = "true";
+
+        assert.equal( server.verifySession( sessionFor( "1" ) ), false, "an e-mail session has no waiver to claim" );
     } );
 
     it( "refuses a session with no user at all", () => {

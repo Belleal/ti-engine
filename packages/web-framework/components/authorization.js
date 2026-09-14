@@ -59,21 +59,35 @@ function isAdminIdentity( user, admins ) {
 }
 
 /**
- * Adds the `admin` role to the session user (additively, no duplicates) when the user is in the allowlist.
- * Safe to call with an empty/missing allowlist or session — it is then a no-op. Returns the session for chaining.
+ * Reconciles the `admin` role on the session user against the allowlist: granted when the identity is on it, removed
+ * when it is not. Authoritative in both directions — this is the only place the role is ever granted, so it is also
+ * the only place it can be taken away. Safe with a missing session; an empty or absent allowlist means nobody is an
+ * administrator, which removes the role rather than preserving it. Returns the session for chaining.
  *
  * @param {Object} session
  * @param {string[]} [admins]
  * @returns {Object} The (possibly modified) session.
  */
 function applyAdminRole( session, admins ) {
-    if ( session && session.user && isAdminIdentity( session.user, admins ) ) {
-        const roles = Array.isArray( session.user.roles ) ? session.user.roles.slice() : [];
-        if ( !roles.includes( ADMIN_ROLE ) ) {
-            roles.push( ADMIN_ROLE );
-        }
-        session.user.roles = roles;
+    if ( !session || !session.user ) {
+        return session;
     }
+
+    const roles = Array.isArray( session.user.roles ) ? session.user.roles.slice() : [];
+    const holdsRole = roles.includes( ADMIN_ROLE );
+    const isAdmin = isAdminIdentity( session.user, admins );
+
+    // Authoritative in BOTH directions, not additive. This is the only place the `admin` role is ever granted, so it
+    // has to be the place it is taken away: while it only added, an identity removed from the allowlist kept the role
+    // for the life of its session — and with a rolling cookie that need never end. Now that the framework re-applies
+    // this per request (see sessionRefreshHandler), removal takes effect on the next request instead.
+    if ( isAdmin && !holdsRole ) {
+        roles.push( ADMIN_ROLE );
+        session.user.roles = roles;
+    } else if ( !isAdmin && holdsRole ) {
+        session.user.roles = roles.filter( ( role ) => role !== ADMIN_ROLE );
+    }
+
     return session;
 }
 

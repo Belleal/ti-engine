@@ -4097,7 +4097,10 @@ class CompetenceWebApplication extends TiWebAppManager {
                         field: "__created__",
                         oldValue: null,
                         newValue: saved
-                    } ).then( () => organizationManager.instance.buildOrganizationChart().then( () => saved ) );
+                    } ).then( () => saved )
+                        // Same reasoning as #updateEmployee: the record is written, and a rejected audit must not
+                        // leave the new employee missing from the org chart — they would be unable to sign in.
+                        .finally( () => organizationManager.instance.buildOrganizationChart() );
                 } );
             } ).then( ( saved ) => {
                 resolve( this.#projectEmployeeDetail( saved, session ) );
@@ -4183,7 +4186,14 @@ class CompetenceWebApplication extends TiWebAppManager {
                         field: change.path,
                         oldValue: change.oldValue,
                         newValue: change.newValue
-                    } ) ) ).then( () => organizationManager.instance.buildOrganizationChart().then( () => saved ) );
+                    } ) ) ).then( () => saved )
+                        // `finally`, not `then`: the record is already written by this point, and the org chart carries
+                        // the in-memory indexes derived from it — including the employment status `verifySession` reads
+                        // to decide whether a session may continue. Rebuilding only on the happy path meant a rejected
+                        // audit write left that index holding the PREVIOUS status, so terminating an employee could
+                        // persist while their open session went on passing the check. The audit failure still surfaces;
+                        // it just no longer takes the refresh down with it.
+                        .finally( () => organizationManager.instance.buildOrganizationChart() );
                 } ).then( ( saved ) => {
                     resolve( this.#projectEmployeeDetail( saved, session ) );
                 } );

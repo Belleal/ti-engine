@@ -68,6 +68,7 @@ const managerSession = () => session( MANAGER_ID, [ configurationLoader.roleCode
 function stubStores( t ) {
     const records = RECORDS();
     const writes = [];
+    const rebuilds = { count: 0 };
 
     t.mock.method( DataManagerPrototype, "fetchEmployee", ( employeeID ) => {
         const record = records[ employeeID ];
@@ -82,11 +83,11 @@ function stubStores( t ) {
         return Promise.resolve( JSON.parse( JSON.stringify( employee ) ) );
     } );
     t.mock.method( DataManagerPrototype, "appendAuditEntry", () => Promise.resolve() );
-    t.mock.method( OrganizationManagerPrototype, "buildOrganizationChart", () => Promise.resolve() );
+    t.mock.method( OrganizationManagerPrototype, "buildOrganizationChart", () => { rebuilds.count += 1; return Promise.resolve(); } );
     t.mock.method( OrganizationManagerPrototype, "isSuperiorManagerOfEmployee", ( potentialSuperiorID ) => potentialSuperiorID === MANAGER_ID );
     t.mock.method( OrganizationManagerPrototype, "resolveEmployeeOrganizationContext", () => ( { organizationUnitName: "Platform Engineering", managerID: MANAGER_ID, managerName: "Grace Hopper" } ) );
 
-    return { records, writes };
+    return { records, writes, rebuilds };
 }
 
 describe( "CompetenceWebApplication — update-employee write scope", () => {
@@ -229,6 +230,36 @@ describe( "CompetenceWebApplication — update-employee write scope", () => {
 
         assert.equal( writes.length, 1, "every path the form submits must be accepted in one batch" );
         assert.equal( writes[ 0 ].key, SUBJECT_ID );
+    } );
+
+} );
+
+describe( "CompetenceWebApplication — the entitlement index must not go stale", () => {
+
+    const app = new CompetenceWebApplication( "test-competence-employee-index-refresh" );
+    const update = ( callerSession, fields ) =>
+        app.processServiceRequest( callerSession, "update-employee", { employeeID: SUBJECT_ID, fields: fields } );
+
+    it( "rebuilds the organization chart after a successful update", async ( t ) => {
+        const { rebuilds } = stubStores( t );
+
+        await update( supervisorSession(), { "personal.firstName": "Adelaide" } );
+
+        assert.equal( rebuilds.count, 1 );
+    } );
+
+    it( "still rebuilds when an audit write fails, and still reports the failure", async ( t ) => {
+        const { records, rebuilds } = stubStores( t );
+        t.mock.method( DataManagerPrototype, "appendAuditEntry", () => Promise.reject( new Error( "audit store unavailable" ) ) );
+
+        // The record is written before the audit runs, and the org chart carries the in-memory indexes derived from
+        // it — including the employment status `verifySession` reads to decide whether a session may continue.
+        // Rebuilding only on the happy path meant a rejected audit left that index holding the PREVIOUS status, so
+        // terminating an employee could persist while their open session went on passing the check.
+        await assert.rejects( update( supervisorSession(), { "employmentStatus": "terminated" } ) );
+
+        assert.equal( records[ SUBJECT_ID ].employmentStatus, "terminated", "the write landed" );
+        assert.equal( rebuilds.count, 1, "so the index derived from it has to be refreshed too" );
     } );
 
 } );

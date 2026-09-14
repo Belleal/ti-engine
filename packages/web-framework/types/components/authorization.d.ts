@@ -18,8 +18,10 @@ export = _exports;
  */
 declare function isAdminIdentity(user: Object, admins: string[]): boolean;
 /**
- * Adds the `admin` role to the session user (additively, no duplicates) when the user is in the allowlist.
- * Safe to call with an empty/missing allowlist or session — it is then a no-op. Returns the session for chaining.
+ * Reconciles the `admin` role on the session user against the allowlist: granted when the identity is on it, removed
+ * when it is not. Authoritative in both directions — this is the only place the role is ever granted, so it is also
+ * the only place it can be taken away. Safe with a missing session; an empty or absent allowlist means nobody is an
+ * administrator, which removes the role rather than preserving it. Returns the session for chaining.
  *
  * @param {Object} session
  * @param {string[]} [admins]

@@ -2,6 +2,17 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.32.0
+
+* fix(authorization)!: `applyAdminRole` now reconciles the `admin` role in **both** directions — granted when the
+  identity is on the allowlist, removed when it is not. It only ever added, and it is the only place the role is
+  granted, so it was also the only place it could be taken away: an identity removed from `auth.admins` kept `admin`
+  for the life of its session, reaching `/admin/config/*` and every admin-gated screen, and since 1.26.0's `rolling`
+  cookie that session need never end. Now that 1.29.0 re-applies the role on every request, removal takes effect on
+  the next one. Marked breaking because a session that previously retained the role loses it; an empty or absent
+  allowlist now means nobody is an administrator rather than that everybody keeps what they had. Raised by CodeRabbit
+  on the review of this branch, fixed here rather than in the consumer because the framework owns the role.
+
 ## Version 1.31.0
 
 * feat(web-handlers): destroy a session that carries a user and fails `verifySession`, instead of only redirecting

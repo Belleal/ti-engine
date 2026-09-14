@@ -153,8 +153,9 @@ class CompetenceWebServer extends TiWebServer {
      * uses, so the two can never drift apart. An employee who has left the organization chart entirely is refused for
      * the same reason, and an unrecognised or absent status is refused rather than assumed benign.
      * <br/>
-     * An allowlisted administrator with no employee record keeps their session: they have no employment status to
-     * judge, and theirs is the access that exists to repair the employee data in the first place.
+     * An allowlisted administrator with no employee record keeps their session only while they are STILL on the
+     * allowlist: they have no employment status to judge, and theirs is the access that exists to repair the employee
+     * data in the first place, but an identity taken off the list has neither.
      *
      * @method
      * @override
@@ -169,10 +170,25 @@ class CompetenceWebServer extends TiWebServer {
 
         const employeeID = session.user.employeeID;
         if ( !employeeID ) {
-            return true;
+            // The only identity `IdentityResolver` admits without an employee record is an allowlisted administrator,
+            // so this branch has to re-ask the allowlist rather than trust that it was true at sign-in. Reading
+            // `serviceConfig.auth.admins` directly, rather than the session's `admin` role, keeps the answer current:
+            // `resourceProtectionHandler` runs ahead of the refresh middleware that reconciles that role, so the role
+            // on the session is a request behind.
+            return authorization.isAdminIdentity( session.user, this.serviceConfig?.auth?.admins );
         }
+
         if ( !organizationManager.instance.hasEmployee( employeeID ) ) {
             return false;
+        }
+
+        // The dev test-user cookie deliberately admits an employee whatever their employment status, so a terminated
+        // employee stays testable locally (see IdentityResolver#resolve). Honour that here or the panel would break:
+        // sign-in would succeed and the first protected request would destroy the session. The waiver is re-checked
+        // against the LIVE flag, not just the marker stamped at sign-in, so turning the flag off in a running
+        // deployment immediately subjects those sessions to the real rule.
+        if ( session.user.testUserIdentity === true && tools.toBool( process.env.COMPETENCE_TEST_USER_ENABLED ) ) {
+            return true;
         }
 
         return identityResolver.instance.isLoginPermittedStatus( organizationManager.instance.resolveEmploymentStatus( employeeID ) );

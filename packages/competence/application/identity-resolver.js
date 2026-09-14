@@ -30,6 +30,7 @@ const exceptions = require( "@ti-engine/core/exceptions" );
  * @property {number[]|null} overrideRoles
  * @property {boolean} adminOnly
  * @property {string|null} reason
+ * @property {boolean} [viaTestUser] - Whether the dev test-user cookie chose the identity rather than the e-mail.
  */
 
 // The employment statuses permitted to sign in. Anything else — including an unrecognized value — is refused, so a
@@ -146,7 +147,7 @@ class IdentityResolver {
             const selection = this.parseTestUserCookie( context.testUserCookie );
             if ( selection ) {
                 return employeeExists( selection.employeeID )
-                    ? this.#admit( selection.employeeID, selection.roles.length > 0 ? selection.roles : null )
+                    ? this.#admit( selection.employeeID, selection.roles.length > 0 ? selection.roles : null, true )
                     : this.#refuse( REFUSAL_REASON.NO_RECORD, context.isAdmin === true );
             }
         }
@@ -204,6 +205,12 @@ class IdentityResolver {
         if ( outcome.overrideRoles ) {
             session.user.rolesPinned = true;
         }
+        // Separate marker, and deliberately not the same one: the cookie can override the IDENTITY without overriding
+        // the roles. `CompetenceWebServer#verifySession` reads this to honour the cookie branch's waiver of the
+        // employment-status rule, which `rolesPinned` says nothing about.
+        if ( outcome.viaTestUser === true ) {
+            session.user.testUserIdentity = true;
+        }
         return session;
     }
 
@@ -213,11 +220,14 @@ class IdentityResolver {
      * @method
      * @param {string} employeeID
      * @param {number[]|null} overrideRoles
+     * @param {boolean} [viaTestUser=false] Whether the dev test-user cookie chose this identity, rather than the
+     *        authenticated e-mail. Carried onto the session because the cookie branch deliberately admits an employee
+     *        whatever their employment status, and the per-request check has to know not to undo that.
      * @returns {IdentityOutcome}
      * @private
      */
-    #admit( employeeID, overrideRoles ) {
-        return { employeeID: employeeID, overrideRoles: overrideRoles, adminOnly: false, reason: null };
+    #admit( employeeID, overrideRoles, viaTestUser = false ) {
+        return { employeeID: employeeID, overrideRoles: overrideRoles, adminOnly: false, reason: null, viaTestUser: viaTestUser === true };
     }
 
     /**

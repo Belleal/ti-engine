@@ -2,6 +2,30 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.36.1
+
+Three review findings on 3.36.0, all confirmed against the code before being acted on.
+
+* fix(competence): re-ask the admin allowlist in `verifySession` instead of admitting any session without an
+  `employeeID`. The only identity `IdentityResolver` admits without an employee record is an allowlisted
+  administrator, so that branch was trusting a fact established at sign-in and never revisited. It reads
+  `serviceConfig.auth.admins` directly rather than the session's `admin` role, because `resourceProtectionHandler`
+  runs ahead of the refresh middleware that reconciles that role — so the role on the session is a request behind.
+  Requires **web-framework ≥ 1.32.0**, which also stops the role itself from outliving the allowlist entry.
+* fix(competence): honour the dev test-user cookie's waiver of the employment-status rule. `IdentityResolver`'s
+  cookie branch deliberately admits an employee whatever their status, so a terminated one stays testable locally —
+  and 3.36.0's per-request check then destroyed that session on the first protected request, so sign-in appeared to
+  succeed and the panel broke a moment later. The waiver is carried on a marker of its own (`testUserIdentity`, set
+  from the resolver's new `viaTestUser` outcome) rather than on `rolesPinned`, which answers a different question:
+  the cookie can override the identity without overriding the roles. It is re-checked against the **live**
+  `COMPETENCE_TEST_USER_ENABLED` flag, so turning the flag off immediately subjects those sessions to the real rule,
+  and it waives only the status — the employee must still exist in the organization chart.
+* fix(competence): rebuild the organization chart in a `finally`, so a rejected audit write cannot leave the
+  in-memory indexes stale. `#updateEmployee` and `#createEmployee` both persist the record before appending audit
+  entries and only rebuilt on the happy path. Since 3.36.0 those indexes carry the employment status `verifySession`
+  reads, so terminating an employee could persist while their open session went on passing the check. The audit
+  failure still surfaces to the caller; it just no longer takes the refresh down with it.
+
 ## Version 3.36.0
 
 * feat(competence): end an open session whose employee is no longer entitled to one, via a `verifySession` override
