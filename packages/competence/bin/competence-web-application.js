@@ -1462,28 +1462,64 @@ class CompetenceWebApplication extends TiWebAppManager {
             const resolvedEmployeeID = employeeID || userID;
             const noEvaluationSentinel = Symbol();
 
+            // Standing authority over the target — the part of the access decision that needs no record at all, so it
+            // can be made before anything about the target is read. A peer reviewer is the one viewer whose authority
+            // comes from the evaluation itself (their name in `workflow.team`), so they are resolved below; every
+            // caller with neither is refused with the SAME 403 whether the employee exists, has never been appraised,
+            // or is mid-cycle.
+            //
+            // This gate used to sit after the record was selected, so the three outcomes were distinguishable: an
+            // absent evaluation resolved `{noEvaluation:true}` with a 200, a CLOSED one raised 422, an active one
+            // raised 403, and an unknown employee raised 404. Walking employee IDs therefore read out the whole
+            // organization's appraisal state to any signed-in employee — precisely what #loadEmployeeList withholds
+            // from a non-manager with `evaluationHidden`. Keep the decision ahead of every status and existence branch.
+            const isSelf = ( resolvedEmployeeID === userID );
+            const hasStandingAuthority = isSelf
+                || userRoles.includes( configurationLoader.roleCode.SUPERVISOR )
+                || organizationManager.instance.isSuperiorManagerOfEmployee( userID, resolvedEmployeeID );
+            const refuseAccess = () => exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_403 );
+
             let currentEvaluation = null;
             let employee = null;
             let isEmployee = false;
             let isTeamMember = false;
-            dataManager.instance.fetchEmployee( resolvedEmployeeID ).then( ( employeeData ) => {
+            dataManager.instance.fetchEmployee( resolvedEmployeeID ).catch( ( error ) => {
+                // A missing employee answers 404 only to someone entitled to know they are missing.
+                throw hasStandingAuthority ? error : refuseAccess();
+            } ).then( ( employeeData ) => {
                 if ( !employeeData ) {
+                    if ( !hasStandingAuthority ) {
+                        throw refuseAccess();
+                    }
                     throw exceptions.raise( exceptions.exceptionCode.E_APP_RESOURCE_NOT_FOUND, { details: "error.evaluation.no-employee-found" }, exceptions.httpCode.C_404 );
                 }
 
                 employee = employeeData;
                 return dataManager.instance.fetchEvaluations( employee.employeeID );
             } ).then( ( evaluations ) => {
-                // Load the current evaluation - either by the specified evaluation ID or by the most recent evaluation in the list:
+                // Select the current evaluation - either by the specified evaluation ID or by the most recent one.
+                // Selection only; nothing is reported about the outcome until the access decision below has been made.
                 if ( evaluationID ) {
-                    currentEvaluation = evaluations.find( ( evaluation ) => evaluation.evaluationID === evaluationID );
-                    if ( !currentEvaluation ) {
-                        throw exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { evaluationID: evaluationID } );
-                    }
+                    currentEvaluation = evaluations.find( ( evaluation ) => evaluation.evaluationID === evaluationID ) || null;
                 } else if ( evaluations.length > 0 ) {
                     currentEvaluation = evaluations.slice().sort( ( a, b ) => new Date( b.cycleDate ) - new Date( a.cycleDate ) )[ 0 ];
-                } else {
-                    throw noEvaluationSentinel;
+                }
+
+                // The peer-reviewer claim, the only one that rests on the record.
+                isTeamMember = !!currentEvaluation
+                    && currentEvaluation.employeeID !== userID
+                    && Array.isArray( currentEvaluation.workflow?.team )
+                    && currentEvaluation.workflow.team.includes( userID );
+
+                if ( !hasStandingAuthority && !isTeamMember ) {
+                    throw refuseAccess();
+                }
+
+                // Past this point the caller is entitled to learn these facts about the record.
+                if ( !currentEvaluation ) {
+                    throw evaluationID
+                        ? exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { evaluationID: evaluationID } )
+                        : noEvaluationSentinel;
                 }
 
                 if ( currentEvaluation.status === configurationLoader.evaluationStatus.CLOSED ) {
@@ -1491,7 +1527,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                 }
 
                 isEmployee = currentEvaluation.employeeID === userID && session?.user?.roles?.includes( configurationLoader.roleCode.EMPLOYEE );
-                isTeamMember = Array.isArray( currentEvaluation.workflow?.team ) && currentEvaluation.workflow.team.includes( userID ) && !isEmployee;
+                isTeamMember = isTeamMember && !isEmployee;
 
                 return this.#canManagerPerformEvaluation( userID, currentEvaluation.employeeID );
             } ).then( ( isManager ) => {
@@ -1570,8 +1606,14 @@ class CompetenceWebApplication extends TiWebAppManager {
                 const organizationContext = organizationManager.instance.resolveEmployeeOrganizationContext( employee );
                 resolve( {
                     employeeID: resolvedEmployeeID,
+                    // An explicit projection, never a spread of the stored `personal` record. The grading screen is
+                    // the one place a peer reviewer — an ordinary colleague with no management relationship — reads
+                    // someone else's employee record, and spreading it shipped every field HR happens to hold,
+                    // including birth date and gender. Listing the fields the screen renders keeps a column added to
+                    // the employee schema from reaching reviewers on its own; add one here only when a screen shows it.
                     personal: {
-                        ...employee.personal,
+                        firstName: employee.personal?.firstName || "",
+                        lastName: employee.personal?.lastName || "",
                         name: `${ employee.personal?.firstName || "" } ${ employee.personal?.lastName || "" }`.trim(),
                         organizationUnitName: organizationContext.organizationUnitName,
                         roleFamily: employee.career?.roleFamily,
@@ -1687,8 +1729,11 @@ class CompetenceWebApplication extends TiWebAppManager {
                 resolve( {
                     employeeID: targetID,
                     isOwnResults: isOwnResults,
+                    // Explicit projection, for the same reason as #loadEvaluation above: the Scores screen reuses
+                    // that fragment, so the two payloads must not drift apart on what they disclose.
                     personal: {
-                        ...employee.personal,
+                        firstName: employee.personal?.firstName || "",
+                        lastName: employee.personal?.lastName || "",
                         name: `${ employee.personal?.firstName || "" } ${ employee.personal?.lastName || "" }`.trim(),
                         organizationUnitName: organizationContext.organizationUnitName,
                         roleFamily: employee.career?.roleFamily,
@@ -1990,9 +2035,13 @@ class CompetenceWebApplication extends TiWebAppManager {
                     } );
 
                     resolve( {
+                        // Explicit projection, matching #loadEvaluation. This screen is MANAGER/SUPERVISOR-gated, so
+                        // nothing leaked here — but the three payloads describe the same employee to overlapping
+                        // audiences, and a spread in one of them is how they drift back apart.
                         personal: {
                             id: employeeID,
-                            ...employee.personal,
+                            firstName: employee.personal?.firstName || "",
+                            lastName: employee.personal?.lastName || "",
                             name: `${ employee.personal?.firstName || "" } ${ employee.personal?.lastName || "" }`.trim(),
                             organizationUnitName: organizationContext.organizationUnitName,
                             startingDate: employee.career?.startingDate || null

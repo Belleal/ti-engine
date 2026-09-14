@@ -2,6 +2,32 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.34.2
+
+Two data-exposure fixes on the grading screen, both found by review rather than by a report.
+
+* fix(competence): decide access to an evaluation before branching on whether one exists or is closed. The check in
+  `#loadEvaluation` ran after the record had been selected, so the outcomes were distinguishable to a caller with no
+  right to any of them: an absent evaluation resolved `{noEvaluation:true}` with a `200`, a `Closed` one raised
+  `422`, an active one raised `403`, and an unknown employee raised `404`. Walking employee IDs therefore read out
+  the whole organization's appraisal state — who is mid-cycle, who has finished, who was never appraised — to any
+  signed-in employee, which is precisely what `#loadEmployeeList` withholds from a non-manager through
+  `evaluationHidden`. Standing authority (self, org-line superior, Supervisor) is now resolved before anything about
+  the target is read, the peer-reviewer claim is settled from `workflow.team` immediately after, and every caller
+  with neither is refused with the same `403` whatever the target's state. A caller who is entitled to the record
+  still gets the specific answer.
+* fix(competence): project the `personal` block instead of spreading the stored employee record. `#loadEvaluation`,
+  `#loadResults` and `#loadNewEvaluationData` each spread `employee.personal` wholesale, so `birthDate`, `gender`,
+  `workSite`, `workMode` and `workLocation` all travelled to the grading screen — whose peer-review round is open to
+  ordinary colleagues with no management relationship to the evaluatee — even though the screen renders none of
+  them. The three payloads now list the fields they show, so a column added to the employee schema no longer reaches
+  reviewers on its own. Employee Management is unchanged: it is manager/supervisor-gated and those fields are what
+  it exists to edit.
+* test(competence): pin both regressions in `competence-web-application.evaluation-access.test.js` — that the four
+  unauthorized outcomes are indistinguishable, that an assigned peer reviewer is still admitted on the strength of
+  `workflow.team` alone, that no-evaluation / closed / not-found still reach the callers entitled to them, and that
+  the withheld personal fields appear nowhere in the grading or Scores payloads.
+
 ## Version 3.34.1
 
 * refactor(deploy): move the container liveness probe into the framework (web-framework 1.28.0) and point the
