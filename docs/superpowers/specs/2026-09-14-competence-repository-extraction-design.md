@@ -71,12 +71,25 @@ and is already load-bearing.
 | `.gitattributes` forces LF on `Dockerfile` and `*.sh`, and marks `*.xlsx` binary, because the repo runs `core.autocrlf=true` | A new repository without this file will silently corrupt the competency spreadsheets and can bake a stray CR into a Dockerfile `ENV` value |
 | `LICENSE.md` documents a per-package split: Apache-2.0 × 4, AGPL-3.0-or-later for competence | The split removes the only AGPL package, so ti-engine becomes uniformly permissive (§9.3) |
 
-## 5. The two code couplings
+## 5. The couplings
 
-Only two files in the repository actually cross the seam. Both are outside the application's runtime path,
-which is why this has stayed invisible.
+**Corrected after the extraction ran.** This section first claimed there were two, found with
+`grep -rnE 'require\(\s*"(\.\./){2,}'`. That audit was wrong, and wrong in an instructive way: it matches only
+literal relative **require specifiers**. It cannot see a path assembled from fragments, and it does not look at
+dependencies at all. The extraction surfaced six problems, not two, and every one of the four it missed would have
+reached the new repository.
 
-### 5.1 `test/config-drift-reporting.test.js`
+**The audit that would have caught them**, and which §11 now gates on:
+
+1. Every `require`/`import` of a bare specifier, checked against the declared dependencies — not just the relative
+   ones (§5.3).
+2. Every path expression naming a sibling package, however assembled — `path.join( ROOT, "..", "web-framework" )`
+   is invisible to a specifier grep (§5.2).
+3. What the installed tree actually resolves, versus what the manifest asks for. A workspace hides the difference.
+
+Only test and tooling files cross the seam; no runtime module does. That part held.
+
+### 5.1 `test/config-drift-reporting.test.js` — the one this section originally found
 
 ```js
 require( "../../web-framework/components/config-store" )
@@ -114,7 +127,39 @@ This is fixed **in ti-engine first**, as its own pull request, before any extrac
 in the package being moved; landing it separately keeps it reviewable as what it is rather than burying it in
 a 200-file move.
 
-### 5.2 `docs/superpowers/preview/build-preview.js`
+### 5.2 Three tests reaching the framework by computed path
+
+| File | Reaches for | Published by the framework? |
+|---|---|---|
+| `test/consent-register-screen.test.js` | `bin/static/scripts/ti-framework.css` | yes |
+| `test/healthcheck-wiring.test.js` | `bin/healthcheck.js`, `package.json` | yes |
+| `test/employee-audit-field-labels.test.js` | `test/helpers/ti-framework-sandbox.js` | **no** |
+
+All three build the path with `path.join` from fragments and then *read a file* rather than requiring a module,
+so no specifier grep sees them, and all three broke the moment the framework became a node_modules dependency.
+The first two resolve through a new `test/helpers/framework-paths.js`, which derives the installed package root
+from a published export rather than assuming a node_modules layout.
+
+The third could not be repointed at all: `web-framework`'s `files` ships `bin/`, `components/` and `types/` — not
+`test/`. The 119-line harness is vendored into competence's own test helpers, one line different (it resolves the
+script through the installed package). The script it drives *is* published, so only the harness had to be copied.
+Same reasoning as §5.1's rejected options: a test utility is a poor reason to add permanently to an exports map.
+
+### 5.3 Two undeclared dependencies, one of them runtime
+
+Neither appears in competence's `package.json`; the workspace had been supplying both by flat hoisting.
+
+- **`lodash`** — required by four **runtime** files (`competence-framework`, `data-manager`,
+  `configuration-loader`, `competence-web-application`). It resolved only because `core` and `web-framework`
+  declare it. One installer that does not hoist flat, and production code stops resolving.
+- **`ajv`** — required by two test files. What they actually got in the monorepo was **ajv 6, hoisted out of
+  eslint's dependency tree**; nothing in ti-engine asks for that version. The tests' own comment blames "the
+  workspace" for it, which is wrong about where it came from. So competence's schema tests have been validating
+  with a different ajv major than `web-framework` uses on the same schemas at runtime. Declared `^8` in the new
+  repository, with `ajv-formats` — ajv split formats out after 6, which is how this surfaced at all (`unknown
+  format "email"`).
+
+### 5.4 `docs/superpowers/preview/build-preview.js`
 
 The Insights preview builder reads CSS and `ti-charts.js` from `packages/web-framework/...` and
 `competence-main.css` from `packages/competence/...`, both by relative path from the repo root. It travels with
@@ -297,7 +342,9 @@ The new repository is not accepted until all of these pass:
 | Gate | Check |
 |---|---|
 | Resolution | `npm ci` from a clean checkout with no workspace present |
-| Entry point | `node -e "require.resolve('@ti-engine/core/bin/start-instance.js')"` |
+| Dependencies | every bare specifier required anywhere in the tree appears in `package.json` (§5.3) |
+| Sibling paths | no path expression names a sibling package, however assembled (§5.2) |
+| Entry point | `node -e "require.resolve('@ti-engine/core')"` resolves, and `node_modules/@ti-engine/core/bin/start-instance.js` exists |
 | Tests | The full competence suite, at the count it has in the monorepo today |
 | Lint | `npx eslint .` with no new errors |
 | Image | `docker build .` succeeds; container boots, `/health` returns `200` |
