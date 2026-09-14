@@ -237,40 +237,37 @@ describe( "config drift — the CA-98 QE case end to end, through the real Confi
     // suite drives the real web-framework config-management stack end to end instead.
 
     let cacheStub;
-    let store;
-    let ConfigRegistry;
-    let ConfigChangeNotifier;
-    let ConfigService;
+    let service;
 
     before( () => {
         cacheStub = installInMemoryCache();
-        // ConfigRegistry / ConfigStore / ConfigChangeNotifier are internal to @ti-engine/web-framework -- not part of
-        // its published `exports` map (only config-drift, config-management, web-application, web-server,
-        // authorization and definitions are) -- so they are reached by a relative path into the sibling package,
-        // exactly mirroring what @ti-engine/web-framework's OWN test/config-service.drift.test.js does via its
-        // private `#config-store` / `#config-registry` / `#config-change-notifier` aliases (which are not visible
-        // from outside that package). ConfigService (`config-management`) IS published and is required normally.
-        store = require( "../../web-framework/components/config-store" ).instance;
-        ConfigRegistry = require( "../../web-framework/components/config-registry" );
-        ConfigChangeNotifier = require( "../../web-framework/components/config-change-notifier" );
-        ConfigService = require( "@ti-engine/web-framework/config-management" );
+        // The real config-management stack, composed the way the application composes it: a TiWebAppManager
+        // subclass is the seam registerCompetenceConfig is written against, its registerConfigDocument registers
+        // into the ConfigRegistry singleton, and ConfigService.instance is the service reading that same
+        // singleton. Nothing here reaches past @ti-engine/web-framework's published `exports` map.
+        //
+        // It used to reach in -- `require( "../../web-framework/components/config-store" )` plus config-registry
+        // and config-change-notifier -- to hand-assemble a service from a fresh registry and notifier. Those three
+        // modules are internal, so the relative path resolved only while both packages sat in one npm workspace,
+        // and would stop resolving the moment competence consumed the framework from npm (CA-120). Going through
+        // the production seam is also the better test: it exercises the wiring the app actually runs rather than a
+        // composition unique to this file.
+        //
+        // Registrations therefore land on the process-wide registry, which is sound because node --test isolates
+        // every test FILE in its own process and this file registers competence's configuration exactly once,
+        // here. A second registerCompetenceConfig call in this file would throw on ajv's duplicate-`$id` guard --
+        // extend the registration itself rather than calling it again.
+        const TiWebAppManager = require( "@ti-engine/web-framework/web-application" );
+        const ConfigService = require( "@ti-engine/web-framework/config-management" );
+
+        class ConfigRegistrationHost extends TiWebAppManager {}
+
+        registerCompetenceConfig( new ConfigRegistrationHost( "config-drift-reporting-test" ) );
+        service = ConfigService.instance;
     } );
 
     it( "detects the stale QE documents, blocks the partial apply, and closes the gap once applied together", async () => {
         cacheStub.storage = {};
-
-        // A fresh registry + notifier (NOT the process-wide singletons research-consent.live.test.js uses) wired to
-        // the real ConfigStore singleton -- isolates this suite's registrations from every other test file's, since
-        // node --test isolates each file in its own process anyway, but keeps this file's own tests independent of
-        // each other too.
-        const registry = new ConfigRegistry();
-        const notifier = new ConfigChangeNotifier();
-        const service = new ConfigService( { store: store, registry: registry, notifier: notifier } );
-
-        registerCompetenceConfig( {
-            registerConfigDocument: ( key, definition ) => registry.register( key, definition ),
-            registerConfigEditor: () => {}
-        } );
 
         // Reconstruct the pre-CA-98 store state from the current (post-CA-98) file defaults, undoing exactly what
         // that release added:
