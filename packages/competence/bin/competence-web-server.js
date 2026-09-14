@@ -139,6 +139,46 @@ class CompetenceWebServer extends TiWebServer {
     }
 
     /**
+     * Decides whether a signed-in session may still hold access, on every protected request.
+     * <br/>
+     * `employmentStatus` used to be consulted only at sign-in, which made termination a rule about the NEXT login
+     * rather than about access: someone whose record moved to `terminated` kept the session they already had, and
+     * with a `rolling` cookie an active user's session need never expire. Per-request role derivation
+     * ({@link #refreshSession}) did not close this on its own, because a terminated employee's roles are still the
+     * roles their position implies — the question is not what they may do but whether they should be signed in at
+     * all. Returning `false` here is what ends the session: the framework destroys it and the next request lands on
+     * the login page, where {@link IdentityResolver#resolve} refuses the sign-in for the same reason.
+     * <br/>
+     * The admissible statuses come from {@link IdentityResolver#isLoginPermittedStatus}, the same predicate sign-in
+     * uses, so the two can never drift apart. An employee who has left the organization chart entirely is refused for
+     * the same reason, and an unrecognised or absent status is refused rather than assumed benign.
+     * <br/>
+     * An allowlisted administrator with no employee record keeps their session: they have no employment status to
+     * judge, and theirs is the access that exists to repair the employee data in the first place.
+     *
+     * @method
+     * @override
+     * @param {TiSession} session
+     * @returns {boolean}
+     * @public
+     */
+    verifySession( session ) {
+        if ( !super.verifySession( session ) ) {
+            return false;
+        }
+
+        const employeeID = session.user.employeeID;
+        if ( !employeeID ) {
+            return true;
+        }
+        if ( !organizationManager.instance.hasEmployee( employeeID ) ) {
+            return false;
+        }
+
+        return identityResolver.instance.isLoginPermittedStatus( organizationManager.instance.resolveEmploymentStatus( employeeID ) );
+    }
+
+    /**
      * Re-derives the acting employee's roles on every request, so an authority the organization withdraws stops
      * applying on the next click rather than at the user's next sign-in.
      * <br/>
@@ -162,9 +202,8 @@ class CompetenceWebServer extends TiWebServer {
      *       fail closed, since an identity that cannot be placed cannot be granted authority.</li>
      * </ul>
      * <br/>
-     * NOTE: this governs ROLES, not the right to be signed in at all. A terminated employee's `employmentStatus` is
-     * still only consulted at sign-in, so an open session survives termination; ending it needs session
-     * invalidation rather than role derivation, and is deliberately not attempted here.
+     * NOTE: this governs ROLES — what a session may do. Whether it should exist at all is {@link #verifySession},
+     * which ends a session whose employee is no longer entitled to one.
      *
      * @method
      * @override

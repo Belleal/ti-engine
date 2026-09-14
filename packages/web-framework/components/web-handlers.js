@@ -274,9 +274,11 @@ module.exports.onShutDownHandler = ( instance ) => {
 module.exports.resourceProtectionHandler = ( instance ) => {
     return ( request, response, next ) => {
         if ( instance.isUnprotectedRoute( request.url ) || instance.verifySession( request.session ) ) {
-            next();
-        } else {
-            const redirectTo = "/";
+            return next();
+        }
+
+        const redirectTo = "/";
+        const refuse = () => {
             if ( isHtmxRequest( request ) ) {
                 response.set( "HX-Redirect", redirectTo );
                 response.status( exceptions.httpCode.C_204 ).end();
@@ -285,7 +287,26 @@ module.exports.resourceProtectionHandler = ( instance ) => {
             } else {
                 response.status( exceptions.httpCode.C_401 ).end();
             }
+        };
+
+        // A session that carries a user and STILL fails verification has been judged invalid — the application looked
+        // at who it belongs to and said no. Leaving it alive would mean re-deciding the same refusal on every request
+        // while the shell, which reads `auth.isAuthenticated`, goes on believing the visitor is signed in. Destroy it,
+        // so the redirect lands on a real login instead of a loop. The default `verifySession` cannot produce this
+        // case (it returns true whenever a user is present), so nothing changes for a consumer that does not override
+        // it; a destroy that fails is logged and the refusal is served regardless.
+        if ( request.session && request.session.user && typeof request.session.destroy === "function" ) {
+            logger.log( `Ending a session that failed verification for user '${ request.session.user.userID || request.session.user.employeeID }'.`, logger.logSeverity.NOTICE );
+            request.session.destroy( ( error ) => {
+                if ( error ) {
+                    logger.log( "Failed to destroy a session that did not pass verification.", logger.logSeverity.WARNING, error );
+                }
+                refuse();
+            } );
+            return;
         }
+
+        refuse();
     };
 };
 

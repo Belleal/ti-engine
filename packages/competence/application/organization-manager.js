@@ -33,6 +33,17 @@ class OrganizationManager {
     #emailIndex = new Map();
 
     /**
+     * Employment status by employee ID, stored VERBATIM — never defaulted, unlike the graph node attribute of the
+     * same name. The node's default of `"active"` is right for display and reporting, where "unknown" would be a
+     * regression; it is a fail-open on a security-relevant field, and this index feeds the per-request check that
+     * decides whether a session may continue. Same reasoning as the email index, which passes the status through for
+     * login identity resolution.
+     *
+     * @type {Map<string, string|undefined>}
+     */
+    #employmentStatusIndex = new Map();
+
+    /**
      * @constructor
      * @return {OrganizationManager}
      */
@@ -162,6 +173,7 @@ class OrganizationManager {
 
                 this.#organizationChart = graph;
                 this.#emailIndex = this.#buildEmailIndex( employees );
+                this.#employmentStatusIndex = this.#buildEmploymentStatusIndex( employees );
 
                 resolve();
             } ).catch( ( error ) => {
@@ -577,6 +589,23 @@ class OrganizationManager {
     }
 
     /**
+     * Returns an employee's employment status exactly as stored, or `undefined` when the employee is unknown or the
+     * record carries no status. Synchronous: reads the in-memory index the org chart build populates, so it is safe
+     * on the per-request path.
+     *
+     * @method
+     * @param {string} employeeID
+     * @returns {string|undefined}
+     * @public
+     */
+    resolveEmploymentStatus( employeeID ) {
+        if ( !employeeID ) {
+            return undefined;
+        }
+        return this.#employmentStatusIndex.get( String( employeeID ) );
+    }
+
+    /**
      * Whether an employee node exists in the current organization chart.
      *
      * @method
@@ -620,6 +649,26 @@ class OrganizationManager {
     }
 
     /* Private interface */
+
+    /**
+     * Indexes employment status by employee ID, passing the stored value through unchanged — an employee record with
+     * no status yields `undefined` rather than a defaulted `"active"`, so the caller decides what an absent value
+     * means instead of being handed a permissive guess.
+     *
+     * @method
+     * @param {Array<Employee>} employees
+     * @returns {Map<string, string|undefined>}
+     * @private
+     */
+    #buildEmploymentStatusIndex( employees ) {
+        const index = new Map();
+        ( Array.isArray( employees ) ? employees : [] ).forEach( ( employee ) => {
+            if ( employee?.employeeID ) {
+                index.set( String( employee.employeeID ), employee.employmentStatus );
+            }
+        } );
+        return index;
+    }
 
     /**
      * Builds the email -> employee index. A duplicated email is recorded as ambiguous rather than resolved, and is

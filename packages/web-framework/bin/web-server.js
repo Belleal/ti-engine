@@ -443,15 +443,22 @@ class TiWebServer extends ServiceConsumer {
     }
 
     /**
-     * Used to verify the session of a request.
+     * Decides whether a session may continue to hold access. Consulted by `resourceProtectionHandler` on every
+     * protected request; an unprotected route short-circuits it, so a static asset never pays for the check.
+     * <br/>
+     * The default accepts any session carrying a user. **Override it to add an application's own liveness rule** —
+     * whether the principal behind the session still exists and is still entitled to one. Returning `false` for a
+     * session that carries a user does not merely block the request: the framework destroys that session, so the
+     * refusal lands on a real sign-in rather than re-deciding itself on every subsequent request while the shell goes
+     * on believing the visitor is signed in. Keep it synchronous and free of I/O — it runs on the request path.
      *
      * @method
+     * @virtual
      * @param {TiSession} session
      * @returns {boolean}
      * @public
      */
     verifySession( session ) {
-        // TODO: Implement this!
         return Boolean( session && session.user );
     }
 

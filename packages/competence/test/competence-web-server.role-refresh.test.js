@@ -7,7 +7,8 @@
 */
 
 /*
- * Per-request role derivation (`CompetenceWebServer#refreshSession`).
+ * The two per-request session rules: what an acting employee may do (`refreshSession`), and whether they should be
+ * signed in at all (`verifySession`).
  *
  * Roles used to be derived once, in `augmentSession`, inside the login handler — and every gate in the application
  * reads `session.user.roles`. That made `#revokeSupervisor` advisory: it removed the grant from the store and the
@@ -15,8 +16,13 @@
  * the consent register and the oversight screens until they chose to sign out. With a `rolling` session cookie, an
  * active user need never do that. A grant ADDED mid-session had the mirror-image problem and simply did not work.
  *
- * The org graph and the grant mirror are both in-memory and synchronous, which is what made deriving at login cheap
- * and makes deriving per request cheap for the same reason.
+ * `employmentStatus` had the same shape and needed a different answer: it was consulted only at sign-in, so
+ * termination was a rule about the NEXT login rather than about access. Re-deriving roles does not close that on its
+ * own — a terminated employee's roles are still the roles their position implies — so the rule lives in
+ * `verifySession`, which the framework answers by destroying the session.
+ *
+ * Every input is in-memory and synchronous, which is what made deriving at login cheap and makes both checks cheap
+ * per request for the same reason.
  */
 
 const { describe, it } = require( "node:test" );
@@ -160,6 +166,71 @@ describe( "IdentityResolver — pinning the dev role override", () => {
 
         assert.deepEqual( session.user.roles, [ EMPLOYEE, MANAGER ] );
         assert.equal( session.user.rolesPinned, undefined );
+    } );
+
+} );
+
+describe( "CompetenceWebServer — a session must stay entitled to exist", () => {
+
+    // Termination was a rule about the NEXT login, not about access: `employmentStatus` was consulted only at
+    // sign-in, so someone whose record moved to `terminated` kept the session they already had — and with a rolling
+    // cookie an active user's session need never expire. Per-request role derivation does not close this on its own,
+    // because a terminated employee's roles are still the roles their position implies. The question is not what they
+    // may do but whether they should be signed in at all, which is `verifySession`; the framework destroys a session
+    // this refuses.
+
+    function stubStatus( t, statusByID ) {
+        t.mock.method( OrganizationManagerPrototype, "hasEmployee", ( employeeID ) => Object.hasOwn( statusByID, employeeID ) );
+        t.mock.method( OrganizationManagerPrototype, "resolveEmploymentStatus", ( employeeID ) => statusByID[ employeeID ] );
+    }
+
+    const sessionFor = ( employeeID ) => ( { user: { userID: `login:${ employeeID }`, employeeID: employeeID, roles: [ EMPLOYEE ] } } );
+
+    it( "keeps an active employee signed in", ( t ) => {
+        stubStatus( t, { "1": "active" } );
+        assert.equal( server.verifySession( sessionFor( "1" ) ), true );
+    } );
+
+    it( "keeps an employee on leave signed in", ( t ) => {
+        stubStatus( t, { "1": "on-leave" } );
+        assert.equal( server.verifySession( sessionFor( "1" ) ), true, "being away is not being gone" );
+    } );
+
+    it( "ends the session of an employee who has been terminated", ( t ) => {
+        stubStatus( t, { "1": "terminated" } );
+        assert.equal( server.verifySession( sessionFor( "1" ) ), false );
+    } );
+
+    it( "ends the session of an employee who has left the organization chart", ( t ) => {
+        stubStatus( t, {} );
+        assert.equal( server.verifySession( sessionFor( "1" ) ), false );
+    } );
+
+    it( "refuses a status it does not recognise, and one that is absent", ( t ) => {
+        // Fail closed: a status added to the employee schema is not admissible until it is deliberately listed.
+        stubStatus( t, { "1": "sabbatical", "2": undefined, "3": "" } );
+        assert.equal( server.verifySession( sessionFor( "1" ) ), false );
+        assert.equal( server.verifySession( sessionFor( "2" ) ), false );
+        assert.equal( server.verifySession( sessionFor( "3" ) ), false );
+    } );
+
+    it( "keeps an allowlisted administrator with no employee record", ( t ) => {
+        stubStatus( t, {} );
+        // No employment status to judge, and theirs is the access that exists to repair the employee data.
+        assert.equal( server.verifySession( { user: { userID: "admin@example.com", employeeID: null, roles: [ "admin" ] } } ), true );
+    } );
+
+    it( "refuses a session with no user at all", () => {
+        assert.equal( server.verifySession( { csrfToken: "t" } ), false );
+        assert.equal( server.verifySession( undefined ), false );
+    } );
+
+    it( "uses the same admissible-status rule as sign-in, so the two cannot drift", () => {
+        const permitted = [ "active", "on-leave" ];
+        const refused = [ "terminated", "sabbatical", "", undefined, null ];
+
+        permitted.forEach( ( status ) => assert.equal( identityResolver.instance.isLoginPermittedStatus( status ), true, status ) );
+        refused.forEach( ( status ) => assert.equal( identityResolver.instance.isLoginPermittedStatus( status ), false, String( status ) ) );
     } );
 
 } );

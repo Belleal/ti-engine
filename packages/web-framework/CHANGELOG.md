@@ -2,6 +2,19 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.31.0
+
+* feat(web-handlers): destroy a session that carries a user and fails `verifySession`, instead of only redirecting
+  it. `verifySession` had been a seam with a `TODO: Implement this!` and no consumer — the default returns true for
+  any session carrying a user, so the "carries a user but fails verification" branch was unreachable. An application
+  that overrides it needs the refusal to stick: leaving the session alive means re-deciding the same verdict on every
+  request while the shell, which reads `auth.isAuthenticated`, goes on believing the visitor is signed in, and the
+  redirect to `/` lands back on the application rather than on a login. The refusal shape is unchanged (`HX-Redirect`
+  for HTMX, `303` to `/` for HTML, `401` otherwise) and is served even if the destroy itself fails — a store that
+  cannot forget a session is no reason to honour it. **Nothing changes for a consumer using the default
+  `verifySession`**, which cannot produce the case; its documentation now describes the override contract rather than
+  carrying a TODO.
+
 ## Version 1.30.0
 
 * feat(auth-manager)!: refuse an OpenID Connect sign-in whose e-mail the provider itself reports as unverified, and

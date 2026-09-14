@@ -2,6 +2,27 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.36.0
+
+* feat(competence): end an open session whose employee is no longer entitled to one, via a `verifySession` override
+  (requires **web-framework ≥ 1.31.0**). `employmentStatus` was consulted only at sign-in, which made termination a
+  rule about the NEXT login rather than about access: someone whose record moved to `terminated` kept the session
+  they already had, and with a `rolling` cookie an active user's session need never expire. Per-request role
+  derivation (3.35.0) did not close this on its own — a terminated employee's roles are still the roles their
+  position implies, and the question is not what they may do but whether they should be signed in at all. The
+  framework destroys a session this refuses, so the next request lands on the login page, where `IdentityResolver`
+  refuses the sign-in for the same reason. An employee who has left the organization chart is refused on the same
+  grounds; an unrecognised or absent status is refused rather than assumed benign; an allowlisted administrator with
+  no employee record keeps their session, having no employment status to judge and holding the access that exists to
+  repair the employee data.
+* feat(competence): `IdentityResolver#isLoginPermittedStatus` makes the admissible-status list one predicate that
+  both sign-in and the per-request check consult, so the two cannot drift apart.
+* fix(competence): index employment status by employee ID **verbatim**
+  (`OrganizationManager#resolveEmploymentStatus`), rather than reading the graph node attribute of the same name.
+  That attribute defaults to `"active"`, which is right for display and reporting — where "unknown" would be a
+  regression — and is a fail-open on a security-relevant field. The email index already passed the status through
+  unchanged for exactly this reason; the per-request check now has an equivalent by-ID route.
+
 ## Version 3.35.1
 
 * fix(competence): stop serving the live appraisal cycle and the scoring model to anonymous callers. `/app/config` is

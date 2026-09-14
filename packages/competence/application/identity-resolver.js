@@ -81,6 +81,23 @@ class IdentityResolver {
     }
 
     /**
+     * Whether an employment status may hold a session. The single source of truth for that rule: `resolve` applies it
+     * at sign-in, and `CompetenceWebServer#verifySession` applies it on every request thereafter, so a status that
+     * stops being admissible ends an open session rather than only blocking the next login. Pure.
+     * <br/>
+     * Anything unlisted is refused, including `undefined` — a record carrying no status at all is not evidence of a
+     * permitted one, so a status added to the employee schema fails closed until it is deliberately listed here.
+     *
+     * @method
+     * @param {string} [employmentStatus]
+     * @returns {boolean}
+     * @public
+     */
+    isLoginPermittedStatus( employmentStatus ) {
+        return LOGIN_PERMITTED_STATUSES.includes( employmentStatus );
+    }
+
+    /**
      * Parses the dev `ti-test-user` cookie. Only values that are already finite JS numbers survive the roles list —
      * a string, `null`, a boolean, or an object is dropped rather than coerced, so the cookie can never inject the
      * string `admin` role (and `null` can't slip through as `0`). Pure.
@@ -147,7 +164,7 @@ class IdentityResolver {
         if ( record.ambiguous === true ) {
             return this.#refuse( REFUSAL_REASON.AMBIGUOUS_EMAIL, context.isAdmin === true );
         }
-        if ( !LOGIN_PERMITTED_STATUSES.includes( record.employmentStatus ) ) {
+        if ( !this.isLoginPermittedStatus( record.employmentStatus ) ) {
             return this.#refuse( REFUSAL_REASON.TERMINATED, context.isAdmin === true );
         }
 
