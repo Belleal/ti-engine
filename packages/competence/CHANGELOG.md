@@ -2,6 +2,27 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.34.3
+
+* fix(competence): allowlist the fields `update-employee` may write, for a Supervisor as much as for a manager.
+  `#assertEditableField` returned immediately for a Supervisor, so every dotted path in the request body was written
+  straight onto the record — `employeeID` among them. `DataManager.saveEmployee` keys the store by
+  `employee.employeeID`, so editing one employee while setting that field wrote their data over whoever owned the new
+  ID: the second record destroyed, the first left behind as a stale duplicate, and both audit entries filed against
+  the victim's ID, so nothing recorded what had been lost. Evaluations, research-consent chains and supervisor grants
+  are keyed by `employeeID` too, so they silently re-attached to the wrong person. Only the e-mail uniqueness check
+  stood in the way, and it lapses the moment the same request also changes the e-mail. `EDITABLE_EMPLOYEE_FIELDS` now
+  names the sixteen paths the detail form owns; anything else is a `422`, and a path that is a field but not this
+  role's stays a `403`. A second barrier asserts the record still carries its own identity before it is written.
+  CA-91 closed the prototype-pollution half of this hole; this is the allowlist half.
+* fix(competence): set `personal.id` on the evaluation and Scores payloads. `frame-competence-evaluation.html` seeds
+  its avatar gradient from that field and it was never sent, so every evaluatee hashed the same `undefined` seed and
+  drew the same three colours. The new-evaluation screen, which reuses the markup, always supplied it.
+* test(competence): pin the write scope in `competence-web-application.employee-update-scope.test.js`, including the
+  destructive overwrite and the variant the e-mail check could never catch. Its last case drives the real Employee
+  Management component's `computeDiff()` and asserts the server accepts every path the form submits, so a field added
+  to the form without being added to the allowlist fails there rather than in front of a user.
+
 ## Version 3.34.2
 
 Two data-exposure fixes on the grading screen, both found by review rather than by a report.

@@ -252,6 +252,7 @@ describe( "CompetenceWebApplication — evaluation payload minimisation", () => 
             "the withheld values must not survive anywhere else in the payload either" );
 
         // The fields frame-competence-evaluation.html actually binds.
+        assert.equal( result.personal.id, EVALUATEE_ID, "the avatar gradient is seeded from personal.id; without it every evaluatee hashes the same undefined seed" );
         assert.equal( result.personal.name, "Ada Lovelace" );
         assert.equal( result.personal.organizationUnitName, "Platform Engineering" );
         assert.equal( result.personal.stageLevel, "R2" );
@@ -279,6 +280,7 @@ describe( "CompetenceWebApplication — evaluation payload minimisation", () => 
         const result = await app.processDataRequest( employeeSession( EVALUATEE_ID ), "load-my-results", { query: {} } );
 
         assert.equal( result.isOwnResults, true );
+        assert.equal( result.personal.id, EVALUATEE_ID, "same avatar seed as the grading screen, which this reuses" );
         withheldFields.forEach( ( field ) => {
             assert.ok( !( field in result.personal ), `'${ field }' is not rendered by the Scores screen` );
         } );

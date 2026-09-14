@@ -33,6 +33,46 @@ const { registerCompetenceConfig } = require( "../application/config-registratio
 const UNSAFE_PATH_SEGMENTS = new Set( [ "__proto__", "constructor", "prototype" ] );
 
 /**
+ * Every employee field `update-employee` may write, as a dotted path — the fields the Employee Management detail
+ * form submits (`computeDiff` in `competence-user-interface.js`), plus `personal.birthDate`, which the create form
+ * and the CSV import write and which therefore has to be correctable. {@link #assertEditableField} admits nothing
+ * outside this set, for a Supervisor as much as for a manager.
+ * <br/>
+ * **`employeeID` is deliberately absent.** It is the key `DataManager.saveEmployee` stores the record under, not a
+ * field of it, so writing it moved one employee's data on top of another's — destroying the second record, leaving
+ * the first behind as a stale duplicate, and pointing every audit entry at the victim's ID so nothing recorded what
+ * had been lost. A Supervisor used to be admitted unconditionally, which made that reachable from the ordinary edit
+ * form's endpoint; CA-91 closed the prototype-pollution half of the same hole, and this is the allowlist half.
+ *
+ * @type {Set<string>}
+ */
+const EDITABLE_EMPLOYEE_FIELDS = new Set( [
+    "email",
+    "employmentStatus",
+    "personal.firstName",
+    "personal.lastName",
+    "personal.birthDate",
+    "personal.gender",
+    "personal.workMode",
+    "personal.workLocation",
+    "personal.workSite",
+    "career.organizationUnitID",
+    "career.roleFamily",
+    "career.specialization",
+    "career.level",
+    "career.stage",
+    "career.startingDate",
+    "career.positionName"
+] );
+
+/**
+ * The subset of {@link EDITABLE_EMPLOYEE_FIELDS} a non-Supervisor manager may write on a direct report.
+ *
+ * @type {Set<string>}
+ */
+const MANAGER_EDITABLE_EMPLOYEE_FIELDS = new Set( [ "career.specialization" ] );
+
+/**
  * The version-stamp token emitted into the generated User Guide fragments, substituted with the running package
  * version by {@link CompetenceWebApplication#transformHtml}. Keeping the version out of the build output is what
  * lets a routine version bump leave the committed fragments untouched.
@@ -1612,6 +1652,10 @@ class CompetenceWebApplication extends TiWebAppManager {
                     // including birth date and gender. Listing the fields the screen renders keeps a column added to
                     // the employee schema from reaching reviewers on its own; add one here only when a screen shows it.
                     personal: {
+                        // The fragment seeds its avatar gradient from `personal.id` (see frame-competence-evaluation.html).
+                        // It was never set here, so every evaluatee's avatar hashed the same `undefined` seed and drew the
+                        // same colours; `#loadNewEvaluationData`, which reuses the same markup, always supplied it.
+                        id: resolvedEmployeeID,
                         firstName: employee.personal?.firstName || "",
                         lastName: employee.personal?.lastName || "",
                         name: `${ employee.personal?.firstName || "" } ${ employee.personal?.lastName || "" }`.trim(),
@@ -1732,6 +1776,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                     // Explicit projection, for the same reason as #loadEvaluation above: the Scores screen reuses
                     // that fragment, so the two payloads must not drift apart on what they disclose.
                     personal: {
+                        id: targetID,   // avatar seed, as in #loadEvaluation — the Scores screen reuses that fragment
                         firstName: employee.personal?.firstName || "",
                         lastName: employee.personal?.lastName || "",
                         name: `${ employee.personal?.firstName || "" } ${ employee.personal?.lastName || "" }`.trim(),
@@ -4104,6 +4149,14 @@ class CompetenceWebApplication extends TiWebAppManager {
                     throw exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { details: validationError }, exceptions.httpCode.C_422 );
                 }
 
+                // Second barrier behind the allowlist, and unreachable while that holds — kept because what it guards
+                // is unrecoverable: `DataManager.saveEmployee` keys the record by `employee.employeeID`, so a mutated
+                // identity here writes this employee over whoever owns the new ID. An invariant violation, not user
+                // input, so it is a 500 rather than a validation error.
+                if ( updated.employeeID !== employee.employeeID ) {
+                    throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: `Refusing to write employee '${ employee.employeeID }' under the identity '${ updated.employeeID }'.` }, exceptions.httpCode.C_500 );
+                }
+
                 return dataManager.instance.fetchEmployees().then( ( employees ) => {
                     const collision = employeeRules.instance.findEmailCollision( updated.email, updated.employeeID, employees );
                     if ( collision ) {
@@ -4620,17 +4673,6 @@ class CompetenceWebApplication extends TiWebAppManager {
     }
 
     /**
-     * Returns the set of field paths a non-Supervisor manager is allowed to edit on a direct report.
-     *
-     * @method
-     * @returns {Set<string>}
-     * @private
-     */
-    #managerEditableFields() {
-        return new Set( [ "career.specialization" ] );
-    }
-
-    /**
      * Throws E_SEC_UNAUTHORIZED_ACCESS when the supplied field is outside the caller's edit scope.
      *
      * @method
@@ -4638,9 +4680,25 @@ class CompetenceWebApplication extends TiWebAppManager {
      * @param {{isSupervisor: boolean, isDirectManager: boolean}} actorScope
      * @private
      */
+    /**
+     * Throws when the supplied field is outside the caller's edit scope.
+     *
+     * @method
+     * @param {string} fieldPath
+     * @param {{isSupervisor: boolean, isDirectManager: boolean}} actorScope
+     * @exception {TiException.E_WEB_INVALID_REQUEST_PARAMETERS} (422) When the path is not an employee field at all.
+     * @exception {TiException.E_SEC_UNAUTHORIZED_ACCESS} (403) When it is, but not one this role may write.
+     * @private
+     */
     #assertEditableField( fieldPath, actorScope ) {
+        // Allowlist first, and for every role: a path outside the set is not an employee field at all, so no role can
+        // write it. That distinction is what the two exceptions say — 422 for "not a field", 403 for "a field, but
+        // not yours".
+        if ( !EDITABLE_EMPLOYEE_FIELDS.has( fieldPath ) ) {
+            throw exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { details: `Field '${ fieldPath }' is not an editable employee field.` }, exceptions.httpCode.C_422 );
+        }
         if ( actorScope.isSupervisor ) return;
-        if ( actorScope.isDirectManager && this.#managerEditableFields().has( fieldPath ) ) return;
+        if ( actorScope.isDirectManager && MANAGER_EDITABLE_EMPLOYEE_FIELDS.has( fieldPath ) ) return;
         throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, { details: `Field '${ fieldPath }' is not editable by the current role.` }, exceptions.httpCode.C_403 );
     }
 
