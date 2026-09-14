@@ -48,6 +48,16 @@ class CompetenceWebServer extends TiWebServer {
      * @public
      */
     onStart() {
+        // The dev test-user cookie lets the client choose the acting employee AND inject role codes, so wherever it is
+        // on, anyone who can complete sign-in is one cookie away from acting as anyone — including as a Supervisor.
+        // It is off by default and every documented production install sets it to `false` explicitly, but "off by
+        // default" is invisible: nothing said so where an operator would see it. Say it once, loudly, at boot, the way
+        // core does for an unset message-exchange hash key. (The Cloud Run test environment turns it on deliberately;
+        // there the warning is a reminder that IAP is the only thing keeping that environment private.)
+        if ( tools.toBool( process.env.COMPETENCE_TEST_USER_ENABLED ) ) {
+            logger.log( "COMPETENCE_TEST_USER_ENABLED is ON: the 'ti-test-user' cookie can override the acting identity and its roles, so any authenticated visitor can act as any employee. This is a development-only setting — set it to 'false' in production.", logger.logSeverity.WARNING );
+        }
+
         return super.onStart()
             .then( () => dataManager.instance.initialize() )
             // Must run before buildOrganizationChart(): this is what replaces the exported
@@ -128,12 +138,132 @@ class CompetenceWebServer extends TiWebServer {
         return identityResolver.instance.applyIdentity( session, outcome, ( employeeID ) => this.#resolveUserRoles( employeeID ) );
     }
 
+    /**
+     * Decides whether a signed-in session may still hold access, on every protected request.
+     * <br/>
+     * `employmentStatus` used to be consulted only at sign-in, which made termination a rule about the NEXT login
+     * rather than about access: someone whose record moved to `terminated` kept the session they already had, and
+     * with a `rolling` cookie an active user's session need never expire. Per-request role derivation
+     * ({@link #refreshSession}) did not close this on its own, because a terminated employee's roles are still the
+     * roles their position implies — the question is not what they may do but whether they should be signed in at
+     * all. Returning `false` here is what ends the session: the framework destroys it and the next request lands on
+     * the login page, where {@link IdentityResolver#resolve} refuses the sign-in for the same reason.
+     * <br/>
+     * The admissible statuses come from {@link IdentityResolver#isLoginPermittedStatus}, the same predicate sign-in
+     * uses, so the two can never drift apart. An employee who has left the organization chart entirely is refused for
+     * the same reason, and an unrecognised or absent status is refused rather than assumed benign.
+     * <br/>
+     * An allowlisted administrator with no employee record keeps their session only while they are STILL on the
+     * allowlist: they have no employment status to judge, and theirs is the access that exists to repair the employee
+     * data in the first place, but an identity taken off the list has neither.
+     *
+     * @method
+     * @override
+     * @param {TiSession} session
+     * @returns {boolean}
+     * @public
+     */
+    verifySession( session ) {
+        if ( !super.verifySession( session ) ) {
+            return false;
+        }
+
+        const employeeID = session.user.employeeID;
+        if ( !employeeID ) {
+            // The only identity `IdentityResolver` admits without an employee record is an allowlisted administrator,
+            // so this branch has to re-ask the allowlist rather than trust that it was true at sign-in. Reading
+            // `serviceConfig.auth.admins` directly, rather than the session's `admin` role, keeps the answer current:
+            // `resourceProtectionHandler` runs ahead of the refresh middleware that reconciles that role, so the role
+            // on the session is a request behind.
+            return authorization.isAdminIdentity( session.user, this.serviceConfig?.auth?.admins );
+        }
+
+        if ( !organizationManager.instance.hasEmployee( employeeID ) ) {
+            return false;
+        }
+
+        // The dev test-user cookie deliberately admits an employee whatever their employment status, so a terminated
+        // employee stays testable locally (see IdentityResolver#resolve). Honour that here or the panel would break:
+        // sign-in would succeed and the first protected request would destroy the session. The waiver is re-checked
+        // against the LIVE flag, not just the marker stamped at sign-in, so turning the flag off in a running
+        // deployment immediately subjects those sessions to the real rule.
+        if ( session.user.testUserIdentity === true && tools.toBool( process.env.COMPETENCE_TEST_USER_ENABLED ) ) {
+            return true;
+        }
+
+        return identityResolver.instance.isLoginPermittedStatus( organizationManager.instance.resolveEmploymentStatus( employeeID ) );
+    }
+
+    /**
+     * Re-derives the acting employee's roles on every request, so an authority the organization withdraws stops
+     * applying on the next click rather than at the user's next sign-in.
+     * <br/>
+     * `augmentSession` runs once, inside the login handler, and every gate in the application reads
+     * `session.user.roles`. That made `#revokeSupervisor` advisory: it removed the grant from the store and the
+     * in-memory mirror, wrote its audit entry, and changed nothing for the person being revoked, who kept org-wide
+     * read of every evaluation, the consent register and the oversight screens until they chose to sign out — and
+     * with a `rolling` session cookie, an active user need never do that. Losing a unit to a reorganization had the
+     * same shape. A grant *added* mid-session had the mirror-image problem and simply did not work until re-login.
+     * <br/>
+     * Both inputs are already in-memory and synchronous — the org graph and the grant mirror — which is what made
+     * deriving at login cheap, and makes deriving per request cheap for the same reason.
+     * <br/>
+     * Three sessions do not get freshly derived application roles:
+     * <ul>
+     *   <li>a dev test-user session whose roles were pinned by the `ti-test-user` cookie's override — re-deriving
+     *       would defeat the override on the request after login, which is the whole point of the panel;</li>
+     *   <li>an allowlisted administrator with no employee record, who has no appraisal identity to derive from; their
+     *       `admin` role is a framework role, not one of ours, so it is carried across untouched;</li>
+     *   <li>a session whose employee has left the organization chart, which drops to no application roles at all —
+     *       fail closed, since an identity that cannot be placed cannot be granted authority.</li>
+     * </ul>
+     * <br/>
+     * NOTE: this governs ROLES — what a session may do. Whether it should exist at all is {@link #verifySession},
+     * which ends a session whose employee is no longer entitled to one.
+     *
+     * @method
+     * @override
+     * @param {TiSession} session
+     * @param {Object} [request]
+     * @returns {TiSession}
+     * @public
+     */
+    refreshSession( session, request ) {
+        const user = session && session.user;
+        if ( !user || user.rolesPinned === true ) {
+            return session;
+        }
+
+        const employeeID = user.employeeID;
+        let derived;
+        if ( !employeeID || !organizationManager.instance.hasEmployee( employeeID ) ) {
+            derived = [];
+        } else {
+            derived = this.#resolveUserRoles( employeeID );
+        }
+
+        // This application owns the NUMERIC role codes and nothing else. Any other role on the session was put there
+        // by someone else — the framework's additive string `admin` is the one in practice — so it is carried across
+        // rather than derived. Dropping it and letting `applyAdminRole` restore it would work, but would rewrite an
+        // administrator's roles on every single request and report each one as a change.
+        const current = Array.isArray( user.roles ) ? user.roles : [];
+        const foreign = current.filter( ( role ) => typeof role !== "number" );
+        const currentOwned = current.filter( ( role ) => typeof role === "number" );
+
+        if ( currentOwned.length !== derived.length || derived.some( ( role, index ) => role !== currentOwned[ index ] ) ) {
+            logger.log( `Roles for employee '${ employeeID }' changed mid-session: [${ currentOwned.join( ", " ) }] -> [${ derived.join( ", " ) }].`, logger.logSeverity.NOTICE );
+            user.roles = derived.concat( foreign );
+        }
+
+        return session;
+    }
+
     /* Private interface */
 
     /**
      * Derives the effective role codes for an employee from their org-chart position plus any manual supervisor grant.
-     * Synchronous by design (augmentSession runs inside a synchronous session callback): the org chart and the grant
-     * mirror are both in-memory by this point.
+     * Synchronous by design — `augmentSession` runs inside a synchronous session callback, and {@link #refreshSession}
+     * runs inside request middleware — so both the org chart and the grant mirror are read from memory, never a store.
      *
      * @method
      * @param {string} employeeID

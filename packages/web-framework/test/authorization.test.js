@@ -44,6 +44,32 @@ describe( "authorization — admin allowlist", () => {
         assert.doesNotThrow( () => auth.applyAdminRole( { user: { roles: [] } }, [] ), "no allowlist — no-op" );
     } );
 
+    it( "applyAdminRole REMOVES 'admin' once the identity leaves the allowlist", () => {
+        // It only ever added, and it is the only place the role is granted — so an identity removed from the
+        // allowlist kept the role for the life of its session, and with a rolling cookie that need never end. Now
+        // that the framework re-applies this per request, removal takes effect on the next request.
+        const session = { user: { email: "a@x.com", roles: [ 1, 2, "admin" ] } };
+
+        auth.applyAdminRole( session, [ "someone-else@x.com" ] );
+        assert.deepEqual( session.user.roles, [ 1, 2 ], "the domain roles survive; only the withdrawn one goes" );
+    } );
+
+    it( "applyAdminRole removes 'admin' when the allowlist is emptied altogether", () => {
+        const emptied = auth.applyAdminRole( { user: { email: "a@x.com", roles: [ "admin" ] } }, [] );
+        assert.deepEqual( emptied.user.roles, [], "no allowlist means nobody is an administrator, not everybody stays one" );
+
+        const absent = auth.applyAdminRole( { user: { email: "a@x.com", roles: [ 1, "admin" ] } }, undefined );
+        assert.deepEqual( absent.user.roles, [ 1 ] );
+    } );
+
+    it( "applyAdminRole leaves a session that never held the role untouched", () => {
+        const session = { user: { email: "b@x.com", roles: [ 1 ] } };
+        const before = session.user.roles;
+
+        auth.applyAdminRole( session, [ "a@x.com" ] );
+        assert.equal( session.user.roles, before, "no rewrite means no spurious session store write" );
+    } );
+
 } );
 
 describe( "authorization — isAccessAllowed", () => {

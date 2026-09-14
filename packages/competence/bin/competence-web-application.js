@@ -33,6 +33,46 @@ const { registerCompetenceConfig } = require( "../application/config-registratio
 const UNSAFE_PATH_SEGMENTS = new Set( [ "__proto__", "constructor", "prototype" ] );
 
 /**
+ * Every employee field `update-employee` may write, as a dotted path — the fields the Employee Management detail
+ * form submits (`computeDiff` in `competence-user-interface.js`), plus `personal.birthDate`, which the create form
+ * and the CSV import write and which therefore has to be correctable. {@link #assertEditableField} admits nothing
+ * outside this set, for a Supervisor as much as for a manager.
+ * <br/>
+ * **`employeeID` is deliberately absent.** It is the key `DataManager.saveEmployee` stores the record under, not a
+ * field of it, so writing it moved one employee's data on top of another's — destroying the second record, leaving
+ * the first behind as a stale duplicate, and pointing every audit entry at the victim's ID so nothing recorded what
+ * had been lost. A Supervisor used to be admitted unconditionally, which made that reachable from the ordinary edit
+ * form's endpoint; CA-91 closed the prototype-pollution half of the same hole, and this is the allowlist half.
+ *
+ * @type {Set<string>}
+ */
+const EDITABLE_EMPLOYEE_FIELDS = new Set( [
+    "email",
+    "employmentStatus",
+    "personal.firstName",
+    "personal.lastName",
+    "personal.birthDate",
+    "personal.gender",
+    "personal.workMode",
+    "personal.workLocation",
+    "personal.workSite",
+    "career.organizationUnitID",
+    "career.roleFamily",
+    "career.specialization",
+    "career.level",
+    "career.stage",
+    "career.startingDate",
+    "career.positionName"
+] );
+
+/**
+ * The subset of {@link EDITABLE_EMPLOYEE_FIELDS} a non-Supervisor manager may write on a direct report.
+ *
+ * @type {Set<string>}
+ */
+const MANAGER_EDITABLE_EMPLOYEE_FIELDS = new Set( [ "career.specialization" ] );
+
+/**
  * The version-stamp token emitted into the generated User Guide fragments, substituted with the running package
  * version by {@link CompetenceWebApplication#transformHtml}. Keeping the version out of the build output is what
  * lets a routine version bump leave the committed fragments untouched.
@@ -291,6 +331,18 @@ class CompetenceWebApplication extends TiWebAppManager {
      */
     processDataRequest( session, view, options = {} ) {
         if ( view === "config" ) {
+            // `/app/config` is an UNPROTECTED route (see TiWebServer#defineUnprotectedRoutes): the shell fetches it
+            // before anyone has signed in, because the login page needs its labels and the effective auth methods.
+            // Everything THIS application adds to it belongs to the signed-in chrome and screens — the topbar and
+            // sidebar read `cycle` and `employeeLevel`, the results view reads the grades and thresholds — and an
+            // anonymous caller was being told the organization's live appraisal cycle, its dates, and the whole
+            // scoring model along with them. Serve the framework's own bootstrap payload to a caller with no session
+            // and nothing else. This also decouples the login page from the cycle store: a read that fails can no
+            // longer turn the request that renders the login screen into a 500.
+            if ( !session || !session.user ) {
+                return super.processDataRequest( session, view, options );
+            }
+
             let grades = {};
             _.forOwn( configurationLoader.evaluationGrade.properties, ( grade, code ) => {
                 grades[ code ] = {
@@ -1462,28 +1514,64 @@ class CompetenceWebApplication extends TiWebAppManager {
             const resolvedEmployeeID = employeeID || userID;
             const noEvaluationSentinel = Symbol();
 
+            // Standing authority over the target — the part of the access decision that needs no record at all, so it
+            // can be made before anything about the target is read. A peer reviewer is the one viewer whose authority
+            // comes from the evaluation itself (their name in `workflow.team`), so they are resolved below; every
+            // caller with neither is refused with the SAME 403 whether the employee exists, has never been appraised,
+            // or is mid-cycle.
+            //
+            // This gate used to sit after the record was selected, so the three outcomes were distinguishable: an
+            // absent evaluation resolved `{noEvaluation:true}` with a 200, a CLOSED one raised 422, an active one
+            // raised 403, and an unknown employee raised 404. Walking employee IDs therefore read out the whole
+            // organization's appraisal state to any signed-in employee — precisely what #loadEmployeeList withholds
+            // from a non-manager with `evaluationHidden`. Keep the decision ahead of every status and existence branch.
+            const isSelf = ( resolvedEmployeeID === userID );
+            const hasStandingAuthority = isSelf
+                || userRoles.includes( configurationLoader.roleCode.SUPERVISOR )
+                || organizationManager.instance.isSuperiorManagerOfEmployee( userID, resolvedEmployeeID );
+            const refuseAccess = () => exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_403 );
+
             let currentEvaluation = null;
             let employee = null;
             let isEmployee = false;
             let isTeamMember = false;
-            dataManager.instance.fetchEmployee( resolvedEmployeeID ).then( ( employeeData ) => {
+            dataManager.instance.fetchEmployee( resolvedEmployeeID ).catch( ( error ) => {
+                // A missing employee answers 404 only to someone entitled to know they are missing.
+                throw hasStandingAuthority ? error : refuseAccess();
+            } ).then( ( employeeData ) => {
                 if ( !employeeData ) {
+                    if ( !hasStandingAuthority ) {
+                        throw refuseAccess();
+                    }
                     throw exceptions.raise( exceptions.exceptionCode.E_APP_RESOURCE_NOT_FOUND, { details: "error.evaluation.no-employee-found" }, exceptions.httpCode.C_404 );
                 }
 
                 employee = employeeData;
                 return dataManager.instance.fetchEvaluations( employee.employeeID );
             } ).then( ( evaluations ) => {
-                // Load the current evaluation - either by the specified evaluation ID or by the most recent evaluation in the list:
+                // Select the current evaluation - either by the specified evaluation ID or by the most recent one.
+                // Selection only; nothing is reported about the outcome until the access decision below has been made.
                 if ( evaluationID ) {
-                    currentEvaluation = evaluations.find( ( evaluation ) => evaluation.evaluationID === evaluationID );
-                    if ( !currentEvaluation ) {
-                        throw exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { evaluationID: evaluationID } );
-                    }
+                    currentEvaluation = evaluations.find( ( evaluation ) => evaluation.evaluationID === evaluationID ) || null;
                 } else if ( evaluations.length > 0 ) {
                     currentEvaluation = evaluations.slice().sort( ( a, b ) => new Date( b.cycleDate ) - new Date( a.cycleDate ) )[ 0 ];
-                } else {
-                    throw noEvaluationSentinel;
+                }
+
+                // The peer-reviewer claim, the only one that rests on the record.
+                isTeamMember = !!currentEvaluation
+                    && currentEvaluation.employeeID !== userID
+                    && Array.isArray( currentEvaluation.workflow?.team )
+                    && currentEvaluation.workflow.team.includes( userID );
+
+                if ( !hasStandingAuthority && !isTeamMember ) {
+                    throw refuseAccess();
+                }
+
+                // Past this point the caller is entitled to learn these facts about the record.
+                if ( !currentEvaluation ) {
+                    throw evaluationID
+                        ? exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { evaluationID: evaluationID } )
+                        : noEvaluationSentinel;
                 }
 
                 if ( currentEvaluation.status === configurationLoader.evaluationStatus.CLOSED ) {
@@ -1491,7 +1579,7 @@ class CompetenceWebApplication extends TiWebAppManager {
                 }
 
                 isEmployee = currentEvaluation.employeeID === userID && session?.user?.roles?.includes( configurationLoader.roleCode.EMPLOYEE );
-                isTeamMember = Array.isArray( currentEvaluation.workflow?.team ) && currentEvaluation.workflow.team.includes( userID ) && !isEmployee;
+                isTeamMember = isTeamMember && !isEmployee;
 
                 return this.#canManagerPerformEvaluation( userID, currentEvaluation.employeeID );
             } ).then( ( isManager ) => {
@@ -1570,8 +1658,18 @@ class CompetenceWebApplication extends TiWebAppManager {
                 const organizationContext = organizationManager.instance.resolveEmployeeOrganizationContext( employee );
                 resolve( {
                     employeeID: resolvedEmployeeID,
+                    // An explicit projection, never a spread of the stored `personal` record. The grading screen is
+                    // the one place a peer reviewer — an ordinary colleague with no management relationship — reads
+                    // someone else's employee record, and spreading it shipped every field HR happens to hold,
+                    // including birth date and gender. Listing the fields the screen renders keeps a column added to
+                    // the employee schema from reaching reviewers on its own; add one here only when a screen shows it.
                     personal: {
-                        ...employee.personal,
+                        // The fragment seeds its avatar gradient from `personal.id` (see frame-competence-evaluation.html).
+                        // It was never set here, so every evaluatee's avatar hashed the same `undefined` seed and drew the
+                        // same colours; `#loadNewEvaluationData`, which reuses the same markup, always supplied it.
+                        id: resolvedEmployeeID,
+                        firstName: employee.personal?.firstName || "",
+                        lastName: employee.personal?.lastName || "",
                         name: `${ employee.personal?.firstName || "" } ${ employee.personal?.lastName || "" }`.trim(),
                         organizationUnitName: organizationContext.organizationUnitName,
                         roleFamily: employee.career?.roleFamily,
@@ -1687,8 +1785,12 @@ class CompetenceWebApplication extends TiWebAppManager {
                 resolve( {
                     employeeID: targetID,
                     isOwnResults: isOwnResults,
+                    // Explicit projection, for the same reason as #loadEvaluation above: the Scores screen reuses
+                    // that fragment, so the two payloads must not drift apart on what they disclose.
                     personal: {
-                        ...employee.personal,
+                        id: targetID,   // avatar seed, as in #loadEvaluation — the Scores screen reuses that fragment
+                        firstName: employee.personal?.firstName || "",
+                        lastName: employee.personal?.lastName || "",
                         name: `${ employee.personal?.firstName || "" } ${ employee.personal?.lastName || "" }`.trim(),
                         organizationUnitName: organizationContext.organizationUnitName,
                         roleFamily: employee.career?.roleFamily,
@@ -1990,9 +2092,13 @@ class CompetenceWebApplication extends TiWebAppManager {
                     } );
 
                     resolve( {
+                        // Explicit projection, matching #loadEvaluation. This screen is MANAGER/SUPERVISOR-gated, so
+                        // nothing leaked here — but the three payloads describe the same employee to overlapping
+                        // audiences, and a spread in one of them is how they drift back apart.
                         personal: {
                             id: employeeID,
-                            ...employee.personal,
+                            firstName: employee.personal?.firstName || "",
+                            lastName: employee.personal?.lastName || "",
                             name: `${ employee.personal?.firstName || "" } ${ employee.personal?.lastName || "" }`.trim(),
                             organizationUnitName: organizationContext.organizationUnitName,
                             startingDate: employee.career?.startingDate || null
@@ -3991,7 +4097,10 @@ class CompetenceWebApplication extends TiWebAppManager {
                         field: "__created__",
                         oldValue: null,
                         newValue: saved
-                    } ).then( () => organizationManager.instance.buildOrganizationChart().then( () => saved ) );
+                    } ).then( () => saved )
+                        // Same reasoning as #updateEmployee: the record is written, and a rejected audit must not
+                        // leave the new employee missing from the org chart — they would be unable to sign in.
+                        .finally( () => organizationManager.instance.buildOrganizationChart() );
                 } );
             } ).then( ( saved ) => {
                 resolve( this.#projectEmployeeDetail( saved, session ) );
@@ -4055,6 +4164,14 @@ class CompetenceWebApplication extends TiWebAppManager {
                     throw exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { details: validationError }, exceptions.httpCode.C_422 );
                 }
 
+                // Second barrier behind the allowlist, and unreachable while that holds — kept because what it guards
+                // is unrecoverable: `DataManager.saveEmployee` keys the record by `employee.employeeID`, so a mutated
+                // identity here writes this employee over whoever owns the new ID. An invariant violation, not user
+                // input, so it is a 500 rather than a validation error.
+                if ( updated.employeeID !== employee.employeeID ) {
+                    throw exceptions.raise( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: `Refusing to write employee '${ employee.employeeID }' under the identity '${ updated.employeeID }'.` }, exceptions.httpCode.C_500 );
+                }
+
                 return dataManager.instance.fetchEmployees().then( ( employees ) => {
                     const collision = employeeRules.instance.findEmailCollision( updated.email, updated.employeeID, employees );
                     if ( collision ) {
@@ -4069,7 +4186,14 @@ class CompetenceWebApplication extends TiWebAppManager {
                         field: change.path,
                         oldValue: change.oldValue,
                         newValue: change.newValue
-                    } ) ) ).then( () => organizationManager.instance.buildOrganizationChart().then( () => saved ) );
+                    } ) ) ).then( () => saved )
+                        // `finally`, not `then`: the record is already written by this point, and the org chart carries
+                        // the in-memory indexes derived from it — including the employment status `verifySession` reads
+                        // to decide whether a session may continue. Rebuilding only on the happy path meant a rejected
+                        // audit write left that index holding the PREVIOUS status, so terminating an employee could
+                        // persist while their open session went on passing the check. The audit failure still surfaces;
+                        // it just no longer takes the refresh down with it.
+                        .finally( () => organizationManager.instance.buildOrganizationChart() );
                 } ).then( ( saved ) => {
                     resolve( this.#projectEmployeeDetail( saved, session ) );
                 } );
@@ -4571,17 +4695,6 @@ class CompetenceWebApplication extends TiWebAppManager {
     }
 
     /**
-     * Returns the set of field paths a non-Supervisor manager is allowed to edit on a direct report.
-     *
-     * @method
-     * @returns {Set<string>}
-     * @private
-     */
-    #managerEditableFields() {
-        return new Set( [ "career.specialization" ] );
-    }
-
-    /**
      * Throws E_SEC_UNAUTHORIZED_ACCESS when the supplied field is outside the caller's edit scope.
      *
      * @method
@@ -4589,9 +4702,25 @@ class CompetenceWebApplication extends TiWebAppManager {
      * @param {{isSupervisor: boolean, isDirectManager: boolean}} actorScope
      * @private
      */
+    /**
+     * Throws when the supplied field is outside the caller's edit scope.
+     *
+     * @method
+     * @param {string} fieldPath
+     * @param {{isSupervisor: boolean, isDirectManager: boolean}} actorScope
+     * @exception {TiException.E_WEB_INVALID_REQUEST_PARAMETERS} (422) When the path is not an employee field at all.
+     * @exception {TiException.E_SEC_UNAUTHORIZED_ACCESS} (403) When it is, but not one this role may write.
+     * @private
+     */
     #assertEditableField( fieldPath, actorScope ) {
+        // Allowlist first, and for every role: a path outside the set is not an employee field at all, so no role can
+        // write it. That distinction is what the two exceptions say — 422 for "not a field", 403 for "a field, but
+        // not yours".
+        if ( !EDITABLE_EMPLOYEE_FIELDS.has( fieldPath ) ) {
+            throw exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { details: `Field '${ fieldPath }' is not an editable employee field.` }, exceptions.httpCode.C_422 );
+        }
         if ( actorScope.isSupervisor ) return;
-        if ( actorScope.isDirectManager && this.#managerEditableFields().has( fieldPath ) ) return;
+        if ( actorScope.isDirectManager && MANAGER_EDITABLE_EMPLOYEE_FIELDS.has( fieldPath ) ) return;
         throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, { details: `Field '${ fieldPath }' is not editable by the current role.` }, exceptions.httpCode.C_403 );
     }
 

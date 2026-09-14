@@ -174,9 +174,17 @@ declare class TiWebServer extends ServiceConsumer {
      */
     reportHealthy(): void;
     /**
-     * Used to verify the session of a request.
+     * Decides whether a session may continue to hold access. Consulted by `resourceProtectionHandler` on every
+     * protected request; an unprotected route short-circuits it, so a static asset never pays for the check.
+     * <br/>
+     * The default accepts any session carrying a user. **Override it to add an application's own liveness rule** —
+     * whether the principal behind the session still exists and is still entitled to one. Returning `false` for a
+     * session that carries a user does not merely block the request: the framework destroys that session, so the
+     * refusal lands on a real sign-in rather than re-deciding itself on every subsequent request while the shell goes
+     * on believing the visitor is signed in. Keep it synchronous and free of I/O — it runs on the request path.
      *
      * @method
+     * @virtual
      * @param {TiSession} session
      * @returns {boolean}
      * @public
@@ -200,6 +208,36 @@ declare class TiWebServer extends ServiceConsumer {
      * @public
      */
     augmentSession(session: TiSession, request?: Object): TiSession;
+    /**
+     * Hook for the application to re-derive the session's application-owned state on **every** request — the
+     * companion to {@link TiWebServer#augmentSession}, which runs only at sign-in. The default is a no-op.
+     * <br/>
+     * It exists because roles derived once at login are roles that cannot be taken away. `augmentSession` runs inside
+     * `regenerateAndSaveSession` and nothing re-runs it, so an authority the application withdraws — a revoked grant,
+     * a manager who no longer manages anything — stayed live in every session already holding it. With a `rolling`
+     * cookie an active user's session need never expire, so "until they sign out" can mean indefinitely. Deriving
+     * per request makes withdrawal take effect on the next click instead.
+     * <br/>
+     * **Contract.** Runs synchronously on each request that carries a session user, after the static handlers and
+     * before any application route, so it must stay cheap and free of I/O — read in-memory state, not a store. The
+     * framework re-applies the additive `admin` role immediately afterwards, so an implementation may replace
+     * `session.user.roles` wholesale without stranding an allowlisted administrator. Assign only when the value
+     * actually changes: express-session persists a session whose serialized form differs, so rewriting an equal array
+     * is free but rewriting a *new* value on every request is a store write on every request.
+     * <br/>
+     * **Failure is fail-closed, not fatal.** Throwing does not refuse the request the way it does at sign-in — there
+     * is no sign-in to refuse. The framework logs the failure, strips the session's application roles, and lets the
+     * request continue with the `admin` allowlist role alone. A viewer who cannot be authorized keeps no authority,
+     * while an administrator retains the access that exists precisely to repair broken application data.
+     *
+     * @method
+     * @virtual
+     * @param {TiSession} session
+     * @param {Object} [request] Optional Express request object.
+     * @returns {TiSession}
+     * @public
+     */
+    refreshSession(session: TiSession, request?: Object): TiSession;
     /**
      * Used to authenticate a user via the specified auth method.
      *

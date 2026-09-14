@@ -274,9 +274,11 @@ module.exports.onShutDownHandler = ( instance ) => {
 module.exports.resourceProtectionHandler = ( instance ) => {
     return ( request, response, next ) => {
         if ( instance.isUnprotectedRoute( request.url ) || instance.verifySession( request.session ) ) {
-            next();
-        } else {
-            const redirectTo = "/";
+            return next();
+        }
+
+        const redirectTo = "/";
+        const refuse = () => {
             if ( isHtmxRequest( request ) ) {
                 response.set( "HX-Redirect", redirectTo );
                 response.status( exceptions.httpCode.C_204 ).end();
@@ -285,7 +287,26 @@ module.exports.resourceProtectionHandler = ( instance ) => {
             } else {
                 response.status( exceptions.httpCode.C_401 ).end();
             }
+        };
+
+        // A session that carries a user and STILL fails verification has been judged invalid — the application looked
+        // at who it belongs to and said no. Leaving it alive would mean re-deciding the same refusal on every request
+        // while the shell, which reads `auth.isAuthenticated`, goes on believing the visitor is signed in. Destroy it,
+        // so the redirect lands on a real login instead of a loop. The default `verifySession` cannot produce this
+        // case (it returns true whenever a user is present), so nothing changes for a consumer that does not override
+        // it; a destroy that fails is logged and the refusal is served regardless.
+        if ( request.session && request.session.user && typeof request.session.destroy === "function" ) {
+            logger.log( `Ending a session that failed verification for user '${ request.session.user.userID || request.session.user.employeeID }'.`, logger.logSeverity.NOTICE );
+            request.session.destroy( ( error ) => {
+                if ( error ) {
+                    logger.log( "Failed to destroy a session that did not pass verification.", logger.logSeverity.WARNING, error );
+                }
+                refuse();
+            } );
+            return;
         }
+
+        refuse();
     };
 };
 
@@ -699,6 +720,42 @@ module.exports.webAppHandler = ( instance ) => {
         } else {
             next();
         }
+    };
+};
+
+/**
+ * Re-derives the session's application-owned state on each request by calling {@link TiWebServer#refreshSession},
+ * then re-applies the additive `admin` allowlist role — the same order sign-in uses, so a hook that replaces
+ * `session.user.roles` cannot strand an allowlisted administrator.
+ * <br/>
+ * Mounted after the static handlers and before the application routes: a session-less request (a stylesheet, the
+ * health probe, the login page) never reaches the hook, and every request that can consult roles has passed through
+ * it first.
+ * <br/>
+ * A throwing hook is fail-closed rather than fatal: the failure is logged, the session's application roles are
+ * dropped, and the request proceeds with the `admin` role alone. Taking the whole application down because one
+ * authority lookup failed would be worse than serving it without authority — and the administrator's access is the
+ * one that exists to repair the data that broke.
+ *
+ * @method
+ * @param {TiWebServer} instance
+ * @returns {ExpressHandler}
+ * @public
+ */
+module.exports.sessionRefreshHandler = ( instance ) => {
+    return ( request, response, next ) => {
+        const session = request.session;
+        if ( !session || !session.user ) {
+            return next();
+        }
+        try {
+            instance.refreshSession( session, request );
+        } catch ( error ) {
+            logger.log( `Failed to refresh the session for user '${ session.user.userID || session.user.employeeID }'; continuing without application roles.`, logger.logSeverity.ERROR, error );
+            session.user.roles = [];
+        }
+        authorization.applyAdminRole( session, instance.serviceConfig?.auth?.admins );
+        next();
     };
 };
 

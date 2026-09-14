@@ -2,6 +2,59 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.32.0
+
+* fix(authorization)!: `applyAdminRole` now reconciles the `admin` role in **both** directions — granted when the
+  identity is on the allowlist, removed when it is not. It only ever added, and it is the only place the role is
+  granted, so it was also the only place it could be taken away: an identity removed from `auth.admins` kept `admin`
+  for the life of its session, reaching `/admin/config/*` and every admin-gated screen, and since 1.26.0's `rolling`
+  cookie that session need never end. Now that 1.29.0 re-applies the role on every request, removal takes effect on
+  the next one. Marked breaking because a session that previously retained the role loses it; an empty or absent
+  allowlist now means nobody is an administrator rather than that everybody keeps what they had. Raised by CodeRabbit
+  on the review of this branch, fixed here rather than in the consumer because the framework owns the role.
+
+## Version 1.31.0
+
+* feat(web-handlers): destroy a session that carries a user and fails `verifySession`, instead of only redirecting
+  it. `verifySession` had been a seam with a `TODO: Implement this!` and no consumer — the default returns true for
+  any session carrying a user, so the "carries a user but fails verification" branch was unreachable. An application
+  that overrides it needs the refusal to stick: leaving the session alive means re-deciding the same verdict on every
+  request while the shell, which reads `auth.isAuthenticated`, goes on believing the visitor is signed in, and the
+  redirect to `/` lands back on the application rather than on a login. The refusal shape is unchanged (`HX-Redirect`
+  for HTMX, `303` to `/` for HTML, `401` otherwise) and is served even if the destroy itself fails — a store that
+  cannot forget a session is no reason to honour it. **Nothing changes for a consumer using the default
+  `verifySession`**, which cannot produce the case; its documentation now describes the override contract rather than
+  carrying a TODO.
+
+## Version 1.30.0
+
+* feat(auth-manager)!: refuse an OpenID Connect sign-in whose e-mail the provider itself reports as unverified, and
+  expose the decision as the pure `AuthManager.isEmailReportedUnverified( userInfo )`. A consumer maps the
+  authenticated identity to an application principal by e-mail — competence resolves it against the employee
+  directory — so an address the provider has not verified is an unauthenticated claim to be someone, and nothing
+  checked it. **Only an explicit `email_verified: false` is a rejection.** An absent claim is not: Google emits the
+  claim, the Microsoft identity platform does not emit it at all, and the published competence image defaults to
+  Azure, so treating "absent" as "unverified" would refuse every sign-in on the default deployment. Marked breaking
+  because a sign-in that previously succeeded can now be refused — but only where the provider was already saying
+  the address was unverified. The residual assumption, for a provider that says nothing, is bound out the way
+  `INSTALL.md` already prescribes: a tenant-pinned discovery URL, a domain-restricted provider, or matching on the
+  stable `sub` rather than the mutable e-mail.
+
+## Version 1.29.0
+
+* feat(web-server): add `refreshSession( session, request )` — the per-request companion to `augmentSession` — and
+  the `sessionRefreshHandler` middleware that calls it. Roles derived once at sign-in are roles that cannot be taken
+  away: `augmentSession` runs inside `regenerateAndSaveSession` and nothing re-ran it, so an authority the
+  application withdrew stayed live in every session already holding it, and since 1.26.0's `rolling` cookie an active
+  user's session need never expire. The default hook is a no-op, so nothing changes for a consumer that does not
+  override it. The middleware is mounted **after** the static handlers and **before** the application routes: an
+  asset request carries the same cookie and has no reason to re-derive anything, while every route that can consult
+  roles has passed through the hook first. The additive `admin` allowlist role is re-applied immediately afterwards,
+  exactly as it is at sign-in, so a hook may replace `session.user.roles` wholesale without stranding an allowlisted
+  administrator. Unlike `augmentSession`, throwing does not refuse anything — there is no sign-in to refuse — so a
+  failing hook is logged, the session's application roles are dropped, and the request proceeds with the `admin` role
+  alone: fail closed on authority, without one failed lookup taking the whole application down.
+
 ## Version 1.28.0
 
 * feat(deploy): add `bin/healthcheck.js`, the container liveness probe for any `TiWebServer` application. Point a

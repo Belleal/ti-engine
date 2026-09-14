@@ -2,6 +2,143 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.36.1
+
+Three review findings on 3.36.0, all confirmed against the code before being acted on.
+
+* fix(competence): re-ask the admin allowlist in `verifySession` instead of admitting any session without an
+  `employeeID`. The only identity `IdentityResolver` admits without an employee record is an allowlisted
+  administrator, so that branch was trusting a fact established at sign-in and never revisited. It reads
+  `serviceConfig.auth.admins` directly rather than the session's `admin` role, because `resourceProtectionHandler`
+  runs ahead of the refresh middleware that reconciles that role — so the role on the session is a request behind.
+  Requires **web-framework ≥ 1.32.0**, which also stops the role itself from outliving the allowlist entry.
+* fix(competence): honour the dev test-user cookie's waiver of the employment-status rule. `IdentityResolver`'s
+  cookie branch deliberately admits an employee whatever their status, so a terminated one stays testable locally —
+  and 3.36.0's per-request check then destroyed that session on the first protected request, so sign-in appeared to
+  succeed and the panel broke a moment later. The waiver is carried on a marker of its own (`testUserIdentity`, set
+  from the resolver's new `viaTestUser` outcome) rather than on `rolesPinned`, which answers a different question:
+  the cookie can override the identity without overriding the roles. It is re-checked against the **live**
+  `COMPETENCE_TEST_USER_ENABLED` flag, so turning the flag off immediately subjects those sessions to the real rule,
+  and it waives only the status — the employee must still exist in the organization chart.
+* fix(competence): rebuild the organization chart in a `finally`, so a rejected audit write cannot leave the
+  in-memory indexes stale. `#updateEmployee` and `#createEmployee` both persist the record before appending audit
+  entries and only rebuilt on the happy path. Since 3.36.0 those indexes carry the employment status `verifySession`
+  reads, so terminating an employee could persist while their open session went on passing the check. The audit
+  failure still surfaces to the caller; it just no longer takes the refresh down with it.
+
+## Version 3.36.0
+
+* feat(competence): end an open session whose employee is no longer entitled to one, via a `verifySession` override
+  (requires **web-framework ≥ 1.31.0**). `employmentStatus` was consulted only at sign-in, which made termination a
+  rule about the NEXT login rather than about access: someone whose record moved to `terminated` kept the session
+  they already had, and with a `rolling` cookie an active user's session need never expire. Per-request role
+  derivation (3.35.0) did not close this on its own — a terminated employee's roles are still the roles their
+  position implies, and the question is not what they may do but whether they should be signed in at all. The
+  framework destroys a session this refuses, so the next request lands on the login page, where `IdentityResolver`
+  refuses the sign-in for the same reason. An employee who has left the organization chart is refused on the same
+  grounds; an unrecognised or absent status is refused rather than assumed benign; an allowlisted administrator with
+  no employee record keeps their session, having no employment status to judge and holding the access that exists to
+  repair the employee data.
+* feat(competence): `IdentityResolver#isLoginPermittedStatus` makes the admissible-status list one predicate that
+  both sign-in and the per-request check consult, so the two cannot drift apart.
+* fix(competence): index employment status by employee ID **verbatim**
+  (`OrganizationManager#resolveEmploymentStatus`), rather than reading the graph node attribute of the same name.
+  That attribute defaults to `"active"`, which is right for display and reporting — where "unknown" would be a
+  regression — and is a fail-open on a security-relevant field. The email index already passed the status through
+  unchanged for exactly this reason; the per-request check now has an equivalent by-ID route.
+
+## Version 3.35.1
+
+* fix(competence): stop serving the live appraisal cycle and the scoring model to anonymous callers. `/app/config` is
+  an **unprotected** route — the shell fetches it before anyone has signed in, because the login page needs its
+  labels and the effective auth methods — and this application had added `cycle`, `grades`, `gradeWeights`,
+  `evaluationWeights`, `performanceThresholds`, `employeeLevel` and `sidebarNavMapping` to that payload without
+  re-gating them. A request with `Accept: application/json` and no session told anyone who could reach the deployment
+  which cycle was running, its start/mid/end dates, and how performance is scored. Every one of those keys belongs to
+  the signed-in chrome and screens, so a caller with no session now gets the framework's bootstrap payload and
+  nothing else. It also decouples the login page from the cycle store: a read that fails can no longer turn the
+  request that renders the login screen into a `500`.
+* fix(competence): ship the committed `.env` with `COMPETENCE_TEST_USER_ENABLED=false`. The README and `INSTALL.md`
+  both state that `false` is the default and that the flag must be `false` in production, but this file — which
+  `npm start` loads from the working directory, and which is git-tracked — set it to `true`, so every clone inherited
+  the dev identity/role override on the documented non-container run path. Containers were never affected
+  (`.dockerignore` excludes `**/.env`). To re-enable it locally without editing the tracked file, set it in the
+  shell: `COMPETENCE_TEST_USER_ENABLED=true npm start` — an environment value already wins over the file.
+* feat(competence): log one `WARNING` at startup while `COMPETENCE_TEST_USER_ENABLED` is on, naming what the flag
+  actually permits. "Off by default" was invisible: nothing said so anywhere an operator would look. Mirrors the
+  warning core emits for an unset message-exchange hash key. (The Cloud Run test environment turns the flag on
+  deliberately; there the warning is a standing reminder that IAP is the only thing keeping it private.)
+
+## Version 3.35.0
+
+* feat(competence): derive the acting employee's roles on every request rather than once at sign-in, via the new
+  web-framework `refreshSession` hook (requires **web-framework ≥ 1.29.0**). `augmentSession` ran inside the login
+  handler and every gate in the application reads `session.user.roles`, which made `#revokeSupervisor` advisory: it
+  removed the grant from the store and the in-memory mirror and wrote its audit entry, while the person being revoked
+  kept org-wide read of every evaluation, the consent register and the oversight screens until they chose to sign
+  out — and with a `rolling` session cookie an active user need never do that. Losing a unit to a reorganization had
+  the same shape, and a grant *added* mid-session had the mirror image: it simply did not work until re-login. Both
+  inputs are already in-memory and synchronous — the org graph and the grant mirror — which is what made deriving at
+  login cheap and makes deriving per request cheap for the same reason. An employee who has left the organization
+  chart drops to no application roles at all, fail-closed. A role change is logged once, at `NOTICE`.
+* fix(competence): pin the dev test-user cookie's role override on the session (`rolesPinned`) so per-request
+  derivation leaves it alone. Without it the override would have survived exactly one request — the login redirect —
+  and then been replaced by the employee's real roles, which is not an override. A test user *without* a role
+  override still tracks the live org chart, which is the behaviour that panel wants.
+* test(competence): `competence-web-server.role-refresh.test.js` covers revocation and grant taking effect on the
+  next request, a manager losing their unit, a structural Supervisor being unaffected, the fail-closed departed
+  employee, the pinned dev override, and that the framework's `admin` role is neither stripped nor churned.
+
+> **Not covered by this change:** a terminated employee's `employmentStatus` is still consulted only at sign-in, so
+> an open session survives termination. Ending it needs session invalidation rather than role derivation.
+
+## Version 3.34.3
+
+* fix(competence): allowlist the fields `update-employee` may write, for a Supervisor as much as for a manager.
+  `#assertEditableField` returned immediately for a Supervisor, so every dotted path in the request body was written
+  straight onto the record — `employeeID` among them. `DataManager.saveEmployee` keys the store by
+  `employee.employeeID`, so editing one employee while setting that field wrote their data over whoever owned the new
+  ID: the second record destroyed, the first left behind as a stale duplicate, and both audit entries filed against
+  the victim's ID, so nothing recorded what had been lost. Evaluations, research-consent chains and supervisor grants
+  are keyed by `employeeID` too, so they silently re-attached to the wrong person. Only the e-mail uniqueness check
+  stood in the way, and it lapses the moment the same request also changes the e-mail. `EDITABLE_EMPLOYEE_FIELDS` now
+  names the sixteen paths the detail form owns; anything else is a `422`, and a path that is a field but not this
+  role's stays a `403`. A second barrier asserts the record still carries its own identity before it is written.
+  CA-91 closed the prototype-pollution half of this hole; this is the allowlist half.
+* fix(competence): set `personal.id` on the evaluation and Scores payloads. `frame-competence-evaluation.html` seeds
+  its avatar gradient from that field and it was never sent, so every evaluatee hashed the same `undefined` seed and
+  drew the same three colours. The new-evaluation screen, which reuses the markup, always supplied it.
+* test(competence): pin the write scope in `competence-web-application.employee-update-scope.test.js`, including the
+  destructive overwrite and the variant the e-mail check could never catch. Its last case drives the real Employee
+  Management component's `computeDiff()` and asserts the server accepts every path the form submits, so a field added
+  to the form without being added to the allowlist fails there rather than in front of a user.
+
+## Version 3.34.2
+
+Two data-exposure fixes on the grading screen, both found by review rather than by a report.
+
+* fix(competence): decide access to an evaluation before branching on whether one exists or is closed. The check in
+  `#loadEvaluation` ran after the record had been selected, so the outcomes were distinguishable to a caller with no
+  right to any of them: an absent evaluation resolved `{noEvaluation:true}` with a `200`, a `Closed` one raised
+  `422`, an active one raised `403`, and an unknown employee raised `404`. Walking employee IDs therefore read out
+  the whole organization's appraisal state — who is mid-cycle, who has finished, who was never appraised — to any
+  signed-in employee, which is precisely what `#loadEmployeeList` withholds from a non-manager through
+  `evaluationHidden`. Standing authority (self, org-line superior, Supervisor) is now resolved before anything about
+  the target is read, the peer-reviewer claim is settled from `workflow.team` immediately after, and every caller
+  with neither is refused with the same `403` whatever the target's state. A caller who is entitled to the record
+  still gets the specific answer.
+* fix(competence): project the `personal` block instead of spreading the stored employee record. `#loadEvaluation`,
+  `#loadResults` and `#loadNewEvaluationData` each spread `employee.personal` wholesale, so `birthDate`, `gender`,
+  `workSite`, `workMode` and `workLocation` all travelled to the grading screen — whose peer-review round is open to
+  ordinary colleagues with no management relationship to the evaluatee — even though the screen renders none of
+  them. The three payloads now list the fields they show, so a column added to the employee schema no longer reaches
+  reviewers on its own. Employee Management is unchanged: it is manager/supervisor-gated and those fields are what
+  it exists to edit.
+* test(competence): pin both regressions in `competence-web-application.evaluation-access.test.js` — that the four
+  unauthorized outcomes are indistinguishable, that an assigned peer reviewer is still admitted on the strength of
+  `workflow.team` alone, that no-evaluation / closed / not-found still reach the callers entitled to them, and that
+  the withheld personal fields appear nowhere in the grading or Scores payloads.
+
 ## Version 3.34.1
 
 * refactor(deploy): move the container liveness probe into the framework (web-framework 1.28.0) and point the

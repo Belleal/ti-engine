@@ -556,6 +556,29 @@ class AuthManager {
     }
 
     /**
+     * Whether an OpenID Connect `userinfo` response carries an e-mail address the provider itself reports as
+     * unverified. Pure, so the decision is testable without a provider.
+     * <br/>
+     * A consumer maps the authenticated identity to an application principal by e-mail — competence resolves it
+     * against the employee directory — so an address the provider has not verified is an unauthenticated claim to be
+     * someone, and a sign-in carrying one is refused.
+     * <br/>
+     * **An ABSENT claim is not a rejection.** Google emits `email_verified`; the Microsoft identity platform does not
+     * emit it at all, so treating "absent" as "unverified" would refuse every Azure sign-in — the default method of
+     * the published container image. Only an explicit `false` is a rejection. That leaves a residual assumption for a
+     * provider that says nothing: bind it out with a tenant-pinned discovery URL (what `INSTALL.md` prescribes for
+     * Azure), a domain-restricted provider, or by matching on the stable `sub` rather than the mutable e-mail.
+     *
+     * @method
+     * @param {Object} userInfo The provider's `userinfo` response.
+     * @returns {boolean}
+     * @public
+     */
+    static isEmailReportedUnverified( userInfo ) {
+        return !!userInfo && userInfo.email_verified === false;
+    }
+
+    /**
      * Used to perform the actual OpenID Connect authorization.
      *
      * @method
@@ -574,6 +597,10 @@ class AuthManager {
                 const claims = token.claims();
                 return openidClient.fetchUserInfo( clientConfig, token.access_token, claims.sub );
             } ).then( ( userInfo ) => {
+                if ( AuthManager.isEmailReportedUnverified( userInfo ) ) {
+                    logger.log( `Refusing an OpenID sign-in for subject '${ userInfo.sub }': the provider reports its e-mail address as unverified.`, logger.logSeverity.WARNING );
+                    throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, { details: "The identity provider reports this e-mail address as unverified." }, exceptions.httpCode.C_401 );
+                }
                 const username = userInfo.preferred_username ?? userInfo.email ?? userInfo.name ?? `sub:${ userInfo.sub }`;
                 resolve( new User( { userID: `oauth2:${ userInfo.sub }`, username: username, email: userInfo.email, name: userInfo.name } ) );
             } ).catch( ( error ) => {

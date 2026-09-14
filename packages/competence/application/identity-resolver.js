@@ -30,6 +30,7 @@ const exceptions = require( "@ti-engine/core/exceptions" );
  * @property {number[]|null} overrideRoles
  * @property {boolean} adminOnly
  * @property {string|null} reason
+ * @property {boolean} [viaTestUser] - Whether the dev test-user cookie chose the identity rather than the e-mail.
  */
 
 // The employment statuses permitted to sign in. Anything else — including an unrecognized value — is refused, so a
@@ -81,6 +82,23 @@ class IdentityResolver {
     }
 
     /**
+     * Whether an employment status may hold a session. The single source of truth for that rule: `resolve` applies it
+     * at sign-in, and `CompetenceWebServer#verifySession` applies it on every request thereafter, so a status that
+     * stops being admissible ends an open session rather than only blocking the next login. Pure.
+     * <br/>
+     * Anything unlisted is refused, including `undefined` — a record carrying no status at all is not evidence of a
+     * permitted one, so a status added to the employee schema fails closed until it is deliberately listed here.
+     *
+     * @method
+     * @param {string} [employmentStatus]
+     * @returns {boolean}
+     * @public
+     */
+    isLoginPermittedStatus( employmentStatus ) {
+        return LOGIN_PERMITTED_STATUSES.includes( employmentStatus );
+    }
+
+    /**
      * Parses the dev `ti-test-user` cookie. Only values that are already finite JS numbers survive the roles list —
      * a string, `null`, a boolean, or an object is dropped rather than coerced, so the cookie can never inject the
      * string `admin` role (and `null` can't slip through as `0`). Pure.
@@ -129,7 +147,7 @@ class IdentityResolver {
             const selection = this.parseTestUserCookie( context.testUserCookie );
             if ( selection ) {
                 return employeeExists( selection.employeeID )
-                    ? this.#admit( selection.employeeID, selection.roles.length > 0 ? selection.roles : null )
+                    ? this.#admit( selection.employeeID, selection.roles.length > 0 ? selection.roles : null, true )
                     : this.#refuse( REFUSAL_REASON.NO_RECORD, context.isAdmin === true );
             }
         }
@@ -147,7 +165,7 @@ class IdentityResolver {
         if ( record.ambiguous === true ) {
             return this.#refuse( REFUSAL_REASON.AMBIGUOUS_EMAIL, context.isAdmin === true );
         }
-        if ( !LOGIN_PERMITTED_STATUSES.includes( record.employmentStatus ) ) {
+        if ( !this.isLoginPermittedStatus( record.employmentStatus ) ) {
             return this.#refuse( REFUSAL_REASON.TERMINATED, context.isAdmin === true );
         }
 
@@ -181,6 +199,18 @@ class IdentityResolver {
 
         session.user.employeeID = outcome.employeeID;
         session.user.roles = outcome.overrideRoles || resolveRoles( outcome.employeeID );
+        // Marks roles the dev test-user cookie chose outright, so per-request re-derivation
+        // (`CompetenceWebServer#refreshSession`) leaves them alone. Without it the override would survive exactly one
+        // request — the login redirect — and then be replaced by the employee's real roles, which is not an override.
+        if ( outcome.overrideRoles ) {
+            session.user.rolesPinned = true;
+        }
+        // Separate marker, and deliberately not the same one: the cookie can override the IDENTITY without overriding
+        // the roles. `CompetenceWebServer#verifySession` reads this to honour the cookie branch's waiver of the
+        // employment-status rule, which `rolesPinned` says nothing about.
+        if ( outcome.viaTestUser === true ) {
+            session.user.testUserIdentity = true;
+        }
         return session;
     }
 
@@ -190,11 +220,14 @@ class IdentityResolver {
      * @method
      * @param {string} employeeID
      * @param {number[]|null} overrideRoles
+     * @param {boolean} [viaTestUser=false] Whether the dev test-user cookie chose this identity, rather than the
+     *        authenticated e-mail. Carried onto the session because the cookie branch deliberately admits an employee
+     *        whatever their employment status, and the per-request check has to know not to undo that.
      * @returns {IdentityOutcome}
      * @private
      */
-    #admit( employeeID, overrideRoles ) {
-        return { employeeID: employeeID, overrideRoles: overrideRoles, adminOnly: false, reason: null };
+    #admit( employeeID, overrideRoles, viaTestUser = false ) {
+        return { employeeID: employeeID, overrideRoles: overrideRoles, adminOnly: false, reason: null, viaTestUser: viaTestUser === true };
     }
 
     /**
