@@ -48,6 +48,16 @@ class CompetenceWebServer extends TiWebServer {
      * @public
      */
     onStart() {
+        // The dev test-user cookie lets the client choose the acting employee AND inject role codes, so wherever it is
+        // on, anyone who can complete sign-in is one cookie away from acting as anyone — including as a Supervisor.
+        // It is off by default and every documented production install sets it to `false` explicitly, but "off by
+        // default" is invisible: nothing said so where an operator would see it. Say it once, loudly, at boot, the way
+        // core does for an unset message-exchange hash key. (The Cloud Run test environment turns it on deliberately;
+        // there the warning is a reminder that IAP is the only thing keeping that environment private.)
+        if ( tools.toBool( process.env.COMPETENCE_TEST_USER_ENABLED ) ) {
+            logger.log( "COMPETENCE_TEST_USER_ENABLED is ON: the 'ti-test-user' cookie can override the acting identity and its roles, so any authenticated visitor can act as any employee. This is a development-only setting — set it to 'false' in production.", logger.logSeverity.WARNING );
+        }
+
         return super.onStart()
             .then( () => dataManager.instance.initialize() )
             // Must run before buildOrganizationChart(): this is what replaces the exported

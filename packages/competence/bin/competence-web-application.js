@@ -331,6 +331,18 @@ class CompetenceWebApplication extends TiWebAppManager {
      */
     processDataRequest( session, view, options = {} ) {
         if ( view === "config" ) {
+            // `/app/config` is an UNPROTECTED route (see TiWebServer#defineUnprotectedRoutes): the shell fetches it
+            // before anyone has signed in, because the login page needs its labels and the effective auth methods.
+            // Everything THIS application adds to it belongs to the signed-in chrome and screens — the topbar and
+            // sidebar read `cycle` and `employeeLevel`, the results view reads the grades and thresholds — and an
+            // anonymous caller was being told the organization's live appraisal cycle, its dates, and the whole
+            // scoring model along with them. Serve the framework's own bootstrap payload to a caller with no session
+            // and nothing else. This also decouples the login page from the cycle store: a read that fails can no
+            // longer turn the request that renders the login screen into a 500.
+            if ( !session || !session.user ) {
+                return super.processDataRequest( session, view, options );
+            }
+
             let grades = {};
             _.forOwn( configurationLoader.evaluationGrade.properties, ( grade, code ) => {
                 grades[ code ] = {

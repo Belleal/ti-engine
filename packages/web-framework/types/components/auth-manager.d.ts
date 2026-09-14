@@ -126,6 +126,26 @@ declare class AuthManager {
      * @public
      */
     static toCallbackPath(callbackUrl: string): string | null;
+    /**
+     * Whether an OpenID Connect `userinfo` response carries an e-mail address the provider itself reports as
+     * unverified. Pure, so the decision is testable without a provider.
+     * <br/>
+     * A consumer maps the authenticated identity to an application principal by e-mail — competence resolves it
+     * against the employee directory — so an address the provider has not verified is an unauthenticated claim to be
+     * someone, and a sign-in carrying one is refused.
+     * <br/>
+     * **An ABSENT claim is not a rejection.** Google emits `email_verified`; the Microsoft identity platform does not
+     * emit it at all, so treating "absent" as "unverified" would refuse every Azure sign-in — the default method of
+     * the published container image. Only an explicit `false` is a rejection. That leaves a residual assumption for a
+     * provider that says nothing: bind it out with a tenant-pinned discovery URL (what `INSTALL.md` prescribes for
+     * Azure), a domain-restricted provider, or by matching on the stable `sub` rather than the mutable e-mail.
+     *
+     * @method
+     * @param {Object} userInfo The provider's `userinfo` response.
+     * @returns {boolean}
+     * @public
+     */
+    static isEmailReportedUnverified(userInfo: Object): boolean;
 }
 declare namespace AuthManager {
     export { authMethodEnum as authMethod };

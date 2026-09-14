@@ -2,6 +2,28 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.35.1
+
+* fix(competence): stop serving the live appraisal cycle and the scoring model to anonymous callers. `/app/config` is
+  an **unprotected** route — the shell fetches it before anyone has signed in, because the login page needs its
+  labels and the effective auth methods — and this application had added `cycle`, `grades`, `gradeWeights`,
+  `evaluationWeights`, `performanceThresholds`, `employeeLevel` and `sidebarNavMapping` to that payload without
+  re-gating them. A request with `Accept: application/json` and no session told anyone who could reach the deployment
+  which cycle was running, its start/mid/end dates, and how performance is scored. Every one of those keys belongs to
+  the signed-in chrome and screens, so a caller with no session now gets the framework's bootstrap payload and
+  nothing else. It also decouples the login page from the cycle store: a read that fails can no longer turn the
+  request that renders the login screen into a `500`.
+* fix(competence): ship the committed `.env` with `COMPETENCE_TEST_USER_ENABLED=false`. The README and `INSTALL.md`
+  both state that `false` is the default and that the flag must be `false` in production, but this file — which
+  `npm start` loads from the working directory, and which is git-tracked — set it to `true`, so every clone inherited
+  the dev identity/role override on the documented non-container run path. Containers were never affected
+  (`.dockerignore` excludes `**/.env`). To re-enable it locally without editing the tracked file, set it in the
+  shell: `COMPETENCE_TEST_USER_ENABLED=true npm start` — an environment value already wins over the file.
+* feat(competence): log one `WARNING` at startup while `COMPETENCE_TEST_USER_ENABLED` is on, naming what the flag
+  actually permits. "Off by default" was invisible: nothing said so anywhere an operator would look. Mirrors the
+  warning core emits for an unset message-exchange hash key. (The Cloud Run test environment turns the flag on
+  deliberately; there the warning is a standing reminder that IAP is the only thing keeping it private.)
+
 ## Version 3.35.0
 
 * feat(competence): derive the acting employee's roles on every request rather than once at sign-in, via the new
