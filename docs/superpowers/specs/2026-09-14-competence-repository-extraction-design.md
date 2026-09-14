@@ -87,13 +87,28 @@ require( "../../web-framework/components/config-change-notifier" )
 Three relative paths out of the package and into a sibling's internals. None of the three is in
 `web-framework`'s `exports` map, so once the framework is installed from npm these cannot resolve at all.
 
-Two ways out, and the choice is a real one:
+**Resolved with no framework change at all**, which the first draft of this record did not anticipate. The
+test now composes the stack the way the application composes it: a `TiWebAppManager` subclass — the seam
+`registerCompetenceConfig` is written against — registers into the `ConfigRegistry` singleton, and
+`ConfigService` reads that same singleton. Both `./web-application` and `./config-management` are published.
 
-1. **Rewrite the test against the `./config-management` facade.** The test's subject is drift *reporting*,
-   which the facade exposes; the three internals are how it currently assembles a fixture. Chosen.
-2. **Add the three to `web-framework`'s `exports`.** Cheaper to execute and it works, but it makes three
-   internals permanent public API — and a package's exports map is the one thing consumers are entitled to
-   treat as stable — in exchange for one test's convenience. Rejected.
+That is also a better test than what it replaces: it exercises the wiring the app actually runs, rather than a
+composition unique to one file.
+
+Two alternatives were considered and rejected:
+
+- **Add the three internals to `web-framework`'s `exports`.** Cheaper, and it works, but a package's exports
+  map is the one thing consumers are entitled to treat as stable, and three modules would have become
+  permanent public API for one test's convenience.
+- **Add a `registerDocument` method to `ConfigService`.** Tempting, because the published facade has a real
+  asymmetry — `registerEditor` is public on `ConfigService`, but document registration exists only on
+  `TiWebAppManager`, which reaches `configRegistry.instance` directly and bypasses the service entirely. A
+  consumer holding only `config-management` therefore cannot complete a registration. That is worth fixing on
+  its own merits one day; it is not worth fixing *because a test needs it*, and going through
+  `TiWebAppManager` removed the need.
+
+**Follow-up, not solved here:** the `registerEditor` / no-`registerDocument` asymmetry on the published
+`config-management` facade.
 
 This is fixed **in ti-engine first**, as its own pull request, before any extraction. It is a change to a test
 in the package being moved; landing it separately keeps it reviewable as what it is rather than burying it in
