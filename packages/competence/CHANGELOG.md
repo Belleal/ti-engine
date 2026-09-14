@@ -2,6 +2,29 @@
 
 This document contains the list of changes made to the competence package. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 3.35.0
+
+* feat(competence): derive the acting employee's roles on every request rather than once at sign-in, via the new
+  web-framework `refreshSession` hook (requires **web-framework ≥ 1.29.0**). `augmentSession` ran inside the login
+  handler and every gate in the application reads `session.user.roles`, which made `#revokeSupervisor` advisory: it
+  removed the grant from the store and the in-memory mirror and wrote its audit entry, while the person being revoked
+  kept org-wide read of every evaluation, the consent register and the oversight screens until they chose to sign
+  out — and with a `rolling` session cookie an active user need never do that. Losing a unit to a reorganization had
+  the same shape, and a grant *added* mid-session had the mirror image: it simply did not work until re-login. Both
+  inputs are already in-memory and synchronous — the org graph and the grant mirror — which is what made deriving at
+  login cheap and makes deriving per request cheap for the same reason. An employee who has left the organization
+  chart drops to no application roles at all, fail-closed. A role change is logged once, at `NOTICE`.
+* fix(competence): pin the dev test-user cookie's role override on the session (`rolesPinned`) so per-request
+  derivation leaves it alone. Without it the override would have survived exactly one request — the login redirect —
+  and then been replaced by the employee's real roles, which is not an override. A test user *without* a role
+  override still tracks the live org chart, which is the behaviour that panel wants.
+* test(competence): `competence-web-server.role-refresh.test.js` covers revocation and grant taking effect on the
+  next request, a manager losing their unit, a structural Supervisor being unaffected, the fail-closed departed
+  employee, the pinned dev override, and that the framework's `admin` role is neither stripped nor churned.
+
+> **Not covered by this change:** a terminated employee's `employmentStatus` is still consulted only at sign-in, so
+> an open session survives termination. Ending it needs session invalidation rather than role derivation.
+
 ## Version 3.34.3
 
 * fix(competence): allowlist the fields `update-employee` may write, for a Supervisor as much as for a manager.

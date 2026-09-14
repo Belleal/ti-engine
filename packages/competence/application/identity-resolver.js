@@ -181,6 +181,12 @@ class IdentityResolver {
 
         session.user.employeeID = outcome.employeeID;
         session.user.roles = outcome.overrideRoles || resolveRoles( outcome.employeeID );
+        // Marks roles the dev test-user cookie chose outright, so per-request re-derivation
+        // (`CompetenceWebServer#refreshSession`) leaves them alone. Without it the override would survive exactly one
+        // request — the login redirect — and then be replaced by the employee's real roles, which is not an override.
+        if ( outcome.overrideRoles ) {
+            session.user.rolesPinned = true;
+        }
         return session;
     }
 

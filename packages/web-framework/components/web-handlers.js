@@ -703,6 +703,42 @@ module.exports.webAppHandler = ( instance ) => {
 };
 
 /**
+ * Re-derives the session's application-owned state on each request by calling {@link TiWebServer#refreshSession},
+ * then re-applies the additive `admin` allowlist role — the same order sign-in uses, so a hook that replaces
+ * `session.user.roles` cannot strand an allowlisted administrator.
+ * <br/>
+ * Mounted after the static handlers and before the application routes: a session-less request (a stylesheet, the
+ * health probe, the login page) never reaches the hook, and every request that can consult roles has passed through
+ * it first.
+ * <br/>
+ * A throwing hook is fail-closed rather than fatal: the failure is logged, the session's application roles are
+ * dropped, and the request proceeds with the `admin` role alone. Taking the whole application down because one
+ * authority lookup failed would be worse than serving it without authority — and the administrator's access is the
+ * one that exists to repair the data that broke.
+ *
+ * @method
+ * @param {TiWebServer} instance
+ * @returns {ExpressHandler}
+ * @public
+ */
+module.exports.sessionRefreshHandler = ( instance ) => {
+    return ( request, response, next ) => {
+        const session = request.session;
+        if ( !session || !session.user ) {
+            return next();
+        }
+        try {
+            instance.refreshSession( session, request );
+        } catch ( error ) {
+            logger.log( `Failed to refresh the session for user '${ session.user.userID || session.user.employeeID }'; continuing without application roles.`, logger.logSeverity.ERROR, error );
+            session.user.roles = [];
+        }
+        authorization.applyAdminRole( session, instance.serviceConfig?.auth?.admins );
+        next();
+    };
+};
+
+/**
  * Validate Origin/Referer for non-GET/HEAD/OPTIONS requests.
  * Origin must match the current request origin (protocol + host[:port]).
  *

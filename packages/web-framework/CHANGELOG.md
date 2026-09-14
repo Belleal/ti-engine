@@ -2,6 +2,21 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.29.0
+
+* feat(web-server): add `refreshSession( session, request )` — the per-request companion to `augmentSession` — and
+  the `sessionRefreshHandler` middleware that calls it. Roles derived once at sign-in are roles that cannot be taken
+  away: `augmentSession` runs inside `regenerateAndSaveSession` and nothing re-ran it, so an authority the
+  application withdrew stayed live in every session already holding it, and since 1.26.0's `rolling` cookie an active
+  user's session need never expire. The default hook is a no-op, so nothing changes for a consumer that does not
+  override it. The middleware is mounted **after** the static handlers and **before** the application routes: an
+  asset request carries the same cookie and has no reason to re-derive anything, while every route that can consult
+  roles has passed through the hook first. The additive `admin` allowlist role is re-applied immediately afterwards,
+  exactly as it is at sign-in, so a hook may replace `session.user.roles` wholesale without stranding an allowlisted
+  administrator. Unlike `augmentSession`, throwing does not refuse anything — there is no sign-in to refuse — so a
+  failing hook is logged, the session's application roles are dropped, and the request proceeds with the `admin` role
+  alone: fail closed on authority, without one failed lookup taking the whole application down.
+
 ## Version 1.28.0
 
 * feat(deploy): add `bin/healthcheck.js`, the container liveness probe for any `TiWebServer` application. Point a

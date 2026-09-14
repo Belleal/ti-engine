@@ -364,6 +364,11 @@ class TiWebServer extends ServiceConsumer {
                     } ) );
                 } );
 
+                // Re-derive the session's application state before any application route can consult it. Deliberately
+                // AFTER the static handlers: an asset request carries the same session cookie, and there is no reason
+                // to re-derive a viewer's roles to serve them a stylesheet.
+                this.#webServer.use( webHandlers.sessionRefreshHandler( this ) );
+
                 // Set up the web application routes:
                 this.defineWebApplicationRoutes();
 
@@ -468,6 +473,39 @@ class TiWebServer extends ServiceConsumer {
      * @public
      */
     augmentSession( session, request ) {
+        return session;
+    }
+
+    /**
+     * Hook for the application to re-derive the session's application-owned state on **every** request — the
+     * companion to {@link TiWebServer#augmentSession}, which runs only at sign-in. The default is a no-op.
+     * <br/>
+     * It exists because roles derived once at login are roles that cannot be taken away. `augmentSession` runs inside
+     * `regenerateAndSaveSession` and nothing re-runs it, so an authority the application withdraws — a revoked grant,
+     * a manager who no longer manages anything — stayed live in every session already holding it. With a `rolling`
+     * cookie an active user's session need never expire, so "until they sign out" can mean indefinitely. Deriving
+     * per request makes withdrawal take effect on the next click instead.
+     * <br/>
+     * **Contract.** Runs synchronously on each request that carries a session user, after the static handlers and
+     * before any application route, so it must stay cheap and free of I/O — read in-memory state, not a store. The
+     * framework re-applies the additive `admin` role immediately afterwards, so an implementation may replace
+     * `session.user.roles` wholesale without stranding an allowlisted administrator. Assign only when the value
+     * actually changes: express-session persists a session whose serialized form differs, so rewriting an equal array
+     * is free but rewriting a *new* value on every request is a store write on every request.
+     * <br/>
+     * **Failure is fail-closed, not fatal.** Throwing does not refuse the request the way it does at sign-in — there
+     * is no sign-in to refuse. The framework logs the failure, strips the session's application roles, and lets the
+     * request continue with the `admin` allowlist role alone. A viewer who cannot be authorized keeps no authority,
+     * while an administrator retains the access that exists precisely to repair broken application data.
+     *
+     * @method
+     * @virtual
+     * @param {TiSession} session
+     * @param {Object} [request] Optional Express request object.
+     * @returns {TiSession}
+     * @public
+     */
+    refreshSession( session, request ) {
         return session;
     }
 
