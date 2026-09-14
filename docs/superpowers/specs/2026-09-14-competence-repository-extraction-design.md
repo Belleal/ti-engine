@@ -277,7 +277,7 @@ The ordering exists to make that impossible:
 1. Fix the test coupling in ti-engine (§5.1). Normal PR, merges to master.
 2. Extract into the new repository **with history preserved**.
 3. Rewire: manifest, Dockerfile, CI/CD, lockfile, docs, skill.
-4. **Prove it.** Full test suite green, image builds, `DRY_RUN=1 ./deploy.sh` clean, container boots and
+4. **Prove it.** Full test suite green, image builds, `DRY_RUN=1 ./deploy/gcp/deploy.sh` clean, container boots and
    serves `/health`.
 5. Only then remove competence from ti-engine and slim the root.
 6. Re-point WIF, GHCR, YouTrack, branch protection.
@@ -301,7 +301,7 @@ The new repository is not accepted until all of these pass:
 | Tests | The full competence suite, at the count it has in the monorepo today |
 | Lint | `npx eslint .` with no new errors |
 | Image | `docker build .` succeeds; container boots, `/health` returns `200` |
-| Deploy | `DRY_RUN=1 ./deploy.sh` emits the expected commands |
+| Deploy | `DRY_RUN=1 ./deploy/gcp/deploy.sh` emits the expected commands |
 | History | `git log --follow` on a moved file reaches its original commit |
 
 And in ti-engine after removal: full suite green, `npm run check:types` reporting no drift, `docker-build`

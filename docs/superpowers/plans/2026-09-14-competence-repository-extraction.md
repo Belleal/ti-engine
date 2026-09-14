@@ -171,7 +171,7 @@ repository will fail at Google authentication until Task 10 is done.**
       assertion.ref.startsWith('refs/tags/v') )`.
 - [ ] Update the IAM binding from `attribute.repository/Belleal/ti-engine` to `.../Belleal/competence`.
 - [ ] Update `bootstrap.sh`'s `GITHUB_REPO` default and its hardcoded-repository comment.
-- [ ] Verify with `DRY_RUN=1 ./bootstrap.sh` before the real run.
+- [ ] Verify with `DRY_RUN=1 ./deploy/gcp/bootstrap.sh` before the real run.
 
 ### Task 11: GHCR, YouTrack, and repository settings
 
