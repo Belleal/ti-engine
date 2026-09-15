@@ -2,6 +2,11 @@
 
 This document contains the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.12.1
+
+* fix(start): move the logger reporting the .env file loading after the instance has received an ID.
+* build(deps): update `@types/node` from ^26.2.0 to ^26.5.1.
+
 ## Version 1.12.0
 
 * feat(start-instance): report which `.env` file was loaded, or that none was found at the resolved path, at `DEBUG`.

@@ -2,6 +2,12 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.34.1
+
+* build(deps): update `@types/node` from ^26.2.0 to ^26.5.1
+* build(deps): update `@alpinejs/csp` from ^3.16.1 to ^3.17.3
+* build(deps): update `openid-client` from ^6.8.5 to ^6.8.8
+
 ## Version 1.34.0
 
 * fix(web-app): give the login error element fallback text, so it can never render as an empty box. The message

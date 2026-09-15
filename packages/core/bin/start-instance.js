@@ -59,10 +59,6 @@ try {
 const tools = require( "#tools" );
 const logger = require( "#logger" );
 
-logger.log( envFileLoaded
-    ? `Loaded environment variables from '${ envFilePath }'.`
-    : `No environment file at '${ envFilePath }' — continuing with the environment as supplied. If settings you expected are missing, check the working directory this instance was started from.`, logger.logSeverity.DEBUG );
-
 // Configure the current instance variables before requiring any platform modules and store the necessary ones in memory cache:
 process.env.TI_INSTANCE_ID = "ti-" + tools.getUUID();
 process.env.TI_INSTANCE_CLASS = process.env.TI_INSTANCE_CLASS || "";
@@ -82,6 +78,10 @@ const defaultNameFromClass = ( () => {
 } )();
 
 process.env.TI_INSTANCE_NAME = process.env.TI_INSTANCE_NAME || defaultNameFromClass;
+
+logger.log( envFileLoaded
+    ? `Loaded environment variables from '${ envFilePath }'.`
+    : `No environment file at '${ envFilePath }' — continuing with the environment as supplied. If settings you expected are missing, check the working directory this instance was started from.`, logger.logSeverity.DEBUG );
 
 // Configure the process termination handlers to ensure a graceful shutdown:
 
