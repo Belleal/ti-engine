@@ -2,6 +2,25 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.34.0
+
+* fix(web-app): give the login error element fallback text, so it can never render as an empty box. The message
+  has been unreadable since it was added (CA-95): `x-text-label` resolves
+  `interface.default.login.error-sign-in-failed` out of **this package's** `web-server-labels.json`, and a consuming
+  application configures exactly one labels path — its own — so the key does not resolve there. The directive then
+  falls back to the element's own text content, and the element was empty. The result was a red alert box with
+  nothing in it: visibly broken, and saying nothing to the person who had just failed to sign in. An application
+  that wants it localized adds the key to its own catalogue, which is the same arrangement the Profile and About
+  screens already use.
+* fix(web-app): drop the `error` query parameter from the address bar once the login screen has shown it, via the
+  new `tiToolbox.clearUrlParam( name )` (`history.replaceState`, so no history entry the visitor never navigated
+  to). It is a one-time message, not state: left in place, a refresh replays a sign-in failure that already
+  happened, a bookmark captures it, and the login screen cannot be returned to its blank state without editing the
+  URL by hand. The parameter itself stays, because a top-level browser navigation — an OAuth callback, or a
+  non-HTMX form post — cannot be answered with a body and still leave the visitor on the login page; a redirect is
+  the only way, and a redirect carries no payload. HTMX requests were never affected: they already receive the
+  error through the `ti:error` `HX-Trigger` and touch no query string.
+
 ## Version 1.33.0
 
 * fix(web-handlers)!: refuse an OpenID Connect callback that cannot be completed through the normal error path
@@ -23,22 +42,6 @@ This document will contain the list of changes made to the framework. The format
   issued. The distinction is in the log rather than the response, because the visitor has no use for it and an
   attacker probing the endpoint should not be handed it. **Nothing secret is logged** — never the authorization
   code, the state values, the PKCE verifier or the nonce — and a test pins that.
-* fix(web-app): give the login error element fallback text, so it can never render as an empty box. The message
-  has been unreadable since it was added (CA-95): `x-text-label` resolves
-  `interface.default.login.error-sign-in-failed` out of **this package's** `web-server-labels.json`, and a consuming
-  application configures exactly one labels path — its own — so the key does not resolve there. The directive then
-  falls back to the element's own text content, and the element was empty. The result was a red alert box with
-  nothing in it: visibly broken, and saying nothing to the person who had just failed to sign in. An application
-  that wants it localized adds the key to its own catalogue, which is the same arrangement the Profile and About
-  screens already use.
-* fix(web-app): drop the `error` query parameter from the address bar once the login screen has shown it, via the
-  new `tiToolbox.clearUrlParam( name )` (`history.replaceState`, so no history entry the visitor never navigated
-  to). It is a one-time message, not state: left in place, a refresh replays a sign-in failure that already
-  happened, a bookmark captures it, and the login screen cannot be returned to its blank state without editing the
-  URL by hand. The parameter itself stays, because a top-level browser navigation — an OAuth callback, or a
-  non-HTMX form post — cannot be answered with a body and still leave the visitor on the login page; a redirect is
-  the only way, and a redirect carries no payload. HTMX requests were never affected: they already receive the
-  error through the `ti:error` `HX-Trigger` and touch no query string.
 * fix(web-handlers): escape externally-supplied text before it reaches a log line or an error payload. The
   previous two entries put two caller-controlled values into a `WARNING`: the provider's `error` query parameter
   and the request's host headers. The callback endpoint is unprotected and accepts any query string, and query
