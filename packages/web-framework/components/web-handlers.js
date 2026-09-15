@@ -95,6 +95,39 @@ const resolveHttpCode = ( exception ) => {
 };
 
 /**
+ * Longest run of externally-supplied text to put in one log line. Long enough that a real OAuth error code or
+ * hostname survives whole, short enough that nobody can flood the log through one field.
+ *
+ * @type {number}
+ */
+const LOG_VALUE_MAX_LENGTH = 100;
+
+/**
+ * Renders a value that came from outside safe to interpolate into a log message or echo in an error payload.
+ * <br/>
+ * The console appender writes one line per entry, so a newline inside an interpolated value ends that line and
+ * everything after it reads as a separate, entirely attacker-written entry — a forged `NOTICE - sign-in succeeded`,
+ * say, sitting in the log looking exactly like a real one. Query parameters are percent-decoded before they reach
+ * us, so `%0A` arrives as a genuine line break.
+ * <br/>
+ * Every character outside printable ASCII becomes a visible `\uXXXX` escape rather than being dropped, so the value
+ * stays diagnosable — the point of logging it at all — while losing the ability to end the line. An allowlist of
+ * known OAuth error codes was the other option and is worse: providers emit non-standard codes, and the unfamiliar
+ * ones are precisely the ones worth reading.
+ *
+ * @method
+ * @param {*} value
+ * @returns {string}
+ * @private
+ */
+const sanitizeExternalValue = ( value ) => {
+    const escaped = String( value ?? "" ).replace( /[^\x20-\x7E]/g, ( character ) => {
+        return "\\u" + character.charCodeAt( 0 ).toString( 16 ).padStart( 4, "0" );
+    } );
+    return ( escaped.length > LOG_VALUE_MAX_LENGTH ) ? escaped.slice( 0, LOG_VALUE_MAX_LENGTH ) + "..." : escaped;
+};
+
+/**
  * Used to assemble the current URL of a request.
  *
  * @method
@@ -356,7 +389,18 @@ module.exports.authenticationHandler = ( instance ) => {
 };
 
 /**
- * Used to handle the callback from the Google OpenID authentication.
+ * Used to handle the callback from an OpenID Connect provider.
+ * <br/>
+ * A callback that cannot be completed is refused through the normal error path — `next( … )` with an explicit
+ * `401` — so it presents exactly like every other sign-in failure: an HTML `GET` lands back on the login page with
+ * `?error=<code>`, and an API client gets the standard payload. It used to answer `response.status(400).end()`: a
+ * bare status with an empty body, no log line, and the three distinct reasons below collapsed into one blank page
+ * that said nothing to the person seeing it and nothing to whoever had to work out why.
+ * <br/>
+ * The three reasons are distinguished in the log rather than in the response, because the visitor has no use for
+ * the difference and an attacker probing the endpoint should not be handed it. Nothing secret is logged — never
+ * the authorization code, the state values, the PKCE verifier or the nonce — only the facts that identify which
+ * case this is.
  *
  * @method
  * @param {TiWebServer} instance
@@ -368,27 +412,54 @@ module.exports.authorizedOAuth2CallbackHandler = ( instance, authMethod ) => {
     return ( request, response, next ) => {
         const code = request.query.code;
         const state = request.query.state;
-        const oidc = request.session.oidc || {};
-        if ( !code || !oidc?.codeVerifier ) {
-            response.status( exceptions.httpCode.C_400 ).end();
-        } else if ( oidc.state && state !== oidc.state ) {
-            response.status( exceptions.httpCode.C_400 ).end();
-        } else {
-            instance.authorize( authMethod, new URL( request.originalUrl, getBaseUrl( request ) ), oidc ).then( ( user ) => {
-                return regenerateAndSaveSession( request, "/", ( session ) => {
-                    session.user = user.asJSON();
-                    session.language = user.language || instance.serviceConfig.language;
+        const oidc = request.session?.oidc || {};
 
-                    delete session.oidc;
-
-                    return authorization.applyAdminRole( instance.augmentSession( session, request ), instance.serviceConfig?.auth?.admins );
-                } );
-            } ).then( ( redirectTo ) => {
-                response.redirect( exceptions.httpCode.C_303, convertUriToString( redirectTo ) );
-            } ).catch( ( error ) => {
-                next( exceptions.raise( error, null, exceptions.httpCode.C_401 ) );
-            } );
+        // The provider did not return an authorization code. Usually the visitor declined consent, or the provider
+        // refused the request outright; either way it says so in `error`, which is the single most useful thing to
+        // record and is not sensitive.
+        if ( !code ) {
+            const providerError = sanitizeExternalValue( request.query.error || "none" );
+            logger.log( `Refusing an OpenID sign-in via '${ authMethod }': the provider returned no authorization code (error='${ providerError }').`, logger.logSeverity.WARNING );
+            next( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_QUERY, { detail: "The identity provider returned no authorization code.", providerError: providerError }, exceptions.httpCode.C_401 ) );
+            return;
         }
+
+        // The session holds nothing to verify the callback against. This is the case that used to be hardest to
+        // diagnose, so the log names the likely cause: a session cookie is scoped to one host, so a sign-in begun
+        // on one hostname and called back on another arrives with no cookie and therefore no state. A service
+        // reachable under more than one name — a platform that assigns both a generated and a deterministic
+        // hostname, say — produces exactly this, and so does a session that expired while the visitor sat on the
+        // provider's consent screen.
+        if ( !oidc.codeVerifier ) {
+            logger.log( `Refusing an OpenID sign-in via '${ authMethod }': the session carries no OAuth state. The callback arrived on host '${ sanitizeExternalValue( request.get( "x-forwarded-host" ) || request.get( "host" ) || "unknown" ) }' — a session cookie is host-scoped, so check that the sign-in began on this same host and that the session had not expired.`, logger.logSeverity.WARNING );
+            next( exceptions.raise( exceptions.exceptionCode.E_SEC_INVALID_EXPIRED_SESSION, { detail: "The session carries no OAuth state for this callback." }, exceptions.httpCode.C_401 ) );
+            return;
+        }
+
+        // The state does not match the one issued for this session. A missing expected state is refused too rather
+        // than skipped: a session holding a verifier but no state is inconsistent, and an unverifiable callback is
+        // not a callback to trust. (`openid-client` checks `expectedState` as well; this keeps the refusal here,
+        // where it can be explained.)
+        if ( !oidc.state || state !== oidc.state ) {
+            logger.log( `Refusing an OpenID sign-in via '${ authMethod }': the callback's state does not match the one issued for this session.`, logger.logSeverity.WARNING );
+            next( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, { detail: "The callback state does not match the one issued for this session." }, exceptions.httpCode.C_401 ) );
+            return;
+        }
+
+        instance.authorize( authMethod, new URL( request.originalUrl, getBaseUrl( request ) ), oidc ).then( ( user ) => {
+            return regenerateAndSaveSession( request, "/", ( session ) => {
+                session.user = user.asJSON();
+                session.language = user.language || instance.serviceConfig.language;
+
+                delete session.oidc;
+
+                return authorization.applyAdminRole( instance.augmentSession( session, request ), instance.serviceConfig?.auth?.admins );
+            } );
+        } ).then( ( redirectTo ) => {
+            response.redirect( exceptions.httpCode.C_303, convertUriToString( redirectTo ) );
+        } ).catch( ( error ) => {
+            next( exceptions.raise( error, null, exceptions.httpCode.C_401 ) );
+        } );
     };
 };
 

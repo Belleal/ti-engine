@@ -21,7 +21,7 @@ the header block verbatim from an existing file in the same package.
 ti-engine/                         npm workspace root (v1.2.10; workspaces = packages/*)
 ├── packages/
 │   ├── core/          v1.11.1     Framework foundation (Redis messaging, lifecycle, utils) + shipped TypeScript declarations
-│   ├── web-framework/ v1.25.1     Express server + auth (incl. real local auth) + admin config-management + config drift + Profile/About + ti-charts + role gate + TI_WEB_* env overrides + /health + route seams
+│   ├── web-framework/ v1.33.0     Express server + auth (incl. real local auth) + admin config-management + config drift + Profile/About + ti-charts + role gate + TI_WEB_* env overrides + /health + route seams
 │   ├── web-content/   v0.3.1      Content-publishing engine — path-index routing, deny-by-default visibility, SEO documents, feeds, email capture (WIP)
 │   └── tester/        v1.3.5      Reference/example service implementation + the docker-build target
 ├── .github/workflows/             ci.yml (lint/test/build) · codeql-analysis.yml · npm-publish.yml · cla.yml
@@ -47,7 +47,7 @@ history and older PR bodies; it is no longer the working branch.
 ## Conventions & Constraints (read before editing)
 
 - **CommonJS everywhere** — `"type": "commonjs"`; use `require()` / `module.exports`.
-- **Internal imports use `#alias`** from each package.json `imports` map (e.g. `#configuration-loader`, `#config-competencies`), not relative paths. Cross-package imports use the `exports` map (e.g. `@ti-engine/core/tools`, `@ti-engine/web-framework/config-management`).
+- **Internal imports use `#alias`** from each package.json `imports` map (e.g. `#web-config-env`, `#config-drift`, `#auth-manager`, `#definitions`), not relative paths. Cross-package imports use the `exports` map (e.g. `@ti-engine/core/tools`, `@ti-engine/web-framework/config-management`).
 - **Alpine.js runs in CSP mode** — in the `web-framework` shell, and therefore in any application built on it (**not** `web-content`, which is server-rendered HTML plus one vanilla script). In HTML Alpine expressions: **no inline `style="..."` attributes** (CSP forbids them — use CSS classes) and **no optional chaining (`?.`)** (the CSP expression evaluator rejects it). `Array`, `Object`, etc. are also unavailable inside template expressions — use the `tiApplication.hasRole(...)`-style JS helpers instead of `Array.isArray(...)` inline.
 - **Design-first cadence.** Non-trivial features start from a design record (meta header + running implementation log) and land as small, checkpointed Conventional-Commit steps. **Look in two places:** the owning package's `design/` directory (the older convention, still where competence's shipped feature records and all content source-of-truth docs live) and the repo-root `docs/superpowers/specs/` + `plans/` (the convention from 2026-07 onward).
 - **Some committed files are generated — regenerate, don't hand-edit.** In this repository that means the TypeScript declarations under `packages/*/types/`: `npm run build:types` regenerates them and `npm run check:types` fails on stale output.
@@ -160,7 +160,7 @@ npm test    # node --test — runs test/*.test.js (message-hash + security-hash-
 
 ---
 
-## Package: web-framework (v1.25.1)
+## Package: web-framework (v1.33.0)
 
 **Role**: Express.js web server + authentication layer + a reusable **admin config-management subsystem** for web-facing UIs + a CSP-safe **charting primitive library** (`ti-charts.js`) + the container-deployment surface (`TI_WEB_*` env overrides, `GET /health`) and the **route-registration seams** (1.17.0) a subclass uses to mount its own routes — what `web-content` is built on.
 
@@ -190,7 +190,74 @@ npm test    # node --test — runs test/*.test.js (message-hash + security-hash-
 
 **Public exports**: `./config-management` (config-service), `./web-application` (web-app-manager), `./web-server`, `./definitions`.
 
-**Since the skill's last sync (1.20.0 → 1.25.1):**
+**Since the skill's last sync (1.25.1 → 1.33.0):**
+- **A failed OIDC callback is refused through the normal error path** (1.33.0, BREAKING). It used to answer
+  `response.status( 400 ).end()` — a bare status with an empty body, no log line, and the three distinct reasons a
+  callback fails collapsed into one blank page. A refusal now carries an explicit `401`, so it presents like every
+  other sign-in failure: an HTML `GET` lands back on the login page with `?error=<code>`. The three reasons are
+  distinguished **in the log, not the response** (the visitor has no use for the difference and an attacker
+  probing the endpoint should not be handed it): `E_WEB_INVALID_REQUEST_QUERY` when the provider returned no code,
+  naming the provider's own `error`; **`E_SEC_INVALID_EXPIRED_SESSION` when the session carries no OAuth state,
+  naming the host the callback arrived on** — a session cookie is host-scoped, so a sign-in begun on one hostname
+  and called back on another arrives with no cookie, which is what a service reachable under two names produces;
+  and `E_SEC_UNAUTHORIZED_ACCESS` on a state mismatch. **Nothing secret is logged** — never the code, the state
+  values, the verifier or the nonce, and a test pins that. The same release stopped `oidc.state && state !== oidc.state`
+  skipping the comparison when the expected state is absent: an unverifiable callback is refused instead.
+- **Session lifetime, and the two defects that threw a signed-in user out ten minutes after sign-in** (1.27.0).
+  `cookies.maxAge` was `604800` — seven days expressed in **seconds**, written into a field express-session reads as
+  **milliseconds**, so every session lasted 604.8 seconds. It is now `28800000` (eight hours, in the unit the field
+  takes). And `rolling: true` is on, so the window slides with use: express-session re-sends the cookie only when
+  the session is new, when `rolling` is set, or when the session data itself changed — and nothing changes it after
+  sign-in, so the limit was absolute from sign-in rather than an idle timeout. The store side was never the
+  problem; `SessionStore.touch` slid the Redis TTL correctly throughout, which is exactly why the fault was
+  invisible from the server. **`TI_WEB_SESSION_IDLE_TIMEOUT`** overrides the window in whole **minutes** — the unit
+  is in the name because that is the confusion this fixed. Note for a consumer choosing a value: a rolling window
+  is refreshed by requests, and a browser filling in a form makes none.
+- **`bin/healthcheck.js`** (1.28.0) — the container liveness probe for any `TiWebServer` application. Point a
+  Dockerfile `HEALTHCHECK` at `node /app/node_modules/@ti-engine/web-framework/bin/healthcheck.js`. It belongs here
+  because every input it reads is the framework's (`TI_WEB_USE_TLS`, `TI_WEB_PORT`, `TI_WEB_TLS_CERT_PATH`, and
+  `/health` itself). The framework had always provided the endpoint and never anything to call it, which left every
+  consumer writing an inline `node -e` — and the obvious inline version hardcodes `http://`, so it reports a
+  TLS-enabled container unhealthy forever and Docker restarts a server that is answering correctly. With TLS on the
+  certificate is verified rather than skipped; without a configured certificate it falls back to proving the port
+  accepts connections, which is weaker but neither disables verification nor restarts a healthy container.
+- **Roles are re-derivable per request** (1.29.0). `refreshSession( session, request )` is the per-request
+  companion to `augmentSession`, called by the `sessionRefreshHandler` middleware. Roles derived once at sign-in
+  are roles that cannot be taken away: `augmentSession` runs inside `regenerateAndSaveSession` and nothing re-ran
+  it, so an authority the application withdrew stayed live in every session already holding it — and since
+  1.26.0's `rolling` cookie an active user's session need never expire. The default hook is a no-op. The middleware
+  mounts **after** the static handlers and **before** the application routes. Unlike `augmentSession`, **throwing
+  does not refuse anything** — there is no sign-in to refuse — so a failing hook is logged, the session's
+  application roles are dropped, and the request proceeds with the `admin` role alone: fail closed on authority
+  without one failed lookup taking the application down.
+- **`applyAdminRole` reconciles in both directions** (1.32.0, BREAKING). It only ever *added* the `admin` role, and
+  it is the only place the role is granted, so it was also the only place it could be taken away: an identity
+  removed from `auth.admins` kept `admin` for the life of its session, reaching `/admin/config/*` and every
+  admin-gated screen. Now that 1.29.0 re-applies the role on every request, removal takes effect on the next one.
+  An empty or absent allowlist now means **nobody** is an administrator rather than that everybody keeps what they
+  had.
+- **An OIDC sign-in whose e-mail the provider itself reports as unverified is refused** (1.30.0, BREAKING), exposed
+  as the pure `AuthManager.isEmailReportedUnverified( userInfo )`. A consumer maps the authenticated identity to an
+  application principal by e-mail, so an address the provider has not verified is an unauthenticated claim to be
+  someone — and nothing checked it. **Only an explicit `email_verified: false` is a rejection.** An absent claim is
+  not: Google emits the claim, the Microsoft identity platform does not emit it at all, so treating "absent" as
+  "unverified" would refuse every sign-in on an Azure-default deployment.
+- **`verifySession` refusals now destroy the session** (1.31.0), instead of only redirecting it. The hook had been
+  a seam with a `TODO` and no consumer; the default returns true for any session carrying a user, so the "carries a
+  user but fails verification" branch was unreachable. An application that overrides it needs the refusal to
+  stick — leaving the session alive means re-deciding the same verdict on every request while the shell, which
+  reads `auth.isAuthenticated`, goes on believing the visitor is signed in. The refusal shape is unchanged
+  (`HX-Redirect` for HTMX, `303` to `/` for HTML, `401` otherwise) and is served even if the destroy itself fails.
+  **Nothing changes for a consumer using the default.**
+- **`ConfigService.listSchemaViolations()`** (1.26.0) reports stored documents that no longer satisfy their
+  registered schema, and `ConfigRegistry.validateSchema( configKey, value )` exposes the schema half of validation
+  on its own. Nothing validated a stored value on the way *out* before this: the store hands back whatever it holds
+  and a consumer freezes it into its config exports, so a release that tightens a schema leaves any deployment
+  seeded before the change serving a document that can no longer be saved — surfacing much later as an admin edit
+  rejected for a key the admin never touched, in a screen unrelated to the change. Schema-only and read-only by
+  design: reconciling a stale document is the drift panel's job, under audit.
+
+**Earlier, and still worth knowing (1.20.0 → 1.25.1):**
 - **Configuration drift** (1.24.0, `#config-drift`) — a pure structural diff between a document's registered **file
   default** and its **stored** value, exposed through `getDrift` / `listDrift` and an audited apply that routes
   through the normal change-set machinery (so it is versioned, appears in the change feed, and can be restored). It
@@ -238,9 +305,11 @@ npm test    # node --test — runs test/*.test.js (message-hash + security-hash-
 **ENV variables (web-framework)** — applied by `applyWebConfigEnvOverrides`; every list-valued one **replaces** the configured array (an explicitly empty value means "none"):
 - `TI_WEB_HOST` / `TI_WEB_PORT` / `TI_WEB_USE_TLS` / `TI_WEB_TLS_CERT_PATH` / `TI_WEB_TLS_KEY_PATH` / `TI_WEB_COOKIE_SECRET` — binding, TLS, session-cookie secret (1.14.0)
 - `TI_WEB_AUTH_METHODS` — enabled auth methods (`local`, `openid-google`, `openid-azure`); replaces `auth.enabledMethods` (1.15.0)
+- `TI_WEB_AUTH_LOCAL_USERS_PATH` — the local user directory (`auth.local.usersPath`) backing real local auth (1.23.0). There are no hardcoded credentials to disable: a local sign-in succeeds only against a matching, non-disabled record in this file
 - `TI_WEB_TRUSTED_ORIGINS` — extra accepted `Origin`/`Referer` values for state-changing requests behind a proxy that doesn't present the external host (1.16.0)
 - `TI_WEB_AUTH_ADMINS` — admin allowlist; replaces `auth.admins`, matched against the session user's user ID, username, or email (1.18.0)
 - `TI_WEB_STATIC_MAX_AGE` / `TI_WEB_STATIC_IMMUTABLE` / `TI_WEB_STATIC_IMMUTABLE_PATHS` — the `/static` `Cache-Control` policy (1.19.0)
+- `TI_WEB_SESSION_IDLE_TIMEOUT` — the rolling session idle window, in whole **minutes** (1.27.0). A non-integer or non-positive value is ignored, leaving the config value standing — the same posture as `TI_WEB_STATIC_MAX_AGE`
 - `TI_WEB_APP_STATIC_CACHE_DISABLED` — **unrelated to the three above**: turns off the app manager's *in-process* memoization of read fragment/static file contents (`#locateStaticFile`), not any HTTP cache header
 
 ---
@@ -309,7 +378,8 @@ npm test    # node --test — runs test/*.test.js (message-hash + security-hash-
 | `bin/tester-service.json` | Service registry (points to `services/v1/*.js`) |
 | `bin/services/v1/service1.js` | Returns current timestamp after 500ms |
 | `bin/services/v1/service2.js` | Calls service1, returns both timestamps |
-| `bin/.env` | `TI_INSTANCE_NAME=ti-tester-service`, etc. |
+| `.env` | `TI_INSTANCE_NAME=ti-tester-service`, `TI_INSTANCE_CLASS`, `TI_INSTANCE_CONFIG`, `TI_LOCALIZATION_LABELS_PATH` |
+| `Dockerfile` | **CI's `docker-build` target** since CA-120 — multi-stage `node:24-alpine`, workspace install scoped with `--workspace @ti-engine/tester --include-workspace-root`, running `core`'s `bin/start-instance.js`. No `HEALTHCHECK`: the tester serves no HTTP, so there is nothing to probe — the framework's `bin/healthcheck.js` is for `TiWebServer` applications |
 
 ---
 
@@ -335,8 +405,8 @@ npm test    # node --test — runs test/*.test.js (message-hash + security-hash-
   `Belleal` alone. See the commit-authorship convention above — the fix is to author as the maintainer, not to
   widen the allowlist.
 - **CodeRabbit** reviews each PR and runs `markdownlint-cli2` over changed markdown. **MD022** (a heading must be
-  surrounded by blank lines) is the one that bites documentation edits; several pre-existing violations live in
-  `competency-master-index.md` and the BG translations doc, so only the ones inside your diff get flagged.
+  surrounded by blank lines) is the one that bites documentation edits; only the violations inside your diff get
+  flagged, so a file with pre-existing ones is not your problem unless you touch those lines.
 - CI also runs **CodeQL**, a Debricked vulnerability scan, `lint-and-test` and `docker-build`.
 - **Tag pushes are rejected for agent sessions** (HTTP 403 on the tag ref) even though branch pushes succeed, so a
   `<package>-v<version>` release tag — which `npm-publish.yml` creates itself on a successful publish — cannot be
@@ -345,7 +415,7 @@ npm test    # node --test — runs test/*.test.js (message-hash + security-hash-
 
 ### Publishing to npm — automatic on merge into `master`
 
-`core`, `web-framework`, `web-content` and `tester` are published by `.github/workflows/npm-publish.yml` on every push to `master`, which in normal use means every merged pull request. **A version bump plus its changelog section is the entire release ritual** — there is nothing to tag or trigger by hand. `competence` is deliberately excluded: it is the application, and ships as a container image through `cd.yml`.
+`core`, `web-framework`, `web-content` and `tester` are published by `.github/workflows/npm-publish.yml` on every push to `master`, which in normal use means every merged pull request. **A version bump plus its changelog section is the entire release ritual** — there is nothing to tag or trigger by hand. Every package in this repository is publishable; the one that was deliberately excluded, the `competence` application, has moved to `Belleal/competence` and ships as a container image from its own `cd.yml` there.
 
 - **The plan comes from the registry and the tags, not from the diff.** Each package's declared version is compared against npm; a merge that bumps nothing publishes nothing and skips even the test job. A cancelled run, a hand-published version, or two bumps landing at once all leave the registry right where a diff of the merge commit would be wrong.
 - **A release is the version on npm *and* its `<package>-v<version>` tag plus GitHub release.** Only the npm half is irreversible, so a version that published but never got tagged stays in the plan until it has one — a re-run finishes it rather than skipping it forever. `workflow_dispatch` is therefore a safe retry.
@@ -359,7 +429,7 @@ npm test    # node --test — runs test/*.test.js (message-hash + security-hash-
 
 ## Issue Tracking — YouTrack (project `CA`)
 
-Work is tracked in **YouTrack Cloud** — project **`CA`** (`https://belleal.youtrack.cloud`), linked to GitHub `Belleal/ti-engine`. Full conventions, field scheme, and the reconstruction history live in `packages/competence/design/youtrack-backfill-inventory.md`; the essentials:
+Work is tracked in **YouTrack Cloud** — project **`CA`** (`https://belleal.youtrack.cloud`), linked to GitHub `Belleal/ti-engine`. Full conventions, field scheme, and the reconstruction history live in `design/youtrack-backfill-inventory.md` **in the `Belleal/competence` repository** — the file went with the application in CA-120 and has no copy here; the essentials:
 
 - **Structure:** capability **Epics** (`Type: Epic`) own their work. **Nest every feature/task as a `subtask of` its Epic** when one fits — delivered *and* forward/backlog; only truly standalone items stay unparented. Use `relates to` for cross-cutting/supersession links, not epic membership.
 - **Fields:** `Type` · `State` · `Stage` · `Priority` · `Version` (enum `v1.0.0`…) · `Shipped` (date). Delivered = `State: Verified` / `Stage: Done`; backlog = `State: Open` / `Stage: Backlog`.
@@ -380,12 +450,12 @@ Token: YouTrack → Profile → Account Security → New token (scope: YouTrack)
 ## Key Architectural Patterns
 
 1. **Abstract base classes** — never instantiate `ServiceInstance`, `MessageExchange`, `TiWebAppManager` directly; subclass them.
-2. **Singletons via frozen instance** — `CommonMemoryCache`, `DataManager`, `CompetenceFramework`, `OrganizationManager` export a single frozen `instance`; access that, don't re-construct.
+2. **Singletons via frozen instance** — `CommonMemoryCache` here, and `ConfigService` / `ConfigRegistry` in web-framework, export a single frozen `instance`; access that, don't re-construct. Consumers follow the pattern (competence's `DataManager`, `OrganizationManager` and `CompetenceFramework` are all frozen singletons).
 3. **deepFreeze on config** — config/settings are immutable once loaded.
-4. **Store-backed config** — competence config documents are registered with the framework registry and (after `initialize()`) served from a versioned, audited store; consumers hot-reload via `onConfigChanged`. File values are bootstrap defaults.
+4. **Store-backed config** — a consumer registers config documents with the framework registry and, after `initialize()`, they are served from a versioned, audited store; consumers hot-reload via `onConfigChanged`. File values are bootstrap defaults, seeded **only on first write** — which is why the drift panel exists.
 5. **Envelope/payload split** — large message payloads go in a Redis hash; the envelope (metadata) goes in the queue list.
 6. **Promise-based, non-blocking** — all service calls return Promises; use async/await (validators here favour explicit Promise chains).
-7. **Snapshot isolation** — evaluations freeze their resolved competency set at creation; config edits never alter in-flight evaluations.
+7. **Snapshot isolation** — a long-lived record freezes the configuration it resolved at creation, so later config edits never alter work already in flight (competence's evaluations are the worked example).
 8. **`#alias` / exports imports**, **CommonJS**, and the **Alpine CSP constraints** (see Conventions).
 9. **One chokepoint per invariant** — enforce a rule at a single place every caller must pass through, then let every surface inherit it: `web-content`'s `repository.resolveVisibility` (all listings/feeds/sitemap/counts/prev-next), competence's `anonymizeEvaluationScores` and `research-consent.filterConsentedEvaluations`. Adding a new query surface should require no new enforcement code.
 10. **Fail closed** — an absent guard selects the built-in check, never none (web-content capture admin); an unprovable consent is a visible failure rather than an optimistic pass (competence research-consent); a missing/unrecognised `visibility` is visible to nobody.
