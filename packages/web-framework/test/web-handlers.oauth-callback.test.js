@@ -146,6 +146,41 @@ describe( "authorizedOAuth2CallbackHandler — a callback that cannot be complet
         }
     } );
 
+    it( "cannot be made to forge a log line through the provider error", () => {
+        // This endpoint is unprotected and takes any query string, and query parameters are percent-decoded before
+        // they reach the handler — so `%0A` arrives as a real newline. The console appender writes one line per
+        // entry, so an unescaped newline here ends the line and everything after it reads as a separate, entirely
+        // attacker-written log entry.
+        const forged = "access_denied\n2026-09-15, 12:00:00 (UTC): ti-competence - NOTICE - Sign-in succeeded for admin";
+        const error = refusalFrom( mockRequest( { query: { error: forged } } ) );
+
+        assert.equal( logged.length, 1 );
+        assert.ok( !logged[ 0 ].message.includes( "\n" ), "a log line must not be splittable by external input" );
+        assert.match( logged[ 0 ].message, /\\u000a/, "the newline should still be visible as an escape, not silently dropped" );
+        assert.match( logged[ 0 ].message, /access_denied/, "the real error must survive, or the log loses its point" );
+        // The same value is echoed in the error payload, so it is sanitized at the source rather than at each use.
+        assert.ok( !String( error.providerError || "" ).includes( "\n" ) );
+    } );
+
+    it( "cannot be made to forge a log line through the host headers", () => {
+        const request = mockRequest( { query: { code: CODE } } );
+        const headers = { host: "ok.example.com", "x-forwarded-host": "evil\r\n2026-09-15, 12:00:00 (UTC): forged - NOTICE - nothing to see" };
+        request.get = ( name ) => headers[ String( name ).toLowerCase() ];
+
+        refusalFrom( request );
+
+        assert.ok( !logged[ 0 ].message.includes( "\n" ) );
+        assert.ok( !logged[ 0 ].message.includes( "\r" ) );
+    } );
+
+    it( "caps how much external text one field can put in the log", () => {
+        const error = refusalFrom( mockRequest( { query: { error: "A".repeat( 5000 ) } } ) );
+
+        assert.ok( logged[ 0 ].message.length < 500, "one field must not be able to flood the log" );
+        assert.match( logged[ 0 ].message, /A{100}\.\.\./ );
+        assert.ok( error );
+    } );
+
     it( "lets a well-formed callback through to the authorization step", () => {
         let authorizedWith;
         const instance = {

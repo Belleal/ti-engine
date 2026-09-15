@@ -95,6 +95,39 @@ const resolveHttpCode = ( exception ) => {
 };
 
 /**
+ * Longest run of externally-supplied text to put in one log line. Long enough that a real OAuth error code or
+ * hostname survives whole, short enough that nobody can flood the log through one field.
+ *
+ * @type {number}
+ */
+const LOG_VALUE_MAX_LENGTH = 100;
+
+/**
+ * Renders a value that came from outside safe to interpolate into a log message or echo in an error payload.
+ * <br/>
+ * The console appender writes one line per entry, so a newline inside an interpolated value ends that line and
+ * everything after it reads as a separate, entirely attacker-written entry — a forged `NOTICE - sign-in succeeded`,
+ * say, sitting in the log looking exactly like a real one. Query parameters are percent-decoded before they reach
+ * us, so `%0A` arrives as a genuine line break.
+ * <br/>
+ * Every character outside printable ASCII becomes a visible `\uXXXX` escape rather than being dropped, so the value
+ * stays diagnosable — the point of logging it at all — while losing the ability to end the line. An allowlist of
+ * known OAuth error codes was the other option and is worse: providers emit non-standard codes, and the unfamiliar
+ * ones are precisely the ones worth reading.
+ *
+ * @method
+ * @param {*} value
+ * @returns {string}
+ * @private
+ */
+const sanitizeExternalValue = ( value ) => {
+    const escaped = String( value ?? "" ).replace( /[^\x20-\x7E]/g, ( character ) => {
+        return "\\u" + character.charCodeAt( 0 ).toString( 16 ).padStart( 4, "0" );
+    } );
+    return ( escaped.length > LOG_VALUE_MAX_LENGTH ) ? escaped.slice( 0, LOG_VALUE_MAX_LENGTH ) + "..." : escaped;
+};
+
+/**
  * Used to assemble the current URL of a request.
  *
  * @method
@@ -385,7 +418,7 @@ module.exports.authorizedOAuth2CallbackHandler = ( instance, authMethod ) => {
         // refused the request outright; either way it says so in `error`, which is the single most useful thing to
         // record and is not sensitive.
         if ( !code ) {
-            const providerError = String( request.query.error || "none" );
+            const providerError = sanitizeExternalValue( request.query.error || "none" );
             logger.log( `Refusing an OpenID sign-in via '${ authMethod }': the provider returned no authorization code (error='${ providerError }').`, logger.logSeverity.WARNING );
             next( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_QUERY, { detail: "The identity provider returned no authorization code.", providerError: providerError }, exceptions.httpCode.C_401 ) );
             return;
@@ -398,7 +431,7 @@ module.exports.authorizedOAuth2CallbackHandler = ( instance, authMethod ) => {
         // hostname, say — produces exactly this, and so does a session that expired while the visitor sat on the
         // provider's consent screen.
         if ( !oidc.codeVerifier ) {
-            logger.log( `Refusing an OpenID sign-in via '${ authMethod }': the session carries no OAuth state. The callback arrived on host '${ request.get( "x-forwarded-host" ) || request.get( "host" ) || "unknown" }' — a session cookie is host-scoped, so check that the sign-in began on this same host and that the session had not expired.`, logger.logSeverity.WARNING );
+            logger.log( `Refusing an OpenID sign-in via '${ authMethod }': the session carries no OAuth state. The callback arrived on host '${ sanitizeExternalValue( request.get( "x-forwarded-host" ) || request.get( "host" ) || "unknown" ) }' — a session cookie is host-scoped, so check that the sign-in began on this same host and that the session had not expired.`, logger.logSeverity.WARNING );
             next( exceptions.raise( exceptions.exceptionCode.E_SEC_INVALID_EXPIRED_SESSION, { detail: "The session carries no OAuth state for this callback." }, exceptions.httpCode.C_401 ) );
             return;
         }

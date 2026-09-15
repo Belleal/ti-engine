@@ -23,6 +23,18 @@ This document will contain the list of changes made to the framework. The format
   issued. The distinction is in the log rather than the response, because the visitor has no use for it and an
   attacker probing the endpoint should not be handed it. **Nothing secret is logged** — never the authorization
   code, the state values, the PKCE verifier or the nonce — and a test pins that.
+* fix(web-handlers): escape externally-supplied text before it reaches a log line or an error payload. The
+  previous two entries put two caller-controlled values into a `WARNING`: the provider's `error` query parameter
+  and the request's host headers. The callback endpoint is unprotected and accepts any query string, and query
+  parameters are percent-decoded before the handler sees them, so `%0A` arrives as a real newline. The console
+  appender writes one line per entry, which makes that newline the end of the line — everything after it reads as a
+  separate, entirely attacker-written entry, a forged `NOTICE - Sign-in succeeded for admin` sitting in the log
+  looking exactly like a real one. Every character outside printable ASCII is now rendered as a visible `\uXXXX`
+  escape and the value is capped at 100 characters, so a field stays diagnosable without being able to end the line
+  or flood the log. Escaping happens where the value enters rather than at each use, so nothing downstream can
+  reach the raw form. An allowlist of known OAuth error codes was the alternative and is worse: providers emit
+  non-standard codes, and the unfamiliar ones are precisely the ones worth reading. Raised by CodeRabbit on the
+  review of this branch.
 * fix(web-handlers)!: refuse a callback whose session holds a PKCE verifier but no expected state, rather than
   skipping the comparison. The guard was `oidc.state && state !== oidc.state`, so an absent expected state
   disabled the check entirely. Nothing in the framework produces such a session — `authenticationHandler` writes
