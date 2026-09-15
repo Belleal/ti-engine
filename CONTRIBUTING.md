@@ -4,21 +4,19 @@ Thanks for considering a contribution.
 
 ## Licensing at a glance
 
-This repository is not under one single license — see [`LICENSE.md`](LICENSE.md) for the full breakdown:
+Every package in this repository is **Apache-2.0** — see [`LICENSE.md`](LICENSE.md). This used to be a mixed
+repository; the AGPL-licensed `competence` application has moved to its own repository, so there is no longer a
+per-package distinction to keep track of.
 
-- `core`, `web-framework`, `web-content`, and `tester` are **Apache-2.0**.
-- `competence` is **AGPL-3.0-or-later**, with a separate commercial license available from the Maintainer.
-
-When you add a new source file, copy the license header from an existing file **in the same package** — the
-header text differs between the Apache-2.0 packages and `competence`.
+When you add a new source file, copy the license header verbatim from an existing file in the same package.
 
 ## Contributor License Agreement (CLA)
 
 Before a pull request can be merged, you'll be asked to sign the project's [CLA](CLA.md). This is a one-time step
 handled automatically by a bot comment on your first pull request. It doesn't take away your rights to your own
-contribution — it lets the Maintainer keep offering `competence` under both an open license and a paid commercial
-license using the same codebase, and keeps the project able to update its open-source license terms in the future
-without having to individually track down and re-clear every past contributor.
+contribution — it keeps the project able to update its open-source license terms in the future without having to
+individually track down and re-clear every past contributor, and it lets the Maintainer offer dual-licensed
+software built on these packages (as `competence`, now in its own repository, is offered) using the same codebase.
 
 If you're not comfortable signing the CLA, you're still welcome to open issues, discuss designs, and report bugs —
 just PRs with code changes need a signature.

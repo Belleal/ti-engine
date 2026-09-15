@@ -79,8 +79,13 @@ jobs:
         run: npm install
       - name: Lint
         run: npx eslint .
-      # The whole workspace, not just the packages being published: competence consumes core and
-      # web-framework, so its suite is the regression net for a breaking change in either.
+      # The whole workspace, not just the packages being published — each package's suite is the
+      # regression net for the ones below it.
+      #
+      # This net is thinner than it was. competence consumed core AND web-framework and carried ~1050
+      # tests, so it caught breaking changes in either from a real consumer's position. It has moved to
+      # its own repository (CA-120) and now pins the framework by semver range, which means a breaking
+      # change here surfaces there only when that range is bumped — after this workflow has published.
       - name: Unit tests
         run: npm test --workspaces --if-present
 

@@ -42,8 +42,8 @@ path if a run fails part-way. Releasing a package is therefore just the two edit
 On merge the workflow compares each package's declared version against the registry and publishes only the ones that
 are actually new — a merge that bumps nothing publishes nothing, and a merge that bumps three packages publishes all
 three, in dependency order. Each published version also gets a `<package>-v<version>` git tag and a GitHub release
-whose body is that changelog section. `competence` is deliberately excluded: it is the application, and it ships as a
-container image through `cd.yml`.
+whose body is that changelog section. Every package in this repository is published; the `competence` application,
+which was deliberately excluded because it ships as a container image, now lives in its own repository.
 
 A release counts as finished only once the version is on the registry *and* carries its tag, so a run that published
 but failed before tagging is picked up and completed by the next one rather than left half-released — a re-run

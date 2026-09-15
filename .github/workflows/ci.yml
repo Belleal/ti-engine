@@ -33,8 +33,6 @@ jobs:
         run: npx eslint .
       - name: Unit tests
         run: npm test --workspaces --if-present
-      - name: JSON config validation
-        run: npm run test:json -w @ti-engine/competence
       # Rebuilds the published declarations, fails if the committed output is stale, and type-checks
       # both the declarations and a consumer that imports every public subpath — all with
       # `skipLibCheck: false`, which is TypeScript's default and the setting under which the
@@ -54,7 +52,7 @@ jobs:
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
           context: .
-          file: packages/competence/Dockerfile
+          file: packages/tester/Dockerfile
           push: false
           cache-from: type=gha
           cache-to: type=gha,mode=max
