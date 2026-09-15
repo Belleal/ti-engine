@@ -25,6 +25,10 @@
  * The asymmetry is the point, and is why these cases are pinned rather than a single truthiness check: Google emits
  * `email_verified`, the Microsoft identity platform does not emit it at all, and the published container image
  * defaults to Azure. Treating an ABSENT claim as unverified would refuse every sign-in on the default deployment.
+ *
+ * Both halves of the provider's response are checked, because `resolveOpenIDIdentity` takes the e-mail from either
+ * one: a tenant emitting `email` only in the ID token would otherwise hand that address to the application while
+ * its `email_verified: false` sat in the half nobody looked at.
  */
 
 const { describe, it } = require( "node:test" );
@@ -62,6 +66,17 @@ describe( "AuthManager.isEmailReportedUnverified", () => {
         assert.equal( AuthManager.isEmailReportedUnverified( undefined ), false );
         assert.equal( AuthManager.isEmailReportedUnverified( null ), false );
         assert.equal( AuthManager.isEmailReportedUnverified( {} ), false );
+    } );
+
+    it( "rejects an explicit false in the ID token claims, not only in userinfo", () => {
+        // The e-mail can come from either source, so the verification flag has to be read from either source too.
+        assert.equal( AuthManager.isEmailReportedUnverified( { sub: "s" }, { sub: "s", email: "a@b.c", email_verified: false } ), true );
+    } );
+
+    it( "keeps accepting a sign-in whose claims say nothing about verification", () => {
+        // Azure again: the second source must not become a new way to refuse every sign-in on the default method.
+        assert.equal( AuthManager.isEmailReportedUnverified( { sub: "s", email: "a@b.c" }, { sub: "s", email: "a@b.c" } ), false );
+        assert.equal( AuthManager.isEmailReportedUnverified( { sub: "s", email: "a@b.c" }, undefined ), false );
     } );
 
 } );

@@ -2,6 +2,44 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.35.0
+
+* fix(auth-manager)!: resolve an OpenID identity from the ID token claims **and** the `userinfo` response, instead
+  of `userinfo` alone. The ID token was fetched, read for the `sub` that `fetchUserInfo` is verified against, and
+  then discarded. That works for Google and fails for the Microsoft identity platform, whose `userinfo` endpoint
+  returns `sub`, `name`, `family_name`, `given_name`, `picture` and — only when the optional claim is configured —
+  an `email` taken from the directory's `mail` attribute. It never returns `preferred_username`: on Entra that
+  claim is in the ID token, and it holds the **UPN**. So the one identifier an Entra deployment is configured
+  around — the address an operator knows, lists in `TI_WEB_AUTH_ADMINS` and writes into an application record —
+  never reached the session at all. `authorization.isAdminIdentity` had nothing to match, the admin exception
+  never fired, and the consumer reported the refusal as a missing application record, naming the wrong thing
+  entirely. On a fresh deployment, where that exception is the only way in, it is a lock-out. Exposed as the pure
+  `AuthManager.resolveOpenIDIdentity( userInfo, claims )`; `userinfo` still wins wherever both carry a value.
+  **BREAKING:** on Azure the session `username` now holds the UPN where it previously fell through to the `mail`
+  address or the display name — an `auth.admins` entry listing a display name stops matching, and should be
+  replaced with the UPN or the e-mail. The **UPN is deliberately not accepted as an `email`**: it is a sign-in name
+  rather than a mailbox, and `email` is what a consumer resolves its own directory by, so widening it would change
+  which principal an identity maps to.
+* fix(auth-manager): read `email_verified` from the ID token claims as well as from `userinfo`. Now that the
+  e-mail can come from either source, a tenant emitting it only in the ID token would otherwise have handed that
+  address to the application while its `email_verified: false` sat in the half nobody looked at. An absent claim is
+  still not a rejection, so an Azure sign-in is unaffected.
+* feat(auth-manager): report where each resolved identifier came from, once per OpenID sign-in, at `DEBUG` — the
+  claim and the response (`claims.preferred_username`, `userinfo.email`, …), never the value. An operator setting
+  `TI_WEB_AUTH_ADMINS` has to know which claim their provider actually supplies, and before this the only way to
+  find out was to guess; they already know their own address, so naming the claim answers the question the values
+  would have, without the exposure. `auditing.logMinLevel` ships at `0` with console logging on, so logging the
+  values would write every signed-in person's user ID, username and e-mail to a default deployment's console on
+  every successful sign-in, for a diagnostic needed once per provider. The provenance is also returned from
+  `resolveOpenIDIdentity` as `sources`, so a consumer can surface the same thing.
+* fix(auth-manager): make the `username` precedence match what it is documented to do. `preferred_username` now
+  beats `upn` whichever response carried it, where `userinfo.upn` previously beat `claims.preferred_username`.
+  The two rules are separate and the claim rule is the stronger: `preferred_username` is the standard OIDC claim
+  for a human-readable identifier and `upn` a Microsoft extension, while "fresher" is what earns `userinfo` its
+  precedence for `email` and `name` — mutable profile data the ID token holds only as a snapshot — and earns
+  nothing between two stable identifiers that do not differ across the two responses. Within a single claim
+  `userinfo` still wins.
+
 ## Version 1.34.1
 
 * build(deps): update `@types/node` from ^26.2.0 to ^26.5.1
