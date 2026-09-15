@@ -79,10 +79,6 @@ const defaultNameFromClass = ( () => {
 
 process.env.TI_INSTANCE_NAME = process.env.TI_INSTANCE_NAME || defaultNameFromClass;
 
-logger.log( envFileLoaded
-    ? `Loaded environment variables from '${ envFilePath }'.`
-    : `No environment file at '${ envFilePath }' — continuing with the environment as supplied. If settings you expected are missing, check the working directory this instance was started from.`, logger.logSeverity.DEBUG );
-
 // Configure the process termination handlers to ensure a graceful shutdown:
 
 /**
@@ -171,6 +167,10 @@ try {
     };
 
     if ( mainInstance.isServiceInstance ) {
+        logger.log( envFileLoaded
+            ? `Loaded environment variables from '${ envFilePath }'.`
+            : `No environment file at '${ envFilePath }' — continuing with the environment as supplied. If settings you expected are missing, check the working directory this instance was started from.`, logger.logSeverity.DEBUG );
+
         logger.log( `Starting new instance of type '${ process.env.TI_INSTANCE_NAME }' with instance ID '${ process.env.TI_INSTANCE_ID }'.`, logger.logSeverity.NOTICE );
         mainInstance.start().catch( ( error ) => {
             logger.log( `Error detected during instance '${ process.env.TI_INSTANCE_ID }' startup!`, logger.logSeverity.ALERT, error );
