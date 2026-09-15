@@ -37,12 +37,12 @@ OpenID Connect providers are configured with their own variables — `TI_AZURE_A
 
 A sign-in is resolved from the validated ID token claims and the `userinfo` response **together**, not from `userinfo` alone. `userinfo` wins wherever both carry a value — it is the fresher of the two, and `openid-client` has already verified that both describe the same subject — and the ID token fills the gaps.
 
-| Session field | Resolved from, in order |
-|---------------|-------------------------|
-| `userID`      | `oauth2:` + the subject (`sub`) |
+| Session field | Resolved from, in order                                                          |
+|---------------|----------------------------------------------------------------------------------|
+| `userID`      | `oauth2:` + the subject (`sub`)                                                  |
 | `username`    | `preferred_username`, then `upn`, then the e-mail, then `name`, then `sub:<sub>` |
-| `email`       | the `email` claim from either source — and nothing else |
-| `name`        | the `name` claim from either source |
+| `email`       | the `email` claim from either source — and nothing else                          |
+| `name`        | the `name` claim from either source                                              |
 
 Both sources are needed because of what the Microsoft identity platform returns. Its `userinfo` endpoint answers with `sub`, `name`, `family_name`, `given_name`, `picture` and — only when the optional claim is configured — an `email` taken from the directory's `mail` attribute. It never returns `preferred_username`: on Entra that claim lives in the ID token, and it holds the UPN. The UPN is the address an operator actually knows and lists in `auth.admins`, so reading `userinfo` alone dropped the one identifier such a deployment is configured around, and an allowlisted administrator had nothing on their session for `isAdminIdentity` to match.
 
