@@ -33,6 +33,23 @@ OpenID Connect providers are configured with their own variables — `TI_AZURE_A
 
 `TiWebServer#augmentSession` is the hook through which an application derives its own session roles — from an identity store, the org chart, or wherever a deployment keeps that mapping — once per login, before the framework's own additive `admin` role (`auth.admins`, see [Environment variables](#environment-variables)) is applied on top; the default is a no-op that returns the session unchanged. Throwing from the hook refuses the sign-in rather than admitting a session the application could not map to a principal: the framework destroys the freshly regenerated session so nothing usable survives the refusal, the login handler responds `401`, and the error handler sends the browser back to the login page with the exception code in the `?error=` query parameter — the same path a failed OpenID callback takes, regardless of which auth method was used.
 
+### The identity an OpenID sign-in puts on the session
+
+A sign-in is resolved from the validated ID token claims and the `userinfo` response **together**, not from `userinfo` alone. `userinfo` wins wherever both carry a value — it is the fresher of the two, and `openid-client` has already verified that both describe the same subject — and the ID token fills the gaps.
+
+| Session field | Resolved from, in order |
+|---------------|-------------------------|
+| `userID`      | `oauth2:` + the subject (`sub`) |
+| `username`    | `preferred_username`, then `upn`, then the e-mail, then `name`, then `sub:<sub>` |
+| `email`       | the `email` claim from either source — and nothing else |
+| `name`        | the `name` claim from either source |
+
+Both sources are needed because of what the Microsoft identity platform returns. Its `userinfo` endpoint answers with `sub`, `name`, `family_name`, `given_name`, `picture` and — only when the optional claim is configured — an `email` taken from the directory's `mail` attribute. It never returns `preferred_username`: on Entra that claim lives in the ID token, and it holds the UPN. The UPN is the address an operator actually knows and lists in `auth.admins`, so reading `userinfo` alone dropped the one identifier such a deployment is configured around, and an allowlisted administrator had nothing on their session for `isAdminIdentity` to match.
+
+The UPN is offered as the `username`, **never** as the `email`. It is e-mail-shaped and usually routable, but it is a sign-in name rather than a mailbox, and `email` is what a consuming application resolves its own directory by — widening that would change which principal an identity maps to. The admin allowlist matches user ID, username **or** e-mail, so listing a UPN there works either way.
+
+An address the provider reports as unverified (`email_verified: false`, in **either** source) is refused. An absent claim is not a rejection: Google emits the claim, Entra does not emit it at all, and treating "absent" as "unverified" would refuse every sign-in on an Azure deployment.
+
 ## Local (username/password) authentication
 
 `local` is one of the configurable `auth.enabledMethods` sign-in methods (see [Environment variables](#environment-variables), `TI_WEB_AUTH_METHODS`). It is backed by a JSON file of user records — there is no built-in account of any kind.

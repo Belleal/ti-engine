@@ -556,14 +556,18 @@ class AuthManager {
     }
 
     /**
-     * Whether an OpenID Connect `userinfo` response carries an e-mail address the provider itself reports as
-     * unverified. Pure, so the decision is testable without a provider.
+     * Whether an OpenID Connect sign-in carries an e-mail address the provider itself reports as unverified. Pure,
+     * so the decision is testable without a provider.
      * <br/>
      * A consumer maps the authenticated identity to an application principal by e-mail — competence resolves it
      * against the employee directory — so an address the provider has not verified is an unauthenticated claim to be
      * someone, and a sign-in carrying one is refused.
      * <br/>
-     * **An ABSENT claim is not a rejection.** Google emits `email_verified`; the Microsoft identity platform does not
+     * **Both sources are consulted**, because {@link AuthManager.resolveOpenIDIdentity} takes the e-mail from either
+     * one: a tenant that emits `email` only in the ID token would otherwise hand that address to the application
+     * while its `email_verified: false` sat in the half of the response nobody looked at.
+     * <br/>
+     * **An ABSENT claim is not a rejection.** Google emits `email_verified`, the Microsoft identity platform does not
      * emit it at all, so treating "absent" as "unverified" would refuse every Azure sign-in — the default method of
      * the published container image. Only an explicit `false` is a rejection. That leaves a residual assumption for a
      * provider that says nothing: bind it out with a tenant-pinned discovery URL (what `INSTALL.md` prescribes for
@@ -571,11 +575,76 @@ class AuthManager {
      *
      * @method
      * @param {Object} userInfo The provider's `userinfo` response.
+     * @param {Object} [claims] The validated ID token claims, when available.
      * @returns {boolean}
      * @public
      */
-    static isEmailReportedUnverified( userInfo ) {
-        return !!userInfo && userInfo.email_verified === false;
+    static isEmailReportedUnverified( userInfo, claims ) {
+        return ( !!userInfo && userInfo.email_verified === false ) || ( !!claims && claims.email_verified === false );
+    }
+
+    /**
+     * Decides which identity strings an OpenID Connect sign-in puts on the session, from the validated ID token
+     * claims and the `userinfo` response together. Pure, so every provider's shape is testable without one.
+     * <br/>
+     * **Both sources are needed, and this is why.** The identity used to be built from the `userinfo` response
+     * alone, with the ID token read only for the `sub` that fetch is verified against. That works for Google and
+     * fails for the Microsoft identity platform, whose `userinfo` endpoint returns `sub`, `name`, `family_name`,
+     * `given_name`, `picture` and — only when the optional claim is configured — an `email` taken from the
+     * directory's `mail` attribute. It never returns `preferred_username`: on Entra that claim lives in the ID
+     * token, and it holds the UPN, which is the address an operator actually knows, lists in `auth.admins`
+     * (`TI_WEB_AUTH_ADMINS`), and puts in an employee record. So the one identifier the deployment is configured
+     * around never reached the session, and an allowlisted administrator was refused by
+     * {@link authorization.isAdminIdentity} with nothing on the session to match — reported by the consumer as a
+     * missing application record, which named the wrong thing entirely. On a fresh deployment, where the admin
+     * exception is the only way in at all, that is a lock-out.
+     * <br/>
+     * `userinfo` wins where both carry a value: it is the fresher of the two (the ID token is a snapshot from
+     * authentication time), and `openid-client` has already verified that both describe the same subject. The ID
+     * token is a fallback, not a lesser source — it is signature-, issuer-, audience- and nonce-validated.
+     * <br/>
+     * **The UPN is deliberately NOT accepted as an e-mail.** It is e-mail-shaped and usually routable, but it is a
+     * sign-in name, not a mailbox, and `email` is what a consumer resolves its own directory by — quietly widening
+     * that would change which application principal an identity maps to. It is offered as the `username` instead,
+     * which the admin allowlist matches (user ID, username or e-mail) and which no directory lookup keys on.
+     *
+     * Both arguments are plain objects, so a swapped call would silently produce a wrong-but-plausible identity.
+     * The order is therefore the same as {@link AuthManager.isEmailReportedUnverified}'s, and it is the precedence
+     * order too: the winning source comes first.
+     *
+     * @method
+     * @param {Object} [userInfo] The provider's `userinfo` response.
+     * @param {Object} [claims] The validated ID token claims.
+     * @returns {{userID: string, username: string, email: (string|undefined), name: (string|undefined)}}
+     * @public
+     */
+    static resolveOpenIDIdentity( userInfo, claims ) {
+        const info = userInfo || {};
+        const token = claims || {};
+
+        // Only a non-empty string is a value. A provider emitting `""`, `null` or a non-string says nothing, and
+        // coercing one would put an identity on the session that the allowlist could match by accident.
+        const pick = ( ...candidates ) => {
+            for ( const candidate of candidates ) {
+                if ( typeof candidate === "string" && candidate.trim().length > 0 ) {
+                    return candidate.trim();
+                }
+            }
+            return undefined;
+        };
+
+        const subject = pick( info.sub, token.sub );
+        const email = pick( info.email, token.email );
+        const name = pick( info.name, token.name );
+
+        return {
+            userID: `oauth2:${ subject === undefined ? "" : subject }`,
+            // `upn` before `email` because on Entra it IS the sign-in address; `name` before the `sub:` fallback
+            // because a display name is at least recognizable to the person reading a log line.
+            username: pick( info.preferred_username, token.preferred_username, info.upn, token.upn, email, name ) || `sub:${ subject === undefined ? "" : subject }`,
+            email: email,
+            name: name
+        };
     }
 
     /**
@@ -594,15 +663,25 @@ class AuthManager {
                 expectedState: oidc.state,
                 expectedNonce: oidc.nonce
             } ).then( ( token ) => {
+                // The ID token claims are kept, not discarded once the subject has been read out of them: they are
+                // half the identity (see AuthManager.resolveOpenIDIdentity). `fetchUserInfo` is given that subject
+                // as its expected one, so it refuses a `userinfo` response describing anybody else — which is what
+                // makes merging the two sources safe.
                 const claims = token.claims();
-                return openidClient.fetchUserInfo( clientConfig, token.access_token, claims.sub );
-            } ).then( ( userInfo ) => {
-                if ( AuthManager.isEmailReportedUnverified( userInfo ) ) {
+                return openidClient.fetchUserInfo( clientConfig, token.access_token, claims.sub ).then( ( userInfo ) => {
+                    return { claims: claims, userInfo: userInfo };
+                } );
+            } ).then( ( { claims, userInfo } ) => {
+                if ( AuthManager.isEmailReportedUnverified( userInfo, claims ) ) {
                     logger.log( `Refusing an OpenID sign-in for subject '${ userInfo.sub }': the provider reports its e-mail address as unverified.`, logger.logSeverity.WARNING );
                     throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, { details: "The identity provider reports this e-mail address as unverified." }, exceptions.httpCode.C_401 );
                 }
-                const username = userInfo.preferred_username ?? userInfo.email ?? userInfo.name ?? `sub:${ userInfo.sub }`;
-                resolve( new User( { userID: `oauth2:${ userInfo.sub }`, username: username, email: userInfo.email, name: userInfo.name } ) );
+                const identity = AuthManager.resolveOpenIDIdentity( userInfo, claims );
+                // The identifiers the deployment's admin allowlist and the consumer's own directory are matched
+                // against, named once per sign-in. An operator setting TI_WEB_AUTH_ADMINS has to know which string
+                // their provider actually emits, and before this the only way to find out was to guess.
+                logger.log( `OpenID sign-in resolved to userID '${ identity.userID }', username '${ identity.username }', e-mail '${ identity.email === undefined ? "(none)" : identity.email }'.`, logger.logSeverity.DEBUG );
+                resolve( new User( identity ) );
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
             } );
