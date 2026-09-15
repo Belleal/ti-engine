@@ -167,9 +167,17 @@ declare class AuthManager {
      * missing application record, which named the wrong thing entirely. On a fresh deployment, where the admin
      * exception is the only way in at all, that is a lock-out.
      * <br/>
-     * `userinfo` wins where both carry a value: it is the fresher of the two (the ID token is a snapshot from
-     * authentication time), and `openid-client` has already verified that both describe the same subject. The ID
-     * token is a fallback, not a lesser source — it is signature-, issuer-, audience- and nonce-validated.
+     * **Two precedence rules, and the claim rule is the stronger one.** Within a single claim, `userinfo` wins: it
+     * is the fresher of the two (the ID token is a snapshot from authentication time), and `openid-client` has
+     * already verified that both describe the same subject. The ID token is a fallback, not a lesser source — it is
+     * signature-, issuer-, audience- and nonce-validated. But `username` chooses between two DIFFERENT claims, and
+     * there `preferred_username` beats `upn` regardless of which response carried it: `preferred_username` is the
+     * standard OIDC claim for a human-readable identifier and `upn` a Microsoft extension, while "fresher" earns
+     * nothing between two stable identifiers that do not differ across the two responses.
+     * <br/>
+     * Note that neither ordering can rescue a deployment whose allowlist names the claim that lost — only one string
+     * can be the `username`. What covers that is the allowlist matching `userID`, `username` **or** `email`, and a
+     * consumer reporting all three when it refuses a sign-in.
      * <br/>
      * **The UPN is deliberately NOT accepted as an e-mail.** It is e-mail-shaped and usually routable, but it is a
      * sign-in name, not a mailbox, and `email` is what a consumer resolves its own directory by — quietly widening
@@ -183,7 +191,9 @@ declare class AuthManager {
      * @method
      * @param {Object} [userInfo] The provider's `userinfo` response.
      * @param {Object} [claims] The validated ID token claims.
-     * @returns {{userID: string, username: string, email: (string|undefined), name: (string|undefined)}}
+     * @returns {{userID: string, username: string, email: (string|undefined), name: (string|undefined), sources: Object}}
+     *          `sources` names the claim and response each value came from (e.g. `claims.preferred_username`), so a
+     *          deployment can report how its provider is understood without logging anybody's identifiers.
      * @public
      */
     static resolveOpenIDIdentity(userInfo?: Object, claims?: Object): {
@@ -191,6 +201,7 @@ declare class AuthManager {
         username: string;
         email: (string | undefined);
         name: (string | undefined);
+        sources: Object;
     };
 }
 declare namespace AuthManager {

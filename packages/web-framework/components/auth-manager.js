@@ -599,9 +599,17 @@ class AuthManager {
      * missing application record, which named the wrong thing entirely. On a fresh deployment, where the admin
      * exception is the only way in at all, that is a lock-out.
      * <br/>
-     * `userinfo` wins where both carry a value: it is the fresher of the two (the ID token is a snapshot from
-     * authentication time), and `openid-client` has already verified that both describe the same subject. The ID
-     * token is a fallback, not a lesser source — it is signature-, issuer-, audience- and nonce-validated.
+     * **Two precedence rules, and the claim rule is the stronger one.** Within a single claim, `userinfo` wins: it
+     * is the fresher of the two (the ID token is a snapshot from authentication time), and `openid-client` has
+     * already verified that both describe the same subject. The ID token is a fallback, not a lesser source — it is
+     * signature-, issuer-, audience- and nonce-validated. But `username` chooses between two DIFFERENT claims, and
+     * there `preferred_username` beats `upn` regardless of which response carried it: `preferred_username` is the
+     * standard OIDC claim for a human-readable identifier and `upn` a Microsoft extension, while "fresher" earns
+     * nothing between two stable identifiers that do not differ across the two responses.
+     * <br/>
+     * Note that neither ordering can rescue a deployment whose allowlist names the claim that lost — only one string
+     * can be the `username`. What covers that is the allowlist matching `userID`, `username` **or** `email`, and a
+     * consumer reporting all three when it refuses a sign-in.
      * <br/>
      * **The UPN is deliberately NOT accepted as an e-mail.** It is e-mail-shaped and usually routable, but it is a
      * sign-in name, not a mailbox, and `email` is what a consumer resolves its own directory by — quietly widening
@@ -615,35 +623,60 @@ class AuthManager {
      * @method
      * @param {Object} [userInfo] The provider's `userinfo` response.
      * @param {Object} [claims] The validated ID token claims.
-     * @returns {{userID: string, username: string, email: (string|undefined), name: (string|undefined)}}
+     * @returns {{userID: string, username: string, email: (string|undefined), name: (string|undefined), sources: Object}}
+     *          `sources` names the claim and response each value came from (e.g. `claims.preferred_username`), so a
+     *          deployment can report how its provider is understood without logging anybody's identifiers.
      * @public
      */
     static resolveOpenIDIdentity( userInfo, claims ) {
         const info = userInfo || {};
         const token = claims || {};
+        const sources = {};
 
         // Only a non-empty string is a value. A provider emitting `""`, `null` or a non-string says nothing, and
         // coercing one would put an identity on the session that the allowlist could match by accident.
-        const pick = ( ...candidates ) => {
-            for ( const candidate of candidates ) {
+        //
+        // Each candidate is named, so the winner's provenance can be reported without reporting the value itself —
+        // see `sources` below.
+        const pick = ( field, candidates ) => {
+            for ( const [ origin, candidate ] of candidates ) {
                 if ( typeof candidate === "string" && candidate.trim().length > 0 ) {
+                    sources[ field ] = origin;
                     return candidate.trim();
                 }
             }
             return undefined;
         };
 
-        const subject = pick( info.sub, token.sub );
-        const email = pick( info.email, token.email );
-        const name = pick( info.name, token.name );
+        const subject = pick( "userID", [ [ "userinfo.sub", info.sub ], [ "claims.sub", token.sub ] ] );
+        const email = pick( "email", [ [ "userinfo.email", info.email ], [ "claims.email", token.email ] ] );
+        const name = pick( "name", [ [ "userinfo.name", info.name ], [ "claims.name", token.name ] ] );
+
+        // `preferred_username` before `upn` REGARDLESS of source, then the e-mail, then `name`, then the subject.
+        // The source rule and the claim rule are separate, and the claim rule is the stronger of the two: these are
+        // two DIFFERENT claims, not two copies of one, and `preferred_username` is the standard OIDC claim for a
+        // human-readable identifier while `upn` is a Microsoft extension. "Fresher" is what earns `userinfo` its
+        // precedence for `email` and `name` — mutable profile data the ID token holds only as a snapshot — and it
+        // earns nothing when choosing BETWEEN claims, since both are stable identifiers that do not differ between
+        // the two responses. Preferring `userinfo.upn` over `claims.preferred_username` would pick the vendor
+        // extension over the standard claim purely because of which response carried it.
+        const username = pick( "username", [
+            [ "userinfo.preferred_username", info.preferred_username ],
+            [ "claims.preferred_username", token.preferred_username ],
+            [ "userinfo.upn", info.upn ],
+            [ "claims.upn", token.upn ],
+            [ sources.email, email ],
+            [ sources.name, name ]
+        ] );
 
         return {
             userID: `oauth2:${ subject === undefined ? "" : subject }`,
-            // `upn` before `email` because on Entra it IS the sign-in address; `name` before the `sub:` fallback
-            // because a display name is at least recognizable to the person reading a log line.
-            username: pick( info.preferred_username, token.preferred_username, info.upn, token.upn, email, name ) || `sub:${ subject === undefined ? "" : subject }`,
+            username: username === undefined ? `sub:${ subject === undefined ? "" : subject }` : username,
             email: email,
-            name: name
+            name: name,
+            // Which claim, in which response, each value came from. Carries no identity of its own, so a deployment
+            // can report how its provider is understood without putting anybody's identifiers in a log.
+            sources: sources
         };
     }
 
@@ -677,10 +710,13 @@ class AuthManager {
                     throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, { details: "The identity provider reports this e-mail address as unverified." }, exceptions.httpCode.C_401 );
                 }
                 const identity = AuthManager.resolveOpenIDIdentity( userInfo, claims );
-                // The identifiers the deployment's admin allowlist and the consumer's own directory are matched
-                // against, named once per sign-in. An operator setting TI_WEB_AUTH_ADMINS has to know which string
-                // their provider actually emits, and before this the only way to find out was to guess.
-                logger.log( `OpenID sign-in resolved to userID '${ identity.userID }', username '${ identity.username }', e-mail '${ identity.email === undefined ? "(none)" : identity.email }'.`, logger.logSeverity.DEBUG );
+                // WHERE each identifier came from, never what it is. An operator setting TI_WEB_AUTH_ADMINS needs to
+                // know which claim their provider actually supplies — they already know their own address — so
+                // naming the claim answers the question the values were added to answer, and answers it better.
+                // Logging the values would not: `auditing.logMinLevel` ships at 0 with console logging on, so a
+                // deployment on the defaults would write every signed-in person's user ID, username and e-mail to
+                // its console on every successful sign-in, for a diagnostic needed once per provider.
+                logger.log( `OpenID sign-in resolved: userID from '${ identity.sources.userID || "(none)" }', username from '${ identity.sources.username || "the subject fallback" }', e-mail from '${ identity.sources.email || "(none)" }'.`, logger.logSeverity.DEBUG );
                 resolve( new User( identity ) );
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );

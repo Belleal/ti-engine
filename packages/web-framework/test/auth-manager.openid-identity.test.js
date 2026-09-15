@@ -94,7 +94,13 @@ describe( "AuthManager.resolveOpenIDIdentity", () => {
 
         it( "is unchanged — userinfo carries everything and wins", () => {
             const identity = AuthManager.resolveOpenIDIdentity( GOOGLE, GOOGLE );
-            assert.deepEqual( identity, { userID: "oauth2:g-1", username: "someone@example.com", email: "someone@example.com", name: "Some One" } );
+            assert.deepEqual( identity, {
+                userID: "oauth2:g-1",
+                username: "someone@example.com",
+                email: "someone@example.com",
+                name: "Some One",
+                sources: { userID: "userinfo.sub", email: "userinfo.email", name: "userinfo.name", username: "userinfo.email" }
+            } );
         } );
 
         it( "prefers userinfo over the ID token where both carry a value", () => {
@@ -142,7 +148,66 @@ describe( "AuthManager.resolveOpenIDIdentity", () => {
         it( "tolerates a missing source on either side", () => {
             assert.equal( AuthManager.resolveOpenIDIdentity( undefined, { sub: "s", preferred_username: "u" } ).username, "u" );
             assert.equal( AuthManager.resolveOpenIDIdentity( { sub: "s", email: "a@b.c" }, undefined ).email, "a@b.c" );
-            assert.deepEqual( AuthManager.resolveOpenIDIdentity( undefined, undefined ), { userID: "oauth2:", username: "sub:", email: undefined, name: undefined } );
+            assert.deepEqual( AuthManager.resolveOpenIDIdentity( undefined, undefined ), { userID: "oauth2:", username: "sub:", email: undefined, name: undefined, sources: {} } );
+        } );
+
+    } );
+
+    describe( "the two precedence rules", () => {
+
+        it( "prefers `preferred_username` over `upn` even when `upn` is the one in userinfo", () => {
+            // The claim rule outranks the source rule, and only for `username`, which is the one field choosing
+            // between two DIFFERENT claims. `preferred_username` is the standard OIDC claim for a human-readable
+            // identifier; `upn` is a Microsoft extension. "Fresher" earns `userinfo` its precedence for mutable
+            // profile data, and earns nothing between two stable identifiers — so it does not get to promote a
+            // vendor extension over the standard claim on the strength of which response carried it.
+            const identity = AuthManager.resolveOpenIDIdentity( { sub: "s", upn: "from-userinfo@example.com" }, { sub: "s", preferred_username: "from-token@example.com" } );
+            assert.equal( identity.username, "from-token@example.com" );
+            assert.equal( identity.sources.username, "claims.preferred_username" );
+        } );
+
+        it( "still prefers userinfo WITHIN a claim", () => {
+            // The source rule is intact where it applies: same claim, two responses, userinfo wins.
+            const identity = AuthManager.resolveOpenIDIdentity( { sub: "s", preferred_username: "from-userinfo@example.com" }, { sub: "s", preferred_username: "from-token@example.com" } );
+            assert.equal( identity.username, "from-userinfo@example.com" );
+            assert.equal( identity.sources.username, "userinfo.preferred_username" );
+        } );
+
+        it( "prefers userinfo's `upn` when neither response carries `preferred_username`", () => {
+            const identity = AuthManager.resolveOpenIDIdentity( { sub: "s", upn: "from-userinfo@example.com" }, { sub: "s", upn: "from-token@example.com" } );
+            assert.equal( identity.username, "from-userinfo@example.com" );
+            assert.equal( identity.sources.username, "userinfo.upn" );
+        } );
+
+    } );
+
+    describe( "provenance, so a deployment need not log identifiers to report how it read its provider", () => {
+
+        it( "names the claim and the response each value came from", () => {
+            const identity = AuthManager.resolveOpenIDIdentity( { sub: "a1b2c3", name: "Boris Kostadinov" }, { sub: "a1b2c3", preferred_username: "b.kostadinov@is-bg.net", email: "b.kostadinov@is-bg.net" } );
+            assert.deepEqual( identity.sources, {
+                userID: "userinfo.sub",
+                username: "claims.preferred_username",
+                email: "claims.email",
+                name: "userinfo.name"
+            } );
+        } );
+
+        it( "carries no identity of its own — every value is a claim name", () => {
+            // The point of the field: `auditing.logMinLevel` ships at 0 with console logging on, so a DEBUG line
+            // carrying the values would write every signed-in person's identifiers to a default deployment's
+            // console. These strings are safe to log because none of them is anybody's.
+            const secrets = [ "a1b2c3", "b.kostadinov@is-bg.net", "Boris Kostadinov" ];
+            const identity = AuthManager.resolveOpenIDIdentity( { sub: "a1b2c3", name: "Boris Kostadinov" }, { sub: "a1b2c3", preferred_username: "b.kostadinov@is-bg.net" } );
+            for ( const origin of Object.values( identity.sources ) ) {
+                assert.equal( secrets.some( ( secret ) => origin.includes( secret ) ), false, `source '${ origin }' leaks an identifier` );
+            }
+        } );
+
+        it( "omits a field the provider never supplied", () => {
+            const identity = AuthManager.resolveOpenIDIdentity( { sub: "s" }, { sub: "s" } );
+            assert.equal( identity.sources.email, undefined );
+            assert.equal( identity.sources.username, undefined );
         } );
 
     } );

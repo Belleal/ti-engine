@@ -35,7 +35,7 @@ OpenID Connect providers are configured with their own variables — `TI_AZURE_A
 
 ### The identity an OpenID sign-in puts on the session
 
-A sign-in is resolved from the validated ID token claims and the `userinfo` response **together**, not from `userinfo` alone. `userinfo` wins wherever both carry a value — it is the fresher of the two, and `openid-client` has already verified that both describe the same subject — and the ID token fills the gaps.
+A sign-in is resolved from the validated ID token claims and the `userinfo` response **together**, not from `userinfo` alone. Within a single claim `userinfo` wins — it is the fresher of the two, and `openid-client` has already verified that both describe the same subject — and the ID token fills the gaps.
 
 | Session field | Resolved from, in order                                                          |
 |---------------|----------------------------------------------------------------------------------|
@@ -45,6 +45,10 @@ A sign-in is resolved from the validated ID token claims and the `userinfo` resp
 | `name`        | the `name` claim from either source                                              |
 
 Both sources are needed because of what the Microsoft identity platform returns. Its `userinfo` endpoint answers with `sub`, `name`, `family_name`, `given_name`, `picture` and — only when the optional claim is configured — an `email` taken from the directory's `mail` attribute. It never returns `preferred_username`: on Entra that claim lives in the ID token, and it holds the UPN. The UPN is the address an operator actually knows and lists in `auth.admins`, so reading `userinfo` alone dropped the one identifier such a deployment is configured around, and an allowlisted administrator had nothing on their session for `isAdminIdentity` to match.
+
+`username` is the one field choosing between two *different* claims, and there the claim outranks the source: `preferred_username` beats `upn` whichever response carried it. `preferred_username` is the standard OIDC claim for a human-readable identifier and `upn` a Microsoft extension, and "fresher" earns nothing between two stable identifiers that do not differ across the two responses. No ordering can rescue a deployment whose allowlist names the claim that lost, since only one string can be the `username` — what covers that is the allowlist matching user ID, username **or** e-mail, and a consumer naming all three when it refuses a sign-in.
+
+Each resolved value also carries its provenance (`claims.preferred_username`, `userinfo.email`, …), so a deployment can report how its provider was understood without writing anybody's identifiers to a log — which matters because `auditing.logMinLevel` ships at `0` with console logging on.
 
 The UPN is offered as the `username`, **never** as the `email`. It is e-mail-shaped and usually routable, but it is a sign-in name rather than a mailbox, and `email` is what a consuming application resolves its own directory by — widening that would change which principal an identity maps to. The admin allowlist matches user ID, username **or** e-mail, so listing a UPN there works either way.
 

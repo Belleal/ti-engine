@@ -24,9 +24,21 @@ This document will contain the list of changes made to the framework. The format
   e-mail can come from either source, a tenant emitting it only in the ID token would otherwise have handed that
   address to the application while its `email_verified: false` sat in the half nobody looked at. An absent claim is
   still not a rejection, so an Azure sign-in is unaffected.
-* feat(auth-manager): log the resolved identifiers (`userID`, `username`, e-mail) once per OpenID sign-in, at
-  `DEBUG`. An operator setting `TI_WEB_AUTH_ADMINS` has to know which string their provider actually emits, and
-  before this the only way to find out was to guess.
+* feat(auth-manager): report where each resolved identifier came from, once per OpenID sign-in, at `DEBUG` — the
+  claim and the response (`claims.preferred_username`, `userinfo.email`, …), never the value. An operator setting
+  `TI_WEB_AUTH_ADMINS` has to know which claim their provider actually supplies, and before this the only way to
+  find out was to guess; they already know their own address, so naming the claim answers the question the values
+  would have, without the exposure. `auditing.logMinLevel` ships at `0` with console logging on, so logging the
+  values would write every signed-in person's user ID, username and e-mail to a default deployment's console on
+  every successful sign-in, for a diagnostic needed once per provider. The provenance is also returned from
+  `resolveOpenIDIdentity` as `sources`, so a consumer can surface the same thing.
+* fix(auth-manager): make the `username` precedence match what it is documented to do. `preferred_username` now
+  beats `upn` whichever response carried it, where `userinfo.upn` previously beat `claims.preferred_username`.
+  The two rules are separate and the claim rule is the stronger: `preferred_username` is the standard OIDC claim
+  for a human-readable identifier and `upn` a Microsoft extension, while "fresher" is what earns `userinfo` its
+  precedence for `email` and `name` — mutable profile data the ID token holds only as a snapshot — and earns
+  nothing between two stable identifiers that do not differ across the two responses. Within a single claim
+  `userinfo` still wins.
 
 ## Version 1.34.1
 
