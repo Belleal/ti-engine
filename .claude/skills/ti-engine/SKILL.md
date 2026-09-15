@@ -21,7 +21,7 @@ the header block verbatim from an existing file in the same package.
 ti-engine/                         npm workspace root (v1.2.10; workspaces = packages/*)
 ├── packages/
 │   ├── core/          v1.11.1     Framework foundation (Redis messaging, lifecycle, utils) + shipped TypeScript declarations
-│   ├── web-framework/ v1.32.0     Express server + auth (incl. real local auth) + admin config-management + config drift + Profile/About + ti-charts + role gate + TI_WEB_* env overrides + /health + route seams
+│   ├── web-framework/ v1.33.0     Express server + auth (incl. real local auth) + admin config-management + config drift + Profile/About + ti-charts + role gate + TI_WEB_* env overrides + /health + route seams
 │   ├── web-content/   v0.3.1      Content-publishing engine — path-index routing, deny-by-default visibility, SEO documents, feeds, email capture (WIP)
 │   └── tester/        v1.3.5      Reference/example service implementation + the docker-build target
 ├── .github/workflows/             ci.yml (lint/test/build) · codeql-analysis.yml · npm-publish.yml · cla.yml
@@ -160,7 +160,7 @@ npm test    # node --test — runs test/*.test.js (message-hash + security-hash-
 
 ---
 
-## Package: web-framework (v1.32.0)
+## Package: web-framework (v1.33.0)
 
 **Role**: Express.js web server + authentication layer + a reusable **admin config-management subsystem** for web-facing UIs + a CSP-safe **charting primitive library** (`ti-charts.js`) + the container-deployment surface (`TI_WEB_*` env overrides, `GET /health`) and the **route-registration seams** (1.17.0) a subclass uses to mount its own routes — what `web-content` is built on.
 
@@ -190,7 +190,19 @@ npm test    # node --test — runs test/*.test.js (message-hash + security-hash-
 
 **Public exports**: `./config-management` (config-service), `./web-application` (web-app-manager), `./web-server`, `./definitions`.
 
-**Since the skill's last sync (1.25.1 → 1.32.0):**
+**Since the skill's last sync (1.25.1 → 1.33.0):**
+- **A failed OIDC callback is refused through the normal error path** (1.33.0, BREAKING). It used to answer
+  `response.status( 400 ).end()` — a bare status with an empty body, no log line, and the three distinct reasons a
+  callback fails collapsed into one blank page. A refusal now carries an explicit `401`, so it presents like every
+  other sign-in failure: an HTML `GET` lands back on the login page with `?error=<code>`. The three reasons are
+  distinguished **in the log, not the response** (the visitor has no use for the difference and an attacker
+  probing the endpoint should not be handed it): `E_WEB_INVALID_REQUEST_QUERY` when the provider returned no code,
+  naming the provider's own `error`; **`E_SEC_INVALID_EXPIRED_SESSION` when the session carries no OAuth state,
+  naming the host the callback arrived on** — a session cookie is host-scoped, so a sign-in begun on one hostname
+  and called back on another arrives with no cookie, which is what a service reachable under two names produces;
+  and `E_SEC_UNAUTHORIZED_ACCESS` on a state mismatch. **Nothing secret is logged** — never the code, the state
+  values, the verifier or the nonce, and a test pins that. The same release stopped `oidc.state && state !== oidc.state`
+  skipping the comparison when the expected state is absent: an unverifiable callback is refused instead.
 - **Session lifetime, and the two defects that threw a signed-in user out ten minutes after sign-in** (1.27.0).
   `cookies.maxAge` was `604800` — seven days expressed in **seconds**, written into a field express-session reads as
   **milliseconds**, so every session lasted 604.8 seconds. It is now `28800000` (eight hours, in the unit the field

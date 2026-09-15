@@ -2,6 +2,34 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.33.0
+
+* fix(web-handlers)!: refuse an OpenID Connect callback that cannot be completed through the normal error path
+  instead of answering `response.status(400).end()`. That was a bare status with an empty body: the visitor got a
+  blank page, nothing was logged, and the three distinct reasons a callback fails were collapsed into one
+  indistinguishable response. Whoever had to work out why had neither a message nor a log line to start from. A
+  refusal is now raised with an explicit `401`, so it presents exactly like every other sign-in failure — an
+  HTML `GET` lands back on the login page with `?error=<code>`, and an API client gets the standard payload.
+  Marked breaking because the status and body of a failed callback change; no caller should have been depending on
+  an empty 400, but a caller that was will see a `303` or a `401`.
+* feat(web-handlers): distinguish the three failure reasons in the log, with the fact that identifies each.
+  `E_WEB_INVALID_REQUEST_QUERY` when the provider returned no authorization code, naming the provider's own
+  `error` (usually `access_denied` — the visitor declined consent). `E_SEC_INVALID_EXPIRED_SESSION` when the
+  session carries no OAuth state, **naming the host the callback arrived on and why that matters**: a session
+  cookie is host-scoped, so a sign-in begun on one hostname and called back on another arrives with no cookie and
+  therefore nothing to verify against. A service reachable under more than one name produces exactly this — a
+  platform that assigns both a generated and a deterministic hostname, say — and so does a session that expired
+  while the visitor sat on the consent screen. `E_SEC_UNAUTHORIZED_ACCESS` when the state does not match the one
+  issued. The distinction is in the log rather than the response, because the visitor has no use for it and an
+  attacker probing the endpoint should not be handed it. **Nothing secret is logged** — never the authorization
+  code, the state values, the PKCE verifier or the nonce — and a test pins that.
+* fix(web-handlers)!: refuse a callback whose session holds a PKCE verifier but no expected state, rather than
+  skipping the comparison. The guard was `oidc.state && state !== oidc.state`, so an absent expected state
+  disabled the check entirely. Nothing in the framework produces such a session — `authenticationHandler` writes
+  the verifier and the state together — but an unverifiable callback is not a callback to trust, and a guard that
+  silently turns itself off when its own input is missing is the wrong shape. `openid-client` checks
+  `expectedState` as well; this keeps the refusal where it can be explained.
+
 ## Version 1.32.0
 
 * fix(authorization)!: `applyAdminRole` now reconciles the `admin` role in **both** directions — granted when the
