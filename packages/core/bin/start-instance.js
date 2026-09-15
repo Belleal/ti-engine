@@ -40,8 +40,16 @@ const envFilePath = ( () => {
 
 // Load the resolved .env file using the native Node loader (Node >= 20.12). A missing file is not fatal —
 // environment variables may be supplied entirely by the OS/container. Existing process.env values are NOT overridden.
+//
+// Whether it was found is recorded rather than discarded. The path is derived from process.cwd(), so an instance
+// started from a different working directory — an IDE run configuration, a wrapper script — silently reads no env
+// file at all, and every setting it carried is simply absent. That surfaces much later as behaviour nobody
+// configured, with nothing linking it back to the file that was never read. The logger cannot be required yet
+// (loading it pulls in configuration that reads process.env), so the outcome is logged a few lines down.
+let envFileLoaded = false;
 try {
     process.loadEnvFile( envFilePath );
+    envFileLoaded = true;
 } catch ( error ) {
     if ( error.code !== "ENOENT" ) {
         throw error;
@@ -50,6 +58,10 @@ try {
 
 const tools = require( "#tools" );
 const logger = require( "#logger" );
+
+logger.log( envFileLoaded
+    ? `Loaded environment variables from '${ envFilePath }'.`
+    : `No environment file at '${ envFilePath }' — continuing with the environment as supplied. If settings you expected are missing, check the working directory this instance was started from.`, logger.logSeverity.DEBUG );
 
 // Configure the current instance variables before requiring any platform modules and store the necessary ones in memory cache:
 process.env.TI_INSTANCE_ID = "ti-" + tools.getUUID();

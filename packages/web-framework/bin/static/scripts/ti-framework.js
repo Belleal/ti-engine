@@ -205,6 +205,32 @@ const configureToolbox = () => {
         },
 
         /**
+         * Removes a query parameter from the address bar without reloading or adding a history entry.
+         * <br/>
+         * For a parameter that carries a one-time message: once it has been read and shown, it has done its job, and
+         * leaving it in the URL means a refresh or a bookmark replays a failure that is no longer happening.
+         * `replaceState` rather than `pushState`, so the back button is not left stepping through states the visitor
+         * never navigated to.
+         *
+         * @method
+         * @param {string} name
+         * @public
+         */
+        clearUrlParam( name ) {
+            if ( !window.history || typeof window.history.replaceState !== "function" ) {
+                return;
+            }
+            const url = new URL( window.location.href );
+            if ( !url.searchParams.has( name ) ) {
+                return;
+            }
+            url.searchParams.delete( name );
+            // Keep a bare "?" off the end when the last parameter goes.
+            const search = url.searchParams.toString();
+            window.history.replaceState( null, "", url.pathname + ( search ? "?" + search : "" ) + url.hash );
+        },
+
+        /**
          * Used to get the visible box of the document.
          *
          * @method
@@ -1684,6 +1710,10 @@ const configureLoginError = () => {
         init() {
             const tiToolbox = Alpine.store( "tiToolbox" );
             this.hasError = Boolean( tiToolbox.getUrlParam( "error" ) );
+            // The parameter is a one-time message, not state. Read it, show it, drop it — otherwise a refresh (or a
+            // bookmark, or a shared link) replays a sign-in failure that already happened, and the login screen can
+            // never be returned to its blank state without editing the URL by hand.
+            tiToolbox.clearUrlParam( "error" );
         }
     };
 };

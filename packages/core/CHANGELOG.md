@@ -2,6 +2,17 @@
 
 This document contains the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.12.0
+
+* feat(start-instance): report which `.env` file was loaded, or that none was found at the resolved path, at `DEBUG`.
+  The path is derived from `process.cwd()`, and a missing file is deliberately not fatal — a container legitimately
+  supplies its whole environment directly. But the two cases were indistinguishable: an instance started from a
+  different working directory (an IDE run configuration, a wrapper script) read no env file at all, and every
+  setting it carried was simply absent. That surfaces much later as behaviour nobody configured — an empty
+  allowlist, an unset secret — with nothing linking it back to a file that was never read. The outcome is logged
+  just after the logger becomes available, since loading the logger any earlier would pull in configuration that
+  reads `process.env`.
+
 ## Version 1.11.1
 
 License change only — no functional code changed.
