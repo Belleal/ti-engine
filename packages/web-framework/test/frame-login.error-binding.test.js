@@ -59,6 +59,30 @@ describe( "login error surface", () => {
         assert.ok( label.bg && label.bg.length > 0, "Bulgarian copy is required" );
     } );
 
+    it( "carries fallback text, so it can never render as an empty box", () => {
+        // The key lives in this package's web-server-labels.json, and a consuming application configures exactly one
+        // labels path — its own — so the key does not resolve there. `x-text-label` then falls back to the element's
+        // own text content. With the element empty, the red alert box rendered with nothing in it: visibly broken,
+        // saying nothing to the person who just failed to sign in.
+        const match = fragment.match( /id="ti-error"[\s\S]*?x-text-label="[^"]+">([\s\S]*?)<\/div>/ );
+
+        assert.ok( match, "the error element must be found" );
+        assert.ok( match[ 1 ].trim().length > 0,
+            "the element needs fallback text — an empty one renders an empty alert box wherever the framework's own labels are not loaded" );
+    } );
+
+    it( "drops the error parameter from the URL once it has been shown", () => {
+        // `?error=` is a one-time message, not state. Left in place, a refresh replays a failure that already
+        // happened and the login screen cannot be returned to its blank state without editing the URL by hand.
+        assert.match( script, /clearUrlParam\s*\(\s*name\s*\)\s*\{/, "the toolbox must expose clearUrlParam" );
+        assert.match( script, /replaceState/, "clearing must not add a history entry the visitor never navigated to" );
+
+        const component = script.match( /const configureLoginError = \(\) => \{[\s\S]*?\n\};/ );
+        assert.ok( component, "the tiLoginError component must be found" );
+        assert.match( component[ 0 ], /clearUrlParam\(\s*"error"\s*\)/,
+            "the component must consume the parameter it read" );
+    } );
+
     it( "uses no inline styles, which the Alpine CSP build forbids", () => {
         assert.doesNotMatch( fragment, /\sstyle="/, "inline style attributes are forbidden under the CSP build" );
     } );

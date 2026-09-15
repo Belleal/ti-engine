@@ -12,12 +12,17 @@
         <!-- Login card -->
         <div class="ti-login-card">
             <!-- Error message -->
+            <!-- The element's own text is the FALLBACK the x-text-label directive falls back to, and it has to be
+                 here: this key lives in the framework's web-server-labels.json, and a consuming application
+                 configures exactly one labels path — its own — so the framework's catalogue is not loaded and the
+                 key does not resolve. An empty element therefore rendered an empty red box: visibly broken, saying
+                 nothing. An application that wants this localized adds the key to its own catalogue. -->
             <div id="ti-error"
                  class="ti-login-error"
                  x-data="tiLoginError"
                  x-bind:class="{ visible: hasError }"
                  role="alert"
-                 x-text-label="interface.default.login.error-sign-in-failed"></div>
+                 x-text-label="interface.default.login.error-sign-in-failed">Sign-in failed. Please try again.</div>
 
             <!--ti-auth-method:local-->
             <!-- Local auth form -->
