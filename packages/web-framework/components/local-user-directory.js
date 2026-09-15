@@ -233,7 +233,8 @@ function verifyPassword( password, encoded ) {
 // Usernames that JavaScript's object model treats specially, rejected here because the storage layer this
 // module writes through cannot represent all of them safely — reusing the exact trio ('__proto__',
 // 'constructor', 'prototype') this codebase already treats as reserved at every other prototype-pollution
-// boundary (see the CA-91 employee field-path guards in packages/competence). Verified empirically per name,
+// boundary (see the CA-91 employee field-path guards in the competence application, now its own repository).
+// Verified empirically per name,
 // not assumed uniformly:
 // - '__proto__' is the one that corrupted storage, in @ti-engine/core **before 1.11.0**.
 //   `cache.instance.setJSON` serializes through `tools.stringifyJSON` —

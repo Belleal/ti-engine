@@ -16,6 +16,19 @@ Artifact Registry, Cloud Run.
 **Spec:** `docs/superpowers/specs/2026-09-14-competence-repository-extraction-design.md`
 **Issue:** CA-120 · **Branch (ti-engine):** `claude/eloquent-davinci-1z088q`, off `master`
 
+## Status (2026-09-14)
+
+Phases A and B are done; Phase C has not started. Nothing is deleted from ti-engine.
+
+- **Phase A** merged as PR #146.
+- **Phase B** is `Belleal/competence` PR #1 — 645 commits, 297 files, full history. `npm ci` clean,
+  **1058/1058 tests across 211 suites** (identical to the monorepo), lint 0 errors.
+- **Task 8's image gates are open**: the environment this ran in has the docker binary but no usable daemon, and
+  `deploy.sh` needs `gcloud`. `docker build` runs in that PR's own CI instead.
+
+The extraction found four couplings and two undeclared dependencies beyond the one the spec originally named;
+§5 of the design record is corrected, and its §11 gate table gained the two checks that would have caught them.
+
 ## Global Constraints
 
 - **Every commit message ends with `(CA-120)`.** Conventional Commits, scoped `competence`, `web-framework`,
@@ -97,8 +110,12 @@ node_modules dependency.
       lockfile ignore — check `.gitignore` explicitly).
 - [ ] `docs/superpowers/preview/build-preview.js`: its `WF` path becomes
       `node_modules/@ti-engine/web-framework/bin/static/scripts`, its `CO` path the repository root.
-- [ ] Gate: `npm ci` from a clean checkout, then
-      `node -e "require.resolve('@ti-engine/core/bin/start-instance.js')"`.
+- [ ] Gate: `npm ci` from a clean checkout, then `node -e "require.resolve('@ti-engine/core')"`.
+      **Not** `require.resolve( '@ti-engine/core/bin/start-instance.js' )` — that subpath is not in core's
+      `exports` map, so it throws `ERR_PACKAGE_PATH_NOT_EXPORTED` even on a correct install. (The command
+      was inherited from the CA-90 docker plan and had evidently never been run.) The `start` script and the
+      Dockerfile `CMD` both address that file as a filesystem **path**, which Node does not route through
+      `exports` — so they work, and what is worth checking is that the file exists and that `.` resolves to it.
 - [ ] Gate: full test suite green at the monorepo count; `npx eslint .` with no new errors.
 
 ### Task 6: Rewire the container build
@@ -118,7 +135,10 @@ node_modules dependency.
       docker build. Drop `check:types` (no published declarations here).
 - [ ] `cd.yml`: tag convention `competence-v*` → `v*`, everywhere it appears including the dispatch validation
       and the error messages naming `packages/competence/INSTALL.md`.
-- [ ] Add `codeql-analysis.yml`, `cla.yml` and a Dependabot config — all per-repository, none inherited.
+- [x] Add `cla.yml` and a Dependabot config — per-repository, neither inherited.
+- [x] **CodeQL: deliberately not added.** The new repository is private, where code scanning needs the paid
+      GitHub Code Security add-on, so the ported workflow failed at upload on its first run. Removed rather
+      than carried failing; see design record §8.4 and the new repository's `SECURITY.md`.
 - [ ] Paths: every workflow reference to `packages/competence/...` loses the prefix.
 - [ ] Gate: push the branch and let CI run green before merging it to `main`.
 

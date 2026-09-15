@@ -25,8 +25,8 @@ const { readSection } = require( "./changelog-section.js" );
 
 /**
  * The packages this repository publishes to npm, in dependency order — a dependent is never
- * published before the package it depends on. `competence` is deliberately absent: it is the
- * application, shipped as a container image by `cd.yml`, and must never reach the registry.
+ * published before the package it depends on. Every package here is publishable; the one that was
+ * deliberately absent, the `competence` application, has moved to its own repository (CA-120).
  *
  * @type {string[]}
  */
@@ -215,8 +215,8 @@ async function main() {
     const singleDirectory = ( packageIndex >= 0 ) ? args[ packageIndex + 1 ] : undefined;
 
     if ( packageIndex >= 0 && !PUBLISHABLE_PACKAGES.includes( singleDirectory ) ) {
-        // The guard is the point: it is what stops `competence`, or a typo, from being handed to
-        // `npm publish` by a workflow input.
+        // The guard is the point: it is what stops a typo, or a package added to this repository
+        // that is not meant for the registry, from being handed to `npm publish` by a workflow input.
         throw new Error( `"${ singleDirectory }" is not a publishable package. Publishable: ${ PUBLISHABLE_PACKAGES.join( ", " ) }.` );
     }
 
