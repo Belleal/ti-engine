@@ -135,7 +135,10 @@ node_modules dependency.
       docker build. Drop `check:types` (no published declarations here).
 - [ ] `cd.yml`: tag convention `competence-v*` → `v*`, everywhere it appears including the dispatch validation
       and the error messages naming `packages/competence/INSTALL.md`.
-- [ ] Add `codeql-analysis.yml`, `cla.yml` and a Dependabot config — all per-repository, none inherited.
+- [x] Add `cla.yml` and a Dependabot config — per-repository, neither inherited.
+- [x] **CodeQL: deliberately not added.** The new repository is private, where code scanning needs the paid
+      GitHub Code Security add-on, so the ported workflow failed at upload on its first run. Removed rather
+      than carried failing; see design record §8.4 and the new repository's `SECURITY.md`.
 - [ ] Paths: every workflow reference to `packages/competence/...` loses the prefix.
 - [ ] Gate: push the branch and let CI run green before merging it to `main`.
 

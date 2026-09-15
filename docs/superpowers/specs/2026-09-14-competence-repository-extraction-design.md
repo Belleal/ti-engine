@@ -276,6 +276,27 @@ CodeQL, Debricked, CodeRabbit, Dependabot, branch protection and required status
 repository and need standing up on the new one. Dependabot in particular: ti-engine's root-level config reaches
 every package through npm workspaces, which the new repository does not have.
 
+**CodeQL turned out not to be a matter of standing anything up.** The new repository is **private** — a
+deliberate choice, confirmed 2026-09-15 — and code scanning on a private repository requires the paid GitHub
+Code Security add-on. ti-engine is public, which is why the workflow has always simply worked there. Ported as
+written, it failed on its first run at the *upload* step (`Code scanning is not enabled for this repository`)
+while the analysis itself completed.
+
+The workflow is therefore **removed** from the new repository rather than carried in a failing state. Not
+`continue-on-error`, and not a branch filter that quietly stops it firing: a check that fails identically on
+every run trains everyone to ignore a red square and hides the next failure that is real. `SECURITY.md` there
+records the absence, the coverage it costs, and the two ways back.
+
+The cost is real and worth naming: CA-91 was a CodeQL finding against **this application's own code**
+(prototype-pollution in employee field-path traversal), raised twice. The framework stays covered — it is
+scanned in ti-engine, which is public — so what lapses is the application's own code.
+
+**A second consequence of private, which no file decides.** competence's source is public today inside this
+repository, and §9.1 removes it. After that it is not publicly available anywhere. Nothing about that conflicts
+with the AGPL, which obliges source only to users of a modified network deployment, and the commercial license
+in `LICENSE`/`README` is the stated alternative — but it is a change of posture, and it is now a decision rather
+than a side effect of a new repository defaulting to private.
+
 **npm trusted publishing is deliberately untouched.** Each published package's trusted publisher is keyed to
 the workflow *filename* in this repository. `npm-publish.yml` does not move, is not renamed, and its job matrix
 is unchanged — competence was never in it.
