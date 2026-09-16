@@ -2,6 +2,40 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.35.1
+
+* fix(web-handlers): stop sending `upgrade-insecure-requests` to a visitor who is not on HTTPS. The directive was
+  never declared in `cspHeaderHandler`'s own `directives` object — it arrived with Helmet's `useDefaults` set and
+  went out on every response, telling the browser to rewrite this origin's `http://` URLs to `https://` on a
+  `TI_WEB_USE_TLS=false` deployment that has no TLS listener to answer them.
+  <br/>
+  What it broke was **sign-out, and only sign-out**, which is why it survived this long. Chrome exempts a
+  potentially-trustworthy host such as `localhost` when it issues the *first* request, so every ordinary XHR on an
+  HTTP deployment works — but it applies the upgrade when it resolves a **redirect**, and `logoutHandler` is the one
+  response in the framework that redirects. The sign-out `POST` succeeded, its `303` to `/` was followed to
+  `https://` instead, and the handshake failed with `net::ERR_SSL_PROTOCOL_ERROR` — surfacing through htmx as
+  `htmx:sendError`, which names neither the scheme nor the directive that chose it.
+  <br/>
+  The decision is per **request**, not per deployment: what the directive should follow is the scheme the *browser*
+  is on, not the one the Node server happens to be listening with. A reverse proxy terminating TLS in front of an
+  HTTP server therefore still gets it — `X-Forwarded-Proto` reports that, and `trust proxy` is already set — so the
+  Cloud Run / IAP deployment is unchanged. Nothing is given up where the directive was correct; an HTTPS deployment
+  keeps it.
+  <br/>
+  The scheme decision now lives in one place (`isSecureRequest`), shared by all three handlers that had been making
+  it separately — `getBaseUrl`, `cspHeaderHandler` and `httpRedirectHandler`. Two of them disagreeing about whether
+  a visitor is on HTTPS is how this bug would come back on one surface only, so their agreement is asserted by test
+  rather than assumed.
+  <br/>
+  The helper leads with `request.secure`, which is already proxy-aware — `trust proxy` is set unconditionally, so
+  Express resolves `X-Forwarded-Proto` itself and takes the first hop of a chain — and then reads the forwarded
+  header as a second opinion for the one case Express gets wrong: it compares the forwarded scheme
+  **case-sensitively**, so a proxy sending `HTTPS` reports as insecure and its visitors would be served the non-TLS
+  policy. That clause reads as redundant beside `request.secure` and is not; the measured matrix is recorded in the
+  test file so it is not simplified away. It stays an OR rather than an override, because letting the raw header
+  win would make it authoritative for a consumer who has turned `trust proxy` off — the one configuration in which
+  they have said not to trust it.
+
 ## Version 1.35.0
 
 * fix(auth-manager)!: resolve an OpenID identity from the ID token claims **and** the `userinfo` response, instead

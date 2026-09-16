@@ -135,10 +135,41 @@ const sanitizeExternalValue = ( value ) => {
  * @returns {string}
  * @private
  */
+let isSecureRequest = ( request ) => {
+    if ( !request ) {
+        return false;
+    }
+
+    // `request.secure` is the primary signal and is already proxy-aware: the server sets `trust proxy`
+    // unconditionally, so Express resolves `X-Forwarded-Proto` itself and takes the first hop of a chain. A proxy
+    // that truthfully reports `http` for a plain-HTTP visitor therefore lands here as `false` with no help needed.
+    //
+    // The header is then read as a SECOND OPINION, for the one case Express gets wrong: it compares the forwarded
+    // scheme case-sensitively, so a proxy sending `HTTPS` yields `request.secure === false` and would be treated as
+    // a plain-HTTP visitor. This clause looks redundant beside `request.secure` and is not — see the matrix in
+    // `test/web-handlers.csp-upgrade-insecure.test.js`, which pins it so it is not simplified away.
+    //
+    // It is deliberately an OR rather than an override. Letting the raw header win would make it authoritative for
+    // a consumer who has turned `trust proxy` off — which is precisely the configuration in which they have said
+    // not to trust it.
+    const rawForwarded = ( typeof request.get === "function" )
+        ? request.get( "x-forwarded-proto" )
+        : ( request.headers && request.headers[ "x-forwarded-proto" ] );
+    const forwarded = String( rawForwarded || "" ).split( "," )[ 0 ].trim().toLowerCase();
+    return request.secure === true || forwarded === "https";
+};
+
+/**
+ * Reconstructs the origin the visitor actually reached, honouring a terminating proxy's forwarded headers.
+ *
+ * @method
+ * @param {ExpressRequest} request
+ * @returns {string}
+ * @private
+ */
 let getBaseUrl = ( request ) => {
-    const xfProtocol = String( request.get( "x-forwarded-proto" ) || "" ).toLowerCase();
     const xfHost = request.get( "x-forwarded-host" );
-    const protocol = ( request.secure || xfProtocol === "https" ) ? "https" : "http";
+    const protocol = isSecureRequest( request ) ? "https" : "http";
     const host = xfHost || request.get( "host" );
     return `${ protocol }://${ host }`;
 };
@@ -533,9 +564,7 @@ module.exports.userInformationHandler = () => {
  */
 module.exports.httpRedirectHandler = ( instance ) => {
     return ( request, response, next ) => {
-        const xfProto = String( request.get ? request.get( "x-forwarded-proto" ) : ( request.headers[ "x-forwarded-proto" ] || "" ) ).toLowerCase();
-        const isSecure = request.secure === true || xfProto === "https";
-        if ( isSecure ) {
+        if ( isSecureRequest( request ) ) {
             next();
         } else {
             if ( instance.isAllowedHost( request.hostname ) !== true ) {
@@ -709,9 +738,23 @@ module.exports.cspHeaderHandler = () => {
             frameAncestors: [ "'self'" ]
         };
 
+        // `upgrade-insecure-requests` is not declared above — it arrives with Helmet's `useDefaults` set, and it is
+        // only ever correct for a visitor who is already on HTTPS. Served over plain HTTP it tells the browser to
+        // rewrite this origin's `http://` URLs to `https://`, against a server with no TLS listener to answer them.
+        //
+        // What that broke was sign-out, and only sign-out. Chrome exempts a potentially-trustworthy host such as
+        // `localhost` when it issues the FIRST request, so every ordinary XHR on a `TI_WEB_USE_TLS=false` deployment
+        // works — but it applies the upgrade when it resolves a REDIRECT, and `logoutHandler` is the one response
+        // that redirects. The sign-out POST succeeded, its `303` to `/` was followed to `https://` instead, and the
+        // handshake failed with `ERR_SSL_PROTOCOL_ERROR` — reported by htmx as `htmx:sendError`, which names neither
+        // the scheme nor the directive that chose it.
+        //
+        // The decision is per request rather than per deployment, so a reverse proxy terminating TLS in front of an
+        // HTTP server still gets the directive: what matters is the scheme the BROWSER is on, which is exactly what
+        // `X-Forwarded-Proto` reports.
         const csp = helmet.contentSecurityPolicy( {
             useDefaults: true,
-            directives
+            directives: isSecureRequest( request ) ? directives : { ...directives, upgradeInsecureRequests: null }
         } );
         return csp( request, response, next );
     };
