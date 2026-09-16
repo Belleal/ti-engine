@@ -489,6 +489,13 @@ acted on). What follows is only what is specific to *this* repository's gates.
   pass that will never start. It also occasionally reports it could not clone the repository and that the review
   may be incomplete — treat that review as partial, not as a clean bill.
   <br/>
+  **A push while a review is in flight cancels it**, and silently enough to miss: the acknowledgement comment is
+  edited in place to *"⚠️ Action not completed — Pull request base or head changed"*, the summary comment reverts
+  to the un-triggered checkbox with a fresh Run ID, and no review is ever posted. Nothing announces this as a
+  failure. So **trigger the review after the last push of a round, not before** — and if a finding arrives that
+  needs a fix, expect to re-trigger once the fix is pushed, because CodeRabbit will not pick the new head up on its
+  own. Measured on #153, where the first trigger was lost to exactly this.
+  <br/>
   It runs `markdownlint-cli2` over changed markdown. **MD022** (a heading must be surrounded by blank lines) is the
   one that bites documentation edits; only the violations inside your diff get flagged, so a file with pre-existing
   ones is not your problem unless you touch those lines.
