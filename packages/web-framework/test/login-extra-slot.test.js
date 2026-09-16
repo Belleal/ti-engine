@@ -34,10 +34,17 @@
  * sweep — the next literal anybody hardcodes here will not be spelled the way this one was.
  */
 
-const { describe, it } = require( "node:test" );
+// `#locateStaticFile` memoizes by relative path, so without this the framework's empty default would be cached and
+// the application-override case below could never resolve a different file. Read in the constructor, hence set here
+// rather than inside a test; `node --test` gives each file its own process, so this affects nothing else.
+process.env.TI_WEB_APP_STATIC_CACHE_DISABLED = "true";
+
+const { describe, it, after } = require( "node:test" );
 const assert = require( "node:assert/strict" );
 const fs = require( "node:fs" );
+const os = require( "node:os" );
 const path = require( "node:path" );
+const TiWebAppManager = require( "#web-app-manager" );
 
 const STATIC_ROOT = path.join( path.resolve( __dirname, ".." ), "bin", "static" );
 const LOGIN_FRAGMENT = path.join( STATIC_ROOT, "fragments", "frame-login.html" );
@@ -156,6 +163,52 @@ describe( "no application-specific identity picker ships in the framework", () =
         for ( const file of [ LOGIN_FRAGMENT, FRAMEWORK_SCRIPT, EXTRA_COMPONENT ] ) {
             assert.doesNotMatch( withoutComments( read( file ) ), /employeeID/, `${ path.basename( file ) } names an application's employee identity` );
         }
+    } );
+
+} );
+
+describe( "the slot resolves an application's component in preference to the empty default", () => {
+
+    // A stand-in for a consuming application's static content directory, holding only the one file it overrides.
+    const appStatic = fs.mkdtempSync( path.join( os.tmpdir(), "ti-login-slot-" ) );
+    const APP_PANEL = "APPLICATION SUPPLIED THIS";
+    fs.mkdirSync( path.join( appStatic, "fragments", "components" ), { recursive: true } );
+    fs.writeFileSync( path.join( appStatic, "fragments", "components", "component-login-extra.html" ),
+                      `<div class="app-login-extra">${ APP_PANEL }</div>` );
+    after( () => fs.rmSync( appStatic, { recursive: true, force: true } ) );
+
+    class Harness extends TiWebAppManager {
+        constructor() {
+            super( "login-extra-slot-test" );
+        }
+    }
+
+    const render = ( staticContentPaths ) => {
+        const manager = new Harness();
+        manager.setEnabledAuthMethods( [ "local" ] );
+        return manager.assembleHtmlView( null, staticContentPaths, "/app", { csrfToken: "test-token", nonce: "test-nonce" } );
+    };
+
+    it( "renders nothing into the slot when only the framework supplies the component", async () => {
+        const html = await render( [ STATIC_ROOT ] );
+        assert.doesNotMatch( html, /ti-component-login-extra-placeholder/, "an unreplaced placeholder means the component was never resolved" );
+        assert.doesNotMatch( html, /ti-login-test/, "the removed panel must not come back through the slot" );
+    } );
+
+    it( "renders the application's component when its static path is present", async () => {
+        // The reverse-order search is the whole mechanism: the application path is passed last and must win over the
+        // framework's own. If this ever regresses, every consumer's login screen silently loses its extension.
+        const html = await render( [ STATIC_ROOT, appStatic ] );
+        assert.match( html, new RegExp( APP_PANEL ) );
+        assert.doesNotMatch( html, /ti-component-login-extra-placeholder/ );
+    } );
+
+    it( "leaves the auth-method gating alone either way", async () => {
+        // The slot is spliced before `transformHtml` runs its marker stripping, so a mistake in one could silently
+        // disable the other — and a login page with no sign-in form is a worse outage than a missing dev panel.
+        const html = await render( [ STATIC_ROOT, appStatic ] );
+        assert.match( html, /action="\/login\/local"/, "the enabled local form must survive the splice" );
+        assert.doesNotMatch( html, /login\/openid-azure/, "a disabled provider must still be stripped" );
     } );
 
 } );

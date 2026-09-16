@@ -35,10 +35,12 @@ This document will contain the list of changes made to the framework. The format
   **Found while removing it:** the fragment's root element still bound `x-data="tiLoginTestUserPanel"`, which would
   have thrown on every login page render once the component was gone. The new test caught it.
   <br/>
-  Verification: 521 tests / 106 suites in this package (8 new in `test/login-extra-slot.test.js`), and the slot was
-  measured end-to-end through the public `assembleHtmlView` — framework paths alone render no panel and leave no
-  placeholder behind, an added application path renders the application's panel, and the auth-method gating is
-  unaffected.
+  Verification: 524 tests / 107 suites in this package, 11 of them new in `test/login-extra-slot.test.js`. Eight
+  assert against the **shipped files** — the panel is gone from the fragment, the script, the stylesheet and the
+  cookie, and the slot is declared and ships empty. The other three drive the public `assembleHtmlView` end to end:
+  framework paths alone leave no placeholder and no panel behind, an added application path renders that
+  application's component, and the auth-method gating survives the splice either way. Removing the `components`
+  declaration fails three of the eleven, which is what makes them regression coverage rather than description.
 
 ## Version 1.35.4
 
