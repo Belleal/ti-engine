@@ -2,6 +2,10 @@
 
 This document contains the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.12.3
+
+* chore(package): update `package.json` structure
+
 ## Version 1.12.2
 
 * fix(start): move the logger reporting the .env file loading after the instance has received an ID (for real this time).
