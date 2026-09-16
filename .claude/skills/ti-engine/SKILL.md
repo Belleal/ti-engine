@@ -176,8 +176,8 @@ module.exports.service = function (serviceDefinition, serviceParams, serviceCall
 
 **Test commands**:
 ```bash
-npm test    # node --test — runs test/*.test.js: 42 tests / 7 suites across cache-get-values,
-            # localization, message-hash, security-hash-key-warning and tools-proto-keys
+npm test    # node --test — runs test/*.test.js: 42 tests / 7 suites across 5 files
+            # (cache-get-values, localization, message-hash, security-hash-key-warning, tools-proto-keys)
 ```
 
 ---
@@ -481,20 +481,25 @@ acted on). What follows is only what is specific to *this* repository's gates.
 - **`cla.yml` (CLA Assistant)** fails a PR unless every commit author has signed `CLA.md`; the allowlist is
   `Belleal` alone. See the commit-authorship convention above — the fix is to author as the maintainer, not to
   widen the allowlist.
-- **CodeRabbit reviews each PR here, but only when asked.** It is configured (`.coderabbit.yaml`, profile
-  `ASSERTIVE`) and posts on every PR immediately — but the first comment is a *"Trigger review"* checkbox saying
-  the repository "does not receive automatic reviews because it has fewer than 10 stars". **A review only happens
-  once someone clicks that box or comments `@coderabbitai review`.** Until then the PR looks reviewed, because
-  CodeRabbit has visibly commented, and it is not. Trigger it as part of opening the PR rather than waiting for a
-  pass that will never start. It also occasionally reports it could not clone the repository and that the review
-  may be incomplete — treat that review as partial, not as a clean bill.
+- **CodeRabbit is installed on every PR here; it reviews none of them until asked.** It is configured
+  (`.coderabbit.yaml`, profile `ASSERTIVE`) and comments within seconds of a PR opening — but that first comment is
+  a *"Trigger review"* checkbox saying the repository "does not receive automatic reviews because it has fewer than
+  10 stars". **A review only happens once someone clicks that box or comments `@coderabbitai review`.** Until then
+  the PR looks reviewed, because CodeRabbit has visibly commented, and no review has run. Never read that comment,
+  or the absence of findings under it, as review evidence. It also occasionally reports it could not clone the
+  repository and that the review may be incomplete — treat such a review as partial, not as a clean bill; it has
+  said so on more than one PR here, so it is the normal case rather than a one-off.
   <br/>
   **A push while a review is in flight cancels it**, and silently enough to miss: the acknowledgement comment is
   edited in place to *"⚠️ Action not completed — Pull request base or head changed"*, the summary comment reverts
   to the un-triggered checkbox with a fresh Run ID, and no review is ever posted. Nothing announces this as a
-  failure. So **trigger the review after the last push of a round, not before** — and if a finding arrives that
-  needs a fix, expect to re-trigger once the fix is pushed, because CodeRabbit will not pick the new head up on its
-  own. Measured on #153, where the first trigger was lost to exactly this.
+  failure. So **trigger the review once the head is final for the round — after the last push, never before one** —
+  and if a finding needs a fix, expect to re-trigger after pushing it, because CodeRabbit will not pick the new
+  head up on its own. Measured on #153, where the first trigger was lost to exactly this.
+  <br/>
+  Budget the triggers: the plan allows **one included review per hour**, and the review summary says how many
+  remain. Spending one on a head you are about to push over costs an hour, which is the real reason the ordering
+  above matters.
   <br/>
   It runs `markdownlint-cli2` over changed markdown. **MD022** (a heading must be surrounded by blank lines) is the
   one that bites documentation edits; only the violations inside your diff get flagged, so a file with pre-existing
