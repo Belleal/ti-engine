@@ -1,6 +1,6 @@
 ---
 name: ti-engine
-description: "Use whenever working in the ti-engine monorepo (core / web-framework / web-content / tester) or the web-content publishing engine — architecture, package layout, conventions (CommonJS, #alias imports, Alpine CSP, deepFreeze, frozen singletons), web-content's content model and visibility rules, deployment, node --test testing, versioning/changelog, npm publishing, and the YouTrack (CA) delivery process. Orient before answering about or editing ti-engine code. The competence application was extracted to Belleal/competence (CA-120) and has its own skill there."
+description: "Use whenever working in the ti-engine monorepo (core / web-framework / web-content / tester) or the web-content publishing engine — architecture, package layout, conventions (CommonJS, #alias imports, Alpine CSP, deepFreeze, frozen singletons), authentication and session handling (OpenID Connect with Entra/Google, the admin allowlist, CSP and the request scheme), web-content's content model and visibility rules, deployment, node --test testing, versioning/changelog, npm publishing, and the YouTrack (CA) delivery process. Orient before answering about or editing ti-engine code. Sign-in and configuration questions usually cross into Belleal/competence, which has its own skill — load both."
 ---
 
 # ti-engine Developer Skill
@@ -13,6 +13,13 @@ You are working on the **ti-engine** monorepo — an open-source Node.js microse
 AGPL-3.0-or-later; that package left, and with it the per-package distinction. When adding a new `.js` file, copy
 the header block verbatim from an existing file in the same package.
 
+> **`CLAUDE.md` in the repository root is the other half of this.** It carries the *process* — session start-up,
+> commit identity and signing, the code convention, what "done" means, how a PR is driven — and is deliberately
+> short and slow-changing. This skill carries everything *volatile*: architecture, package layout, versions,
+> counts, invariants. Where the two appear to disagree, **the skill wins on volatile detail and `CLAUDE.md` wins
+> on process.** A change that makes anything asserted here wrong ships its skill edit in the same PR; that rule is
+> in `CLAUDE.md` under *Definition of done*, and it is the only thing keeping this file honest.
+
 ---
 
 ## Monorepo Layout
@@ -20,11 +27,12 @@ the header block verbatim from an existing file in the same package.
 ```
 ti-engine/                         npm workspace root (v1.2.10; workspaces = packages/*)
 ├── packages/
-│   ├── core/          v1.11.1     Framework foundation (Redis messaging, lifecycle, utils) + shipped TypeScript declarations
-│   ├── web-framework/ v1.33.0     Express server + auth (incl. real local auth) + admin config-management + config drift + Profile/About + ti-charts + role gate + TI_WEB_* env overrides + /health + route seams
+│   ├── core/          v1.12.2     Framework foundation (Redis messaging, lifecycle, utils) + shipped TypeScript declarations
+│   ├── web-framework/ v1.35.1     Express server + auth (incl. real local auth) + admin config-management + config drift + Profile/About + ti-charts + role gate + TI_WEB_* env overrides + /health + route seams
 │   ├── web-content/   v0.3.1      Content-publishing engine — path-index routing, deny-by-default visibility, SEO documents, feeds, email capture (WIP)
 │   └── tester/        v1.3.5      Reference/example service implementation + the docker-build target
 ├── .github/workflows/             ci.yml (lint/test/build) · codeql-analysis.yml · npm-publish.yml · cla.yml
+├── CLAUDE.md                      The working agreement — process, read at session start (see below)
 ├── CLA.md · CONTRIBUTING.md       Contributor License Agreement (enforced by cla.yml) + contribution guide
 ├── LICENSE.md                     The license table — Apache-2.0 for every package
 ├── docs/superpowers/              specs/ (design records, 2026-07 onward) + plans/ (implementation plans)
@@ -34,7 +42,7 @@ ti-engine/                         npm workspace root (v1.2.10; workspaces = pac
 
 Dependency direction: `core` is standalone → `web-framework` depends on `core` → **`web-content` depends on both**, and `tester` on `core` alone. Keep framework concerns in `core`/`web-framework` and application concerns in the consumer. Each package has its own independent semver version and `CHANGELOG.md`.
 
-The out-of-repository consumer, `competence`, depends on `core` + `web-framework` by semver range from npm. A breaking change here therefore reaches it only when that range is bumped — which is *after* `npm-publish.yml` has published. That is the regression net this repository lost in CA-120: competence's ~1050-test suite used to run in this workspace on every change.
+The out-of-repository consumer, `competence`, depends on `core` + `web-framework` by semver range from npm. A breaking change here therefore reaches it only when that range is bumped — which is *after* `npm-publish.yml` has published. That is the regression net this repository lost in CA-120: competence's 1060-test suite used to run in this workspace on every change.
 
 Node: the workspace root requires **`>=20.19.0`**; `core` and `web-content` require `>=20.12` (core because of native `process.loadEnvFile`, adopted in core 1.7.0); `web-framework` declares `>=20`. Develop on ≥20.19 to satisfy all of them.
 
@@ -54,14 +62,19 @@ history and older PR bodies; it is no longer the working branch.
 - **Never promise `immutable` for a URL that isn't content-addressed** — a lesson learned the hard way in both `web-framework` 1.19.0 and `web-content` (browsers honour `immutable` through a manual reload, so a shipped fix never reaches a returning visitor).
 - **`.run/*.run.xml` are git-tracked but carry live local credentials** in the working tree — never commit changes to them.
 - **deepFreeze on config** — once settings/config are loaded they are immutable; never mutate them in place.
-- **Commit as the maintainer, disclose the assist in trailers.** `cla.yml` runs the CLA Assistant on every PR and
-  fails it unless each commit author has signed `CLA.md`; the allowlist holds `Belleal` only. The CLA's §1 defines a
-  contributor as "the individual … or the legal entity" — an agent is neither and holds no rights to grant, so the
-  correct resolution is to author the commit as the maintainer rather than to exempt a bot identity. **Set
-  `git config user.name "Boris Kostadinov"` and `git config user.email "kostadinov.boris@gmail.com"` before the
-  first commit of a session**, and keep the `Co-Authored-By:` / `Claude-Session:` trailers, which are what record
-  the assist. A commit authored as `Claude <noreply@anthropic.com>` fails `CLAssistant` and needs re-authoring
-  (`git rebase <base> --exec 'git commit --amend --no-edit --reset-author'`) before the PR can go green.
+- **Commit as the maintainer, disclose the assist in trailers** — `cla.yml` fails a PR whose commit authors have
+  not signed `CLA.md`, and the allowlist holds `Belleal` alone. The identity to set and why it is the correct
+  resolution rather than widening the allowlist are in **`CLAUDE.md` → *Start of session***. The repo-specific
+  remedy when it has already gone wrong: a commit authored as `Claude <noreply@anthropic.com>` fails `CLAssistant`
+  and needs re-authoring with
+  `git rebase <base> --exec 'git commit --amend --no-edit --reset-author'` before the PR can go green.
+- **`process.loadEnvFile` does not override a variable already in the OS environment.** A stale `export` in the
+  shell silently beats a correct `.env`, and the file looks right the whole time — suspect this first whenever
+  configuration "is not being read". It cost one full investigation in this repository: the reported cause of the
+  Entra lock-out (1.35.0) was "`TI_WEB_AUTH_ADMINS` is not being read", the variable was measured and found to be
+  read correctly, the real defect was elsewhere in `auth-manager` — *and* a stale shell export was independently
+  masking the fix on the reporter's machine. core 1.12.0 logs which `.env` file was loaded, which narrows this but
+  does not answer it: the line reports the **file**, not which value ended up in effect.
 - **Config shipped in a release does not reach a seeded deployment on its own.** The store writes a file default
   only when a document has never been written, so a competency or setting added in a release is invisible on any
   environment started before it. That is what the **Configuration drift** panel (web-framework 1.24.0 /
@@ -70,7 +83,7 @@ history and older PR bodies; it is no longer the working branch.
 
 ---
 
-## Package: core (v1.11.1)
+## Package: core (v1.12.2)
 
 **Role**: Foundational framework. All other packages depend on it. Standalone (no intra-repo deps).
 
@@ -106,7 +119,7 @@ history and older PR bodies; it is no longer the working branch.
 
 **Public exports** (`package.json` `exports`): `.` (start-instance), `./tools`, `./cache`, `./exceptions`, `./logger`, `./localization`, `./service-instance`, `./service-consumer`, `./service-provider`, `./definitions` (the shared typedefs).
 
-**Since the skill's last sync (1.9.0 → 1.11.1):**
+**Since the skill's last sync (1.9.0 → 1.12.2):**
 - **TypeScript declarations ship with the package** (1.9.0, fixed in 1.9.1), generated from the JSDoc by
   `.github/scripts/build-types.js` into `types/`. They are **committed**, and `npm run check:types` fails on stale
   output — so regenerate rather than hand-edit. The gate type-checks a generated consumer with `skipLibCheck: false`
@@ -118,6 +131,14 @@ history and older PR bodies; it is no longer the working branch.
   replica with `{}` and bracket assignment, so that one name hit the inherited setter. Now `Object.create(null)`
   (1.11.0).
 - Relicensed **GPL-3.0-or-later → Apache-2.0** (1.11.1).
+- **`start-instance` reports which `.env` file it loaded, or that none was found at the resolved path** (1.12.0,
+  at `DEBUG`; the log line moved after the instance has an ID in 1.12.1/1.12.2). The path comes from
+  `process.cwd()` and a missing file is deliberately not fatal — a container supplies its whole environment
+  directly — but the two cases were indistinguishable, so an instance started from a different working directory
+  (an IDE run configuration, a wrapper script) read no env file at all and every setting it carried was simply
+  absent. That surfaces much later as behaviour nobody configured. **It reports the file, not the outcome**: see
+  the `process.loadEnvFile` trap under *Conventions* — a stale OS variable still beats a correct `.env`, and this
+  line will say the file loaded while the value in effect came from the shell.
 
 **Exception families** (`utils/exceptions.js`) — the class is `TiException` (renamed from `Exception` in 1.4.0); `raise()` accepts an optional `httpCode`:
 - `E_GEN_*` 1000–1010 (general; incl. `E_GEN_NOT_IMPLEMENTED` 1010)
@@ -155,12 +176,13 @@ module.exports.service = function (serviceDefinition, serviceParams, serviceCall
 
 **Test commands**:
 ```bash
-npm test    # node --test — runs test/*.test.js (message-hash + security-hash-key-warning suites)
+npm test    # node --test — runs test/*.test.js: 42 tests / 7 suites across 5 files
+            # (cache-get-values, localization, message-hash, security-hash-key-warning, tools-proto-keys)
 ```
 
 ---
 
-## Package: web-framework (v1.33.0)
+## Package: web-framework (v1.35.1)
 
 **Role**: Express.js web server + authentication layer + a reusable **admin config-management subsystem** for web-facing UIs + a CSP-safe **charting primitive library** (`ti-charts.js`) + the container-deployment surface (`TI_WEB_*` env overrides, `GET /health`) and the **route-registration seams** (1.17.0) a subclass uses to mount its own routes — what `web-content` is built on.
 
@@ -171,10 +193,10 @@ npm test    # node --test — runs test/*.test.js (message-hash + security-hash-
 | `bin/web-app-manager.js` | `TiWebAppManager` **abstract**; HTML fragment rendering, nonces, CSRF, the `registerConfigDocument` / `registerConfigEditor` API, the default `verifyAccess` that enforces a fragment's declared `roles` (1.13.0), and login-page gating to the effective auth methods (1.14.0/1.15.0) |
 | `bin/web-server.json` | Server config (host, port, TLS, auth methods, `auth.admins`, `trustedOrigins`) — most fields overridable via `TI_WEB_*`. **`staticCache` defaults deliberately live on the class, not here**: the constructor's `_.merge` merges arrays by index, so a consumer's empty `immutablePaths` could otherwise never clear a default entry |
 | `bin/build/post-install.js` | `postinstall` step (refreshes bundled static libs) |
-| `components/auth-manager.js` | OpenID Connect (Azure/Google) + local auth; session token generation; `getOAuth2CallbackPath()` + the pure `toCallbackPath( callbackUrl )` (1.18.1) reduce a configured callback to its Express route path |
+| `components/auth-manager.js` | OpenID Connect (Azure/Google) + local auth; session token generation; `getOAuth2CallbackPath()` + the pure `toCallbackPath( callbackUrl )` (1.18.1) reduce a configured callback to its Express route path; the pure statics `resolveOpenIDIdentity( userInfo, claims )` (1.35.0 — the identity an OpenID sign-in puts on the session, read from **both** responses) and `isEmailReportedUnverified( userInfo, claims )` (1.30.0, second source added 1.35.0) |
 | `components/authorization.js` | Role checks/guards — `requireRole`, `hasRole`, and the pure `isAccessAllowed(requiredRoles, userRoles)` (1.13.0) backing the fragment gate; backs admin gating |
 | `components/session-store.js` | Express session storage |
-| `components/web-handlers.js` | Middleware: CSP headers, CSRF validation, auth verification, `healthHandler` (`GET /health`, 1.15.0), `originRefererValidationHandler` (reconstructed origin **or** a configured trusted origin, 1.16.0), error formatting (`resolveHttpCode` derives 4xx from the exception family when no explicit `httpCode`: `E_WEB_*`/`E_APP_*`→422, `E_SEC_*`→403, not-found→404, already-exists→409, method/content→405/415; only internal/comm/unknown stay 500) |
+| `components/web-handlers.js` | Middleware: CSP headers, CSRF validation, auth verification, `healthHandler` (`GET /health`, 1.15.0), `originRefererValidationHandler` (reconstructed origin **or** a configured trusted origin, 1.16.0), the module-private `isSecureRequest( request )` (1.35.1 — the **one** scheme decision, shared by `getBaseUrl`, `cspHeaderHandler` and `httpRedirectHandler`), error formatting (`resolveHttpCode` derives 4xx from the exception family when no explicit `httpCode`: `E_WEB_*`/`E_APP_*`→422, `E_SEC_*`→403, not-found→404, already-exists→409, method/content→405/415; only internal/comm/unknown stay 500) |
 | `components/web-config-env.js` | `applyWebConfigEnvOverrides( config, env = process.env )` (`#web-config-env`, 1.14.0+) — the pure `TI_WEB_*` override layer over the merged server config |
 | `components/user.js` | User object model |
 | `components/config-store.js` | Versioned, audited config store (Redis JSON) — current value, history, validated restore |
@@ -186,11 +208,62 @@ npm test    # node --test — runs test/*.test.js (message-hash + security-hash-
 | `bin/static/` | Frontend assets: HTMX, Alpine.js (CSP build), `safe-nonce`, framework CSS + themes, HTML fragments |
 | `bin/static/scripts/ti-charts.js` | CSP-safe SVG charting library (added 1.10.0); see *Charting primitives* below |
 | `design/admin-config-management.md` | Design doc + implementation log for the config-management feature |
-| `test/*.test.js` | `node --test` suites for the config subsystem + authorization + `ti-charts` (layout math + render structure) + the serving/deployment surface (`web-server-env-overrides`, `web-server.static-cache`, `web-server.route-seams`, `web-server.unprotected-routes`, `web-handlers.health`, `web-handlers.origin`, `web-app-manager.auth-visibility`, `auth-manager`) |
+| `test/*.test.js` | `node --test` — **500 tests / 100 suites across 37 files**: the config subsystem + authorization + `ti-charts` (layout math + render structure) + the serving/deployment surface (`web-server-env-overrides`, `web-server.static-cache`, `web-server.route-seams`, `web-server.unprotected-routes`, `web-handlers.health`, `web-handlers.origin`, `web-app-manager.auth-visibility`) + the auth surface (`auth-manager`, `auth-manager.callback-path`, `auth-manager.email-verified`, **`auth-manager.openid-identity`**, `web-handlers.oauth-callback`, `web-handlers.session-*`) + **`web-handlers.csp-upgrade-insecure`** (which also pins that `cspHeaderHandler` and `httpRedirectHandler` agree about the scheme) |
 
-**Public exports**: `./config-management` (config-service), `./web-application` (web-app-manager), `./web-server`, `./definitions`.
+**Public exports** (`package.json` `exports`) — **six**: `./config-management` (config-service), `./web-application` (web-app-manager), `./web-server`, `./authorization`, `./config-drift`, `./definitions`. The last three are easy to forget and a consumer does import them: competence reaches for `./authorization` and `./config-drift` directly. Anything not on this list fails with `ERR_PACKAGE_PATH_NOT_EXPORTED`, so **adding a module a consumer needs means adding its `exports` entry** — that is the API surface, and changing it is a breaking change for every consumer.
 
-**Since the skill's last sync (1.25.1 → 1.33.0):**
+**Since the skill's last sync (1.25.1 → 1.35.1):**
+- **`upgrade-insecure-requests` follows the visitor's scheme, not the deployment's** (1.35.1). The directive was
+  never declared in `cspHeaderHandler`'s own `directives` object — it arrived with Helmet's `useDefaults` and went
+  out on every response, telling the browser to rewrite this origin's `http://` URLs to `https://` on a
+  `TI_WEB_USE_TLS=false` deployment with no TLS listener to answer them. **What it broke was sign-out, and only
+  sign-out**, which is why it survived: Chrome exempts a potentially-trustworthy host such as `localhost` when it
+  issues the *first* request, so every ordinary XHR works — but it applies the upgrade when resolving a
+  **redirect**, and `logoutHandler` is the one response in the framework that redirects. The `POST` succeeded, its
+  `303` to `/` was followed to `https://`, and the handshake failed `net::ERR_SSL_PROTOCOL_ERROR`, surfacing
+  through htmx as `htmx:sendError` — which names neither the scheme nor the directive that chose it. The decision
+  is per **request**, so a TLS-terminating proxy in front of an HTTP server still gets the directive and Cloud
+  Run / IAP is unchanged. `isSecureRequest` leads with `request.secure` (already proxy-aware: `trust proxy` is set
+  unconditionally, so Express resolves `X-Forwarded-Proto` and takes the first hop of a chain) and reads the
+  forwarded header only as a **second opinion**, never an override, for the one case Express gets wrong — it
+  compares the scheme **case-sensitively**, so a proxy sending `HTTPS` reports as insecure. That clause looks
+  redundant beside `request.secure` and is not; the measured matrix is recorded in
+  `test/web-handlers.csp-upgrade-insecure.test.js` so it does not get simplified away.
+- **An OpenID identity is resolved from the ID token claims *and* `userinfo`, not `userinfo` alone** (1.35.0,
+  BREAKING) — the pure `AuthManager.resolveOpenIDIdentity( userInfo, claims )`. The ID token was fetched, read for
+  the `sub` that `fetchUserInfo` is verified against, and then discarded. That works for Google and **fails for
+  the Microsoft identity platform**, whose `userinfo` returns `sub`, `name`, `family_name`, `given_name`,
+  `picture` and — only when the optional claim is configured — an `email` from the directory's `mail` attribute.
+  **It never returns `preferred_username`: on Entra that claim is in the ID token, and it holds the UPN.** So the
+  one identifier an Entra deployment is configured around — the address an operator knows, lists in
+  `TI_WEB_AUTH_ADMINS` and writes into an application record — never reached the session, `isAdminIdentity` had
+  nothing to match, and the consumer reported the refusal as a missing application record. On a fresh deployment,
+  where the admin exception is the only way in, that is a **lock-out**, which is how it was found.
+  <br/>
+  Username precedence: `userinfo.preferred_username`, `claims.preferred_username`, `userinfo.upn`, `claims.upn`,
+  then e-mail, then name, then `sub:<sub>`. **Two rules, and the claim rule outranks the source rule** — `userinfo`
+  wins *within* a claim because it is the fresher response, but "fresher" earns nothing between two stable
+  identifiers, so it does not promote the Microsoft `upn` extension over the standard `preferred_username`. Only
+  non-empty trimmed strings count, so a provider cannot smuggle `""`, `"   "`, `42` or an object onto a session.
+  The **UPN is deliberately not accepted as an `email`**: it is a sign-in name, not a mailbox, and `email` is what
+  a consumer resolves its own directory by. **BREAKING for a deployment whose `auth.admins` lists an Azure display
+  name** — that stops matching and should become the UPN or the e-mail.
+  <br/>
+  The same release reads `email_verified` from both sources (1.30.0's rule is otherwise intact: only an explicit
+  `false` refuses), and logs **provenance, not values**, once per sign-in at `DEBUG` — `claims.preferred_username`,
+  `userinfo.email`, … The identity strings are never logged, because `auditing.logMinLevel` ships at 0 with
+  console logging on, so a DEBUG line carrying them would write every signed-in person's identifiers to a default
+  deployment's console. An operator already knows their own address; what they need is which claim their provider
+  supplies, and a `sources` map on the returned identity is what answers it.
+- **The login error box can no longer render empty, and `?error=` is cleared from the address bar** (1.34.0). The
+  message had been unreadable since it was added (CA-95): `x-text-label` resolves the key out of **this package's**
+  `web-server-labels.json`, and a consuming application configures exactly one labels path — its own — so it never
+  resolved there, the directive fell back to the element's own text, and the element was empty. A red alert box
+  with nothing in it. Fallback text now lives on the element; an application wanting it localized adds the key to
+  its own catalogue, the same arrangement Profile and About already use. `tiToolbox.clearUrlParam( name )`
+  (`history.replaceState`, so no history entry the visitor never navigated to) drops the parameter once shown — it
+  is a one-time message, not state. The parameter itself stays, because a top-level navigation (an OAuth callback,
+  a non-HTMX form post) can only be answered with a redirect, and a redirect carries no payload.
 - **A failed OIDC callback is refused through the normal error path** (1.33.0, BREAKING). It used to answer
   `response.status( 400 ).end()` — a bare status with an empty body, no log line, and the three distinct reasons a
   callback fails collapsed into one blank page. A refusal now carries an explicit `401`, so it presents like every
@@ -307,7 +380,7 @@ npm test    # node --test — runs test/*.test.js (message-hash + security-hash-
 - `TI_WEB_AUTH_METHODS` — enabled auth methods (`local`, `openid-google`, `openid-azure`); replaces `auth.enabledMethods` (1.15.0)
 - `TI_WEB_AUTH_LOCAL_USERS_PATH` — the local user directory (`auth.local.usersPath`) backing real local auth (1.23.0). There are no hardcoded credentials to disable: a local sign-in succeeds only against a matching, non-disabled record in this file
 - `TI_WEB_TRUSTED_ORIGINS` — extra accepted `Origin`/`Referer` values for state-changing requests behind a proxy that doesn't present the external host (1.16.0)
-- `TI_WEB_AUTH_ADMINS` — admin allowlist; replaces `auth.admins`, matched against the session user's user ID, username, or email (1.18.0)
+- `TI_WEB_AUTH_ADMINS` — admin allowlist; replaces `auth.admins`, matched **case-insensitively** against the session user's user ID, username **or** e-mail (1.18.0). Which of the three an entry should hold depends on the provider, and they are not interchangeable: on **Entra** `username` is the UPN and `email` is the directory's `mail` attribute, routinely two different addresses (1.35.0). The `DEBUG` provenance line names the claim each one came from — that is what it is for. An empty or absent allowlist means **nobody** is an administrator (1.32.0), and the role is reconciled in both directions on every request (1.29.0 + 1.32.0), so removing an entry takes effect on the next request rather than at the end of the session
 - `TI_WEB_STATIC_MAX_AGE` / `TI_WEB_STATIC_IMMUTABLE` / `TI_WEB_STATIC_IMMUTABLE_PATHS` — the `/static` `Cache-Control` policy (1.19.0)
 - `TI_WEB_SESSION_IDLE_TIMEOUT` — the rolling session idle window, in whole **minutes** (1.27.0). A non-integer or non-positive value is ignored, leaving the config value standing — the same posture as `TI_WEB_STATIC_MAX_AGE`
 - `TI_WEB_APP_STATIC_CACHE_DISABLED` — **unrelated to the three above**: turns off the app manager's *in-process* memoization of read fragment/static file contents (`#locateStaticFile`), not any HTTP cache header
@@ -345,7 +418,7 @@ npm test    # node --test — runs test/*.test.js (message-hash + security-hash-
 | `static/web-content.js` | The vanilla, dependency-free site script (reveal observer, dictionary toggle + filter, language menu, topbar toggle, audio player); served under `/static/` by `mountContentRoutes` and overridable by the consumer |
 | `design/author-site-engine.md` | Design record + phased plan |
 | `design/authoring-guide.md` | **The authoring guide** — how a record is found, the envelope, the `sections` body, every section type, and why a record does not appear. It ships with the engine (moved here in 0.2.0) so every consumer has it, and its guard came along: a section type present in the schema but absent from both the documented and the deferred lists **fails this package's suite** |
-| `test/*.test.js` | `node --test` — 17 suites (schema, loader, repository, taxonomy, transliterate, markdown + markdown-editorial, document, html, page, feeds, media, capture, sources, content-routes, routes-index, routes-not-found) |
+| `test/*.test.js` | `node --test` — **403 tests / 103 suites across 22 files** (schema, loader, repository, taxonomy, transliterate, markdown + markdown-editorial, document, html, page, feeds, media, capture, sources, content-routes, routes-index, routes-not-found, …) |
 
 **Content model**:
 - **Content types** — exactly four: `post`, `page`, `book`, `release`. A lexicon/dictionary is a **section on a `page`**, not a fifth type.
@@ -401,12 +474,39 @@ npm test    # node --test — runs test/*.test.js (message-hash + security-hash-
 
 ### Contribution gates on every PR
 
+**How a PR is written, opened and driven is in `CLAUDE.md` → *Pull requests*** (standing authorization to open and
+drive one, never to merge; no template by design; every CodeRabbit finding verified against the code before it is
+acted on). What follows is only what is specific to *this* repository's gates.
+
 - **`cla.yml` (CLA Assistant)** fails a PR unless every commit author has signed `CLA.md`; the allowlist is
   `Belleal` alone. See the commit-authorship convention above — the fix is to author as the maintainer, not to
   widen the allowlist.
-- **CodeRabbit** reviews each PR and runs `markdownlint-cli2` over changed markdown. **MD022** (a heading must be
-  surrounded by blank lines) is the one that bites documentation edits; only the violations inside your diff get
-  flagged, so a file with pre-existing ones is not your problem unless you touch those lines.
+- **CodeRabbit is installed on every PR here; it reviews none of them until asked.** It is configured
+  (`.coderabbit.yaml`, profile `ASSERTIVE`) and comments within seconds of a PR opening — but that first comment is
+  a *"Trigger review"* checkbox saying the repository "does not receive automatic reviews because it has fewer than
+  10 stars". **A review only happens once someone clicks that box or comments `@coderabbitai review`.** Until then
+  the PR looks reviewed, because CodeRabbit has visibly commented, and no review has run. Never read that comment,
+  or the absence of findings under it, as review evidence. It also occasionally reports it could not clone the
+  repository and that the review may be incomplete — treat such a review as partial, not as a clean bill; it has
+  said so on more than one PR here, so it is the normal case rather than a one-off.
+  <br/>
+  **A push while a review is in flight cancels it**, and silently enough to miss: the acknowledgement comment is
+  edited in place to *"⚠️ Action not completed — Pull request base or head changed"*, the summary comment reverts
+  to the un-triggered checkbox with a fresh Run ID, and no review is ever posted. Nothing announces this as a
+  failure. So **trigger the review once the head is final for the round — after the last push, never before one** —
+  and if a finding needs a fix, expect to re-trigger after pushing it, because CodeRabbit will not pick the new
+  head up on its own. Measured on #153, where the first trigger was lost to exactly this.
+  <br/>
+  Budget the triggers: the plan allows **one included review per hour**, and the review summary says how many
+  remain. Spending one on a head you are about to push over costs an hour, which is the real reason the ordering
+  above matters.
+  <br/>
+  It runs `markdownlint-cli2` over changed markdown. **MD022** (a heading must be surrounded by blank lines) is the
+  one that bites documentation edits; only the violations inside your diff get flagged, so a file with pre-existing
+  ones is not your problem unless you touch those lines.
+  <br/>
+  **None of this applies in `Belleal/competence`** — CodeRabbit does not run there at all, so nothing but CI and a
+  human reviews a PR in that repository. Do not carry the expectation across.
 - CI also runs **CodeQL**, a Debricked vulnerability scan, `lint-and-test` and `docker-build`.
 - **Tag pushes are rejected for agent sessions** (HTTP 403 on the tag ref) even though branch pushes succeed, so a
   `<package>-v<version>` release tag — which `npm-publish.yml` creates itself on a successful publish — cannot be
@@ -467,7 +567,12 @@ Token: YouTrack → Profile → Account Security → New token (scope: YouTrack)
 1. **New service (tester)**: add the handler file in `services/v1/` and register it in the `.json` service registry.
 2. **Extending the web UI**: subclass `TiWebAppManager`, add an HTML fragment + matching Alpine component; reuse framework CSS primitives; obey the Alpine CSP rules (no inline styles, no `?.`).
 3. **Config-management, from a consumer's side**: a consuming application registers a config document (schema + file default + semantic validators + optional composite editor) through `TiWebAppManager.registerConfigDocument` / `registerConfigEditor`. Those seams live here; the documents themselves live in the consumer. Changing either seam is a breaking change for every consumer, so treat the `exports` map and these signatures as API.
-4. **Testing**: Node.js built-in `node --test` (no external framework); each package's `test/` directory. `npm test` at the root fans out across workspaces; `npm run lint` runs ESLint over everything.
+4. **Testing**: Node.js built-in `node --test` (no external framework); each package's `test/` directory. `npm test`
+   at the root fans out across workspaces — **945 tests today: core 42, web-framework 500, web-content 403, tester
+   none** (it is a runnable service, not a unit-tested one). The three checks that gate a push are in
+   `CLAUDE.md` → *Definition of done*: `npm test`, `npm run lint` (0 errors; ESLint's only rule here is
+   `no-unused-vars` as a **warning**, so a clean lint is no evidence the house style was followed — read a sibling
+   file in `core` instead), and `npm run build:types && npm run check:types`.
 5. **Bumping versions**: update the affected package's `package.json` + `CHANGELOG.md`.
 6. **Design-first**: for non-trivial work, start from / update the relevant design record — package `design/*.md` or repo-root `docs/superpowers/specs/` (see Conventions) — and land small checkpointed commits. Never commit `.run/*.run.xml` (live creds).
 7. **Adding a screen to web-content**: add the section type to `SECTION_TYPES` in `content/schema.js`, a body renderer under `render/editorial/`, and document it in `design/authoring-guide.md` — a type in the schema but in neither the documented nor the deferred list fails the suite. Mount routes only through the `routes/index.js` API (`mountContentRoutes` and friends) on top of the web-framework 1.17.0 seams; never reach into private server state.
