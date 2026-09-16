@@ -556,14 +556,18 @@ class AuthManager {
     }
 
     /**
-     * Whether an OpenID Connect `userinfo` response carries an e-mail address the provider itself reports as
-     * unverified. Pure, so the decision is testable without a provider.
+     * Whether an OpenID Connect sign-in carries an e-mail address the provider itself reports as unverified. Pure,
+     * so the decision is testable without a provider.
      * <br/>
      * A consumer maps the authenticated identity to an application principal by e-mail — competence resolves it
      * against the employee directory — so an address the provider has not verified is an unauthenticated claim to be
      * someone, and a sign-in carrying one is refused.
      * <br/>
-     * **An ABSENT claim is not a rejection.** Google emits `email_verified`; the Microsoft identity platform does not
+     * **Both sources are consulted**, because {@link AuthManager.resolveOpenIDIdentity} takes the e-mail from either
+     * one: a tenant that emits `email` only in the ID token would otherwise hand that address to the application
+     * while its `email_verified: false` sat in the half of the response nobody looked at.
+     * <br/>
+     * **An ABSENT claim is not a rejection.** Google emits `email_verified`, the Microsoft identity platform does not
      * emit it at all, so treating "absent" as "unverified" would refuse every Azure sign-in — the default method of
      * the published container image. Only an explicit `false` is a rejection. That leaves a residual assumption for a
      * provider that says nothing: bind it out with a tenant-pinned discovery URL (what `INSTALL.md` prescribes for
@@ -571,11 +575,109 @@ class AuthManager {
      *
      * @method
      * @param {Object} userInfo The provider's `userinfo` response.
+     * @param {Object} [claims] The validated ID token claims, when available.
      * @returns {boolean}
      * @public
      */
-    static isEmailReportedUnverified( userInfo ) {
-        return !!userInfo && userInfo.email_verified === false;
+    static isEmailReportedUnverified( userInfo, claims ) {
+        return ( !!userInfo && userInfo.email_verified === false ) || ( !!claims && claims.email_verified === false );
+    }
+
+    /**
+     * Decides which identity strings an OpenID Connect sign-in puts on the session, from the validated ID token
+     * claims and the `userinfo` response together. Pure, so every provider's shape is testable without one.
+     * <br/>
+     * **Both sources are needed, and this is why.** The identity used to be built from the `userinfo` response
+     * alone, with the ID token read only for the `sub` that fetch is verified against. That works for Google and
+     * fails for the Microsoft identity platform, whose `userinfo` endpoint returns `sub`, `name`, `family_name`,
+     * `given_name`, `picture` and — only when the optional claim is configured — an `email` taken from the
+     * directory's `mail` attribute. It never returns `preferred_username`: on Entra that claim lives in the ID
+     * token, and it holds the UPN, which is the address an operator actually knows, lists in `auth.admins`
+     * (`TI_WEB_AUTH_ADMINS`), and puts in an employee record. So the one identifier the deployment is configured
+     * around never reached the session, and an allowlisted administrator was refused by
+     * {@link authorization.isAdminIdentity} with nothing on the session to match — reported by the consumer as a
+     * missing application record, which named the wrong thing entirely. On a fresh deployment, where the admin
+     * exception is the only way in at all, that is a lock-out.
+     * <br/>
+     * **Two precedence rules, and the claim rule is the stronger one.** Within a single claim, `userinfo` wins: it
+     * is the fresher of the two (the ID token is a snapshot from authentication time), and `openid-client` has
+     * already verified that both describe the same subject. The ID token is a fallback, not a lesser source — it is
+     * signature-, issuer-, audience- and nonce-validated. But `username` chooses between two DIFFERENT claims, and
+     * there `preferred_username` beats `upn` regardless of which response carried it: `preferred_username` is the
+     * standard OIDC claim for a human-readable identifier and `upn` a Microsoft extension, while "fresher" earns
+     * nothing between two stable identifiers that do not differ across the two responses.
+     * <br/>
+     * Note that neither ordering can rescue a deployment whose allowlist names the claim that lost — only one string
+     * can be the `username`. What covers that is the allowlist matching `userID`, `username` **or** `email`, and a
+     * consumer reporting all three when it refuses a sign-in.
+     * <br/>
+     * **The UPN is deliberately NOT accepted as an e-mail.** It is e-mail-shaped and usually routable, but it is a
+     * sign-in name, not a mailbox, and `email` is what a consumer resolves its own directory by — quietly widening
+     * that would change which application principal an identity maps to. It is offered as the `username` instead,
+     * which the admin allowlist matches (user ID, username or e-mail) and which no directory lookup keys on.
+     *
+     * Both arguments are plain objects, so a swapped call would silently produce a wrong-but-plausible identity.
+     * The order is therefore the same as {@link AuthManager.isEmailReportedUnverified}'s, and it is the precedence
+     * order too: the winning source comes first.
+     *
+     * @method
+     * @param {Object} [userInfo] The provider's `userinfo` response.
+     * @param {Object} [claims] The validated ID token claims.
+     * @returns {{userID: string, username: string, email: (string|undefined), name: (string|undefined), sources: Object}}
+     *          `sources` names the claim and response each value came from (e.g. `claims.preferred_username`), so a
+     *          deployment can report how its provider is understood without logging anybody's identifiers.
+     * @public
+     */
+    static resolveOpenIDIdentity( userInfo, claims ) {
+        const info = userInfo || {};
+        const token = claims || {};
+        const sources = {};
+
+        // Only a non-empty string is a value. A provider emitting `""`, `null` or a non-string says nothing, and
+        // coercing one would put an identity on the session that the allowlist could match by accident.
+        //
+        // Each candidate is named, so the winner's provenance can be reported without reporting the value itself —
+        // see `sources` below.
+        const pick = ( field, candidates ) => {
+            for ( const [ origin, candidate ] of candidates ) {
+                if ( typeof candidate === "string" && candidate.trim().length > 0 ) {
+                    sources[ field ] = origin;
+                    return candidate.trim();
+                }
+            }
+            return undefined;
+        };
+
+        const subject = pick( "userID", [ [ "userinfo.sub", info.sub ], [ "claims.sub", token.sub ] ] );
+        const email = pick( "email", [ [ "userinfo.email", info.email ], [ "claims.email", token.email ] ] );
+        const name = pick( "name", [ [ "userinfo.name", info.name ], [ "claims.name", token.name ] ] );
+
+        // `preferred_username` before `upn` REGARDLESS of source, then the e-mail, then `name`, then the subject.
+        // The source rule and the claim rule are separate, and the claim rule is the stronger of the two: these are
+        // two DIFFERENT claims, not two copies of one, and `preferred_username` is the standard OIDC claim for a
+        // human-readable identifier while `upn` is a Microsoft extension. "Fresher" is what earns `userinfo` its
+        // precedence for `email` and `name` — mutable profile data the ID token holds only as a snapshot — and it
+        // earns nothing when choosing BETWEEN claims, since both are stable identifiers that do not differ between
+        // the two responses. Preferring `userinfo.upn` over `claims.preferred_username` would pick the vendor
+        // extension over the standard claim purely because of which response carried it.
+        const username = pick( "username", [
+            [ "userinfo.preferred_username", info.preferred_username ],
+            [ "claims.preferred_username", token.preferred_username ],
+            [ "userinfo.upn", info.upn ],
+            [ "claims.upn", token.upn ],
+            [ sources.email, email ],
+            [ sources.name, name ]
+        ] );
+
+        return {
+            userID: `oauth2:${ subject === undefined ? "" : subject }`,
+            username: username === undefined ? `sub:${ subject === undefined ? "" : subject }` : username,
+            email: email,
+            name: name,
+            // Which claim, in which response, each value came from. Carries no identity of its own, so a deployment
+            // can report how its provider is understood without putting anybody's identifiers in a log.
+            sources: sources
+        };
     }
 
     /**
@@ -594,15 +696,28 @@ class AuthManager {
                 expectedState: oidc.state,
                 expectedNonce: oidc.nonce
             } ).then( ( token ) => {
+                // The ID token claims are kept, not discarded once the subject has been read out of them: they are
+                // half the identity (see AuthManager.resolveOpenIDIdentity). `fetchUserInfo` is given that subject
+                // as its expected one, so it refuses a `userinfo` response describing anybody else — which is what
+                // makes merging the two sources safe.
                 const claims = token.claims();
-                return openidClient.fetchUserInfo( clientConfig, token.access_token, claims.sub );
-            } ).then( ( userInfo ) => {
-                if ( AuthManager.isEmailReportedUnverified( userInfo ) ) {
+                return openidClient.fetchUserInfo( clientConfig, token.access_token, claims.sub ).then( ( userInfo ) => {
+                    return { claims: claims, userInfo: userInfo };
+                } );
+            } ).then( ( { claims, userInfo } ) => {
+                if ( AuthManager.isEmailReportedUnverified( userInfo, claims ) ) {
                     logger.log( `Refusing an OpenID sign-in for subject '${ userInfo.sub }': the provider reports its e-mail address as unverified.`, logger.logSeverity.WARNING );
                     throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, { details: "The identity provider reports this e-mail address as unverified." }, exceptions.httpCode.C_401 );
                 }
-                const username = userInfo.preferred_username ?? userInfo.email ?? userInfo.name ?? `sub:${ userInfo.sub }`;
-                resolve( new User( { userID: `oauth2:${ userInfo.sub }`, username: username, email: userInfo.email, name: userInfo.name } ) );
+                const identity = AuthManager.resolveOpenIDIdentity( userInfo, claims );
+                // WHERE each identifier came from, never what it is. An operator setting TI_WEB_AUTH_ADMINS needs to
+                // know which claim their provider actually supplies — they already know their own address — so
+                // naming the claim answers the question the values were added to answer, and answers it better.
+                // Logging the values would not: `auditing.logMinLevel` ships at 0 with console logging on, so a
+                // deployment on the defaults would write every signed-in person's user ID, username and e-mail to
+                // its console on every successful sign-in, for a diagnostic needed once per provider.
+                logger.log( `OpenID sign-in resolved: userID from '${ identity.sources.userID || "(none)" }', username from '${ identity.sources.username || "the subject fallback" }', e-mail from '${ identity.sources.email || "(none)" }'.`, logger.logSeverity.DEBUG );
+                resolve( new User( identity ) );
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
             } );
