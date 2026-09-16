@@ -20,8 +20,21 @@ This document will contain the list of changes made to the framework. The format
   is on, not the one the Node server happens to be listening with. A reverse proxy terminating TLS in front of an
   HTTP server therefore still gets it — `X-Forwarded-Proto` reports that, and `trust proxy` is already set — so the
   Cloud Run / IAP deployment is unchanged. Nothing is given up where the directive was correct; an HTTPS deployment
-  keeps it. The scheme decision now lives in one place (`isSecureRequest`) shared with `getBaseUrl`, which had been
-  making the same judgement separately.
+  keeps it.
+  <br/>
+  The scheme decision now lives in one place (`isSecureRequest`), shared by all three handlers that had been making
+  it separately — `getBaseUrl`, `cspHeaderHandler` and `httpRedirectHandler`. Two of them disagreeing about whether
+  a visitor is on HTTPS is how this bug would come back on one surface only, so their agreement is asserted by test
+  rather than assumed.
+  <br/>
+  The helper leads with `request.secure`, which is already proxy-aware — `trust proxy` is set unconditionally, so
+  Express resolves `X-Forwarded-Proto` itself and takes the first hop of a chain — and then reads the forwarded
+  header as a second opinion for the one case Express gets wrong: it compares the forwarded scheme
+  **case-sensitively**, so a proxy sending `HTTPS` reports as insecure and its visitors would be served the non-TLS
+  policy. That clause reads as redundant beside `request.secure` and is not; the measured matrix is recorded in the
+  test file so it is not simplified away. It stays an OR rather than an override, because letting the raw header
+  win would make it authoritative for a consumer who has turned `trust proxy` off — the one configuration in which
+  they have said not to trust it.
 
 ## Version 1.35.0
 

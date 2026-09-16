@@ -104,15 +104,98 @@ describe( "cspHeaderHandler — upgrade-insecure-requests follows the visitor's 
         assert.equal( csp.names.has( "upgrade-insecure-requests" ), true );
     } );
 
-    it( "does not read a comma-separated forwarded list as https on the header fallback", () => {
-        // In the real pipeline this case never reaches the header comparison: the server sets `trust proxy`, so
-        // `request.secure` has already resolved a proxy chain and is authoritative. The header is only consulted
-        // when a consumer turns that setting off, and there "https, http" is a list rather than the string "https".
-        // Pinned as-is because it matches what `getBaseUrl` has always done with the same header — one scheme
-        // decision for both, not two that can drift.
+    it( "reads the first hop of a forwarded chain, not the whole list", () => {
+        // "https, http" means the BROWSER was on https and a later hop was not. Express resolves this correctly
+        // itself under `trust proxy`; the header clause parses it the same way so the helper is right on its own.
         const csp = runCsp( mockRequest( { secure: false, headers: { "X-Forwarded-Proto": "https, http" } } ) );
+        assert.equal( csp.names.has( "upgrade-insecure-requests" ), true );
+    } );
+
+    it( "reads a chain whose first hop is http as insecure", () => {
+        const csp = runCsp( mockRequest( { secure: false, headers: { "X-Forwarded-Proto": "http, https" } } ) );
         assert.equal( csp.names.has( "upgrade-insecure-requests" ), false );
     } );
+
+} );
+
+describe( "cspHeaderHandler — why the forwarded header is read at all", () => {
+
+    /*
+     * Measured against real Express with `trust proxy` set, which is what `TiWebServer` does unconditionally:
+     *
+     *   X-Forwarded-Proto      req.secure
+     *   (absent)               false
+     *   https                  true
+     *   http                   false     <- a proxy reporting the visitor is on http is ALREADY handled
+     *   https, http            true      <- Express takes the first hop
+     *   http, https            false
+     *   HTTPS                  false     <- Express compares case-sensitively, and gets this one wrong
+     *
+     * So `request.secure` carries almost all of it, and the header clause exists for the last row alone. It reads
+     * as redundant next to `request.secure`; it is not, and removing it would treat an uppercase-reporting proxy's
+     * visitors as plain HTTP.
+     */
+
+    it( "rescues the uppercase forwarded scheme that Express itself reports as insecure", () => {
+        const csp = runCsp( mockRequest( { secure: false, headers: { "X-Forwarded-Proto": "HTTPS" } } ) );
+        assert.equal( csp.names.has( "upgrade-insecure-requests" ), true );
+    } );
+
+    it( "does not let the header override a truthful `http` into secure", () => {
+        // The OR is deliberate: the header is a second opinion, never an override. Inverting the precedence would
+        // make a raw header authoritative for a consumer who has turned `trust proxy` off — the one configuration
+        // in which they have said not to trust it.
+        const csp = runCsp( mockRequest( { secure: false, headers: { "X-Forwarded-Proto": "http" } } ) );
+        assert.equal( csp.names.has( "upgrade-insecure-requests" ), false );
+    } );
+
+} );
+
+describe( "the scheme decision is shared, so it cannot drift", () => {
+
+    /*
+     * `getBaseUrl`, `cspHeaderHandler` and `httpRedirectHandler` each carried their own copy of this judgement.
+     * Two handlers disagreeing about whether a visitor is on HTTPS is how the sign-out bug would come back on one
+     * surface only, so the agreement is asserted rather than assumed.
+     */
+
+    function redirectsToHttps( request ) {
+        const instance = { isAllowedHost: () => true };
+        let nexted = false;
+        let redirectedTo = null;
+        const response = {
+            status: () => ( { end: () => {} } ),
+            set: () => {},
+            redirect: ( status, location ) => {
+                redirectedTo = location;
+            }
+        };
+        webHandlers.httpRedirectHandler( instance )( { ...request, url: "/x", hostname: "localhost" }, response, () => {
+            nexted = true;
+        } );
+        return { treatedAsSecure: nexted, redirectedTo: redirectedTo };
+    }
+
+    const CASES = [
+        { label: "no forwarded header, insecure socket", request: mockRequest( { secure: false } ) },
+        { label: "secure socket", request: mockRequest( { secure: true } ) },
+        { label: "forwarded https", request: mockRequest( { secure: false, headers: { "X-Forwarded-Proto": "https" } } ) },
+        { label: "forwarded http", request: mockRequest( { secure: false, headers: { "X-Forwarded-Proto": "http" } } ) },
+        { label: "forwarded HTTPS", request: mockRequest( { secure: false, headers: { "X-Forwarded-Proto": "HTTPS" } } ) },
+        { label: "forwarded chain https, http", request: mockRequest( { secure: false, headers: { "X-Forwarded-Proto": "https, http" } } ) }
+    ];
+
+    for ( const testCase of CASES ) {
+        it( `cspHeaderHandler and httpRedirectHandler agree: ${ testCase.label }`, () => {
+            const cspSaysSecure = runCsp( testCase.request ).names.has( "upgrade-insecure-requests" );
+            const redirect = redirectsToHttps( testCase.request );
+            assert.equal(
+                redirect.treatedAsSecure,
+                cspSaysSecure,
+                `httpRedirectHandler ${ redirect.treatedAsSecure ? "passed through" : "redirected to HTTPS" } while the CSP ${ cspSaysSecure ? "kept" : "dropped" } upgrade-insecure-requests`
+            );
+        } );
+    }
 
 } );
 

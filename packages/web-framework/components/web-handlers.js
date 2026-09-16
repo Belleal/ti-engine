@@ -136,12 +136,27 @@ const sanitizeExternalValue = ( value ) => {
  * @private
  */
 let isSecureRequest = ( request ) => {
-    if ( !request || typeof request.get !== "function" ) {
+    if ( !request ) {
         return false;
     }
-    // `request.secure` already accounts for `X-Forwarded-Proto` because the server sets `trust proxy`, but the
-    // header is read directly as well so this stays correct for a consumer that turns that setting off.
-    return request.secure === true || String( request.get( "x-forwarded-proto" ) || "" ).toLowerCase() === "https";
+
+    // `request.secure` is the primary signal and is already proxy-aware: the server sets `trust proxy`
+    // unconditionally, so Express resolves `X-Forwarded-Proto` itself and takes the first hop of a chain. A proxy
+    // that truthfully reports `http` for a plain-HTTP visitor therefore lands here as `false` with no help needed.
+    //
+    // The header is then read as a SECOND OPINION, for the one case Express gets wrong: it compares the forwarded
+    // scheme case-sensitively, so a proxy sending `HTTPS` yields `request.secure === false` and would be treated as
+    // a plain-HTTP visitor. This clause looks redundant beside `request.secure` and is not — see the matrix in
+    // `test/web-handlers.csp-upgrade-insecure.test.js`, which pins it so it is not simplified away.
+    //
+    // It is deliberately an OR rather than an override. Letting the raw header win would make it authoritative for
+    // a consumer who has turned `trust proxy` off — which is precisely the configuration in which they have said
+    // not to trust it.
+    const rawForwarded = ( typeof request.get === "function" )
+        ? request.get( "x-forwarded-proto" )
+        : ( request.headers && request.headers[ "x-forwarded-proto" ] );
+    const forwarded = String( rawForwarded || "" ).split( "," )[ 0 ].trim().toLowerCase();
+    return request.secure === true || forwarded === "https";
 };
 
 /**
@@ -549,9 +564,7 @@ module.exports.userInformationHandler = () => {
  */
 module.exports.httpRedirectHandler = ( instance ) => {
     return ( request, response, next ) => {
-        const xfProto = String( request.get ? request.get( "x-forwarded-proto" ) : ( request.headers[ "x-forwarded-proto" ] || "" ) ).toLowerCase();
-        const isSecure = request.secure === true || xfProto === "https";
-        if ( isSecure ) {
+        if ( isSecureRequest( request ) ) {
             next();
         } else {
             if ( instance.isAllowedHost( request.hostname ) !== true ) {
