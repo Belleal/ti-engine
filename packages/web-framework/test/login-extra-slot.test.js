@@ -48,14 +48,59 @@ const APP_MANAGER = path.join( path.resolve( __dirname, ".." ), "bin", "web-app-
 
 const read = ( file ) => fs.readFileSync( file, "utf8" );
 
+// Paired comment delimiters, longest opener first so `<!--` is never mistaken for anything shorter.
+const BLOCK_COMMENTS = [ { open: "<!--", close: "-->" }, { open: "/*", close: "*/" } ];
+
+/**
+ * Removes paired block comments by scanning with `indexOf`.
+ *
+ * Deliberately not a regex. The obvious spelling — `/<!--[\s\S]*?-->/g` — is *polynomial* on file contents: when a
+ * closer is missing the engine rescans to end of input from every opener. Measured on this machine at 1000 → 8000
+ * openers: 2.6ms → 168.4ms, a 64x rise for 8x the input, which is quadratic and is what CodeQL reports as
+ * `js/polynomial-redos`. This scan visits each character once.
+ *
+ * An unterminated comment runs to end of input, which is what HTML and JavaScript both do with one.
+ */
+function stripBlockComments( source ) {
+    let kept = "";
+    let at = 0;
+    while ( at < source.length ) {
+        let opensAt = -1;
+        let delimiter = null;
+        for ( const candidate of BLOCK_COMMENTS ) {
+            const found = source.indexOf( candidate.open, at );
+            if ( found >= 0 && ( opensAt < 0 || found < opensAt ) ) {
+                opensAt = found;
+                delimiter = candidate;
+            }
+        }
+        if ( opensAt < 0 ) {
+            return kept + source.slice( at );
+        }
+        kept += source.slice( at, opensAt );
+        const closesAt = source.indexOf( delimiter.close, opensAt + delimiter.open.length );
+        at = ( closesAt < 0 ) ? source.length : closesAt + delimiter.close.length;
+    }
+    return kept;
+}
+
+/**
+ * Drops whole-line `//` comments, and only whole-line ones — a `//` later in a line may be inside a string or a URL,
+ * and cutting from there would silently discard real code this file is supposed to be searching.
+ *
+ * Split per line rather than matched with `/^\s*\/\/.*$/gm`: in that spelling `\s` matches a newline, so `^\s*`
+ * backtracks across lines from every line start. Measured at 2000 → 16000 lines: 7.2ms → 421.4ms, 58x for 8x the
+ * input. Anchored against a single line with horizontal whitespace only, there is nothing to backtrack over.
+ */
+function stripFullLineComments( source ) {
+    return source.split( "\n" ).map( ( line ) => ( /^[ \t]*\/\//.test( line ) ? "" : line ) ).join( "\n" );
+}
+
 /**
  * Strips comments so a rule that only *mentions* the panel — this test's own subject matter, or a changelog-style
  * note — cannot be mistaken for the panel still shipping.
  */
-const withoutComments = ( source ) => source
-    .replace( /<!--[\s\S]*?-->/g, "" )
-    .replace( /\/\*[\s\S]*?\*\//g, "" )
-    .replace( /^\s*\/\/.*$/gm, "" );
+const withoutComments = ( source ) => stripFullLineComments( stripBlockComments( source ) );
 
 describe( "the login screen carries an application-extension slot", () => {
 
