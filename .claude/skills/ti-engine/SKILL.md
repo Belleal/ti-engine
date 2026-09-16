@@ -28,7 +28,7 @@ the header block verbatim from an existing file in the same package.
 ti-engine/                         npm workspace root (v1.2.10; workspaces = packages/*)
 ├── packages/
 │   ├── core/          v1.12.2     Framework foundation (Redis messaging, lifecycle, utils) + shipped TypeScript declarations
-│   ├── web-framework/ v1.35.1     Express server + auth (incl. real local auth) + admin config-management + config drift + Profile/About + ti-charts + role gate + TI_WEB_* env overrides + /health + route seams
+│   ├── web-framework/ v1.35.4     Express server + auth (incl. real local auth) + admin config-management + config drift + Profile/About + ti-charts + role gate + TI_WEB_* env overrides + /health + route seams
 │   ├── web-content/   v0.3.1      Content-publishing engine — path-index routing, deny-by-default visibility, SEO documents, feeds, email capture (WIP)
 │   └── tester/        v1.3.5      Reference/example service implementation + the docker-build target
 ├── .github/workflows/             ci.yml (lint/test/build) · codeql-analysis.yml · npm-publish.yml · cla.yml
@@ -182,7 +182,7 @@ npm test    # node --test — runs test/*.test.js: 42 tests / 7 suites across 5 
 
 ---
 
-## Package: web-framework (v1.35.1)
+## Package: web-framework (v1.35.4)
 
 **Role**: Express.js web server + authentication layer + a reusable **admin config-management subsystem** for web-facing UIs + a CSP-safe **charting primitive library** (`ti-charts.js`) + the container-deployment surface (`TI_WEB_*` env overrides, `GET /health`) and the **route-registration seams** (1.17.0) a subclass uses to mount its own routes — what `web-content` is built on.
 
@@ -208,11 +208,38 @@ npm test    # node --test — runs test/*.test.js: 42 tests / 7 suites across 5 
 | `bin/static/` | Frontend assets: HTMX, Alpine.js (CSP build), `safe-nonce`, framework CSS + themes, HTML fragments |
 | `bin/static/scripts/ti-charts.js` | CSP-safe SVG charting library (added 1.10.0); see *Charting primitives* below |
 | `design/admin-config-management.md` | Design doc + implementation log for the config-management feature |
-| `test/*.test.js` | `node --test` — **500 tests / 100 suites across 37 files**: the config subsystem + authorization + `ti-charts` (layout math + render structure) + the serving/deployment surface (`web-server-env-overrides`, `web-server.static-cache`, `web-server.route-seams`, `web-server.unprotected-routes`, `web-handlers.health`, `web-handlers.origin`, `web-app-manager.auth-visibility`) + the auth surface (`auth-manager`, `auth-manager.callback-path`, `auth-manager.email-verified`, **`auth-manager.openid-identity`**, `web-handlers.oauth-callback`, `web-handlers.session-*`) + **`web-handlers.csp-upgrade-insecure`** (which also pins that `cspHeaderHandler` and `httpRedirectHandler` agree about the scheme) |
+| `test/*.test.js` | `node --test` — **513 tests / 104 suites across 38 files**: the config subsystem + authorization + `ti-charts` (layout math + render structure) + the serving/deployment surface (`web-server-env-overrides`, `web-server.static-cache`, `web-server.route-seams`, `web-server.unprotected-routes`, `web-handlers.health`, `web-handlers.origin`, `web-app-manager.auth-visibility`) + the auth surface (`auth-manager`, `auth-manager.callback-path`, `auth-manager.email-verified`, **`auth-manager.openid-identity`**, `web-handlers.oauth-callback`, `web-handlers.session-*`) + **`web-handlers.csp-upgrade-insecure`** (which also pins that `cspHeaderHandler` and `httpRedirectHandler` agree about the scheme) + **`ti-framework.sidebar-overflow`** (which resolves the stylesheet's cascade rather than reading one block, because `.ti-sidebar` is declared twice and the later rule wins) |
 
 **Public exports** (`package.json` `exports`) — **six**: `./config-management` (config-service), `./web-application` (web-app-manager), `./web-server`, `./authorization`, `./config-drift`, `./definitions`. The last three are easy to forget and a consumer does import them: competence reaches for `./authorization` and `./config-drift` directly. Anything not on this list fails with `ERR_PACKAGE_PATH_NOT_EXPORTED`, so **adding a module a consumer needs means adding its `exports` entry** — that is the API surface, and changing it is a breaking change for every consumer.
 
-**Since the skill's last sync (1.25.1 → 1.35.1):**
+**Since the skill's last sync (1.25.1 → 1.35.4):**
+- **The sidebar scrolls instead of clipping everything past the fold** (1.35.4). `.ti-sidebar` is a `height: 100vh`
+  flex column that was declaring `overflow: hidden`, and a consuming application appends its own sections as direct
+  children — so once those exceeded the viewport the excess was cut off with no way to reach it. Measured in
+  Chromium with competence's 21 entries at 1440x800: 1094px of content in an 800px box, and a mouse wheel over the
+  sidebar moved it **0px**. Under the fold was `.ti-sidebar-foot` — the theme toggle and the user menu, and the
+  user menu is where **sign-out** lives — so on a laptop those were simply unreachable. The column never
+  compressed, it was cut, which is why the footer's bottom edge sat at 1082px whether the viewport was 640px or
+  1080px.
+  <br/>
+  It survived because a 1080px monitor shows nearly everything: the footer misses by 2px and the only visible
+  breakage is the last section label. That label is the one child that genuinely squashed —
+  `.ti-sidebar-section-label` declares no `min-height`, alone among the children, so it absorbed the whole
+  column's shrink and clipped its own text (25px → 14px). A report of "the buttons get squashed" is describing
+  the only symptom a big screen has.
+  <br/>
+  `.ti-sidebar` is now the scroll container, with `.ti-sidebar-brand` and `.ti-sidebar-foot` pinned by
+  `position: sticky` and `flex-shrink: 0` on every child. **The scroll container is the sidebar itself rather
+  than a new inner wrapper on purpose** — a wrapper is a markup change, and every consumer that overrides
+  `component-sidebar.html` (competence does) would keep the broken layout until it adopted the new element.
+  Three consequences worth knowing before touching this: the vertical padding had to move from `.ti-sidebar`
+  onto the pinned rows, or the list scrolls visibly through the gap above the brand and below the footer; the
+  pinned rows composite `--sidebar-bg` over `--bg-app` because `--sidebar-bg` is **translucent** in the glass
+  theme and the list would otherwise show through them; and `.ti-sidebar-collapse-btn` had to become `sticky`
+  rather than `absolute`, because an absolutely positioned child of a scroll container scrolls away with the
+  content. The `position: fixed` user flyout is *not* clipped by the scroll container — `backdrop-filter` in the
+  glass theme targets the legacy `.sidebar`, not `.ti-sidebar`, so nothing creates a containing block for it.
+- 1.35.2 and 1.35.3 are a `package.json` structure update and a build re-trigger; neither changes behaviour.
 - **`upgrade-insecure-requests` follows the visitor's scheme, not the deployment's** (1.35.1). The directive was
   never declared in `cspHeaderHandler`'s own `directives` object — it arrived with Helmet's `useDefaults` and went
   out on every response, telling the browser to rewrite this origin's `http://` URLs to `https://` on a
@@ -568,7 +595,7 @@ Token: YouTrack → Profile → Account Security → New token (scope: YouTrack)
 2. **Extending the web UI**: subclass `TiWebAppManager`, add an HTML fragment + matching Alpine component; reuse framework CSS primitives; obey the Alpine CSP rules (no inline styles, no `?.`).
 3. **Config-management, from a consumer's side**: a consuming application registers a config document (schema + file default + semantic validators + optional composite editor) through `TiWebAppManager.registerConfigDocument` / `registerConfigEditor`. Those seams live here; the documents themselves live in the consumer. Changing either seam is a breaking change for every consumer, so treat the `exports` map and these signatures as API.
 4. **Testing**: Node.js built-in `node --test` (no external framework); each package's `test/` directory. `npm test`
-   at the root fans out across workspaces — **945 tests today: core 42, web-framework 500, web-content 403, tester
+   at the root fans out across workspaces — **958 tests today: core 42, web-framework 513, web-content 403, tester
    none** (it is a runnable service, not a unit-tested one). The three checks that gate a push are in
    `CLAUDE.md` → *Definition of done*: `npm test`, `npm run lint` (0 errors; ESLint's only rule here is
    `no-unused-vars` as a **warning**, so a clean lint is no evidence the house style was followed — read a sibling

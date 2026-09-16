@@ -679,18 +679,75 @@ body {
     color: var(--sidebar-fg);
     display: flex;
     flex-direction: column;
-    padding: var(--s-3) 0 var(--s-3);
     position: sticky;
     top: 0;
     height: 100vh;
     border-right: 1px solid var(--sidebar-divider);
-    overflow: hidden;
+    /*
+     * The sidebar scrolls its own overflow. It used to be `overflow: hidden`, which silently ate every
+     * entry past the fold: a consuming application appends its own sections as direct children, and once
+     * those exceed 100vh there was nowhere for the excess to go and no way for a visitor to reach it.
+     * Measured with competence's 21 entries at 1440x800 — 1094px of content in an 800px box, and a mouse
+     * wheel over the sidebar moved it 0px. What went under the fold included `.ti-sidebar-foot`, which
+     * carries the theme toggle and the user menu, and the user menu is where sign-out lives.
+     *
+     * The vertical padding this rule used to carry moved onto `.ti-sidebar-brand` and `.ti-sidebar-foot`.
+     * Left here it sits inside the scrollport, and the list scrolls visibly through the gap above the
+     * pinned brand and below the pinned footer.
+     *
+     * `overflow-x` must stay hidden rather than visible: declaring a scroller on one axis forces the other
+     * to compute to a non-visible value anyway, and the collapse button has always been clipped by this.
+     */
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: var(--sidebar-divider) transparent;
+}
+
+.ti-sidebar::-webkit-scrollbar {
+    width: 10px;
+}
+
+.ti-sidebar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.ti-sidebar::-webkit-scrollbar-thumb {
+    background-color: var(--sidebar-divider);
+    border-radius: 5px;
+    /* Drawn inside a transparent border so the thumb reads as a 4px hairline against the sidebar. */
+    border: 3px solid transparent;
+    background-clip: content-box;
+}
+
+.ti-sidebar:hover::-webkit-scrollbar-thumb {
+    background-color: var(--sidebar-fg);
+}
+
+/*
+ * Nothing in the column shrinks. Every other child is floored by a `min-height`, but
+ * `.ti-sidebar-section-label` is not, so under the old clipping layout it absorbed the entire shrink and
+ * cut its own text in half — 25px down to 14px, which is what made "QUICK LINKS" unreadable in the report
+ * while the entries above it looked fine. This has to match every child rather than the label alone,
+ * because the children belong to the consuming application, not to the framework.
+ */
+.ti-sidebar > * {
+    flex-shrink: 0;
 }
 
 .ti-sidebar-collapse-btn {
-    position: absolute;
+    /*
+     * Sticky rather than absolute: an absolutely positioned child of a scroll container scrolls with the
+     * content, so the button would slide out of view as soon as the list moved. `align-self` plus the
+     * negative margin reproduce what `right: -12px` did, and the negative bottom margin keeps it out of
+     * the flow so it does not push the brand down.
+     */
+    position: sticky;
     top: 20px;
-    right: -12px;
+    align-self: flex-end;
+    margin-right: -12px;
+    margin-bottom: -22px;
     width: 22px;
     height: 22px;
     border-radius: 50%;
@@ -731,10 +788,21 @@ body {
     display: flex;
     align-items: center;
     gap: var(--s-3);
-    padding: var(--s-3) var(--s-4) var(--s-4);
+    /* The leading `calc` absorbs the padding-top `.ti-sidebar` used to carry — see the note there. */
+    padding: calc(var(--s-3) * 2) var(--s-4) var(--s-4);
     color: var(--sidebar-fg-active);
     white-space: nowrap;
     min-height: 56px;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    /*
+     * `--sidebar-bg` is translucent in the glass theme (rgba(10, 12, 17, 0.78)), so painting the pinned
+     * rows with it alone would let the scrolling list show through them. Compositing it over `--bg-app`
+     * reproduces the sidebar's own rendered colour exactly while being fully opaque, and is a no-op for a
+     * theme whose `--sidebar-bg` is already solid.
+     */
+    background: linear-gradient(var(--sidebar-bg), var(--sidebar-bg)), var(--bg-app);
 }
 
 .ti-application.collapsed .ti-sidebar-brand {
@@ -946,12 +1014,19 @@ body {
 
 
 .ti-sidebar-foot {
+    /* `margin-top: auto` still pushes the footer down when the list is short enough to fit; when it is
+       not, there is no free space to distribute and `sticky` is what keeps the footer on screen. */
     margin-top: auto;
-    padding: var(--s-2) var(--s-3) 0;
+    /* The trailing value absorbs the padding-bottom `.ti-sidebar` used to carry — see the note there. */
+    padding: var(--s-2) var(--s-3) var(--s-3);
     display: flex;
     flex-direction: column;
     gap: 2px;
     border-top: 1px solid var(--sidebar-divider);
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    background: linear-gradient(var(--sidebar-bg), var(--sidebar-bg)), var(--bg-app);
 }
 
 .ti-sidebar-user {
