@@ -135,10 +135,26 @@ const sanitizeExternalValue = ( value ) => {
  * @returns {string}
  * @private
  */
+let isSecureRequest = ( request ) => {
+    if ( !request || typeof request.get !== "function" ) {
+        return false;
+    }
+    // `request.secure` already accounts for `X-Forwarded-Proto` because the server sets `trust proxy`, but the
+    // header is read directly as well so this stays correct for a consumer that turns that setting off.
+    return request.secure === true || String( request.get( "x-forwarded-proto" ) || "" ).toLowerCase() === "https";
+};
+
+/**
+ * Reconstructs the origin the visitor actually reached, honouring a terminating proxy's forwarded headers.
+ *
+ * @method
+ * @param {ExpressRequest} request
+ * @returns {string}
+ * @private
+ */
 let getBaseUrl = ( request ) => {
-    const xfProtocol = String( request.get( "x-forwarded-proto" ) || "" ).toLowerCase();
     const xfHost = request.get( "x-forwarded-host" );
-    const protocol = ( request.secure || xfProtocol === "https" ) ? "https" : "http";
+    const protocol = isSecureRequest( request ) ? "https" : "http";
     const host = xfHost || request.get( "host" );
     return `${ protocol }://${ host }`;
 };
@@ -709,9 +725,23 @@ module.exports.cspHeaderHandler = () => {
             frameAncestors: [ "'self'" ]
         };
 
+        // `upgrade-insecure-requests` is not declared above — it arrives with Helmet's `useDefaults` set, and it is
+        // only ever correct for a visitor who is already on HTTPS. Served over plain HTTP it tells the browser to
+        // rewrite this origin's `http://` URLs to `https://`, against a server with no TLS listener to answer them.
+        //
+        // What that broke was sign-out, and only sign-out. Chrome exempts a potentially-trustworthy host such as
+        // `localhost` when it issues the FIRST request, so every ordinary XHR on a `TI_WEB_USE_TLS=false` deployment
+        // works — but it applies the upgrade when it resolves a REDIRECT, and `logoutHandler` is the one response
+        // that redirects. The sign-out POST succeeded, its `303` to `/` was followed to `https://` instead, and the
+        // handshake failed with `ERR_SSL_PROTOCOL_ERROR` — reported by htmx as `htmx:sendError`, which names neither
+        // the scheme nor the directive that chose it.
+        //
+        // The decision is per request rather than per deployment, so a reverse proxy terminating TLS in front of an
+        // HTTP server still gets the directive: what matters is the scheme the BROWSER is on, which is exactly what
+        // `X-Forwarded-Proto` reports.
         const csp = helmet.contentSecurityPolicy( {
             useDefaults: true,
-            directives
+            directives: isSecureRequest( request ) ? directives : { ...directives, upgradeInsecureRequests: null }
         } );
         return csp( request, response, next );
     };
