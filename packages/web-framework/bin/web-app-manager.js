@@ -162,7 +162,11 @@ class TiWebAppManager {
         };
         this.#fragments[ 'login' ] = {
             title: "Login",
-            path: "fragments/frame-login.html"
+            path: "fragments/frame-login.html",
+            // The login screen is rendered before sign-in, so an application has no fragment of its own in play and
+            // no other way to put anything on it. This component is the seam: shipped empty here, resolved through
+            // the same reverse-order static-path search as any other file, so an application's copy wins (CA-129).
+            components: [ "component-login-extra" ]
         };
         this.#fragments[ 'dashboard' ] = {
             title: "Dashboard",
