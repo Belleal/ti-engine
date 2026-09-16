@@ -2,6 +2,41 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.35.4
+
+* fix(web-app): scroll the sidebar instead of clipping everything past the fold. `.ti-sidebar` is a
+  `height: 100vh` flex column declaring `overflow: hidden`, and a consuming application appends its own sections
+  as direct children — so once those exceeded the viewport the excess was simply cut off, with no way for a
+  visitor to reach it. Measured against real Chromium with competence's 21 entries at 1440x800: 1094px of content
+  in an 800px box, and a mouse wheel over the sidebar moved it **0px**.
+  <br/>
+  What went under the fold included `.ti-sidebar-foot`, which carries the theme toggle and the user menu — and
+  the user menu is where **sign-out** lives. That held at every height tested, because the column never
+  compressed, it was cut: the footer's bottom edge landed at 1082px whether the viewport was 640px or 1080px. So
+  on any laptop the entries below the fold, the theme toggle and sign-out were all unreachable.
+  <br/>
+  It survived this long because a 1080px monitor shows almost everything — the footer misses by 2px and only the
+  last section label visibly breaks. That label is the one part that *did* squash: `.ti-sidebar-section-label`
+  is alone among the children in declaring no `min-height`, so it absorbed the whole of the column's shrink and
+  clipped its own text, 25px down to 14px. A report of "the buttons get squashed" is therefore describing the
+  only symptom a large screen shows, and the squashing was the least of it.
+  <br/>
+  The sidebar now scrolls its own overflow, with `.ti-sidebar-brand` and `.ti-sidebar-foot` pinned by
+  `position: sticky` so the brand and the user menu stay put while the list moves, and `flex-shrink: 0` on every
+  child so nothing squashes. The scroll container is `.ti-sidebar` itself rather than a new inner wrapper,
+  because a wrapper is a markup change and every consumer that has overridden `component-sidebar.html` —
+  competence has — would keep the broken layout until it adopted the new element. Three details this needed:
+  the vertical padding moved from `.ti-sidebar` onto the pinned rows, since inside the scrollport the list
+  scrolls visibly through the gap above the brand and below the footer; the pinned rows composite
+  `--sidebar-bg` over `--bg-app`, because `--sidebar-bg` is translucent in the glass theme and the list would
+  otherwise show through them; and `.ti-sidebar-collapse-btn` became `sticky` rather than `absolute`, because an
+  absolutely positioned child of a scroll container scrolls away with the content.
+  <br/>
+  Unchanged where it already worked: a sidebar short enough to fit renders exactly as before — no scrollbar, and
+  `margin-top: auto` still drops the footer to the bottom. The collapse button sits at the same 20px offset, and
+  collapsed mode is unaffected apart from now being scrollable too. The `position: fixed` user flyout is not
+  clipped by the new scroll container, which was checked rather than assumed.
+
 ## Version 1.35.3
 
 * chore(build): trigger failed build in GitHub
