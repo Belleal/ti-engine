@@ -481,9 +481,20 @@ acted on). What follows is only what is specific to *this* repository's gates.
 - **`cla.yml` (CLA Assistant)** fails a PR unless every commit author has signed `CLA.md`; the allowlist is
   `Belleal` alone. See the commit-authorship convention above — the fix is to author as the maintainer, not to
   widen the allowlist.
-- **CodeRabbit** reviews each PR and runs `markdownlint-cli2` over changed markdown. **MD022** (a heading must be
-  surrounded by blank lines) is the one that bites documentation edits; only the violations inside your diff get
-  flagged, so a file with pre-existing ones is not your problem unless you touch those lines.
+- **CodeRabbit reviews each PR here, but only when asked.** It is configured (`.coderabbit.yaml`, profile
+  `ASSERTIVE`) and posts on every PR immediately — but the first comment is a *"Trigger review"* checkbox saying
+  the repository "does not receive automatic reviews because it has fewer than 10 stars". **A review only happens
+  once someone clicks that box or comments `@coderabbitai review`.** Until then the PR looks reviewed, because
+  CodeRabbit has visibly commented, and it is not. Trigger it as part of opening the PR rather than waiting for a
+  pass that will never start. It also occasionally reports it could not clone the repository and that the review
+  may be incomplete — treat that review as partial, not as a clean bill.
+  <br/>
+  It runs `markdownlint-cli2` over changed markdown. **MD022** (a heading must be surrounded by blank lines) is the
+  one that bites documentation edits; only the violations inside your diff get flagged, so a file with pre-existing
+  ones is not your problem unless you touch those lines.
+  <br/>
+  **None of this applies in `Belleal/competence`** — CodeRabbit does not run there at all, so nothing but CI and a
+  human reviews a PR in that repository. Do not carry the expectation across.
 - CI also runs **CodeQL**, a Debricked vulnerability scan, `lint-and-test` and `docker-build`.
 - **Tag pushes are rejected for agent sessions** (HTTP 403 on the tag ref) even though branch pushes succeed, so a
   `<package>-v<version>` release tag — which `npm-publish.yml` creates itself on a successful publish — cannot be
