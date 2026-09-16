@@ -1,6 +1,6 @@
 {
   "name": "@ti-engine/web-framework",
-  "version": "1.35.1",
+  "version": "1.35.2",
   "description": "A web-framework based on the ti-engine. It provides a customizable ready-to-use web-server microservice and a set of tools for creating web applications. NOTICE: This is still a work in progress and the full architecture, design, and functionality are not available!",
   "keywords": [
     "ti-engine",
@@ -14,6 +14,7 @@
   ],
   "author": "Boris Kostadinov <kostadinov.boris@gmail.com>",
   "license": "Apache-2.0",
+  "type": "commonjs",
   "exports": {
     "./config-drift": {
       "types": "./types/components/config-drift.d.ts",
