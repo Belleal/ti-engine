@@ -1697,7 +1697,7 @@ const configureScreenAbout = () => {
  * <br/>
  * The login handlers answer a failed sign-in with a `303` to `/?error=<code>` (see `defaultErrorHandler`). This reads
  * that parameter and reveals the message element; the copy itself stays declarative via `x-text-label` so it localizes
- * through the normal path. Deliberately independent of the throwaway test-user panel so it survives that panel's removal.
+ * through the normal path. Deliberately independent of the throwaway test-user panel so it survives the test-user panel this screen used to carry, which moved to the consuming application in CA-129.
  *
  * @method
  * @returns {Object}
@@ -1714,99 +1714,6 @@ const configureLoginError = () => {
             // bookmark, or a shared link) replays a sign-in failure that already happened, and the login screen can
             // never be returned to its blank state without editing the URL by hand.
             tiToolbox.clearUrlParam( "error" );
-        }
-    };
-};
-
-/**
- * Returns a configuration object for the login screen test user pill panel.
- * <br/>
- * NOTE: This is a TEMPORARY testing aid that injects an employeeID into the session via a cookie which the
- * server-side {@link augmentSession} reads; roles are derived by the app unless the opt-in "override roles (dev)"
- * toggle is on, in which case the profile's roles are written too. Remove together with the panel HTML once real
- * identity propagation is in place.
- *
- * @method
- * @returns {Object}
- * @public
- */
-const configureLoginTestUserPanel = () => {
-    const COOKIE_NAME = "ti-test-user";
-    const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
-
-    const readCookie = () => {
-        try {
-            const tiToolbox = Alpine.store( "tiToolbox" );
-            const raw = tiToolbox.getCookie( COOKIE_NAME );
-            if ( !raw ) return null;
-            const parsed = JSON.parse( raw );
-            return ( parsed && parsed.employeeID ) ? parsed : null;
-        } catch {
-            return null;
-        }
-    };
-
-    const writeCookie = ( value ) => {
-        const encoded = encodeURIComponent( JSON.stringify( value ) );
-        document.cookie = `${ COOKIE_NAME }=${ encoded }; path=/; max-age=${ COOKIE_MAX_AGE_SECONDS }; SameSite=Lax`;
-    };
-
-    const clearCookie = () => {
-        document.cookie = `${ COOKIE_NAME }=; path=/; max-age=0; SameSite=Lax`;
-    };
-
-    return {
-        profiles: [
-            { employeeID: "22", roles: [ 1, 2, 3 ] },
-            { employeeID: "20", roles: [ 1, 2 ] },
-            { employeeID: "11", roles: [ 1, 2 ] },
-            { employeeID: "1", roles: [ 1 ] },
-            { employeeID: "3", roles: [ 1 ] },
-            { employeeID: "4", roles: [ 1 ] },
-            { employeeID: "8", roles: [ 1, 2 ] },
-            { employeeID: "9", roles: [ 1 ] }
-        ],
-        selected: null,
-        overrideRoles: false,
-
-        init() {
-            this.selected = readCookie();
-            this.overrideRoles = Boolean( this.selected && Array.isArray( this.selected.roles ) && this.selected.roles.length > 0 );
-        },
-
-        isSelected( profile ) {
-            return Boolean( this.selected && this.selected.employeeID === profile.employeeID );
-        },
-
-        select( profile ) {
-            this.selected = this.overrideRoles
-                ? { employeeID: profile.employeeID, roles: profile.roles.slice() }
-                : { employeeID: profile.employeeID };
-            writeCookie( this.selected );
-        },
-
-        onOverrideChanged() {
-            // `overrideRoles` is already updated by x-model; just re-write the cookie for the current selection
-            // so the new override setting takes effect immediately.
-            if ( this.selected ) {
-                // Turning the override OFF must always strip any persisted roles from the cookie — even when the
-                // selected employee is no longer in `profiles` (cookie from an older profile list or set manually) —
-                // so a stale roles array can't keep overriding the org-derived roles on the next login.
-                if ( !this.overrideRoles ) {
-                    this.selected = { employeeID: this.selected.employeeID };
-                    writeCookie( this.selected );
-                    return;
-                }
-                const profile = this.profiles.find( ( candidate ) => candidate.employeeID === this.selected.employeeID );
-                if ( profile ) {
-                    this.select( profile );
-                }
-            }
-        },
-
-        clear() {
-            this.selected = null;
-            clearCookie();
         }
     };
 };
@@ -1840,7 +1747,6 @@ document.addEventListener( "alpine:init", () => {
     Alpine.data( "tiComponentSidebarFlyout", configureComponentSidebarFlyout );
     Alpine.data( "tiComponentNotificationBar", configureComponentNotificationBar );
     Alpine.data( "tiComponentTooltip", configureComponentTooltip );
-    Alpine.data( "tiLoginTestUserPanel", configureLoginTestUserPanel );
     Alpine.data( "tiLoginError", configureLoginError );
     Alpine.data( "tiScreenProfile", configureScreenProfile );
     Alpine.data( "tiScreenAbout", configureScreenAbout );

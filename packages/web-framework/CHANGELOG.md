@@ -2,6 +2,44 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.36.0
+
+* feat(web-app-manager)!: the login screen gets an application-extension slot, and the application-specific test-user
+  panel that used to occupy it is **removed**. BREAKING for any deployment relying on that panel — the identity
+  picker no longer ships with the framework and a consuming application must supply its own.
+  <br/>
+  **What was wrong.** `frame-login.html` carried a "Test user" pill panel whose profile list was a literal array of
+  one consuming application's employee IDs — 22, 20, 11, 1, 3, 4, 8, 9 — with that application's role codes, and
+  `ti-framework.js` carried its behaviour and the `ti-test-user` cookie it writes. Application data, in the
+  framework package, rendered on every deployment's login screen. Both files had marked it TEMPORARY since it was
+  written: *"Remove once AD-driven identity is wired up"*.
+  <br/>
+  **Why it survived.** Nothing could remove it. The login screen is rendered before sign-in, so no application
+  fragment is in play and an application had no way to put anything on that page — taking the panel out would have
+  taken the capability with it. The panel also rendered unconditionally: the flag a consuming application gates the
+  cookie with is a server-side environment variable that never reaches the client, and `applyAuthMethodVisibility`
+  strips only the auth-method, divider, social and "none" markers, so nothing removed the panel on any path.
+  <br/>
+  **What changed.** The `login` fragment declares `components: [ "component-login-extra" ]`,
+  `frame-login.html` carries a `<ti-component-login-extra-placeholder>`, and the framework ships
+  `fragments/components/component-login-extra.html` **empty**. An application supplies its own copy of that
+  relative path and `#locateStaticFile`'s reverse-order search resolves it in preference to the empty default —
+  the same mechanism that already lets an application override `frame-dashboard.html`. No new API, and the
+  framework keeps owning the login page.
+  <br/>
+  **Rejected:** letting the application override `frame-login.html` wholesale. It needs no framework release and
+  works today, but it forks the login page — the auth-method marker blocks, the provider SVGs and the error element
+  would be duplicated in every consumer and drift silently from fixes made here. Also rejected: a new
+  `TiWebAppManager` hook returning login-extra HTML, which is more API surface for the same result.
+  <br/>
+  **Found while removing it:** the fragment's root element still bound `x-data="tiLoginTestUserPanel"`, which would
+  have thrown on every login page render once the component was gone. The new test caught it.
+  <br/>
+  Verification: 521 tests / 106 suites in this package (8 new in `test/login-extra-slot.test.js`), and the slot was
+  measured end-to-end through the public `assembleHtmlView` — framework paths alone render no panel and leave no
+  placeholder behind, an added application path renders the application's panel, and the auth-method gating is
+  unaffected.
+
 ## Version 1.35.4
 
 * fix(web-app): scroll the sidebar instead of clipping everything past the fold. `.ti-sidebar` is a

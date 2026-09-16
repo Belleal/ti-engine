@@ -28,7 +28,7 @@ the header block verbatim from an existing file in the same package.
 ti-engine/                         npm workspace root (v1.2.10; workspaces = packages/*)
 ├── packages/
 │   ├── core/          v1.12.2     Framework foundation (Redis messaging, lifecycle, utils) + shipped TypeScript declarations
-│   ├── web-framework/ v1.35.4     Express server + auth (incl. real local auth) + admin config-management + config drift + Profile/About + ti-charts + role gate + TI_WEB_* env overrides + /health + route seams
+│   ├── web-framework/ v1.36.0     Express server + auth (incl. real local auth) + admin config-management + config drift + Profile/About + ti-charts + role gate + TI_WEB_* env overrides + /health + route seams
 │   ├── web-content/   v0.3.1      Content-publishing engine — path-index routing, deny-by-default visibility, SEO documents, feeds, email capture (WIP)
 │   └── tester/        v1.3.5      Reference/example service implementation + the docker-build target
 ├── .github/workflows/             ci.yml (lint/test/build) · codeql-analysis.yml · npm-publish.yml · cla.yml
@@ -182,7 +182,7 @@ npm test    # node --test — runs test/*.test.js: 42 tests / 7 suites across 5 
 
 ---
 
-## Package: web-framework (v1.35.4)
+## Package: web-framework (v1.36.0)
 
 **Role**: Express.js web server + authentication layer + a reusable **admin config-management subsystem** for web-facing UIs + a CSP-safe **charting primitive library** (`ti-charts.js`) + the container-deployment surface (`TI_WEB_*` env overrides, `GET /health`) and the **route-registration seams** (1.17.0) a subclass uses to mount its own routes — what `web-content` is built on.
 
@@ -208,11 +208,37 @@ npm test    # node --test — runs test/*.test.js: 42 tests / 7 suites across 5 
 | `bin/static/` | Frontend assets: HTMX, Alpine.js (CSP build), `safe-nonce`, framework CSS + themes, HTML fragments |
 | `bin/static/scripts/ti-charts.js` | CSP-safe SVG charting library (added 1.10.0); see *Charting primitives* below |
 | `design/admin-config-management.md` | Design doc + implementation log for the config-management feature |
-| `test/*.test.js` | `node --test` — **513 tests / 104 suites across 38 files**: the config subsystem + authorization + `ti-charts` (layout math + render structure) + the serving/deployment surface (`web-server-env-overrides`, `web-server.static-cache`, `web-server.route-seams`, `web-server.unprotected-routes`, `web-handlers.health`, `web-handlers.origin`, `web-app-manager.auth-visibility`) + the auth surface (`auth-manager`, `auth-manager.callback-path`, `auth-manager.email-verified`, **`auth-manager.openid-identity`**, `web-handlers.oauth-callback`, `web-handlers.session-*`) + **`web-handlers.csp-upgrade-insecure`** (which also pins that `cspHeaderHandler` and `httpRedirectHandler` agree about the scheme) + **`ti-framework.sidebar-overflow`** (which resolves the stylesheet's cascade rather than reading one block, because `.ti-sidebar` is declared twice and the later rule wins) |
+| `test/*.test.js` | `node --test` — **521 tests / 106 suites across 39 files**: the config subsystem + authorization + `ti-charts` (layout math + render structure) + the serving/deployment surface (`web-server-env-overrides`, `web-server.static-cache`, `web-server.route-seams`, `web-server.unprotected-routes`, `web-handlers.health`, `web-handlers.origin`, `web-app-manager.auth-visibility`) + the auth surface (`auth-manager`, `auth-manager.callback-path`, `auth-manager.email-verified`, **`auth-manager.openid-identity`**, `web-handlers.oauth-callback`, `web-handlers.session-*`) + **`web-handlers.csp-upgrade-insecure`** (which also pins that `cspHeaderHandler` and `httpRedirectHandler` agree about the scheme) + **`ti-framework.sidebar-overflow`** (which resolves the stylesheet's cascade rather than reading one block, because `.ti-sidebar` is declared twice and the later rule wins) + **`login-extra-slot`** (which asserts against the shipped files, because the defect it pins was what the package *contained*) |
 
 **Public exports** (`package.json` `exports`) — **six**: `./config-management` (config-service), `./web-application` (web-app-manager), `./web-server`, `./authorization`, `./config-drift`, `./definitions`. The last three are easy to forget and a consumer does import them: competence reaches for `./authorization` and `./config-drift` directly. Anything not on this list fails with `ERR_PACKAGE_PATH_NOT_EXPORTED`, so **adding a module a consumer needs means adding its `exports` entry** — that is the API surface, and changing it is a breaking change for every consumer.
 
-**Since the skill's last sync (1.25.1 → 1.35.4):**
+**Since the skill's last sync (1.25.1 → 1.36.0):**
+- **The login screen has an application-extension slot, and the application-specific test-user panel is gone**
+  (1.36.0, BREAKING). `frame-login.html` shipped a "Test user" pill panel whose profile list was a literal array of
+  **competence's** employee IDs and role codes, with its behaviour and the `ti-test-user` cookie in
+  `ti-framework.js` and its styling in `ti-framework.css` — one application's data in the framework package, on
+  every deployment's login screen, marked TEMPORARY in two files since it was written.
+  <br/>
+  **Nothing could remove it, which is why nothing did.** The login screen is rendered *before* sign-in, so no
+  application fragment is in play and a consumer had no way to put anything on that page; taking the panel out
+  would have taken the capability with it. It also rendered unconditionally — the flag competence gates the cookie
+  with is a server-side environment variable that never reaches the client, and `applyAuthMethodVisibility` strips
+  only the auth-method, divider, social and "none" markers, so no path removed the panel. A production login page
+  showed an identity picker that looked functional.
+  <br/>
+  The `login` fragment now declares `components: [ "component-login-extra" ]`, the fragment carries a
+  `<ti-component-login-extra-placeholder>`, and the framework ships that component **empty**. A consumer supplies
+  its own `fragments/components/component-login-extra.html` and `#locateStaticFile`'s reverse-order search
+  resolves it over the empty default — the same mechanism that already lets competence override
+  `frame-dashboard.html` and `index.html`. **No new API**, and the framework keeps owning the login page.
+  <br/>
+  Rejected: letting the consumer override `frame-login.html` wholesale (works today and needs no release, but forks
+  the auth-method blocks, the provider SVGs and the error element into every consumer, to drift silently from fixes
+  here), and a new `TiWebAppManager` hook returning login-extra HTML (more API surface, same result). Two things
+  worth knowing if you touch this: the fragment's **root element** still bound `x-data="tiLoginTestUserPanel"` after
+  the panel markup came out and would have thrown on every render — the test caught it — and `#locateStaticFile`
+  **memoizes by relative path**, so a consumer's component is resolved once per process and
+  `TI_WEB_APP_STATIC_CACHE_DISABLED=true` is what makes it re-read.
 - **The sidebar scrolls instead of clipping everything past the fold** (1.35.4). `.ti-sidebar` is a `height: 100vh`
   flex column that was declaring `overflow: hidden`, and a consuming application appends its own sections as direct
   children — so once those exceeded the viewport the excess was cut off with no way to reach it. Measured in
@@ -595,7 +621,7 @@ Token: YouTrack → Profile → Account Security → New token (scope: YouTrack)
 2. **Extending the web UI**: subclass `TiWebAppManager`, add an HTML fragment + matching Alpine component; reuse framework CSS primitives; obey the Alpine CSP rules (no inline styles, no `?.`).
 3. **Config-management, from a consumer's side**: a consuming application registers a config document (schema + file default + semantic validators + optional composite editor) through `TiWebAppManager.registerConfigDocument` / `registerConfigEditor`. Those seams live here; the documents themselves live in the consumer. Changing either seam is a breaking change for every consumer, so treat the `exports` map and these signatures as API.
 4. **Testing**: Node.js built-in `node --test` (no external framework); each package's `test/` directory. `npm test`
-   at the root fans out across workspaces — **958 tests today: core 42, web-framework 513, web-content 403, tester
+   at the root fans out across workspaces — **966 tests today: core 42, web-framework 521, web-content 403, tester
    none** (it is a runnable service, not a unit-tested one). The three checks that gate a push are in
    `CLAUDE.md` → *Definition of done*: `npm test`, `npm run lint` (0 errors; ESLint's only rule here is
    `no-unused-vars` as a **warning**, so a clean lint is no evidence the house style was followed — read a sibling
