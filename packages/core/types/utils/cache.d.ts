@@ -74,6 +74,9 @@ declare class CommonMemoryCache extends ConnectionObserver {
      * 'memoryCache.requiredCapabilities' setting, and startup fails if any of them is missing. That is deliberate: a
      * backend silently lacking a behavior the application depends on is otherwise discovered from inside a request,
      * long after the deployment that introduced it.
+     * <br/>
+     * NOTE: A failed reconciliation rolls the cache back to non-operational and shuts the backend down before it
+     * rejects, so a refused startup never leaves a usable cache behind.
      *
      * @method
      * @returns {Promise}

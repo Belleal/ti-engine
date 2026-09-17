@@ -121,6 +121,9 @@ class CommonMemoryCache extends ConnectionObserver {
      * 'memoryCache.requiredCapabilities' setting, and startup fails if any of them is missing. That is deliberate: a
      * backend silently lacking a behavior the application depends on is otherwise discovered from inside a request,
      * long after the deployment that introduced it.
+     * <br/>
+     * NOTE: A failed reconciliation rolls the cache back to non-operational and shuts the backend down before it
+     * rejects, so a refused startup never leaves a usable cache behind.
      *
      * @method
      * @returns {Promise}
@@ -129,7 +132,23 @@ class CommonMemoryCache extends ConnectionObserver {
      */
     initialize() {
         return this.#provider.initialize().then( () => {
-            this.#verifyRequiredCapabilities();
+            try {
+                this.#verifyRequiredCapabilities();
+            } catch ( error ) {
+                // The backend is already connected and this cache already operational by the time the check runs:
+                // the Redis client notifies its connection observers from inside its "ready" handler, before
+                // `initialize()` resolves, and `onConnectionRecovered` sets `#isOperational` to true. Rejecting
+                // without undoing that would leave the singleton reporting an operational cache over a live
+                // connection while its caller has been told that startup failed - `ServiceInstance.onStart` only
+                // propagates the rejection, and `shutDown()` is reached from `stop()`, which a failed start never
+                // gets to. So the rollback belongs here, where the failure is raised.
+                this.#isOperational = false;
+                return this.#provider.shutDown().catch( () => {
+                    // A backend that cannot close cleanly must not replace the reason startup was refused.
+                } ).then( () => {
+                    throw error;
+                } );
+            }
         } );
     }
 
