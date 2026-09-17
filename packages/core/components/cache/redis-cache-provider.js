@@ -1,0 +1,749 @@
+/*
+ * The ti-engine is an open source, free to use—both for personal and commercial projects—framework for the creation of microservice-based solutions using node.js.
+ * Copyright © 2021-2026 Boris Kostadinov <kostadinov.boris@gmail.com>
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+*/
+
+const CacheProvider = require( "#cache-provider" );
+const _ = require( "lodash" );
+const config = require( "#config" );
+const tools = require( "#tools" );
+const redis = require( "#redis-integration" );
+const exceptions = require( "#exceptions" );
+
+/** @import ConnectionObserver from "#connection-observer" */
+
+const cacheCapability = require( "#cache-capability" ).cacheCapability;
+
+/**
+ * Decodes one entry of a `multi(...).exec()` result into the value it carries.
+ * <br/>
+ * Each entry is an ioredis `[ error, value ]` pair, so the value sits at index 1 and is a string when the key existed.
+ * Returns `undefined` for a miss, an error entry, or a malformed entry.
+ * <br/>
+ * This lives outside the class, and is shared by {@link CommonMemoryCache#getValue} and
+ * {@link CommonMemoryCache#getValues}, because it previously existed as two near-identical inline expressions and one
+ * of them drifted: `getValues` inspected its own accumulator instead of the per-key entry, so `.length` was
+ * `undefined`, the comparison was always false, and **every key resolved to `null`** whatever Redis returned.
+ *
+ * @method
+ * @param {Array} [result] One `[ error, value ]` entry.
+ * @returns {*} The parsed value, or `undefined` when there is none.
+ * @private
+ */
+function decodeCommandValue( result ) {
+    // `Array.isArray` rather than a bare truthy-and-length test: a string also has a `length` and an indexable
+    // character at 1, so a malformed non-array entry would otherwise be parsed as if it were a value.
+    return ( Array.isArray( result ) && result.length > 1 && _.isString( result[ 1 ] ) ) ? tools.parseJSON( result[ 1 ] ) : undefined;
+}
+
+/**
+ * Maps a set of requested keys onto the values a `multi(...).exec()` returned for them, using `null` for a miss.
+ * <br/>
+ * Iterates the requested `keys` rather than the raw results, so a short or absent response still yields one entry per
+ * requested key instead of silently omitting some — the caller's map always has the shape it asked for.
+ * <br/>
+ * The accumulator has no prototype on purpose: the key names come from the caller, and a cache key named `__proto__`
+ * written by bracket assignment onto an ordinary `{}` would repoint the accumulator's prototype instead of creating
+ * the entry. Same class as the `decycle` defect fixed in `tools.js`; see the 1.11.0 changelog entry.
+ *
+ * @method
+ * @param {string[]} keys The keys that were requested, in command order.
+ * @param {Array} [rawResults] The `multi(...).exec()` result.
+ * @returns {Object} A null-prototype map of key to value, `null` where the key was absent.
+ * @private
+ */
+function mapCommandValues( keys, rawResults ) {
+    let values = Object.create( null );
+
+    _.forEach( keys, ( key, idx ) => {
+        let decoded = decodeCommandValue( rawResults ? rawResults[ idx ] : undefined );
+        values[ key ] = ( decoded === undefined ) ? null : decoded;
+    } );
+
+    return values;
+}
+
+/**
+ * A {@link CacheProvider} backed by Redis, optionally with the RedisJSON module.
+ * <br/>
+ * NOTE: This holds every Redis-specific detail in the engine's cache path — the command names, the
+ * '[ error, value ]' result shape, and the JSONPath encoding. Nothing above it should know that Redis is what is
+ * storing the values.
+ *
+ * @class RedisCacheProvider
+ * @extends CacheProvider
+ * @public
+ */
+class RedisCacheProvider extends CacheProvider {
+
+    #redisClient;
+    #connectionIdentifier;
+
+    /**
+     * @constructor
+     * @param {string} connectionIdentifier The identifier under which this backend's connection is observed.
+     */
+    constructor( connectionIdentifier ) {
+        super();
+
+        this.#connectionIdentifier = connectionIdentifier;
+        this.#redisClient = redis.createRedisClient( connectionIdentifier );
+    }
+
+    /* Public interface */
+
+    /**
+     * Decodes one entry of a `multi(...).exec()` result into the value it carries.
+     * <br/>
+     * NOTE: Exposed for testing. The provider builds its own Redis client in its constructor, so `getValues` cannot be
+     * driven without a live server — this is one of the pure halves of it, and it is where the defect was.
+     *
+     * @method
+     * @param {Array} [result] One `[ error, value ]` entry.
+     * @returns {*} The parsed value, or `undefined` when there is none.
+     * @public
+     */
+    static decodeCommandValue( result ) {
+        return decodeCommandValue( result );
+    }
+
+    /**
+     * Maps a set of requested keys onto the values a `multi(...).exec()` returned for them, using `null` for a miss.
+     * <br/>
+     * NOTE: Exposed for testing, for the same reason as {@link RedisCacheProvider.decodeCommandValue}.
+     *
+     * @method
+     * @param {string[]} keys The keys that were requested, in command order.
+     * @param {Array} [rawResults] The `multi(...).exec()` result.
+     * @returns {Object} A null-prototype map of key to value, `null` where the key was absent.
+     * @public
+     */
+    static mapCommandValues( keys, rawResults ) {
+        return mapCommandValues( keys, rawResults );
+    }
+
+    /**
+     * Property returning the connection identifier of this backend.
+     *
+     * @property
+     * @returns {string}
+     * @public
+     */
+    get connectionIdentifier() {
+        return this.#connectionIdentifier;
+    }
+
+    /**
+     * Property returning the optional behaviors this backend provides.
+     * <br/>
+     * NOTE: The JSON capabilities depend on the RedisJSON module being installed on the server, which is only known
+     * after the client has connected — so this is accurate from {@link RedisCacheProvider#initialize} onward and
+     * reports no JSON support before that.
+     *
+     * @property
+     * @returns {string[]}
+     * @override
+     * @public
+     */
+    get capabilities() {
+        let capabilities = [
+            cacheCapability.KEY_EXPIRY,
+            cacheCapability.KEY_PATTERN_MATCH,
+            cacheCapability.LISTS,
+            cacheCapability.SETS,
+            cacheCapability.HASH_FIELDS
+        ];
+
+        // RedisJSON applies a JSONPath write server-side, so a concurrent edit to a different path of the same
+        // document is not lost. That is what ATOMIC_JSON_EDIT promises, and why it is declared together with
+        // JSON_DOCUMENTS rather than separately - for this backend the two always arrive together.
+        if ( this.#redisClient.isJSONSupported === true ) {
+            capabilities.push( cacheCapability.JSON_DOCUMENTS );
+            capabilities.push( cacheCapability.ATOMIC_JSON_EDIT );
+        }
+
+        return capabilities;
+    }
+
+    /**
+     * Used to initialize the backend and connect to the Redis server.
+     *
+     * @method
+     * @returns {Promise}
+     * @override
+     * @public
+     */
+    initialize() {
+        let host = config.getSetting( config.setting.MEMORY_CACHE_REDIS_HOST );
+        let port = config.getSetting( config.setting.MEMORY_CACHE_REDIS_PORT );
+        let db = config.getSetting( config.setting.MEMORY_CACHE_REDIS_DB );
+        let authKey = config.getSetting( config.setting.MEMORY_CACHE_AUTH_KEY );
+        let user = config.getSetting( config.setting.MEMORY_CACHE_USER );
+
+        return this.#redisClient.initialize( host, port, authKey, user, db );
+    }
+
+    /**
+     * Used to gracefully shut the Redis connection down.
+     *
+     * @method
+     * @returns {Promise}
+     * @override
+     * @public
+     */
+    shutDown() {
+        return this.#redisClient.shutDown( 250 );
+    }
+
+    /**
+     * Used to register a new {@link ConnectionObserver} for events related to the underlying Redis connection state.
+     *
+     * @method
+     * @param {ConnectionObserver} connectionObserver The {@link ConnectionObserver} that will be notified of any changes.
+     * @override
+     * @public
+     */
+    addConnectionObserver( connectionObserver ) {
+        this.#redisClient.addConnectionObserver( connectionObserver );
+    }
+
+    /**
+     * Used to search for keys by a given pattern.
+     *
+     * @method
+     * @param {string} pattern
+     * @returns {Promise<Array>}
+     * @public
+     */
+    matchKeys( pattern ) {
+        return new Promise( ( resolve, reject ) => {
+            let commandKeys = [ redis.cacheCommands.KEYS, pattern ];
+            this.#redisClient.executeCommands( [ commandKeys ] ).then( ( results ) => {
+                results = results[ 0 ];
+                resolve( ( results && results.length > 1 ) ? results[ 1 ] : [] );
+            } ).catch( ( error ) => {
+                reject( error );
+            } );
+        } );
+    }
+
+    /**
+     * Used to set a specific string value.
+     *
+     * @method
+     * @param {string} key
+     * @param {string} value
+     * @param {number} [expiration] Expiration value is in seconds.
+     * @return {Promise<string>}
+     * @public
+     */
+    setValue( key, value, expiration ) {
+        return new Promise( ( resolve, reject ) => {
+            if ( value ) {
+                let commandSetValue = [ redis.cacheCommands.SET_VALUE, key, tools.stringifyJSON( value ) ];
+                if ( expiration ) {
+                    commandSetValue.push( "EX" );
+                    commandSetValue.push( expiration );
+                }
+                this.#redisClient.executeCommands( [ commandSetValue ] ).then( () => {
+                    resolve( value );
+                } ).catch( ( error ) => {
+                    reject( error );
+                } );
+            } else {
+                resolve( value );
+            }
+        } );
+    }
+
+    /**
+     * Used to set multiple string values.
+     *
+     * @method
+     * @param {Object} keyValues
+     * @param {string} [prefix]
+     * @param {number} [expiration]
+     * @return {Promise}
+     * @public
+     */
+    setValues( keyValues, prefix, expiration ) {
+        return new Promise( ( resolve, reject ) => {
+            if ( keyValues ) {
+                let commands = [];
+                _.forEach( keyValues, ( value, key ) => {
+                    let commandSetValue = [ redis.cacheCommands.SET_VALUE, ( ( prefix ) ? prefix : "" ) + key, tools.stringifyJSON( value ) ];
+                    if ( expiration ) {
+                        commandSetValue.push( "EX" );
+                        commandSetValue.push( expiration );
+                    }
+                    commands.push( commandSetValue );
+                } );
+
+                this.#redisClient.executeCommands( commands ).then( () => {
+                    resolve( keyValues );
+                } ).catch( ( error ) => {
+                    reject( error );
+                } );
+            } else {
+                resolve( keyValues );
+            }
+        } );
+    }
+
+    /**
+     * Used to get a string value.
+     *
+     * @method
+     * @param {string} key
+     * @return {Promise}
+     * @public
+     */
+    getValue( key ) {
+        return new Promise( ( resolve, reject ) => {
+            let commandGetValue = [ redis.cacheCommands.GET_VALUE, key ];
+            this.#redisClient.executeCommands( [ commandGetValue ] ).then( ( results ) => {
+                resolve( decodeCommandValue( results ? results[ 0 ] : undefined ) );
+            } ).catch( ( error ) => {
+                reject( error );
+            } );
+        } );
+    }
+
+    /**
+     * Used to get multiple string values.
+     *
+     * @method
+     * @param {string[]} keys
+     * @param {string} [prefix]
+     * @return {Promise}
+     * @public
+     */
+    getValues( keys, prefix ) {
+        return new Promise( ( resolve, reject ) => {
+            let commands = [];
+            _.forEach( keys, ( key ) => {
+                commands.push( [ redis.cacheCommands.GET_VALUE, ( ( prefix ) ? prefix : "" ) + key ] );
+            } );
+            this.#redisClient.executeCommands( commands ).then( ( rawResults ) => {
+                resolve( mapCommandValues( keys, rawResults ) );
+            } ).catch( ( error ) => {
+                reject( error );
+            } );
+        } );
+    }
+
+    /**
+     * Used to delete a value / item.
+     *
+     * @method
+     * @param {string} key
+     * @returns {Promise<boolean>}
+     * @public
+     */
+    deleteValue( key ) {
+        return new Promise( ( resolve, reject ) => {
+            let commandDeleteValue = [ redis.cacheCommands.DELETE_VALUE, key ];
+            this.#redisClient.executeCommands( [ commandDeleteValue ] ).then( ( results ) => {
+                results = results[ 0 ];
+                resolve( ( results && results.length > 1 ) ? results[ 1 ] : undefined );
+            } ).catch( ( error ) => {
+                reject( error );
+            } );
+        } );
+    }
+
+    /**
+     * Used to set expiration in seconds to an existing key.
+     * <br/>
+     * NOTE: For performance optimization reasons, only use this only if the Redis command does not itself support the 'EX' argument.
+     *
+     * @method
+     * @param {string} key
+     * @param {number} seconds
+     * @param {string} [name] If you need to expire a field in a hash set instead, provide the name of the set here.
+     * @returns {Promise<number>} This will resolve with the seconds as provided initially by the caller.
+     * @public
+     */
+    expireValue( key, seconds, name ) {
+        return new Promise( ( resolve, reject ) => {
+            let commandExpire = ( name ) ? [ redis.cacheCommands.HASH_EXPIRE, name, seconds, "FIELDS", 1, key ] : [ redis.cacheCommands.EXPIRE, key, seconds ];
+            this.#redisClient.executeCommands( [ commandExpire ] ).then( () => {
+                resolve( seconds );
+            } ).catch( ( error ) => {
+                reject( error );
+            } );
+        } );
+    }
+
+    /**
+     * Used to add the specified values to a list.
+     *
+     * @method
+     * @param {string} listName
+     * @param {Object[]} values
+     * @returns {Promise<number>}
+     * @public
+     */
+    listPushValue( listName, values ) {
+        return new Promise( ( resolve, reject ) => {
+            let commandPushValues = [ redis.cacheCommands.LIST_PUSH, listName ];
+            _.forEach( values, ( value ) => {
+                if ( value ) {
+                    commandPushValues.push( tools.stringifyJSON( value ) );
+                }
+            } );
+            this.#redisClient.executeCommands( [ commandPushValues ] ).then( ( results ) => {
+                results = results[ 0 ];
+                resolve( ( results && results.length > 1 ) ? results[ 1 ] : undefined );
+            } ).catch( ( error ) => {
+                reject( error );
+            } );
+        } );
+    }
+
+    /**
+     * Used to add the specified value to a set.
+     *
+     * @method
+     * @param {string} key
+     * @param {string|Object} value
+     * @returns {Promise}
+     * @public
+     */
+    addToSet( key, value ) {
+        return new Promise( ( resolve, reject ) => {
+            let commandAddToSet = [ redis.cacheCommands.ADD_TO_SET, key, tools.stringifyJSON( value ) ];
+            this.#redisClient.executeCommands( [ commandAddToSet ] ).then( () => {
+                resolve();
+            } ).catch( ( error ) => {
+                reject( error );
+            } );
+        } );
+    }
+
+    /**
+     * Used to add multiple values to multiple sets in one transactional request.
+     * <br/>
+     * NOTE: The two arrays of keys and values must have correct index relations (i.e., first pair on keys[0] and values[0] and so on)!
+     *
+     * @method
+     * @param {string[]} keys
+     * @param {string[]} values
+     * @returns {Promise}
+     * @public
+     */
+    addToSetMulti( keys, values ) {
+        return new Promise( ( resolve, reject ) => {
+            let commands = [];
+            _.forEach( keys, ( key, idx ) => {
+                commands.push( [ redis.cacheCommands.ADD_TO_SET, key, tools.stringifyJSON( values[ idx ] ) ] );
+            } );
+            this.#redisClient.executeCommands( commands ).then( () => {
+                resolve();
+            } ).catch( ( error ) => {
+                reject( error );
+            } );
+        } );
+    }
+
+    /**
+     * Used to check if the provided value is a member of the specified set.
+     *
+     * @method
+     * @param {string} setName
+     * @param {string} value
+     * @returns {Promise<boolean>}
+     * @public
+     */
+    isSetMember( setName, value ) {
+        return new Promise( ( resolve, reject ) => {
+            let commandIsSetMember = [ redis.cacheCommands.IS_SET_MEMBER, setName, value ];
+            this.#redisClient.executeCommands( [ commandIsSetMember ] ).then( ( results ) => {
+                results = results[ 0 ];
+                let result = !!( results && results.length > 1 && results[ 1 ] === 1 );
+                resolve( result );
+            } ).catch( ( error ) => {
+                reject( error );
+            } );
+        } );
+    }
+
+    /**
+     * Used to get all elements of a set.
+     *
+     * @method
+     * @param {string} key
+     * @returns {Promise<Object[]>}
+     * @public
+     */
+    membersOfSet( key ) {
+        return new Promise( ( resolve, reject ) => {
+            let commandMembersOfSet = [ redis.cacheCommands.GET_ALL_FROM_SET, key ];
+            this.#redisClient.executeCommands( [ commandMembersOfSet ] ).then( ( results ) => {
+                results = results[ 0 ];
+                let parsedResults = ( results && results.length > 1 && results[ 1 ] ) ? results[ 1 ] : [];
+                resolve( parsedResults );
+            } ).catch( ( error ) => {
+                reject( error );
+            } );
+        } );
+    }
+
+    /**
+     * Used to get a union of all elements in the list of sets.
+     *
+     * @method
+     * @param {string[]} keys
+     * @returns {Promise<Object[]>}
+     * @public
+     */
+    unionOfSets( keys ) {
+        return new Promise( ( resolve, reject ) => {
+            let commandUnionOfSets = _.concat( [ redis.cacheCommands.UNION_OF_SETS ], keys );
+            this.#redisClient.executeCommands( [ commandUnionOfSets ] ).then( ( results ) => {
+                results = results[ 0 ];
+                let parsedResults = ( results && results.length > 1 && results[ 1 ] ) ? results[ 1 ] : [];
+                resolve( parsedResults );
+            } ).catch( ( error ) => {
+                reject( error );
+            } );
+        } );
+    }
+
+    /**
+     * Used to set a single hash field.
+     *
+     * @method
+     * @deprecated
+     * @param {string} key
+     * @param {string} name
+     * @param {*} value
+     * @returns {Promise}
+     * @public
+     */
+    hashSetField( key, name, value ) {
+        return new Promise( ( resolve, reject ) => {
+            let commandHashSetField = [ redis.cacheCommands.HASH_SET, key, name, tools.stringifyJSON( value ) ];
+            this.#redisClient.executeCommands( [ commandHashSetField ] ).then( () => {
+                resolve();
+            } ).catch( ( error ) => {
+                reject( error );
+            } );
+        } );
+    }
+
+    /**
+     * Used to set multiple hash fields.
+     *
+     * @method
+     * @deprecated
+     * @param {string} key
+     * @param {Object[]} fields
+     * @param {string} fields[].name
+     * @param {*} fields[].value
+     * @returns {Promise}
+     * @public
+     */
+    hashSetFields( key, fields ) {
+        return new Promise( ( resolve, reject ) => {
+            let commandHashSetFields = [ redis.cacheCommands.HASH_SET, key ];
+            _.forEach( fields, ( field ) => {
+                commandHashSetFields.push( field.name );
+                commandHashSetFields.push( tools.stringifyJSON( field.value ) );
+            } );
+            this.#redisClient.executeCommands( [ commandHashSetFields ] ).then( () => {
+                resolve();
+            } ).catch( ( error ) => {
+                reject( error );
+            } );
+        } );
+    }
+
+    /**
+     * Used to get a single field from a hash.
+     *
+     * @method
+     * @param {string} key
+     * @param {string} field
+     * @return {Promise}
+     * @public
+     */
+    hashGetField( key, field ) {
+        return new Promise( ( resolve, reject ) => {
+            let commandHashGetField = [ redis.cacheCommands.HASH_GET, key, field ];
+            this.#redisClient.executeCommands( [ commandHashGetField ] ).then( ( results ) => {
+                results = results[ 0 ];
+                resolve( ( results && results.length > 1 && _.isString( results[ 1 ] ) ) ? tools.parseJSON( results[ 1 ] ) : null );
+            } ).catch( ( error ) => {
+                reject( error );
+            } );
+        } );
+    }
+
+    /**
+     * Used to remove a single field from a hash.
+     *
+     * @method
+     * @param {string} key
+     * @param {string} field
+     * @return {Promise<boolean>} Will return 'true' if the field was removed, 'false' otherwise.
+     * @public
+     */
+    hashDeleteField( key, field ) {
+        return new Promise( ( resolve, reject ) => {
+            let commandHashGetField = [ redis.cacheCommands.HASH_REMOVE, key, field ];
+            this.#redisClient.executeCommands( [ commandHashGetField ] ).then( ( results ) => {
+                results = results[ 0 ];
+                resolve( ( results && results.length > 1 ) ? tools.toBool( results[ 1 ] ) : false );
+            } ).catch( ( error ) => {
+                reject( error );
+            } );
+        } );
+    }
+
+    /**
+     * Used to store a JSON variable.
+     * <br/>
+     * NOTE: Requires ReJSON module installed on server to work.
+     *
+     * @method
+     * @param {string} key
+     * @param {Object} value
+     * @param {string|string[]} [path="$"] A dot-separated JSONPath string, or an array of literal key segments (use the array form when key names may contain dots or other special characters).
+     * @param {number} [overrideMode=0] By default this allows full override for existing keys.
+     * Option 1 will set the key only if it doesn't already exist. Option 2 will set it only if it already exists.
+     * @returns {Promise}
+     * @public
+     */
+    setJSON( key, value, path = "$", overrideMode = 0 ) {
+        return new Promise( ( resolve, reject ) => {
+            if ( this.#redisClient.isJSONSupported ) {
+                let commandArguments = [ redis.cacheCommands.JSON_SET, key, this.#normalizeJSONPath( path ), tools.stringifyJSON( value ) ];
+                if ( overrideMode !== 0 ) {
+                    commandArguments.push( overrideMode === 1 ? redis.cacheOverrideMode.NX : redis.cacheOverrideMode.XX );
+                }
+                this.#redisClient.callCommand( commandArguments ).then( () => {
+                    resolve();
+                } ).catch( ( error ) => {
+                    reject( error );
+                } );
+            } else {
+                reject( exceptions.raise( exceptions.exceptionCode.E_GEN_FEATURE_UNSUPPORTED, { details: "No RedisJSON module installed on server." } ) );
+            }
+        } );
+    }
+
+    /**
+     * Used to fetch a JSON variable.
+     * <br/>
+     * NOTE: Requires ReJSON module installed on server to work.
+     *
+     * @method
+     * @param {string} key
+     * @param {string|string[]} [path="$"] A dot-separated JSONPath string, or an array of literal key segments (use the array form when key names may contain dots or other special characters).
+     * @returns {Promise<Object>}
+     * @public
+     */
+    getJSON( key, path = "$" ) {
+        return new Promise( ( resolve, reject ) => {
+            if ( this.#redisClient.isJSONSupported ) {
+                let commandArguments = [ redis.cacheCommands.JSON_GET, key, this.#normalizeJSONPath( path ) ];
+                this.#redisClient.callCommand( commandArguments ).then( ( result ) => {
+                    resolve( result != null ? tools.parseJSON( String( result ) ) : null );
+                } ).catch( ( error ) => {
+                    reject( error );
+                } );
+            } else {
+                reject( exceptions.raise( exceptions.exceptionCode.E_GEN_FEATURE_UNSUPPORTED, { details: "No RedisJSON module installed on server." } ) );
+            }
+        } );
+    }
+
+    /**
+     * Used to update/edit an existing JSON variable.
+     * <br/>
+     * NOTE: Requires ReJSON module installed on server to work.
+     *
+     * @method
+     * @param {string} key
+     * @param {Object} value
+     * @param {string|string[]} [path="$"] A dot-separated JSONPath string, or an array of literal key segments (use the array form when key names may contain dots or other special characters).
+     * @returns {Promise}
+     * @public
+     */
+    editJSON( key, value, path = "$" ) {
+        return new Promise( ( resolve, reject ) => {
+            if ( this.#redisClient.isJSONSupported ) {
+                let commandArguments = [ redis.cacheCommands.JSON_MERGE, key, this.#normalizeJSONPath( path ), tools.stringifyJSON( value ) ];
+                this.#redisClient.callCommand( commandArguments ).then( () => {
+                    resolve();
+                } ).catch( ( error ) => {
+                    reject( error );
+                } );
+            } else {
+                reject( exceptions.raise( exceptions.exceptionCode.E_GEN_FEATURE_UNSUPPORTED, { details: "No RedisJSON module installed on server." } ) );
+            }
+        } );
+    }
+
+    /**
+     * Used to add an item to a JSON array. That array needs to exist already.
+     * <br/>
+     * NOTE: Requires ReJSON module installed on server to work.
+     *
+     * @method
+     * @param {string} key
+     * @param {Object} value
+     * @param {string|string[]} [path="$"] A dot-separated JSONPath string, or an array of literal key segments (use the array form when key names may contain dots or other special characters).
+     * @returns {Promise}
+     * @public
+     */
+    arrayAppendJSON( key, value, path = "$" ) {
+        return new Promise( ( resolve, reject ) => {
+            if ( this.#redisClient.isJSONSupported ) {
+                let commandArguments = [ redis.cacheCommands.JSON_ARRAY_APPEND, key, this.#normalizeJSONPath( path ), tools.stringifyJSON( value ) ];
+                this.#redisClient.callCommand( commandArguments ).then( () => {
+                    resolve();
+                } ).catch( ( error ) => {
+                    reject( error );
+                } );
+            } else {
+                reject( exceptions.raise( exceptions.exceptionCode.E_GEN_FEATURE_UNSUPPORTED, { details: "No RedisJSON module installed on server." } ) );
+            }
+        } );
+    }
+
+    /* Private interface */
+
+    /**
+     * Used to normalize a JSON path.
+     * <br/>
+     * NOTE: If "path" is an array, each element is treated as a literal key name and encoded with bracket notation,
+     * which correctly handles key names that contain dots or other JSONPath special characters.
+     *
+     * @method
+     * @param {string|string[]} path
+     * @returns {string}
+     */
+    #normalizeJSONPath( path ) {
+        if ( Array.isArray( path ) ) {
+            return "$" + path.map( ( segment ) => `["${ String( segment ).replace( /\\/g, "\\\\" ).replace( /"/g, '\\"' ) }"]` ).join( "" );
+        }
+        return ( path.startsWith( "$" ) === false ) ? ( "$." + path ) : path;
+    }
+
+}
+
+module.exports = RedisCacheProvider;

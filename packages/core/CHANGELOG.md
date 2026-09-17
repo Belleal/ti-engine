@@ -2,6 +2,13 @@
 
 This document contains the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.13.0
+
+* feat(cache): introduce `CacheProvider`, an abstract backend contract, and move every Redis-specific detail behind it into `RedisCacheProvider`. `CommonMemoryCache` keeps its public API and now owns only the operational state, the connection observation and one guard shared by all twenty-one data methods.
+* feat(cache): declare backend capabilities (`TiCacheCapability`) and reconcile them at startup against the new `memoryCache.requiredCapabilities` setting (`TI_MEMORY_CACHE_REQUIRED_CAPABILITIES`), so a backend that cannot do what the application needs fails where somebody is watching. `ATOMIC_JSON_EDIT` is declared separately from `JSON_DOCUMENTS` because a backend can store JSON while applying a path edit as a read-modify-write, which loses one of two concurrent writes silently.
+* fix(cache): roll the cache back to non-operational and shut the backend down when capability reconciliation fails. The Redis client notifies its connection observers from inside its `ready` handler, before `initialize()` resolves, so the cache is already operational by the time the check runs; rejecting without undoing that left a live connection behind a cache reporting itself usable, while the caller had been told startup failed.
+* test(cache): cover the provider contract and the startup reconciliation — 11 new tests, core 42 to 53.
+
 ## Version 1.12.3
 
 * chore(package): update `package.json` structure

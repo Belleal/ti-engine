@@ -83,7 +83,7 @@ history and older PR bodies; it is no longer the working branch.
 
 ---
 
-## Package: core (v1.12.2)
+## Package: core (v1.13.0)
 
 **Role**: Foundational framework. All other packages depend on it. Standalone (no intra-repo deps).
 
@@ -114,12 +114,15 @@ history and older PR bodies; it is no longer the working branch.
 | `utils/exceptions.js` | `TiException` + standardized error codes (see below) |
 | `utils/logger.js` | Severity: DEBUG/INFO/NOTICE/WARNING/ERROR/CRITICAL/ALERT |
 | `utils/config.js` | Config enum + ENV overrides; frozen after init |
-| `utils/cache.js` | `CommonMemoryCache` singleton — RedisJSON wrapper (`getJSON`/`setJSON`/`editJSON`/`mergeJSON`; array-path support) |
+| `utils/cache.js` | `CommonMemoryCache` singleton — owns operational state, connection observation and one shared guard; delegates storage to a `CacheProvider` |
+| `components/cache/cache-provider.js` | **Abstract** backend contract (21 data methods + lifecycle) and `hasCapability()` |
+| `components/cache/cache-capability.js` | `TiCacheCapability` enum — the optional behaviors a backend may declare |
+| `components/cache/redis-cache-provider.js` | Redis/RedisJSON implementation — every Redis-specific detail in the cache path lives here |
 | `integrations/redis-integration.js` | ioredis client with connection pooling (RedisJSON: `JSON.MERGE`, `JSON.MGET`) |
 
 **Public exports** (`package.json` `exports`): `.` (start-instance), `./tools`, `./cache`, `./exceptions`, `./logger`, `./localization`, `./service-instance`, `./service-consumer`, `./service-provider`, `./definitions` (the shared typedefs).
 
-**Since the skill's last sync (1.9.0 → 1.12.2):**
+**Since the skill's last sync (1.9.0 → 1.13.0):**
 - **TypeScript declarations ship with the package** (1.9.0, fixed in 1.9.1), generated from the JSDoc by
   `.github/scripts/build-types.js` into `types/`. They are **committed**, and `npm run check:types` fails on stale
   output — so regenerate rather than hand-edit. The gate type-checks a generated consumer with `skipLibCheck: false`
@@ -140,6 +143,17 @@ history and older PR bodies; it is no longer the working branch.
   the `process.loadEnvFile` trap under *Conventions* — a stale OS variable still beats a correct `.env`, and this
   line will say the file loaded while the value in effect came from the shell.
 
+- **The cache backend is pluggable** (1.13.0). `CommonMemoryCache` used to build a Redis client in its own constructor,
+  so the backend could not be changed without editing the class. Storage now sits behind the abstract `CacheProvider`;
+  `RedisCacheProvider` is the only implementation and the default, so nothing changes for an existing deployment. The
+  measurement that shaped it: of the ~25 methods the cache exposes, the union actually called by core-without-exchange,
+  `web-framework` and `web-content` is ten — everything else, and every genuinely Redis-exclusive primitive
+  (`blockingCommand`, `publishCommand`/`subscribeCommand`), belongs to the message exchange. A backend declares its
+  capabilities and the application declares what it requires; the two are reconciled once, at startup.
+  **`ATOMIC_JSON_EDIT` is separate from `JSON_DOCUMENTS` on purpose** — `web-content`'s capture store depends on
+  `editJSON` being applied server-side, and a backend that emulates it as read-modify-write loses one of two concurrent
+  writes with nothing thrown.
+
 **Exception families** (`utils/exceptions.js`) — the class is `TiException` (renamed from `Exception` in 1.4.0); `raise()` accepts an optional `httpCode`:
 - `E_GEN_*` 1000–1010 (general; incl. `E_GEN_NOT_IMPLEMENTED` 1010)
 - `E_SEC_*` 2000–2004 (security)
@@ -153,6 +167,7 @@ history and older PR bodies; it is no longer the working branch.
 - `TI_INSTANCE_CONFIG` — path to service config JSON
 - `TI_AUDITING_LOG_MIN_LEVEL` — log filter (0–800)
 - `TI_MEMORY_CACHE_REDIS_HOST` / `TI_MEMORY_CACHE_REDIS_PORT` / `TI_MEMORY_CACHE_AUTH_KEY` / `TI_MEMORY_CACHE_REDIS_DB` — Redis connection
+- `TI_MEMORY_CACHE_REQUIRED_CAPABILITIES` — comma-separated `TiCacheCapability` values the application requires of the cache backend. **Empty by default**, which is what keeps every deployment predating capabilities behaving as it did; when set, a backend missing any of them fails startup rather than raising from inside a request
 - `TI_MESSAGE_EXCHANGE_SECURITY_HASH_ENABLED` — toggle the message integrity hash (default `true`)
 - `TI_MESSAGE_EXCHANGE_SECURITY_HASH_KEY` — message-exchange HMAC-SHA256 key. **Empty by default**: if unset (or equal to the old published default UUID) a one-time startup WARNING logs and tamper protection is ineffective — set a private value in production.
 
@@ -176,8 +191,9 @@ module.exports.service = function (serviceDefinition, serviceParams, serviceCall
 
 **Test commands**:
 ```bash
-npm test    # node --test — runs test/*.test.js: 42 tests / 7 suites across 5 files
-            # (cache-get-values, localization, message-hash, security-hash-key-warning, tools-proto-keys)
+npm test    # node --test — runs test/*.test.js: 53 tests / 9 suites across 6 files
+            # (cache-capabilities, cache-get-values, localization, message-hash,
+            #  security-hash-key-warning, tools-proto-keys)
 ```
 
 ---
@@ -602,7 +618,7 @@ Token: YouTrack → Profile → Account Security → New token (scope: YouTrack)
 
 ## Key Architectural Patterns
 
-1. **Abstract base classes** — never instantiate `ServiceInstance`, `MessageExchange`, `TiWebAppManager` directly; subclass them.
+1. **Abstract base classes** — never instantiate `ServiceInstance`, `MessageExchange`, `CacheProvider`, `TiWebAppManager` directly; subclass them. Each guards its own constructor with `new.target` and raises `E_GEN_ABSTRACT_CLASS_INIT`; unimplemented methods raise `E_GEN_ABSTRACT_METHOD_CALL` naming the subclass and method.
 2. **Singletons via frozen instance** — `CommonMemoryCache` here, and `ConfigService` / `ConfigRegistry` in web-framework, export a single frozen `instance`; access that, don't re-construct. Consumers follow the pattern (competence's `DataManager`, `OrganizationManager` and `CompetenceFramework` are all frozen singletons).
 3. **deepFreeze on config** — config/settings are immutable once loaded.
 4. **Store-backed config** — a consumer registers config documents with the framework registry and, after `initialize()`, they are served from a versioned, audited store; consumers hot-reload via `onConfigChanged`. File values are bootstrap defaults, seeded **only on first write** — which is why the drift panel exists.
@@ -621,7 +637,7 @@ Token: YouTrack → Profile → Account Security → New token (scope: YouTrack)
 2. **Extending the web UI**: subclass `TiWebAppManager`, add an HTML fragment + matching Alpine component; reuse framework CSS primitives; obey the Alpine CSP rules (no inline styles, no `?.`).
 3. **Config-management, from a consumer's side**: a consuming application registers a config document (schema + file default + semantic validators + optional composite editor) through `TiWebAppManager.registerConfigDocument` / `registerConfigEditor`. Those seams live here; the documents themselves live in the consumer. Changing either seam is a breaking change for every consumer, so treat the `exports` map and these signatures as API.
 4. **Testing**: Node.js built-in `node --test` (no external framework); each package's `test/` directory. `npm test`
-   at the root fans out across workspaces — **969 tests today: core 42, web-framework 524, web-content 403, tester
+   at the root fans out across workspaces — **980 tests today: core 53, web-framework 524, web-content 403, tester
    none** (it is a runnable service, not a unit-tested one). The three checks that gate a push are in
    `CLAUDE.md` → *Definition of done*: `npm test`, `npm run lint` (0 errors; ESLint's only rule here is
    `no-unused-vars` as a **warning**, so a clean lint is no evidence the house style was followed — read a sibling

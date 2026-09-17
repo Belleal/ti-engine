@@ -16,63 +16,36 @@
 */
 
 const ConnectionObserver = require( "#connection-observer" );
+const RedisCacheProvider = require( "#redis-cache-provider" );
 const _ = require( "lodash" );
 const config = require( "#config" );
-const tools = require( "#tools" );
-const redis = require( "#redis-integration" );
 const exceptions = require( "#exceptions" );
+const { cacheCapability } = require( "#cache-capability" );
 
 /**
- * Decodes one entry of a `multi(...).exec()` result into the value it carries.
+ * Determines which of the required capabilities a backend does not provide.
  * <br/>
- * Each entry is an ioredis `[ error, value ]` pair, so the value sits at index 1 and is a string when the key existed.
- * Returns `undefined` for a miss, an error entry, or a malformed entry.
- * <br/>
- * This lives outside the class, and is shared by {@link CommonMemoryCache#getValue} and
- * {@link CommonMemoryCache#getValues}, because it previously existed as two near-identical inline expressions and one
- * of them drifted: `getValues` inspected its own accumulator instead of the per-key entry, so `.length` was
- * `undefined`, the comparison was always false, and **every key resolved to `null`** whatever Redis returned.
+ * NOTE: This lives outside the class, and is exported, for the same reason the Redis decoders are: the cache singleton
+ * builds its own backend in its constructor, so the reconciliation cannot be driven without a live server. This is the
+ * pure half of it, and it is the half that decides whether an instance starts.
  *
  * @method
- * @param {Array} [result] One `[ error, value ]` entry.
- * @returns {*} The parsed value, or `undefined` when there is none.
- * @private
+ * @param {string[]} [required] Capabilities the application declared it needs.
+ * @param {string[]} [available] Capabilities the backend reports it provides.
+ * @returns {string[]} The required capabilities that are absent, in the order they were required.
+ * @public
  */
-function decodeCommandValue( result ) {
-    // `Array.isArray` rather than a bare truthy-and-length test: a string also has a `length` and an indexable
-    // character at 1, so a malformed non-array entry would otherwise be parsed as if it were a value.
-    return ( Array.isArray( result ) && result.length > 1 && _.isString( result[ 1 ] ) ) ? tools.parseJSON( result[ 1 ] ) : undefined;
-}
-
-/**
- * Maps a set of requested keys onto the values a `multi(...).exec()` returned for them, using `null` for a miss.
- * <br/>
- * Iterates the requested `keys` rather than the raw results, so a short or absent response still yields one entry per
- * requested key instead of silently omitting some — the caller's map always has the shape it asked for.
- * <br/>
- * The accumulator has no prototype on purpose: the key names come from the caller, and a cache key named `__proto__`
- * written by bracket assignment onto an ordinary `{}` would repoint the accumulator's prototype instead of creating
- * the entry. Same class as the `decycle` defect fixed in `tools.js`; see the 1.11.0 changelog entry.
- *
- * @method
- * @param {string[]} keys The keys that were requested, in command order.
- * @param {Array} [rawResults] The `multi(...).exec()` result.
- * @returns {Object} A null-prototype map of key to value, `null` where the key was absent.
- * @private
- */
-function mapCommandValues( keys, rawResults ) {
-    let values = Object.create( null );
-
-    _.forEach( keys, ( key, idx ) => {
-        let decoded = decodeCommandValue( rawResults ? rawResults[ idx ] : undefined );
-        values[ key ] = ( decoded === undefined ) ? null : decoded;
-    } );
-
-    return values;
+function findMissingCapabilities( required, available ) {
+    let provided = new Set( Array.isArray( available ) ? available : [] );
+    return _.filter( Array.isArray( required ) ? required : [], ( capability ) => provided.has( capability ) === false );
 }
 
 /**
  * Used to create and/or return a Common Memory Cache singleton instance.
+ * <br/>
+ * NOTE: This owns the cache's operational state and the connection observation around it; where the values actually
+ * live is the {@link CacheProvider}'s business. Every method here checks that the cache is usable and then delegates,
+ * which is why no provider repeats that check.
  *
  * @class CommonMemoryCache
  * @extends ConnectionObserver
@@ -82,7 +55,8 @@ function mapCommandValues( keys, rawResults ) {
 class CommonMemoryCache extends ConnectionObserver {
 
     static #instance = null;
-    #redisClient = null;
+    /** @type CacheProvider */
+    #provider = null;
     #isOperational = false;
     #connectionIdentifier = "system-cache";
 
@@ -94,8 +68,8 @@ class CommonMemoryCache extends ConnectionObserver {
         super();
 
         if ( !CommonMemoryCache.#instance ) {
-            this.#redisClient = redis.createRedisClient( this.#connectionIdentifier );
-            this.#redisClient.addConnectionObserver( this );
+            this.#provider = new RedisCacheProvider( this.#connectionIdentifier );
+            this.#provider.addConnectionObserver( this );
 
             CommonMemoryCache.#instance = this;
         }
@@ -127,20 +101,55 @@ class CommonMemoryCache extends ConnectionObserver {
     }
 
     /**
+     * Property returning the optional behaviors the configured backend provides.
+     * <br/>
+     * NOTE: Accurate only once {@link CommonMemoryCache#initialize} has resolved — some capabilities cannot be
+     * established until the backend has connected.
+     *
+     * @property
+     * @returns {string[]} Values drawn from {@link TiCacheCapability}.
+     * @public
+     */
+    get capabilities() {
+        return this.#provider.capabilities;
+    }
+
+    /**
      * Used to initialize the cache service.
+     * <br/>
+     * NOTE: Once the backend is connected, the capabilities it reports are reconciled against the
+     * 'memoryCache.requiredCapabilities' setting, and startup fails if any of them is missing. That is deliberate: a
+     * backend silently lacking a behavior the application depends on is otherwise discovered from inside a request,
+     * long after the deployment that introduced it.
+     * <br/>
+     * NOTE: A failed reconciliation rolls the cache back to non-operational and shuts the backend down before it
+     * rejects, so a refused startup never leaves a usable cache behind.
      *
      * @method
      * @returns {Promise}
+     * @throws {TiException.E_GEN_FEATURE_UNSUPPORTED} If the backend does not provide every required capability.
      * @public
      */
     initialize() {
-        let host = config.getSetting( config.setting.MEMORY_CACHE_REDIS_HOST );
-        let port = config.getSetting( config.setting.MEMORY_CACHE_REDIS_PORT );
-        let db = config.getSetting( config.setting.MEMORY_CACHE_REDIS_DB );
-        let authKey = config.getSetting( config.setting.MEMORY_CACHE_AUTH_KEY );
-        let user = config.getSetting( config.setting.MEMORY_CACHE_USER );
-
-        return this.#redisClient.initialize( host, port, authKey, user, db );
+        return this.#provider.initialize().then( () => {
+            try {
+                this.#verifyRequiredCapabilities();
+            } catch ( error ) {
+                // The backend is already connected and this cache already operational by the time the check runs:
+                // the Redis client notifies its connection observers from inside its "ready" handler, before
+                // `initialize()` resolves, and `onConnectionRecovered` sets `#isOperational` to true. Rejecting
+                // without undoing that would leave the singleton reporting an operational cache over a live
+                // connection while its caller has been told that startup failed - `ServiceInstance.onStart` only
+                // propagates the rejection, and `shutDown()` is reached from `stop()`, which a failed start never
+                // gets to. So the rollback belongs here, where the failure is raised.
+                this.#isOperational = false;
+                return this.#provider.shutDown().catch( () => {
+                    // A backend that cannot close cleanly must not replace the reason startup was refused.
+                } ).then( () => {
+                    throw error;
+                } );
+            }
+        } );
     }
 
     /**
@@ -151,7 +160,7 @@ class CommonMemoryCache extends ConnectionObserver {
      * @public
      */
     shutDown() {
-        return this.#redisClient.shutDown( 250 );
+        return this.#provider.shutDown();
     }
 
     /**
@@ -200,14 +209,14 @@ class CommonMemoryCache extends ConnectionObserver {
     }
 
     /**
-     * Used to register a new {@link ConnectionObserver} for events related to the underlying Redis connection state.
+     * Used to register a new {@link ConnectionObserver} for events related to the underlying backend connection state.
      *
      * @method
      * @param {ConnectionObserver} connectionObserver The {@link ConnectionObserver} that will be notified of any changes.
      * @public
      */
     addConnectionObserver( connectionObserver ) {
-        this.#redisClient.addConnectionObserver( connectionObserver );
+        this.#provider.addConnectionObserver( connectionObserver );
     }
 
     /**
@@ -219,19 +228,7 @@ class CommonMemoryCache extends ConnectionObserver {
      * @public
      */
     matchKeys( pattern ) {
-        return new Promise( ( resolve, reject ) => {
-            if ( this.#isOperational === true ) {
-                let commandKeys = [ redis.cacheCommands.KEYS, pattern ];
-                this.#redisClient.executeCommands( [ commandKeys ] ).then( ( results ) => {
-                    results = results[ 0 ];
-                    resolve( ( results && results.length > 1 ) ? results[ 1 ] : [] );
-                } ).catch( ( error ) => {
-                    reject( error );
-                } );
-            } else {
-                reject( exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE ) );
-            }
-        } );
+        return this.#guarded( () => this.#provider.matchKeys( pattern ) );
     }
 
     /**
@@ -245,26 +242,7 @@ class CommonMemoryCache extends ConnectionObserver {
      * @public
      */
     setValue( key, value, expiration ) {
-        return new Promise( ( resolve, reject ) => {
-            if ( this.#isOperational === true ) {
-                if ( value ) {
-                    let commandSetValue = [ redis.cacheCommands.SET_VALUE, key, tools.stringifyJSON( value ) ];
-                    if ( expiration ) {
-                        commandSetValue.push( "EX" );
-                        commandSetValue.push( expiration );
-                    }
-                    this.#redisClient.executeCommands( [ commandSetValue ] ).then( () => {
-                        resolve( value );
-                    } ).catch( ( error ) => {
-                        reject( error );
-                    } );
-                } else {
-                    resolve( value );
-                }
-            } else {
-                reject( exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE ) );
-            }
-        } );
+        return this.#guarded( () => this.#provider.setValue( key, value, expiration ) );
     }
 
     /**
@@ -278,31 +256,7 @@ class CommonMemoryCache extends ConnectionObserver {
      * @public
      */
     setValues( keyValues, prefix, expiration ) {
-        return new Promise( ( resolve, reject ) => {
-            if ( this.#isOperational === true ) {
-                if ( keyValues ) {
-                    let commands = [];
-                    _.forEach( keyValues, ( value, key ) => {
-                        let commandSetValue = [ redis.cacheCommands.SET_VALUE, ( ( prefix ) ? prefix : "" ) + key, tools.stringifyJSON( value ) ];
-                        if ( expiration ) {
-                            commandSetValue.push( "EX" );
-                            commandSetValue.push( expiration );
-                        }
-                        commands.push( commandSetValue );
-                    } );
-
-                    this.#redisClient.executeCommands( commands ).then( () => {
-                        resolve( keyValues );
-                    } ).catch( ( error ) => {
-                        reject( error );
-                    } );
-                } else {
-                    resolve( keyValues );
-                }
-            } else {
-                reject( exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE ) );
-            }
-        } );
+        return this.#guarded( () => this.#provider.setValues( keyValues, prefix, expiration ) );
     }
 
     /**
@@ -314,18 +268,7 @@ class CommonMemoryCache extends ConnectionObserver {
      * @public
      */
     getValue( key ) {
-        return new Promise( ( resolve, reject ) => {
-            if ( this.#isOperational === true ) {
-                let commandGetValue = [ redis.cacheCommands.GET_VALUE, key ];
-                this.#redisClient.executeCommands( [ commandGetValue ] ).then( ( results ) => {
-                    resolve( decodeCommandValue( results ? results[ 0 ] : undefined ) );
-                } ).catch( ( error ) => {
-                    reject( error );
-                } );
-            } else {
-                reject( exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE ) );
-            }
-        } );
+        return this.#guarded( () => this.#provider.getValue( key ) );
     }
 
     /**
@@ -338,21 +281,7 @@ class CommonMemoryCache extends ConnectionObserver {
      * @public
      */
     getValues( keys, prefix ) {
-        return new Promise( ( resolve, reject ) => {
-            if ( this.#isOperational === true ) {
-                let commands = [];
-                _.forEach( keys, ( key ) => {
-                    commands.push( [ redis.cacheCommands.GET_VALUE, ( ( prefix ) ? prefix : "" ) + key ] );
-                } );
-                this.#redisClient.executeCommands( commands ).then( ( rawResults ) => {
-                    resolve( mapCommandValues( keys, rawResults ) );
-                } ).catch( ( error ) => {
-                    reject( error );
-                } );
-            } else {
-                reject( exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE ) );
-            }
-        } );
+        return this.#guarded( () => this.#provider.getValues( keys, prefix ) );
     }
 
     /**
@@ -364,19 +293,7 @@ class CommonMemoryCache extends ConnectionObserver {
      * @public
      */
     deleteValue( key ) {
-        return new Promise( ( resolve, reject ) => {
-            if ( this.#isOperational === true ) {
-                let commandDeleteValue = [ redis.cacheCommands.DELETE_VALUE, key ];
-                this.#redisClient.executeCommands( [ commandDeleteValue ] ).then( ( results ) => {
-                    results = results[ 0 ];
-                    resolve( ( results && results.length > 1 ) ? results[ 1 ] : undefined );
-                } ).catch( ( error ) => {
-                    reject( error );
-                } );
-            } else {
-                reject( exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE ) );
-            }
-        } );
+        return this.#guarded( () => this.#provider.deleteValue( key ) );
     }
 
     /**
@@ -392,18 +309,7 @@ class CommonMemoryCache extends ConnectionObserver {
      * @public
      */
     expireValue( key, seconds, name ) {
-        return new Promise( ( resolve, reject ) => {
-            if ( this.#isOperational === true ) {
-                let commandExpire = ( name ) ? [ redis.cacheCommands.HASH_EXPIRE, name, seconds, "FIELDS", 1, key ] : [ redis.cacheCommands.EXPIRE, key, seconds ];
-                this.#redisClient.executeCommands( [ commandExpire ] ).then( () => {
-                    resolve( seconds );
-                } ).catch( ( error ) => {
-                    reject( error );
-                } );
-            } else {
-                reject( exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE ) );
-            }
-        } );
+        return this.#guarded( () => this.#provider.expireValue( key, seconds, name ) );
     }
 
     /**
@@ -416,24 +322,7 @@ class CommonMemoryCache extends ConnectionObserver {
      * @public
      */
     listPushValue( listName, values ) {
-        return new Promise( ( resolve, reject ) => {
-            if ( this.#isOperational === true ) {
-                let commandPushValues = [ redis.cacheCommands.LIST_PUSH, listName ];
-                _.forEach( values, ( value ) => {
-                    if ( value ) {
-                        commandPushValues.push( tools.stringifyJSON( value ) );
-                    }
-                } );
-                this.#redisClient.executeCommands( [ commandPushValues ] ).then( ( results ) => {
-                    results = results[ 0 ];
-                    resolve( ( results && results.length > 1 ) ? results[ 1 ] : undefined );
-                } ).catch( ( error ) => {
-                    reject( error );
-                } );
-            } else {
-                reject( exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE ) );
-            }
-        } );
+        return this.#guarded( () => this.#provider.listPushValue( listName, values ) );
     }
 
     /**
@@ -446,18 +335,7 @@ class CommonMemoryCache extends ConnectionObserver {
      * @public
      */
     addToSet( key, value ) {
-        return new Promise( ( resolve, reject ) => {
-            if ( this.#isOperational === true ) {
-                let commandAddToSet = [ redis.cacheCommands.ADD_TO_SET, key, tools.stringifyJSON( value ) ];
-                this.#redisClient.executeCommands( [ commandAddToSet ] ).then( () => {
-                    resolve();
-                } ).catch( ( error ) => {
-                    reject( error );
-                } );
-            } else {
-                reject( exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE ) );
-            }
-        } );
+        return this.#guarded( () => this.#provider.addToSet( key, value ) );
     }
 
     /**
@@ -472,21 +350,7 @@ class CommonMemoryCache extends ConnectionObserver {
      * @public
      */
     addToSetMulti( keys, values ) {
-        return new Promise( ( resolve, reject ) => {
-            if ( this.#isOperational === true ) {
-                let commands = [];
-                _.forEach( keys, ( key, idx ) => {
-                    commands.push( [ redis.cacheCommands.ADD_TO_SET, key, tools.stringifyJSON( values[ idx ] ) ] );
-                } );
-                this.#redisClient.executeCommands( commands ).then( () => {
-                    resolve();
-                } ).catch( ( error ) => {
-                    reject( error );
-                } );
-            } else {
-                reject( exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE ) );
-            }
-        } );
+        return this.#guarded( () => this.#provider.addToSetMulti( keys, values ) );
     }
 
     /**
@@ -499,20 +363,7 @@ class CommonMemoryCache extends ConnectionObserver {
      * @public
      */
     isSetMember( setName, value ) {
-        return new Promise( ( resolve, reject ) => {
-            if ( this.#isOperational === true ) {
-                let commandIsSetMember = [ redis.cacheCommands.IS_SET_MEMBER, setName, value ];
-                this.#redisClient.executeCommands( [ commandIsSetMember ] ).then( ( results ) => {
-                    results = results[ 0 ];
-                    let result = !!( results && results.length > 1 && results[ 1 ] === 1 );
-                    resolve( result );
-                } ).catch( ( error ) => {
-                    reject( error );
-                } );
-            } else {
-                reject( exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE ) );
-            }
-        } );
+        return this.#guarded( () => this.#provider.isSetMember( setName, value ) );
     }
 
     /**
@@ -524,20 +375,7 @@ class CommonMemoryCache extends ConnectionObserver {
      * @public
      */
     membersOfSet( key ) {
-        return new Promise( ( resolve, reject ) => {
-            if ( this.#isOperational === true ) {
-                let commandMembersOfSet = [ redis.cacheCommands.GET_ALL_FROM_SET, key ];
-                this.#redisClient.executeCommands( [ commandMembersOfSet ] ).then( ( results ) => {
-                    results = results[ 0 ];
-                    let parsedResults = ( results && results.length > 1 && results[ 1 ] ) ? results[ 1 ] : [];
-                    resolve( parsedResults );
-                } ).catch( ( error ) => {
-                    reject( error );
-                } );
-            } else {
-                reject( exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE ) );
-            }
-        } );
+        return this.#guarded( () => this.#provider.membersOfSet( key ) );
     }
 
     /**
@@ -549,20 +387,7 @@ class CommonMemoryCache extends ConnectionObserver {
      * @public
      */
     unionOfSets( keys ) {
-        return new Promise( ( resolve, reject ) => {
-            if ( this.#isOperational === true ) {
-                let commandUnionOfSets = _.concat( [ redis.cacheCommands.UNION_OF_SETS ], keys );
-                this.#redisClient.executeCommands( [ commandUnionOfSets ] ).then( ( results ) => {
-                    results = results[ 0 ];
-                    let parsedResults = ( results && results.length > 1 && results[ 1 ] ) ? results[ 1 ] : [];
-                    resolve( parsedResults );
-                } ).catch( ( error ) => {
-                    reject( error );
-                } );
-            } else {
-                reject( exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE ) );
-            }
-        } );
+        return this.#guarded( () => this.#provider.unionOfSets( keys ) );
     }
 
     /**
@@ -577,18 +402,7 @@ class CommonMemoryCache extends ConnectionObserver {
      * @public
      */
     hashSetField( key, name, value ) {
-        return new Promise( ( resolve, reject ) => {
-            if ( this.#isOperational === true ) {
-                let commandHashSetField = [ redis.cacheCommands.HASH_SET, key, name, tools.stringifyJSON( value ) ];
-                this.#redisClient.executeCommands( [ commandHashSetField ] ).then( () => {
-                    resolve();
-                } ).catch( ( error ) => {
-                    reject( error );
-                } );
-            } else {
-                reject( exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE ) );
-            }
-        } );
+        return this.#guarded( () => this.#provider.hashSetField( key, name, value ) );
     }
 
     /**
@@ -604,22 +418,7 @@ class CommonMemoryCache extends ConnectionObserver {
      * @public
      */
     hashSetFields( key, fields ) {
-        return new Promise( ( resolve, reject ) => {
-            if ( this.#isOperational === true ) {
-                let commandHashSetFields = [ redis.cacheCommands.HASH_SET, key ];
-                _.forEach( fields, ( field ) => {
-                    commandHashSetFields.push( field.name );
-                    commandHashSetFields.push( tools.stringifyJSON( field.value ) );
-                } );
-                this.#redisClient.executeCommands( [ commandHashSetFields ] ).then( () => {
-                    resolve();
-                } ).catch( ( error ) => {
-                    reject( error );
-                } );
-            } else {
-                reject( exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE ) );
-            }
-        } );
+        return this.#guarded( () => this.#provider.hashSetFields( key, fields ) );
     }
 
     /**
@@ -632,19 +431,7 @@ class CommonMemoryCache extends ConnectionObserver {
      * @public
      */
     hashGetField( key, field ) {
-        return new Promise( ( resolve, reject ) => {
-            if ( this.#isOperational === true ) {
-                let commandHashGetField = [ redis.cacheCommands.HASH_GET, key, field ];
-                this.#redisClient.executeCommands( [ commandHashGetField ] ).then( ( results ) => {
-                    results = results[ 0 ];
-                    resolve( ( results && results.length > 1 && _.isString( results[ 1 ] ) ) ? tools.parseJSON( results[ 1 ] ) : null );
-                } ).catch( ( error ) => {
-                    reject( error );
-                } );
-            } else {
-                reject( exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE ) );
-            }
-        } );
+        return this.#guarded( () => this.#provider.hashGetField( key, field ) );
     }
 
     /**
@@ -657,19 +444,7 @@ class CommonMemoryCache extends ConnectionObserver {
      * @public
      */
     hashDeleteField( key, field ) {
-        return new Promise( ( resolve, reject ) => {
-            if ( this.#isOperational === true ) {
-                let commandHashGetField = [ redis.cacheCommands.HASH_REMOVE, key, field ];
-                this.#redisClient.executeCommands( [ commandHashGetField ] ).then( ( results ) => {
-                    results = results[ 0 ];
-                    resolve( ( results && results.length > 1 ) ? tools.toBool( results[ 1 ] ) : false );
-                } ).catch( ( error ) => {
-                    reject( error );
-                } );
-            } else {
-                reject( exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE ) );
-            }
-        } );
+        return this.#guarded( () => this.#provider.hashDeleteField( key, field ) );
     }
 
     /**
@@ -687,25 +462,7 @@ class CommonMemoryCache extends ConnectionObserver {
      * @public
      */
     setJSON( key, value, path = "$", overrideMode = 0 ) {
-        return new Promise( ( resolve, reject ) => {
-            if ( this.#isOperational === true ) {
-                if ( this.#redisClient.isJSONSupported ) {
-                    let commandArguments = [ redis.cacheCommands.JSON_SET, key, this.#normalizeJSONPath( path ), tools.stringifyJSON( value ) ];
-                    if ( overrideMode !== 0 ) {
-                        commandArguments.push( overrideMode === 1 ? redis.cacheOverrideMode.NX : redis.cacheOverrideMode.XX );
-                    }
-                    this.#redisClient.callCommand( commandArguments ).then( () => {
-                        resolve();
-                    } ).catch( ( error ) => {
-                        reject( error );
-                    } );
-                } else {
-                    reject( exceptions.raise( exceptions.exceptionCode.E_GEN_FEATURE_UNSUPPORTED, { details: "No RedisJSON module installed on server." } ) );
-                }
-            } else {
-                reject( exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE ) );
-            }
-        } );
+        return this.#guarded( () => this.#provider.setJSON( key, value, path, overrideMode ) );
     }
 
     /**
@@ -720,22 +477,7 @@ class CommonMemoryCache extends ConnectionObserver {
      * @public
      */
     getJSON( key, path = "$" ) {
-        return new Promise( ( resolve, reject ) => {
-            if ( this.#isOperational === true ) {
-                if ( this.#redisClient.isJSONSupported ) {
-                    let commandArguments = [ redis.cacheCommands.JSON_GET, key, this.#normalizeJSONPath( path ) ];
-                    this.#redisClient.callCommand( commandArguments ).then( ( result ) => {
-                        resolve( result != null ? tools.parseJSON( String( result ) ) : null );
-                    } ).catch( ( error ) => {
-                        reject( error );
-                    } );
-                } else {
-                    reject( exceptions.raise( exceptions.exceptionCode.E_GEN_FEATURE_UNSUPPORTED, { details: "No RedisJSON module installed on server." } ) );
-                }
-            } else {
-                reject( exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE ) );
-            }
-        } );
+        return this.#guarded( () => this.#provider.getJSON( key, path ) );
     }
 
     /**
@@ -751,22 +493,7 @@ class CommonMemoryCache extends ConnectionObserver {
      * @public
      */
     editJSON( key, value, path = "$" ) {
-        return new Promise( ( resolve, reject ) => {
-            if ( this.#isOperational === true ) {
-                if ( this.#redisClient.isJSONSupported ) {
-                    let commandArguments = [ redis.cacheCommands.JSON_MERGE, key, this.#normalizeJSONPath( path ), tools.stringifyJSON( value ) ];
-                    this.#redisClient.callCommand( commandArguments ).then( () => {
-                        resolve();
-                    } ).catch( ( error ) => {
-                        reject( error );
-                    } );
-                } else {
-                    reject( exceptions.raise( exceptions.exceptionCode.E_GEN_FEATURE_UNSUPPORTED, { details: "No RedisJSON module installed on server." } ) );
-                }
-            } else {
-                reject( exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE ) );
-            }
-        } );
+        return this.#guarded( () => this.#provider.editJSON( key, value, path ) );
     }
 
     /**
@@ -782,41 +509,45 @@ class CommonMemoryCache extends ConnectionObserver {
      * @public
      */
     arrayAppendJSON( key, value, path = "$" ) {
-        return new Promise( ( resolve, reject ) => {
-            if ( this.#isOperational === true ) {
-                if ( this.#redisClient.isJSONSupported ) {
-                    let commandArguments = [ redis.cacheCommands.JSON_ARRAY_APPEND, key, this.#normalizeJSONPath( path ), tools.stringifyJSON( value ) ];
-                    this.#redisClient.callCommand( commandArguments ).then( () => {
-                        resolve();
-                    } ).catch( ( error ) => {
-                        reject( error );
-                    } );
-                } else {
-                    reject( exceptions.raise( exceptions.exceptionCode.E_GEN_FEATURE_UNSUPPORTED, { details: "No RedisJSON module installed on server." } ) );
-                }
-            } else {
-                reject( exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE ) );
-            }
-        } );
+        return this.#guarded( () => this.#provider.arrayAppendJSON( key, value, path ) );
     }
 
     /* Private interface */
 
     /**
-     * Used to normalize a JSON path.
+     * Used to reject an operation when the cache is not usable, and to delegate it to the backend when it is.
      * <br/>
-     * NOTE: If "path" is an array, each element is treated as a literal key name and encoded with bracket notation,
-     * which correctly handles key names that contain dots or other JSONPath special characters.
+     * NOTE: This exists so the check lives in exactly one place. It previously stood at the head of all twenty-one
+     * data methods, which is twenty-one chances for a new method to be added without it.
      *
      * @method
-     * @param {string|string[]} path
-     * @returns {string}
+     * @param {function(): Promise} operation
+     * @returns {Promise}
      */
-    #normalizeJSONPath( path ) {
-        if ( Array.isArray( path ) ) {
-            return "$" + path.map( ( segment ) => `["${ String( segment ).replace( /\\/g, "\\\\" ).replace( /"/g, '\\"' ) }"]` ).join( "" );
+    #guarded( operation ) {
+        return ( this.#isOperational === true )
+            ? operation()
+            : Promise.reject( exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE ) );
+    }
+
+    /**
+     * Used to reconcile what the application requires against what the backend reports it can do.
+     *
+     * @method
+     * @throws {TiException.E_GEN_FEATURE_UNSUPPORTED} If any required capability is absent.
+     */
+    #verifyRequiredCapabilities() {
+        let required = config.getSetting( config.setting.MEMORY_CACHE_REQUIRED_CAPABILITIES, [] );
+        if ( _.isEmpty( required ) === true ) {
+            return;
         }
-        return ( path.startsWith( "$" ) === false ) ? ( "$." + path ) : path;
+
+        let missing = findMissingCapabilities( required, this.#provider.capabilities );
+        if ( missing.length > 0 ) {
+            throw exceptions.raise( exceptions.exceptionCode.E_GEN_FEATURE_UNSUPPORTED, {
+                details: `The configured cache backend '${ this.#provider.constructor.name }' does not provide the required ${ ( missing.length === 1 ) ? "capability" : "capabilities" }: ${ missing.join( ", " ) }.`
+            } );
+        }
     }
 
 }
@@ -824,7 +555,14 @@ class CommonMemoryCache extends ConnectionObserver {
 const instance = new CommonMemoryCache();
 module.exports.instance = Object.freeze( instance );
 
-// Exported for testing. The cache singleton builds its own Redis client in its constructor, so `getValues` cannot be
-// driven without a live server — these are the pure halves of it, and they are where the defect was.
-module.exports.decodeCommandValue = decodeCommandValue;
-module.exports.mapCommandValues = mapCommandValues;
+// Re-exported from the Redis backend, where these now live along with the rest of the Redis-specific decoding. They
+// stay on this module because it is the published entry point and removing them would break any consumer that reaches
+// for them - including this package's own `cache-get-values` suite.
+module.exports.decodeCommandValue = RedisCacheProvider.decodeCommandValue;
+module.exports.mapCommandValues = RedisCacheProvider.mapCommandValues;
+
+// Re-exported so a consumer can name a capability without reaching past this module's exports map.
+module.exports.cacheCapability = cacheCapability;
+
+// Exported for testing, per the note on the function itself.
+module.exports.findMissingCapabilities = findMissingCapabilities;

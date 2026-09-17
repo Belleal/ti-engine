@@ -38,6 +38,7 @@ const settingsEnum = tools.enum( {
     MEMORY_CACHE_REDIS_DB: [ "memoryCache.redisDB", "redisDB", "" ],
     MEMORY_CACHE_REDIS_HOST: [ "memoryCache.redisHost", "redisHost", "" ],
     MEMORY_CACHE_REDIS_PORT: [ "memoryCache.redisPort", "redisPort", "" ],
+    MEMORY_CACHE_REQUIRED_CAPABILITIES: [ "memoryCache.requiredCapabilities", "requiredCapabilities", "" ],
     MEMORY_CACHE_RETRY_MAX_ATTEMPTS: [ "memoryCache.retryMaxAttempts", "retryMaxAttempts", "" ],
     MEMORY_CACHE_RETRY_MAX_INTERVAL: [ "memoryCache.retryMaxInterval", "retryMaxInterval", "" ],
     MEMORY_CACHE_USER: [ "memoryCache.user", "user", "" ],
@@ -78,6 +79,12 @@ if ( settings.memoryCache ) {
     settings.memoryCache.redisDB = ( process.env.TI_MEMORY_CACHE_REDIS_DB !== undefined ) ? Number( process.env.TI_MEMORY_CACHE_REDIS_DB ) : settings.memoryCache.redisDB;
     settings.memoryCache.redisHost = ( process.env.TI_MEMORY_CACHE_REDIS_HOST !== undefined ) ? process.env.TI_MEMORY_CACHE_REDIS_HOST : settings.memoryCache.redisHost;
     settings.memoryCache.redisPort = ( process.env.TI_MEMORY_CACHE_REDIS_PORT !== undefined ) ? Number( process.env.TI_MEMORY_CACHE_REDIS_PORT ) : settings.memoryCache.redisPort;
+    // Comma-separated in the environment because that is all an env var can carry; an array everywhere else. An
+    // empty value means "require nothing", which is what keeps a deployment that never declared capabilities
+    // behaving exactly as it did before they existed.
+    settings.memoryCache.requiredCapabilities = ( process.env.TI_MEMORY_CACHE_REQUIRED_CAPABILITIES !== undefined )
+        ? String( process.env.TI_MEMORY_CACHE_REQUIRED_CAPABILITIES ).split( "," ).map( ( capability ) => capability.trim() ).filter( ( capability ) => capability.length > 0 )
+        : settings.memoryCache.requiredCapabilities;
     settings.memoryCache.retryMaxAttempts = ( process.env.TI_MEMORY_CACHE_RETRY_MAX_ATTEMPTS !== undefined ) ? Number( process.env.TI_MEMORY_CACHE_RETRY_MAX_ATTEMPTS ) : settings.memoryCache.retryMaxAttempts;
     settings.memoryCache.retryMaxInterval = ( process.env.TI_MEMORY_CACHE_RETRY_MAX_INTERVAL !== undefined ) ? Number( process.env.TI_MEMORY_CACHE_RETRY_MAX_INTERVAL ) : settings.memoryCache.retryMaxInterval;
     settings.memoryCache.user = ( process.env.TI_MEMORY_CACHE_USER !== undefined ) ? process.env.TI_MEMORY_CACHE_USER : settings.memoryCache.user;
