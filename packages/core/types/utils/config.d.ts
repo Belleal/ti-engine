@@ -21,6 +21,7 @@ declare const settingsEnum: import("../components/definitions.types").TiEnumOf<{
     MEMORY_CACHE_REDIS_DB: string[];
     MEMORY_CACHE_REDIS_HOST: string[];
     MEMORY_CACHE_REDIS_PORT: string[];
+    MEMORY_CACHE_REQUIRED_CAPABILITIES: string[];
     MEMORY_CACHE_RETRY_MAX_ATTEMPTS: string[];
     MEMORY_CACHE_RETRY_MAX_INTERVAL: string[];
     MEMORY_CACHE_USER: string[];

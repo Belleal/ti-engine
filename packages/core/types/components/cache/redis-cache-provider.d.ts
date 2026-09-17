@@ -1,55 +1,50 @@
-declare const _exported: Readonly<CommonMemoryCache>;
-export { _exported as instance };
-export declare var decodeCommandValue: typeof import("#redis-cache-provider").decodeCommandValue;
-export declare var mapCommandValues: typeof import("#redis-cache-provider").mapCommandValues;
-export { cacheCapability };
-export { findMissingCapabilities };
-import ConnectionObserver = require("#connection-observer");
-import RedisCacheProvider = require("#redis-cache-provider");
-import { cacheCapability } from "#cache-capability";
+export = RedisCacheProvider;
+import CacheProvider = require("#cache-provider");
+import type ConnectionObserver from "#connection-observer";
 /**
- * Determines which of the required capabilities a backend does not provide.
+ * A {@link CacheProvider} backed by Redis, optionally with the RedisJSON module.
  * <br/>
- * NOTE: This lives outside the class, and is exported, for the same reason the Redis decoders are: the cache singleton
- * builds its own backend in its constructor, so the reconciliation cannot be driven without a live server. This is the
- * pure half of it, and it is the half that decides whether an instance starts.
+ * NOTE: This holds every Redis-specific detail in the engine's cache path — the command names, the
+ * '[ error, value ]' result shape, and the JSONPath encoding. Nothing above it should know that Redis is what is
+ * storing the values.
  *
- * @method
- * @param {string[]} [required] Capabilities the application declared it needs.
- * @param {string[]} [available] Capabilities the backend reports it provides.
- * @returns {string[]} The required capabilities that are absent, in the order they were required.
+ * @class RedisCacheProvider
+ * @extends CacheProvider
  * @public
  */
-declare function findMissingCapabilities(required?: string[], available?: string[]): string[];
-/**
- * Used to create and/or return a Common Memory Cache singleton instance.
- * <br/>
- * NOTE: This owns the cache's operational state and the connection observation around it; where the values actually
- * live is the {@link CacheProvider}'s business. Every method here checks that the cache is usable and then delegates,
- * which is why no provider repeats that check.
- *
- * @class CommonMemoryCache
- * @extends ConnectionObserver
- * @singleton
- * @public
- */
-declare class CommonMemoryCache extends ConnectionObserver {
+declare class RedisCacheProvider extends CacheProvider {
     #private;
     /**
      * @constructor
-     * @return {CommonMemoryCache}
+     * @param {string} connectionIdentifier The identifier under which this backend's connection is observed.
      */
-    constructor();
+    constructor(connectionIdentifier: string);
     /**
-     * Property returning the operational state of the cache.
+     * Decodes one entry of a `multi(...).exec()` result into the value it carries.
+     * <br/>
+     * NOTE: Exposed for testing. The provider builds its own Redis client in its constructor, so `getValues` cannot be
+     * driven without a live server — this is one of the pure halves of it, and it is where the defect was.
      *
-     * @property
-     * @returns {boolean}
+     * @method
+     * @param {Array} [result] One `[ error, value ]` entry.
+     * @returns {*} The parsed value, or `undefined` when there is none.
      * @public
      */
-    get isOperational(): boolean;
+    static decodeCommandValue(result?: any[]): any;
     /**
-     * Property returning the connection identifier of the cache service.
+     * Maps a set of requested keys onto the values a `multi(...).exec()` returned for them, using `null` for a miss.
+     * <br/>
+     * NOTE: Exposed for testing, for the same reason as {@link RedisCacheProvider.decodeCommandValue}.
+     *
+     * @method
+     * @param {string[]} keys The keys that were requested, in command order.
+     * @param {Array} [rawResults] The `multi(...).exec()` result.
+     * @returns {Object} A null-prototype map of key to value, `null` where the key was absent.
+     * @public
+     */
+    static mapCommandValues(keys: string[], rawResults?: any[]): Object;
+    /**
+     * Property returning the connection identifier of this backend.
      *
      * @property
      * @returns {string}
@@ -57,71 +52,42 @@ declare class CommonMemoryCache extends ConnectionObserver {
      */
     get connectionIdentifier(): string;
     /**
-     * Property returning the optional behaviors the configured backend provides.
+     * Property returning the optional behaviors this backend provides.
      * <br/>
-     * NOTE: Accurate only once {@link CommonMemoryCache#initialize} has resolved — some capabilities cannot be
-     * established until the backend has connected.
+     * NOTE: The JSON capabilities depend on the RedisJSON module being installed on the server, which is only known
+     * after the client has connected — so this is accurate from {@link RedisCacheProvider#initialize} onward and
+     * reports no JSON support before that.
      *
      * @property
-     * @returns {string[]} Values drawn from {@link TiCacheCapability}.
+     * @returns {string[]}
+     * @override
      * @public
      */
     get capabilities(): string[];
     /**
-     * Used to initialize the cache service.
-     * <br/>
-     * NOTE: Once the backend is connected, the capabilities it reports are reconciled against the
-     * 'memoryCache.requiredCapabilities' setting, and startup fails if any of them is missing. That is deliberate: a
-     * backend silently lacking a behavior the application depends on is otherwise discovered from inside a request,
-     * long after the deployment that introduced it.
+     * Used to initialize the backend and connect to the Redis server.
      *
      * @method
      * @returns {Promise}
-     * @throws {TiException.E_GEN_FEATURE_UNSUPPORTED} If the backend does not provide every required capability.
+     * @override
      * @public
      */
     initialize(): Promise<any>;
     /**
-     * Used to gracefully shut down the cache service.
+     * Used to gracefully shut the Redis connection down.
      *
      * @method
-     * @return {Promise}
+     * @returns {Promise}
+     * @override
      * @public
      */
     shutDown(): Promise<any>;
     /**
-     * Needs to be invoked by the connection handler when the connection is disrupted.
-     *
-     * @method
-     * @param {string} identifier The identifier of the observed connection.
-     * @override
-     * @public
-     */
-    onConnectionDisrupted(identifier: string): void;
-    /**
-     * Needs to be invoked by the connection handler when the connection is recovered.
-     *
-     * @method
-     * @param {string} identifier The identifier of the observed connection.
-     * @override
-     * @public
-     */
-    onConnectionRecovered(identifier: string): void;
-    /**
-     * Needs to be invoked by the connection handler when the connection is irrevocably lost.
-     *
-     * @method
-     * @param {string} identifier The identifier of the observed connection.
-     * @throws {TiException.E_GEN_SYSTEM_CACHE_UNAVAILABLE} If the cache service is no longer available.
-     * @override
-     * @public
-     */
-    onConnectionLost(identifier: string): void;
-    /**
-     * Used to register a new {@link ConnectionObserver} for events related to the underlying backend connection state.
+     * Used to register a new {@link ConnectionObserver} for events related to the underlying Redis connection state.
      *
      * @method
      * @param {ConnectionObserver} connectionObserver The {@link ConnectionObserver} that will be notified of any changes.
+     * @override
      * @public
      */
     addConnectionObserver(connectionObserver: ConnectionObserver): void;
