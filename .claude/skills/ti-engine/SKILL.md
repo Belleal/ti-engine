@@ -83,7 +83,7 @@ history and older PR bodies; it is no longer the working branch.
 
 ---
 
-## Package: core (v1.13.0)
+## Package: core (v1.14.0)
 
 **Role**: Foundational framework. All other packages depend on it. Standalone (no intra-repo deps).
 
@@ -122,7 +122,7 @@ history and older PR bodies; it is no longer the working branch.
 
 **Public exports** (`package.json` `exports`): `.` (start-instance), `./tools`, `./cache`, `./exceptions`, `./logger`, `./localization`, `./service-instance`, `./service-consumer`, `./service-provider`, `./definitions` (the shared typedefs).
 
-**Since the skill's last sync (1.9.0 → 1.13.0):**
+**Since the skill's last sync (1.9.0 → 1.14.0):**
 - **TypeScript declarations ship with the package** (1.9.0, fixed in 1.9.1), generated from the JSDoc by
   `.github/scripts/build-types.js` into `types/`. They are **committed**, and `npm run check:types` fails on stale
   output — so regenerate rather than hand-edit. The gate type-checks a generated consumer with `skipLibCheck: false`
@@ -153,6 +153,15 @@ history and older PR bodies; it is no longer the working branch.
   **`ATOMIC_JSON_EDIT` is separate from `JSON_DOCUMENTS` on purpose** — `web-content`'s capture store depends on
   `editJSON` being applied server-side, and a backend that emulates it as read-modify-write loses one of two concurrent
   writes with nothing thrown.
+- **And selectable, with the exchange and heartbeat switchable off** (1.14.0). 1.13.0 gave the cache a contract but
+  `CommonMemoryCache` still constructed `RedisCacheProvider` itself, so nothing else could be selected;
+  `memoryCache.provider` now names the backend. Two other pieces of core assumed Redis and a mesh: the message
+  exchange, constructed unconditionally at startup, and `reportHealthy()`, writing once per second forever. Both are
+  now switchable, both default to on. **With the exchange and heartbeat both off, core makes no cache calls of its
+  own at all** — which is what makes a non-Redis backend viable, since the exchange owns every primitive
+  (`blockingCommand`, pub/sub) such a backend cannot reasonably provide.
+  The selection seam is also the test seam: `test/fixtures/StubCacheProvider` reproduces the Redis client's
+  notify-observers-then-resolve ordering, which is what made the 1.13.0 rollback testable at last.
 
 **Exception families** (`utils/exceptions.js`) — the class is `TiException` (renamed from `Exception` in 1.4.0); `raise()` accepts an optional `httpCode`:
 - `E_GEN_*` 1000–1010 (general; incl. `E_GEN_NOT_IMPLEMENTED` 1010)
@@ -168,10 +177,12 @@ history and older PR bodies; it is no longer the working branch.
 - `TI_AUDITING_LOG_MIN_LEVEL` — log filter (0–800)
 - `TI_MEMORY_CACHE_REDIS_HOST` / `TI_MEMORY_CACHE_REDIS_PORT` / `TI_MEMORY_CACHE_AUTH_KEY` / `TI_MEMORY_CACHE_REDIS_DB` — Redis connection
 - `TI_MEMORY_CACHE_REQUIRED_CAPABILITIES` — comma-separated `TiCacheCapability` values the application requires of the cache backend. **Empty by default**, which is what keeps every deployment predating capabilities behaving as it did; when set, a backend missing any of them fails startup rather than raising from inside a request
+- `TI_MEMORY_CACHE_PROVIDER` — which cache backend to construct (1.14.0). `redis` (the default) selects the built-in; anything else is a module path resolved against the working directory and must export a `CacheProvider` subclass. A bad value fails at require time, on purpose
+- `TI_MESSAGE_EXCHANGE_ENABLED` — whether to run the message exchange at all (1.14.0, default `true`). Off means the dispatcher is never initialized or shut down; see the note on the cache backend below for why that is what lets a non-Redis backend work
 - `TI_MESSAGE_EXCHANGE_SECURITY_HASH_ENABLED` — toggle the message integrity hash (default `true`)
 - `TI_MESSAGE_EXCHANGE_SECURITY_HASH_KEY` — message-exchange HMAC-SHA256 key. **Empty by default**: if unset (or equal to the old published default UUID) a one-time startup WARNING logs and tamper protection is ineffective — set a private value in production.
 
-> Note: `executionTimeout` (default 180000ms) is a `serviceConfig` **setting** (service config JSON / `bin/settings.json`), not an ENV var — there is no `SERVICE_EXECUTION_TIMEOUT` env override.
+> Note: `executionTimeout` (default 180000ms) and `healthCheckEnabled` (1.14.0, default `true`) are `serviceConfig` **settings** (service config JSON / `bin/settings.json`), not ENV vars — there is no env override for either. `healthCheckEnabled: false` schedules no job at all; the default `healthCheckInterval` is a **six-field** cron (`*/1 * * * * *`), so leaving it on costs one cache write per second for the life of the instance.
 
 **Message flow**:
 ```
@@ -191,9 +202,11 @@ module.exports.service = function (serviceDefinition, serviceParams, serviceCall
 
 **Test commands**:
 ```bash
-npm test    # node --test — runs test/*.test.js: 53 tests / 9 suites across 6 files
-            # (cache-capabilities, cache-get-values, localization, message-hash,
-            #  security-hash-key-warning, tools-proto-keys)
+npm test    # node --test — runs test/*.test.js: 60 tests / 11 suites across 7 files
+            # (cache-capabilities, cache-get-values, cache-provider-selection,
+            #  localization, message-hash, security-hash-key-warning, tools-proto-keys)
+            # test/fixtures/ holds StubCacheProvider - not a test file, it is how the
+            # cache singleton is driven without a live Redis
 ```
 
 ---
@@ -637,7 +650,7 @@ Token: YouTrack → Profile → Account Security → New token (scope: YouTrack)
 2. **Extending the web UI**: subclass `TiWebAppManager`, add an HTML fragment + matching Alpine component; reuse framework CSS primitives; obey the Alpine CSP rules (no inline styles, no `?.`).
 3. **Config-management, from a consumer's side**: a consuming application registers a config document (schema + file default + semantic validators + optional composite editor) through `TiWebAppManager.registerConfigDocument` / `registerConfigEditor`. Those seams live here; the documents themselves live in the consumer. Changing either seam is a breaking change for every consumer, so treat the `exports` map and these signatures as API.
 4. **Testing**: Node.js built-in `node --test` (no external framework); each package's `test/` directory. `npm test`
-   at the root fans out across workspaces — **980 tests today: core 53, web-framework 524, web-content 403, tester
+   at the root fans out across workspaces — **987 tests today: core 60, web-framework 524, web-content 403, tester
    none** (it is a runnable service, not a unit-tested one). The three checks that gate a push are in
    `CLAUDE.md` → *Definition of done*: `npm test`, `npm run lint` (0 errors; ESLint's only rule here is
    `no-unused-vars` as a **warning**, so a clean lint is no evidence the house style was followed — read a sibling

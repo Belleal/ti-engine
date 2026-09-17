@@ -35,6 +35,7 @@ const settingsEnum = tools.enum( {
     LOCALIZATION_LABELS_PATH: [ "localization.labelsPath", "labelsPath", "" ],
     LOCALIZATION_LANGUAGE: [ "localization.language", "language", "" ],
     MEMORY_CACHE_AUTH_KEY: [ "memoryCache.authKey", "authKey", "" ],
+    MEMORY_CACHE_PROVIDER: [ "memoryCache.provider", "provider", "" ],
     MEMORY_CACHE_REDIS_DB: [ "memoryCache.redisDB", "redisDB", "" ],
     MEMORY_CACHE_REDIS_HOST: [ "memoryCache.redisHost", "redisHost", "" ],
     MEMORY_CACHE_REDIS_PORT: [ "memoryCache.redisPort", "redisPort", "" ],
@@ -42,6 +43,7 @@ const settingsEnum = tools.enum( {
     MEMORY_CACHE_RETRY_MAX_ATTEMPTS: [ "memoryCache.retryMaxAttempts", "retryMaxAttempts", "" ],
     MEMORY_CACHE_RETRY_MAX_INTERVAL: [ "memoryCache.retryMaxInterval", "retryMaxInterval", "" ],
     MEMORY_CACHE_USER: [ "memoryCache.user", "user", "" ],
+    MESSAGE_EXCHANGE_ENABLED: [ "messageExchange.enabled", "enabled", "" ],
     MESSAGE_EXCHANGE_QUEUE_PREFIX: [ "messageExchange.messageQueuePrefix", "messageQueuePrefix", "" ],
     MESSAGE_EXCHANGE_MESSAGE_STORE: [ "messageExchange.messageStore", "messageStore", "" ],
     MESSAGE_EXCHANGE_SECURITY_HASH_ENABLED: [ "messageExchange.securityHashEnabled", "securityHashEnabled", "" ],
@@ -51,6 +53,7 @@ const settingsEnum = tools.enum( {
     MESSAGE_EXCHANGE_TRACE_REPOSITORY: [ "messageExchange.traceRepository", "traceRepository", "" ],
     SERVICE_EXECUTION_TIMEOUT: [ "serviceConfig.executionTimeout", "executionTimeout", "" ],
     SERVICE_HEALTH_CHECK_ADDRESS: [ "serviceConfig.healthCheckAddress", "healthCheckAddress", "" ],
+    SERVICE_HEALTH_CHECK_ENABLED: [ "serviceConfig.healthCheckEnabled", "healthCheckEnabled", "" ],
     SERVICE_HEALTH_CHECK_INTERVAL: [ "serviceConfig.healthCheckInterval", "healthCheckInterval", "" ],
     SERVICE_HEALTH_CHECK_TIMEOUT: [ "serviceConfig.healthCheckTimeout", "healthCheckTimeout", "" ],
     SERVICE_REGISTRY_ADDRESS: [ "serviceConfig.serviceRegistryAddress", "serviceRegistryAddress", "" ],
@@ -76,6 +79,7 @@ if ( settings.localization ) {
 }
 if ( settings.memoryCache ) {
     settings.memoryCache.authKey = ( process.env.TI_MEMORY_CACHE_AUTH_KEY !== undefined ) ? process.env.TI_MEMORY_CACHE_AUTH_KEY : settings.memoryCache.authKey;
+    settings.memoryCache.provider = ( process.env.TI_MEMORY_CACHE_PROVIDER !== undefined ) ? process.env.TI_MEMORY_CACHE_PROVIDER : settings.memoryCache.provider;
     settings.memoryCache.redisDB = ( process.env.TI_MEMORY_CACHE_REDIS_DB !== undefined ) ? Number( process.env.TI_MEMORY_CACHE_REDIS_DB ) : settings.memoryCache.redisDB;
     settings.memoryCache.redisHost = ( process.env.TI_MEMORY_CACHE_REDIS_HOST !== undefined ) ? process.env.TI_MEMORY_CACHE_REDIS_HOST : settings.memoryCache.redisHost;
     settings.memoryCache.redisPort = ( process.env.TI_MEMORY_CACHE_REDIS_PORT !== undefined ) ? Number( process.env.TI_MEMORY_CACHE_REDIS_PORT ) : settings.memoryCache.redisPort;
@@ -90,6 +94,7 @@ if ( settings.memoryCache ) {
     settings.memoryCache.user = ( process.env.TI_MEMORY_CACHE_USER !== undefined ) ? process.env.TI_MEMORY_CACHE_USER : settings.memoryCache.user;
 }
 if ( settings.messageExchange ) {
+    settings.messageExchange.enabled = ( process.env.TI_MESSAGE_EXCHANGE_ENABLED !== undefined ) ? tools.toBool( process.env.TI_MESSAGE_EXCHANGE_ENABLED ) : settings.messageExchange.enabled;
     settings.messageExchange.securityHashEnabled = ( process.env.TI_MESSAGE_EXCHANGE_SECURITY_HASH_ENABLED !== undefined ) ? tools.toBool( process.env.TI_MESSAGE_EXCHANGE_SECURITY_HASH_ENABLED ) : settings.messageExchange.securityHashEnabled;
     settings.messageExchange.securityHashKey = ( process.env.TI_MESSAGE_EXCHANGE_SECURITY_HASH_KEY !== undefined ) ? process.env.TI_MESSAGE_EXCHANGE_SECURITY_HASH_KEY : settings.messageExchange.securityHashKey;
     settings.messageExchange.traceLogEnabled = ( process.env.TI_MESSAGE_EXCHANGE_TRACE_LOG_ENABLED !== undefined ) ? tools.toBool( process.env.TI_MESSAGE_EXCHANGE_TRACE_LOG_ENABLED ) : settings.messageExchange.traceLogEnabled;

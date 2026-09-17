@@ -15,19 +15,64 @@
  * limitations under the License.
 */
 
+const CacheProvider = require( "#cache-provider" );
 const ConnectionObserver = require( "#connection-observer" );
 const RedisCacheProvider = require( "#redis-cache-provider" );
 const _ = require( "lodash" );
 const config = require( "#config" );
 const exceptions = require( "#exceptions" );
+const path = require( "path" );
 const { cacheCapability } = require( "#cache-capability" );
+
+/**
+ * Creates the cache backend named by the 'memoryCache.provider' setting.
+ * <br/>
+ * NOTE: The built-in name "redis" selects {@link RedisCacheProvider}. Any other value is treated as a module path
+ * resolved against the process working directory, much as 'TI_INSTANCE_CLASS' already is, and must export a class
+ * extending {@link CacheProvider}. Resolution uses `path.resolve` rather than `path.join` so that an absolute path is
+ * taken as given instead of being appended to the working directory.
+ * <br/>
+ * NOTE: This runs while the singleton is being constructed, which is to say at require time. A bad provider name
+ * therefore fails the process immediately rather than at the first cache call - which is the point: a deployment
+ * pointed at a backend that does not exist should not reach the code that assumes one.
+ *
+ * @method
+ * @param {string} connectionIdentifier The identifier under which the backend's connection is observed.
+ * @returns {CacheProvider}
+ * @throws {TiException.E_GEN_INVALID_ARGUMENT_TYPE} If the configured module does not export a {@link CacheProvider}.
+ * @public
+ */
+function createConfiguredProvider( connectionIdentifier ) {
+    let selected = config.getSetting( config.setting.MEMORY_CACHE_PROVIDER, "redis" );
+
+    if ( selected === "redis" ) {
+        return new RedisCacheProvider( connectionIdentifier );
+    }
+
+    let ProviderClass;
+    try {
+        ProviderClass = require( path.resolve( process.cwd(), selected ) );
+    } catch ( error ) {
+        throw exceptions.raise( exceptions.exceptionCode.E_GEN_INVALID_ARGUMENT_TYPE, {
+            details: `Could not load the cache provider configured as '${ selected }': ${ error.message }`
+        } );
+    }
+
+    let provider = ( typeof ProviderClass === "function" ) ? new ProviderClass( connectionIdentifier ) : null;
+    if ( provider instanceof CacheProvider === false ) {
+        throw exceptions.raise( exceptions.exceptionCode.E_GEN_INVALID_ARGUMENT_TYPE, {
+            details: `The cache provider configured as '${ selected }' does not export a class extending CacheProvider.`
+        } );
+    }
+
+    return provider;
+}
 
 /**
  * Determines which of the required capabilities a backend does not provide.
  * <br/>
- * NOTE: This lives outside the class, and is exported, for the same reason the Redis decoders are: the cache singleton
- * builds its own backend in its constructor, so the reconciliation cannot be driven without a live server. This is the
- * pure half of it, and it is the half that decides whether an instance starts.
+ * NOTE: This lives outside the class, and is exported, for the same reason the Redis decoders are: it is the pure half
+ * of the reconciliation, and the half that decides whether an instance starts.
  *
  * @method
  * @param {string[]} [required] Capabilities the application declared it needs.
@@ -68,7 +113,7 @@ class CommonMemoryCache extends ConnectionObserver {
         super();
 
         if ( !CommonMemoryCache.#instance ) {
-            this.#provider = new RedisCacheProvider( this.#connectionIdentifier );
+            this.#provider = createConfiguredProvider( this.#connectionIdentifier );
             this.#provider.addConnectionObserver( this );
 
             CommonMemoryCache.#instance = this;
@@ -564,5 +609,6 @@ module.exports.mapCommandValues = RedisCacheProvider.mapCommandValues;
 // Re-exported so a consumer can name a capability without reaching past this module's exports map.
 module.exports.cacheCapability = cacheCapability;
 
-// Exported for testing, per the note on the function itself.
+// Exported for testing, per the notes on the functions themselves.
 module.exports.findMissingCapabilities = findMissingCapabilities;
+module.exports.createConfiguredProvider = createConfiguredProvider;

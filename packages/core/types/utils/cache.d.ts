@@ -4,15 +4,35 @@ export declare var decodeCommandValue: typeof import("#redis-cache-provider").de
 export declare var mapCommandValues: typeof import("#redis-cache-provider").mapCommandValues;
 export { cacheCapability };
 export { findMissingCapabilities };
+export { createConfiguredProvider };
+import CacheProvider = require("#cache-provider");
 import ConnectionObserver = require("#connection-observer");
 import RedisCacheProvider = require("#redis-cache-provider");
 import { cacheCapability } from "#cache-capability";
 /**
+ * Creates the cache backend named by the 'memoryCache.provider' setting.
+ * <br/>
+ * NOTE: The built-in name "redis" selects {@link RedisCacheProvider}. Any other value is treated as a module path
+ * resolved against the process working directory, much as 'TI_INSTANCE_CLASS' already is, and must export a class
+ * extending {@link CacheProvider}. Resolution uses `path.resolve` rather than `path.join` so that an absolute path is
+ * taken as given instead of being appended to the working directory.
+ * <br/>
+ * NOTE: This runs while the singleton is being constructed, which is to say at require time. A bad provider name
+ * therefore fails the process immediately rather than at the first cache call - which is the point: a deployment
+ * pointed at a backend that does not exist should not reach the code that assumes one.
+ *
+ * @method
+ * @param {string} connectionIdentifier The identifier under which the backend's connection is observed.
+ * @returns {CacheProvider}
+ * @throws {TiException.E_GEN_INVALID_ARGUMENT_TYPE} If the configured module does not export a {@link CacheProvider}.
+ * @public
+ */
+declare function createConfiguredProvider(connectionIdentifier: string): CacheProvider;
+/**
  * Determines which of the required capabilities a backend does not provide.
  * <br/>
- * NOTE: This lives outside the class, and is exported, for the same reason the Redis decoders are: the cache singleton
- * builds its own backend in its constructor, so the reconciliation cannot be driven without a live server. This is the
- * pure half of it, and it is the half that decides whether an instance starts.
+ * NOTE: This lives outside the class, and is exported, for the same reason the Redis decoders are: it is the pure half
+ * of the reconciliation, and the half that decides whether an instance starts.
  *
  * @method
  * @param {string[]} [required] Capabilities the application declared it needs.

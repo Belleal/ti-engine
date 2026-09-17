@@ -17,6 +17,7 @@
   },
   "memoryCache": {
     "authKey": null,
+    "provider": "redis",
     "redisDB": 0,
     "redisHost": "127.0.0.1",
     "redisPort": 6379,
@@ -24,6 +25,7 @@
     "user": "default"
   },
   "messageExchange": {
+    "enabled": true,
     "messageQueuePrefix": "ti:messages:",
     "messageStore": "ti:messages:store",
     "securityHashEnabled": true,
@@ -35,6 +37,7 @@
   "serviceConfig": {
     "executionTimeout": 180000,
     "healthCheckAddress": "ti:services:registry:health:",
+    "healthCheckEnabled": true,
     "healthCheckInterval": "*/1 * * * * *",
     "healthCheckTimeout": 3,
     "serviceRegistryAddress": "ti:services:registry:catalog:"
