@@ -27,7 +27,7 @@ the header block verbatim from an existing file in the same package.
 ```
 ti-engine/                         npm workspace root (v1.3.0; workspaces = packages/*)
 ├── packages/
-│   ├── core/          v1.14.0     Framework foundation (pluggable cache backend, optional messaging, lifecycle, utils) + shipped TypeScript declarations
+│   ├── core/          v1.15.0     Framework foundation (pluggable cache backend — Redis or HTTP, optional messaging, lifecycle, utils) + shipped TypeScript declarations
 │   ├── web-framework/ v1.36.0     Express server + auth (incl. real local auth) + admin config-management + config drift + Profile/About + ti-charts + role gate + TI_WEB_* env overrides + /health + route seams
 │   ├── web-content/   v0.3.1      Content-publishing engine — path-index routing, deny-by-default visibility, SEO documents, feeds, email capture (WIP)
 │   └── tester/        v1.3.5      Reference/example service implementation + the docker-build target
@@ -83,7 +83,7 @@ history and older PR bodies; it is no longer the working branch.
 
 ---
 
-## Package: core (v1.14.0)
+## Package: core (v1.15.0)
 
 **Role**: Foundational framework. All other packages depend on it. Standalone (no intra-repo deps).
 
@@ -118,11 +118,13 @@ history and older PR bodies; it is no longer the working branch.
 | `components/cache/cache-provider.js` | **Abstract** backend contract (21 data methods + lifecycle) and `hasCapability()` |
 | `components/cache/cache-capability.js` | `TiCacheCapability` enum — the optional behaviors a backend may declare |
 | `components/cache/redis-cache-provider.js` | Redis/RedisJSON implementation — every Redis-specific detail in the cache path lives here |
+| `components/cache/http-cache-provider.js` | State over HTTP (1.15.0) — the ten methods the state store uses; lists/sets stay abstract |
+| `design/state-protocol.md` | The contract `HttpCacheProvider` speaks, plus the verified D1 mapping |
 | `integrations/redis-integration.js` | ioredis client with connection pooling (RedisJSON: `JSON.MERGE`, `JSON.MGET`) |
 
 **Public exports** (`package.json` `exports`): `.` (start-instance), `./tools`, `./cache`, `./exceptions`, `./logger`, `./localization`, `./service-instance`, `./service-consumer`, `./service-provider`, `./definitions` (the shared typedefs).
 
-**Since the skill's last sync (1.9.0 → 1.14.0):**
+**Since the skill's last sync (1.9.0 → 1.15.0):**
 - **TypeScript declarations ship with the package** (1.9.0, fixed in 1.9.1), generated from the JSDoc by
   `.github/scripts/build-types.js` into `types/`. They are **committed**, and `npm run check:types` fails on stale
   output — so regenerate rather than hand-edit. The gate type-checks a generated consumer with `skipLibCheck: false`
@@ -163,6 +165,27 @@ history and older PR bodies; it is no longer the working branch.
   The selection seam is also the test seam: `test/fixtures/StubCacheProvider` reproduces the Redis client's
   notify-observers-then-resolve ordering, which is what made the 1.13.0 rollback testable at last.
 
+- **And there is now a second backend: `HttpCacheProvider`** (1.15.0, built-in name `http`). It keeps state in an HTTP
+  service instead of a database client, for a deployment where the durable store is reachable only through a platform
+  binding — the Cloudflare container the Boris Khan site targets reaches D1 through its Worker, so no SDK and no
+  credential is in the image. Named for the transport, not for D1: what answers the protocol is the deployment's
+  business, which is also what lets core test the whole contract against `node:http`.
+  The protocol is specified in `packages/core/design/state-protocol.md` — twelve paths, one per logical operation.
+  Two details there are load-bearing. **Values go on the wire as strings**, because `tools.stringifyJSON` passes
+  scalars through untouched and a stored `42` would otherwise return as a number, fail the `isString` check that
+  decides whether a key exists, and read back as absent. **Paths go as arrays of literal key segments**, never as a
+  JSONPath expression, because RedisJSON wants `$["a"]` and SQLite wants `$."a"` — and SQLite's path grammar has no
+  escape for a double quote inside a quoted label at all, so the D1 merge nests the patch inside the path and binds it
+  to a bare `json_patch( value, ?1 )` rather than building a path string. One statement, therefore atomic, therefore
+  `ATOMIC_JSON_EDIT` is a claim with evidence.
+  Only the methods the state store actually uses are implemented (the ten in use, plus `deleteValue`); lists, sets and
+  multi-key batching stay abstract, because they belong to the message exchange, which this deployment disables.
+  **The recovery probe is load-bearing and easy to delete by accident.** Once the singleton is told a connection is
+  disrupted it stops passing calls through, so this provider would never see another request to discover the service
+  on — the Redis client is spared this only because ioredis reconnects independently of commands. `#markDisrupted`
+  starts a timer that is the entire recovery path; `http-cache-integration.test.js` pins it, and that test was
+  verified to fail with the probe disabled.
+
 **Exception families** (`utils/exceptions.js`) — the class is `TiException` (renamed from `Exception` in 1.4.0); `raise()` accepts an optional `httpCode`:
 - `E_GEN_*` 1000–1010 (general; incl. `E_GEN_NOT_IMPLEMENTED` 1010)
 - `E_SEC_*` 2000–2004 (security)
@@ -177,7 +200,8 @@ history and older PR bodies; it is no longer the working branch.
 - `TI_AUDITING_LOG_MIN_LEVEL` — log filter (0–800)
 - `TI_MEMORY_CACHE_REDIS_HOST` / `TI_MEMORY_CACHE_REDIS_PORT` / `TI_MEMORY_CACHE_AUTH_KEY` / `TI_MEMORY_CACHE_REDIS_DB` — Redis connection
 - `TI_MEMORY_CACHE_REQUIRED_CAPABILITIES` — comma-separated `TiCacheCapability` values the application requires of the cache backend. **Empty by default**, which is what keeps every deployment predating capabilities behaving as it did; when set, a backend missing any of them fails startup rather than raising from inside a request
-- `TI_MEMORY_CACHE_PROVIDER` — which cache backend to construct (1.14.0). `redis` (the default) selects the built-in; anything else is a module path resolved against the working directory and must export a `CacheProvider` subclass. A bad value fails at require time, on purpose
+- `TI_MEMORY_CACHE_PROVIDER` — which cache backend to construct (1.14.0). `redis` (the default) and `http` (1.15.0) select built-ins; anything else is a module path resolved against the working directory and must export a `CacheProvider` subclass. A bad value fails at require time, on purpose
+- `TI_MEMORY_CACHE_STATE_URL` / `_STATE_AUTH_TOKEN` / `_STATE_TIMEOUT` / `_STATE_ALLOW_INSECURE_AUTH` — where the `http` backend finds its state service, the bearer token to send (omitted when unset), the per-request timeout in ms, and the opt-in that lets a token travel as plain HTTP to a remote host (1.15.0, default `false`; loopback and HTTPS never need it, and the Cloudflare deployment sets no token at all). A bad timeout or an unparseable URL fails in the constructor, because `AbortSignal.timeout` throws synchronously and would otherwise break the promise contract. Ignored by the Redis backend
 - `TI_MESSAGE_EXCHANGE_ENABLED` — whether to run the message exchange at all (1.14.0, default `true`). Off means the dispatcher is never initialized or shut down; see the note on the cache backend below for why that is what lets a non-Redis backend work
 - `TI_MESSAGE_EXCHANGE_SECURITY_HASH_ENABLED` — toggle the message integrity hash (default `true`)
 - `TI_MESSAGE_EXCHANGE_SECURITY_HASH_KEY` — message-exchange HMAC-SHA256 key. **Empty by default**: if unset (or equal to the old published default UUID) a one-time startup WARNING logs and tamper protection is ineffective — set a private value in production.
@@ -202,11 +226,15 @@ module.exports.service = function (serviceDefinition, serviceParams, serviceCall
 
 **Test commands**:
 ```bash
-npm test    # node --test — runs test/*.test.js: 60 tests / 11 suites across 7 files
+npm test    # node --test — runs test/*.test.js: 116 tests / 29 suites across 10 files
             # (cache-capabilities, cache-get-values, cache-provider-selection,
-            #  localization, message-hash, security-hash-key-warning, tools-proto-keys)
-            # test/fixtures/ holds StubCacheProvider - not a test file, it is how the
-            # cache singleton is driven without a live Redis
+            #  http-cache-provider, http-cache-integration, http-cache-config,
+            #  localization, message-hash, security-hash-key-warning,
+            #  tools-proto-keys)
+            # test/fixtures/ holds StubCacheProvider (how the cache singleton is
+            # driven without a live Redis) and startStubStateServer (an in-memory
+            # implementation of the state protocol, on node:http) - neither is a
+            # test file
 ```
 
 ---
@@ -650,7 +678,7 @@ Token: YouTrack → Profile → Account Security → New token (scope: YouTrack)
 2. **Extending the web UI**: subclass `TiWebAppManager`, add an HTML fragment + matching Alpine component; reuse framework CSS primitives; obey the Alpine CSP rules (no inline styles, no `?.`).
 3. **Config-management, from a consumer's side**: a consuming application registers a config document (schema + file default + semantic validators + optional composite editor) through `TiWebAppManager.registerConfigDocument` / `registerConfigEditor`. Those seams live here; the documents themselves live in the consumer. Changing either seam is a breaking change for every consumer, so treat the `exports` map and these signatures as API.
 4. **Testing**: Node.js built-in `node --test` (no external framework); each package's `test/` directory. `npm test`
-   at the root fans out across workspaces — **987 tests today: core 60, web-framework 524, web-content 403, tester
+   at the root fans out across workspaces — **1043 tests today: core 116, web-framework 524, web-content 403, tester
    none** (it is a runnable service, not a unit-tested one). The three checks that gate a push are in
    `CLAUDE.md` → *Definition of done*: `npm test`, `npm run lint` (0 errors; ESLint's only rule here is
    `no-unused-vars` as a **warning**, so a clean lint is no evidence the house style was followed — read a sibling

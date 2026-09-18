@@ -17,6 +17,7 @@
 
 const CacheProvider = require( "#cache-provider" );
 const ConnectionObserver = require( "#connection-observer" );
+const HttpCacheProvider = require( "#http-cache-provider" );
 const RedisCacheProvider = require( "#redis-cache-provider" );
 const _ = require( "lodash" );
 const config = require( "#config" );
@@ -43,12 +44,26 @@ function isCacheProviderClass( candidate ) {
 }
 
 /**
+ * The backends that ship with the engine, by the name a deployment configures them under.
+ * <br/>
+ * NOTE: A null-prototype object rather than a literal, so that a provider configured as "constructor" or "toString"
+ * is treated as the module path it is instead of matching something inherited from Object.prototype.
+ *
+ * @readonly
+ * @type {Object<string, typeof CacheProvider>}
+ */
+const builtInProviders = Object.assign( Object.create( null ), {
+    http: HttpCacheProvider,
+    redis: RedisCacheProvider
+} );
+
+/**
  * Creates the cache backend named by the 'memoryCache.provider' setting.
  * <br/>
- * NOTE: The built-in name "redis" selects {@link RedisCacheProvider}. Any other value is treated as a module path
- * resolved against the process working directory, much as 'TI_INSTANCE_CLASS' already is, and must export a class
- * extending {@link CacheProvider}. Resolution uses `path.resolve` rather than `path.join` so that an absolute path is
- * taken as given instead of being appended to the working directory.
+ * NOTE: The built-in names are "redis" for {@link RedisCacheProvider} and "http" for {@link HttpCacheProvider}. Any
+ * other value is treated as a module path resolved against the process working directory, much as 'TI_INSTANCE_CLASS'
+ * already is, and must export a class extending {@link CacheProvider}. Resolution uses `path.resolve` rather than
+ * `path.join` so that an absolute path is taken as given instead of being appended to the working directory.
  * <br/>
  * NOTE: This runs while the singleton is being constructed, which is to say at require time. A bad provider name
  * therefore fails the process immediately rather than at the first cache call - which is the point: a deployment
@@ -63,8 +78,8 @@ function isCacheProviderClass( candidate ) {
 function createConfiguredProvider( connectionIdentifier ) {
     let selected = config.getSetting( config.setting.MEMORY_CACHE_PROVIDER, "redis" );
 
-    if ( selected === "redis" ) {
-        return new RedisCacheProvider( connectionIdentifier );
+    if ( builtInProviders[ selected ] !== undefined ) {
+        return new builtInProviders[ selected ]( connectionIdentifier );
     }
 
     let ProviderClass;

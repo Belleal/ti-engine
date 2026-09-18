@@ -40,6 +40,10 @@ const settingsEnum = tools.enum( {
     MEMORY_CACHE_REDIS_HOST: [ "memoryCache.redisHost", "redisHost", "" ],
     MEMORY_CACHE_REDIS_PORT: [ "memoryCache.redisPort", "redisPort", "" ],
     MEMORY_CACHE_REQUIRED_CAPABILITIES: [ "memoryCache.requiredCapabilities", "requiredCapabilities", "" ],
+    MEMORY_CACHE_STATE_ALLOW_INSECURE_AUTH: [ "memoryCache.stateAllowInsecureAuth", "stateAllowInsecureAuth", "" ],
+    MEMORY_CACHE_STATE_AUTH_TOKEN: [ "memoryCache.stateAuthToken", "stateAuthToken", "" ],
+    MEMORY_CACHE_STATE_TIMEOUT: [ "memoryCache.stateTimeout", "stateTimeout", "" ],
+    MEMORY_CACHE_STATE_URL: [ "memoryCache.stateUrl", "stateUrl", "" ],
     MEMORY_CACHE_RETRY_MAX_ATTEMPTS: [ "memoryCache.retryMaxAttempts", "retryMaxAttempts", "" ],
     MEMORY_CACHE_RETRY_MAX_INTERVAL: [ "memoryCache.retryMaxInterval", "retryMaxInterval", "" ],
     MEMORY_CACHE_USER: [ "memoryCache.user", "user", "" ],
@@ -89,6 +93,10 @@ if ( settings.memoryCache ) {
     settings.memoryCache.requiredCapabilities = ( process.env.TI_MEMORY_CACHE_REQUIRED_CAPABILITIES !== undefined )
         ? String( process.env.TI_MEMORY_CACHE_REQUIRED_CAPABILITIES ).split( "," ).map( ( capability ) => capability.trim() ).filter( ( capability ) => capability.length > 0 )
         : settings.memoryCache.requiredCapabilities;
+    settings.memoryCache.stateAllowInsecureAuth = ( process.env.TI_MEMORY_CACHE_STATE_ALLOW_INSECURE_AUTH !== undefined ) ? tools.toBool( process.env.TI_MEMORY_CACHE_STATE_ALLOW_INSECURE_AUTH ) : settings.memoryCache.stateAllowInsecureAuth;
+    settings.memoryCache.stateAuthToken = ( process.env.TI_MEMORY_CACHE_STATE_AUTH_TOKEN !== undefined ) ? process.env.TI_MEMORY_CACHE_STATE_AUTH_TOKEN : settings.memoryCache.stateAuthToken;
+    settings.memoryCache.stateTimeout = ( process.env.TI_MEMORY_CACHE_STATE_TIMEOUT !== undefined ) ? Number( process.env.TI_MEMORY_CACHE_STATE_TIMEOUT ) : settings.memoryCache.stateTimeout;
+    settings.memoryCache.stateUrl = ( process.env.TI_MEMORY_CACHE_STATE_URL !== undefined ) ? process.env.TI_MEMORY_CACHE_STATE_URL : settings.memoryCache.stateUrl;
     settings.memoryCache.retryMaxAttempts = ( process.env.TI_MEMORY_CACHE_RETRY_MAX_ATTEMPTS !== undefined ) ? Number( process.env.TI_MEMORY_CACHE_RETRY_MAX_ATTEMPTS ) : settings.memoryCache.retryMaxAttempts;
     settings.memoryCache.retryMaxInterval = ( process.env.TI_MEMORY_CACHE_RETRY_MAX_INTERVAL !== undefined ) ? Number( process.env.TI_MEMORY_CACHE_RETRY_MAX_INTERVAL ) : settings.memoryCache.retryMaxInterval;
     settings.memoryCache.user = ( process.env.TI_MEMORY_CACHE_USER !== undefined ) ? process.env.TI_MEMORY_CACHE_USER : settings.memoryCache.user;
