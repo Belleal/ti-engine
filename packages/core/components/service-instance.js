@@ -87,6 +87,23 @@ class ServiceInstance {
     }
 
     /**
+     * Property returning whether the message exchange is enabled for this instance.
+     * <br/>
+     * NOTE: When this is off the instance neither initializes nor shuts down the message dispatcher, and therefore
+     * touches none of the primitives the exchange needs from the cache backend - blocking reads and pub/sub, which are
+     * the only parts of the cache surface a non-Redis backend cannot reasonably provide. A single-instance deployment
+     * with no mesh to talk to is the case this exists for. Defaults to enabled, so an existing deployment is
+     * unaffected.
+     *
+     * @property
+     * @returns {boolean}
+     * @public
+     */
+    static get isMessageExchangeEnabled() {
+        return config.getSetting( config.setting.MESSAGE_EXCHANGE_ENABLED, true ) !== false;
+    }
+
+    /**
      * Property returning the current service domain name.
      *
      * @property
@@ -160,6 +177,11 @@ class ServiceInstance {
     onStart() {
         return new Promise( ( resolve, reject ) => {
             cache.instance.initialize().then( () => {
+                if ( ServiceInstance.isMessageExchangeEnabled === false ) {
+                    logger.log( `Message exchange is disabled for instance '${ ServiceInstance.instanceID }' - it will neither send nor receive service messages.`, logger.logSeverity.NOTICE );
+                    return undefined;
+                }
+
                 const DefaultMessageExchange = require( "#default-message-exchange" );
                 const ServiceProvider = require( "#service-provider" );
                 const ServiceConsumer = require( "#service-consumer" );
@@ -214,6 +236,13 @@ class ServiceInstance {
      */
     onStop() {
         return new Promise( ( resolve, reject ) => {
+            // Symmetrical with onStart: a dispatcher that was never initialized has nothing to shut down, and asking
+            // it to would fail a stop that has nothing wrong with it.
+            if ( ServiceInstance.isMessageExchangeEnabled === false ) {
+                resolve();
+                return;
+            }
+
             messageDispatcher.instance.shutDown().then( () => {
                 resolve();
             } ).catch( ( error ) => {
@@ -274,9 +303,17 @@ class ServiceInstance {
     #postStart() {
         return new Promise( ( resolve ) => {
             // Schedule regular health check:
-            this.#reportHealthyJob = schedule.scheduleJob( config.getSetting( config.setting.SERVICE_HEALTH_CHECK_INTERVAL ), () => {
-                this.reportHealthy();
-            } );
+            // The default interval is a six-field cron, so this writes once per second for as long as the instance
+            // lives. That is what an orchestrator watching a mesh of instances wants, and pure cost anywhere else -
+            // a single instance with nothing reading the key, or a host that already knows whether the process is
+            // running, pays a write per second for nothing.
+            if ( config.getSetting( config.setting.SERVICE_HEALTH_CHECK_ENABLED, true ) === false ) {
+                logger.log( `Health check reporting is disabled for instance '${ ServiceInstance.instanceID }'.`, logger.logSeverity.NOTICE );
+            } else {
+                this.#reportHealthyJob = schedule.scheduleJob( config.getSetting( config.setting.SERVICE_HEALTH_CHECK_INTERVAL ), () => {
+                    this.reportHealthy();
+                } );
+            }
 
             logger.log( `Instance '${ ServiceInstance.instanceID }' started successfully.`, logger.logSeverity.NOTICE, {
                 nodeVersion: process.version,

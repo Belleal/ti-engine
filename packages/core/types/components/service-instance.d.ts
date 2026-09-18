@@ -29,6 +29,20 @@ declare class ServiceInstance {
      */
     static get instanceID(): string;
     /**
+     * Property returning whether the message exchange is enabled for this instance.
+     * <br/>
+     * NOTE: When this is off the instance neither initializes nor shuts down the message dispatcher, and therefore
+     * touches none of the primitives the exchange needs from the cache backend - blocking reads and pub/sub, which are
+     * the only parts of the cache surface a non-Redis backend cannot reasonably provide. A single-instance deployment
+     * with no mesh to talk to is the case this exists for. Defaults to enabled, so an existing deployment is
+     * unaffected.
+     *
+     * @property
+     * @returns {boolean}
+     * @public
+     */
+    static get isMessageExchangeEnabled(): boolean;
+    /**
      * Property returning the current service domain name.
      *
      * @property

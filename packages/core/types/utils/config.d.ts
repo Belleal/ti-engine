@@ -18,6 +18,7 @@ declare const settingsEnum: import("../components/definitions.types").TiEnumOf<{
     LOCALIZATION_LABELS_PATH: string[];
     LOCALIZATION_LANGUAGE: string[];
     MEMORY_CACHE_AUTH_KEY: string[];
+    MEMORY_CACHE_PROVIDER: string[];
     MEMORY_CACHE_REDIS_DB: string[];
     MEMORY_CACHE_REDIS_HOST: string[];
     MEMORY_CACHE_REDIS_PORT: string[];
@@ -25,6 +26,7 @@ declare const settingsEnum: import("../components/definitions.types").TiEnumOf<{
     MEMORY_CACHE_RETRY_MAX_ATTEMPTS: string[];
     MEMORY_CACHE_RETRY_MAX_INTERVAL: string[];
     MEMORY_CACHE_USER: string[];
+    MESSAGE_EXCHANGE_ENABLED: string[];
     MESSAGE_EXCHANGE_QUEUE_PREFIX: string[];
     MESSAGE_EXCHANGE_MESSAGE_STORE: string[];
     MESSAGE_EXCHANGE_SECURITY_HASH_ENABLED: string[];
@@ -34,6 +36,7 @@ declare const settingsEnum: import("../components/definitions.types").TiEnumOf<{
     MESSAGE_EXCHANGE_TRACE_REPOSITORY: string[];
     SERVICE_EXECUTION_TIMEOUT: string[];
     SERVICE_HEALTH_CHECK_ADDRESS: string[];
+    SERVICE_HEALTH_CHECK_ENABLED: string[];
     SERVICE_HEALTH_CHECK_INTERVAL: string[];
     SERVICE_HEALTH_CHECK_TIMEOUT: string[];
     SERVICE_REGISTRY_ADDRESS: string[];
