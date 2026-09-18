@@ -25,6 +25,24 @@ const path = require( "path" );
 const { cacheCapability } = require( "#cache-capability" );
 
 /**
+ * Determines whether a value is a class extending {@link CacheProvider}, without constructing it.
+ * <br/>
+ * NOTE: A `typeof === "function"` test is not enough, and constructing first to ask `instanceof` afterwards is worse.
+ * An arrow function passes the `typeof` test but is not a constructor, so `new` on it throws a raw TypeError instead
+ * of the documented exception; and an unrelated class would have its constructor RUN - arbitrary code from a
+ * misconfigured path - before anything rejected it. Walking the prototype chain answers the question without
+ * executing anything.
+ *
+ * @method
+ * @param {*} candidate The value exported by the configured provider module.
+ * @returns {boolean}
+ * @public
+ */
+function isCacheProviderClass( candidate ) {
+    return typeof candidate === "function" && candidate.prototype instanceof CacheProvider;
+}
+
+/**
  * Creates the cache backend named by the 'memoryCache.provider' setting.
  * <br/>
  * NOTE: The built-in name "redis" selects {@link RedisCacheProvider}. Any other value is treated as a module path
@@ -58,14 +76,13 @@ function createConfiguredProvider( connectionIdentifier ) {
         } );
     }
 
-    let provider = ( typeof ProviderClass === "function" ) ? new ProviderClass( connectionIdentifier ) : null;
-    if ( provider instanceof CacheProvider === false ) {
+    if ( isCacheProviderClass( ProviderClass ) === false ) {
         throw exceptions.raise( exceptions.exceptionCode.E_GEN_INVALID_ARGUMENT_TYPE, {
             details: `The cache provider configured as '${ selected }' does not export a class extending CacheProvider.`
         } );
     }
 
-    return provider;
+    return new ProviderClass( connectionIdentifier );
 }
 
 /**
@@ -612,3 +629,4 @@ module.exports.cacheCapability = cacheCapability;
 // Exported for testing, per the notes on the functions themselves.
 module.exports.findMissingCapabilities = findMissingCapabilities;
 module.exports.createConfiguredProvider = createConfiguredProvider;
+module.exports.isCacheProviderClass = isCacheProviderClass;

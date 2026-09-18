@@ -25,6 +25,7 @@ process.env.TI_MEMORY_CACHE_REQUIRED_CAPABILITIES = "json-documents,atomic-json-
 
 const { describe, it } = require( "node:test" );
 const assert = require( "node:assert/strict" );
+const CacheProvider = require( "#cache-provider" );
 const StubCacheProvider = require( "./fixtures/stub-cache-provider.js" );
 const cache = require( "@ti-engine/core/cache" );
 const { cacheCapability } = require( "#cache-capability" );
@@ -41,6 +42,54 @@ describe( "cache backend selection", () => {
     it( "reports the configured backend's capabilities through the cache", () => {
         StubCacheProvider.declaredCapabilities = [ cacheCapability.SETS ];
         assert.deepEqual( cache.instance.capabilities, [ cacheCapability.SETS ] );
+    } );
+
+} );
+
+describe( "isCacheProviderClass — what may be configured as a backend", () => {
+
+    it( "accepts a class extending CacheProvider", () => {
+        class Good extends CacheProvider {
+            get capabilities() {
+                return [];
+            }
+        }
+        assert.equal( cache.isCacheProviderClass( Good ), true );
+        assert.equal( cache.isCacheProviderClass( StubCacheProvider ), true );
+    } );
+
+    it( "rejects an arrow function rather than letting `new` throw a raw TypeError", () => {
+        // An arrow function passes a `typeof === "function"` test but is not a constructor. Checking after
+        // construction would surface `TypeError: ProviderClass is not a constructor` instead of the documented
+        // E_GEN_INVALID_ARGUMENT_TYPE, which says nothing about what was misconfigured.
+        assert.equal( cache.isCacheProviderClass( () => {} ), false );
+    } );
+
+    it( "rejects an unrelated class WITHOUT running its constructor", () => {
+        // This is the reason the check happens before construction rather than after: a misconfigured path would
+        // otherwise execute arbitrary constructor code and only then be rejected.
+        let constructed = false;
+        class Unrelated {
+            constructor() {
+                constructed = true;
+            }
+        }
+
+        assert.equal( cache.isCacheProviderClass( Unrelated ), false );
+        assert.equal( constructed, false, "rejecting a backend must not construct it" );
+    } );
+
+    it( "rejects the abstract base itself", () => {
+        // CacheProvider.prototype is not an instance of CacheProvider, so the base class is refused the same way as
+        // anything else that cannot serve as a backend - rather than reaching its own abstract-constructor guard.
+        assert.equal( cache.isCacheProviderClass( CacheProvider ), false );
+    } );
+
+    it( "rejects values that are not functions at all", () => {
+        assert.equal( cache.isCacheProviderClass( {} ), false );
+        assert.equal( cache.isCacheProviderClass( null ), false );
+        assert.equal( cache.isCacheProviderClass( undefined ), false );
+        assert.equal( cache.isCacheProviderClass( "redis" ), false );
     } );
 
 } );

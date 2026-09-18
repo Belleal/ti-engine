@@ -25,9 +25,9 @@ the header block verbatim from an existing file in the same package.
 ## Monorepo Layout
 
 ```
-ti-engine/                         npm workspace root (v1.2.10; workspaces = packages/*)
+ti-engine/                         npm workspace root (v1.3.0; workspaces = packages/*)
 ├── packages/
-│   ├── core/          v1.12.2     Framework foundation (Redis messaging, lifecycle, utils) + shipped TypeScript declarations
+│   ├── core/          v1.14.0     Framework foundation (pluggable cache backend, optional messaging, lifecycle, utils) + shipped TypeScript declarations
 │   ├── web-framework/ v1.36.0     Express server + auth (incl. real local auth) + admin config-management + config drift + Profile/About + ti-charts + role gate + TI_WEB_* env overrides + /health + route seams
 │   ├── web-content/   v0.3.1      Content-publishing engine — path-index routing, deny-by-default visibility, SEO documents, feeds, email capture (WIP)
 │   └── tester/        v1.3.5      Reference/example service implementation + the docker-build target

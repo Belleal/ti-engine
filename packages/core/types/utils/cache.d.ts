@@ -5,10 +5,26 @@ export declare var mapCommandValues: typeof import("#redis-cache-provider").mapC
 export { cacheCapability };
 export { findMissingCapabilities };
 export { createConfiguredProvider };
+export { isCacheProviderClass };
 import CacheProvider = require("#cache-provider");
 import ConnectionObserver = require("#connection-observer");
 import RedisCacheProvider = require("#redis-cache-provider");
 import { cacheCapability } from "#cache-capability";
+/**
+ * Determines whether a value is a class extending {@link CacheProvider}, without constructing it.
+ * <br/>
+ * NOTE: A `typeof === "function"` test is not enough, and constructing first to ask `instanceof` afterwards is worse.
+ * An arrow function passes the `typeof` test but is not a constructor, so `new` on it throws a raw TypeError instead
+ * of the documented exception; and an unrelated class would have its constructor RUN - arbitrary code from a
+ * misconfigured path - before anything rejected it. Walking the prototype chain answers the question without
+ * executing anything.
+ *
+ * @method
+ * @param {*} candidate The value exported by the configured provider module.
+ * @returns {boolean}
+ * @public
+ */
+declare function isCacheProviderClass(candidate: any): boolean;
 /**
  * Creates the cache backend named by the 'memoryCache.provider' setting.
  * <br/>
