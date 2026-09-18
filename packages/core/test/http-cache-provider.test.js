@@ -74,7 +74,8 @@ before( async () => {
     // Selects this backend by its built-in name, so the wiring in `createConfiguredProvider` is covered too.
     process.env.TI_MEMORY_CACHE_PROVIDER = "http";
     process.env.TI_MEMORY_CACHE_STATE_URL = stub.baseUrl;
-    process.env.TI_MEMORY_CACHE_STATE_TIMEOUT = "2000";
+    // Deliberately no timeout override; see the note in http-cache-integration.test.js. This file survived the
+    // cold start on 2000ms, which is the same race with more headroom rather than a different situation.
     process.env.TI_MEMORY_CACHE_STATE_AUTH_TOKEN = "a-test-token";
     // Long enough that the recovery probe never fires during the run; the disruption tests assert on the first
     // failure, not on the retry loop.

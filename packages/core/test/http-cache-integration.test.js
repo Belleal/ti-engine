@@ -53,7 +53,10 @@ before( async () => {
 
     process.env.TI_MEMORY_CACHE_PROVIDER = "http";
     process.env.TI_MEMORY_CACHE_STATE_URL = stub.baseUrl;
-    process.env.TI_MEMORY_CACHE_STATE_TIMEOUT = "500";
+    // No timeout override. A short one is a trap here: the FIRST fetch in a fresh process pays undici's
+    // initialization - about 50ms idle, and far more on a loaded runner with test files in parallel - against
+    // roughly 2ms for every one after it. The health probe in this hook is always that first fetch, so an
+    // aggressive timeout races the runtime rather than the service. Nothing in this file tests timeout behaviour.
     // What this deployment declares it cannot run without; see the site's 'deployment-architecture.md' §4.2.
     process.env.TI_MEMORY_CACHE_REQUIRED_CAPABILITIES = "json-documents,atomic-json-edit";
     // Short, because the recovery probe is the subject of this file rather than something to be configured out of it.
