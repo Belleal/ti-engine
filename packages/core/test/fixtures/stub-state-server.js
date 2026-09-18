@@ -147,7 +147,7 @@ function startStubStateServer() {
 
             let path = request.url;
             let payload = ( chunks.length > 0 ) ? JSON.parse( Buffer.concat( chunks ).toString( "utf8" ) ) : {};
-            requestLog.push( { path: path, payload: payload } );
+            requestLog.push( { path: path, payload: payload, headers: request.headers } );
 
             // Lets a test drive the error branches without taking the whole server down.
             if ( failures.has( path ) === true ) {

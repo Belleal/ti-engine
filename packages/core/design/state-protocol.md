@@ -14,6 +14,10 @@ It exists because a container has no business holding a database credential. Whe
 - A request that times out or never connects is a **transport failure**: the provider announces `onConnectionDisrupted`, which takes the whole cache out of service, and starts probing for recovery.
 - A response with a non-2xx status is an **operation failure**: that one call rejects and the connection is left up. A single bad key must never take the store down.
 
+**Nothing is retried, deliberately.** A dropped request fails its call and takes the cache out of service until the probe finds the service again. Retrying would be safe for the reads and wrong for the writes: this protocol carries no idempotency key, so a retried `documents/merge` whose first attempt actually landed would apply twice. Merge-patch happens to be idempotent for a plain field set, but not for a caller who is counting, and `values/set` with an expiration is not idempotent at all. If retries are ever wanted, they need a request identifier first.
+
+**The provider never escalates to `onConnectionLost`.** Redis raises it for a connection that is gone for good, which crashes the instance. HTTP has no equivalent signal — a service that is not answering now may answer in a second — so this provider only ever reports disruption and recovery.
+
 A path the service does not recognise must answer `404`. The set of paths below is the entire vocabulary the container has; that is the containment boundary the arrangement is for.
 
 ---

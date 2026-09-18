@@ -66,6 +66,7 @@ before( async () => {
     process.env.TI_MEMORY_CACHE_PROVIDER = "http";
     process.env.TI_MEMORY_CACHE_STATE_URL = stub.baseUrl;
     process.env.TI_MEMORY_CACHE_STATE_TIMEOUT = "2000";
+    process.env.TI_MEMORY_CACHE_STATE_AUTH_TOKEN = "a-test-token";
     // Long enough that the recovery probe never fires during the run; the disruption tests assert on the first
     // failure, not on the retry loop.
     process.env.TI_MEMORY_CACHE_RETRY_MAX_INTERVAL = "600000";
@@ -110,6 +111,22 @@ describe( "HttpCacheProvider — selection", () => {
         // name that resolves to nothing fails the process rather than the first request.
         let cache = require( "#cache" );
         assert.ok( cache.createConfiguredProvider( "test-cache" ) instanceof HttpCacheProvider );
+    } );
+
+} );
+
+describe( "HttpCacheProvider — authorization", () => {
+
+    it( "sends the configured bearer token on every request, the health probe included", async () => {
+        let before = stub.requestLog.length;
+        let { provider } = await connectedProvider();
+        await provider.setValue( "authed", "x" );
+
+        let issued = stub.requestLog.slice( before );
+        assert.ok( issued.length >= 2 );
+        issued.forEach( ( entry ) => {
+            assert.equal( entry.headers.authorization, "Bearer a-test-token", `missing on ${ entry.path }` );
+        } );
     } );
 
 } );

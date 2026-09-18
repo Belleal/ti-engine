@@ -226,7 +226,7 @@ module.exports.service = function (serviceDefinition, serviceParams, serviceCall
 
 **Test commands**:
 ```bash
-npm test    # node --test — runs test/*.test.js: 101 tests / 24 suites across 9 files
+npm test    # node --test — runs test/*.test.js: 102 tests / 25 suites across 9 files
             # (cache-capabilities, cache-get-values, cache-provider-selection,
             #  http-cache-provider, http-cache-integration, localization,
             #  message-hash, security-hash-key-warning, tools-proto-keys)
