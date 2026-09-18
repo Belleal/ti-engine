@@ -2,6 +2,13 @@
 
 This document contains the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.15.0
+
+* feat(cache): add `HttpCacheProvider`, a backend that keeps state in an HTTP service rather than in a database client, selected by the built-in provider name `"http"`. It exists for a deployment where the durable store is reachable only through a platform binding — a Cloudflare container reaching D1 through its Worker — so no SDK and no credential lives in the image. It is named for its transport, not for D1: the contract is an HTTP protocol, and what answers it is the deployment's business.
+* feat(cache): specify that protocol in `design/state-protocol.md` — eleven paths, one per logical operation, JSON bodies, values on the wire as strings. Paths travel as an array of literal key segments rather than as a JSONPath expression, because RedisJSON wants `$["a"]` and SQLite wants `$."a"`, and handing a service a dialect to re-parse is how an escaping bug gets in. The document records the D1 mapping too, including why the merge nests the patch inside the path instead of addressing it with `json_set`: SQLite's path grammar has no escape for a double quote inside a quoted label, so a path expression built from a caller-supplied key is a latent failure. Verified against SQLite 3.45.1.
+* feat(config): add `memoryCache.stateUrl` (`TI_MEMORY_CACHE_STATE_URL`), `memoryCache.stateAuthToken` (`TI_MEMORY_CACHE_STATE_AUTH_TOKEN`) and `memoryCache.stateTimeout` (`TI_MEMORY_CACHE_STATE_TIMEOUT`) for the above. Redis deployments are untouched; `redis` remains the default backend.
+* test(cache): 28 tests against an in-memory implementation of the protocol, so the contract is checkable without the platform it was designed for. The one that matters asserts `editJSON` issues exactly one `documents/merge` and no `documents/get` — verified to fail against a read-modify-write emulation, which is the silent data loss `ATOMIC_JSON_EDIT` exists to rule out. Core 66 to 94 tests.
+
 ## Version 1.14.0
 
 * feat(cache): select the backend through the new `memoryCache.provider` setting (`TI_MEMORY_CACHE_PROVIDER`). `"redis"` selects the built-in provider and remains the default; any other value is a module path resolved against the working directory and must export a `CacheProvider` subclass. Without this the provider contract added in 1.13.0 could not actually be pointed at anything else.

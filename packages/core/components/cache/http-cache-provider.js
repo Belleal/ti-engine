@@ -1,0 +1,551 @@
+/*
+ * The ti-engine is an open source, free to use—both for personal and commercial projects—framework for the creation of microservice-based solutions using node.js.
+ * Copyright © 2021-2026 Boris Kostadinov <kostadinov.boris@gmail.com>
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+*/
+
+const CacheProvider = require( "#cache-provider" );
+const _ = require( "lodash" );
+const config = require( "#config" );
+const exceptions = require( "#exceptions" );
+const tools = require( "#tools" );
+const { cacheCapability } = require( "#cache-capability" );
+
+/** @import ConnectionObserver from "#connection-observer" */
+
+/**
+ * The paths making up the state protocol, one per logical operation.
+ * <br/>
+ * NOTE: One path per operation rather than one endpoint carrying a command name, because the service on the other end
+ * is a Cloudflare Worker outbound handler (see the site's 'deployment-architecture.md' §7) and the whole point of that
+ * arrangement is that the container never composes a query. A path the handler recognises is the entire vocabulary the
+ * container has; anything it does not recognise is a 404 rather than an instruction.
+ *
+ * @readonly
+ * @enum {string}
+ */
+const statePath = Object.freeze( {
+    HEALTH: "/v1/health",
+    MATCH_KEYS: "/v1/keys/match",
+    EXPIRE_KEY: "/v1/keys/expire",
+    SET_VALUE: "/v1/values/set",
+    GET_VALUE: "/v1/values/get",
+    SET_HASH_FIELD: "/v1/hashes/set",
+    GET_HASH_FIELD: "/v1/hashes/get",
+    DELETE_HASH_FIELD: "/v1/hashes/delete",
+    SET_DOCUMENT: "/v1/documents/set",
+    GET_DOCUMENT: "/v1/documents/get",
+    MERGE_DOCUMENT: "/v1/documents/merge"
+} );
+
+/**
+ * Converts a JSONPath argument into an array of literal key segments for transport.
+ * <br/>
+ * NOTE: This deliberately does NOT produce a JSONPath string. RedisJSON wants '$["a"]' and SQLite wants '$."a"', and
+ * a provider that picked one of those would be handing the state service a dialect to re-parse — which is how an
+ * escaping bug gets in. Segments travel as data; quoting is the store's business, at the point where the store is
+ * known. The root path is the empty array.
+ *
+ * @method
+ * @param {string|string[]} path A dot-separated JSONPath string, or an array of literal key segments.
+ * @returns {string[]}
+ * @public
+ */
+function toPathSegments( path ) {
+    if ( Array.isArray( path ) ) {
+        return path.map( ( segment ) => String( segment ) );
+    }
+    if ( path === undefined || path === null || path === "$" || path === "" ) {
+        return [];
+    }
+
+    let normalized = String( path );
+    normalized = ( normalized.startsWith( "$." ) === true ) ? normalized.slice( 2 ) : normalized;
+    normalized = ( normalized.startsWith( "$" ) === true ) ? normalized.slice( 1 ) : normalized;
+
+    return normalized.split( "." ).filter( ( segment ) => segment.length > 0 );
+}
+
+/**
+ * Encodes a value the way the Redis backend puts it on the wire.
+ * <br/>
+ * NOTE: `tools.stringifyJSON` serialises objects and passes scalars through untouched, which is safe over the Redis
+ * protocol because every argument is coerced to a string on its way out. JSON is not so forgiving: a number would
+ * arrive as a number and come back failing the `isString` test that decides whether a key exists, so a stored 42
+ * would read back as absent. Coercing here keeps both backends storing and returning exactly the same thing.
+ *
+ * @method
+ * @param {*} value
+ * @returns {string}
+ * @public
+ */
+function encodeValue( value ) {
+    return String( tools.stringifyJSON( value ) );
+}
+
+/**
+ * A cache backend that keeps its state in an HTTP service rather than in a database client.
+ * <br/>
+ * NOTE: This exists because the site runs in a Cloudflare container, where the durable store (D1) is reachable only
+ * through a Worker binding and therefore only over HTTP to a virtual hostname. No SDK and no credential live in the
+ * image. That makes the provider a plain HTTP client, which is also why it is named for the transport rather than for
+ * D1: what answers the protocol is the deployment's business, and a test can answer it with 'node:http'.
+ * <br/>
+ * NOTE: Only the methods the state store actually needs are implemented. Lists, sets and the multi-key batching are
+ * left abstract on purpose — they are used exclusively by the message exchange, which is disabled in this deployment,
+ * and a stub that silently returned nothing would be worse than the inherited exception that names the method.
+ *
+ * @class HttpCacheProvider
+ * @extends CacheProvider
+ * @public
+ */
+class HttpCacheProvider extends CacheProvider {
+
+    #connectionIdentifier;
+    #baseUrl;
+    #authToken;
+    #requestTimeout;
+    #probeInterval;
+    /** @type {ConnectionObserver[]} */
+    #observers = [];
+    #isConnected = false;
+    #isShutDown = false;
+    /** @type {NodeJS.Timeout} */
+    #probeTimer = null;
+
+    /**
+     * @constructor
+     * @param {string} connectionIdentifier The identifier under which this backend's connection is observed.
+     */
+    constructor( connectionIdentifier ) {
+        super();
+
+        this.#connectionIdentifier = connectionIdentifier;
+        this.#baseUrl = String( config.getSetting( config.setting.MEMORY_CACHE_STATE_URL, "http://state.internal" ) ).replace( /\/+$/, "" );
+        this.#authToken = config.getSetting( config.setting.MEMORY_CACHE_STATE_AUTH_TOKEN, null );
+        this.#requestTimeout = Number( config.getSetting( config.setting.MEMORY_CACHE_STATE_TIMEOUT, 5000 ) );
+        this.#probeInterval = Number( config.getSetting( config.setting.MEMORY_CACHE_RETRY_MAX_INTERVAL, 5000 ) );
+    }
+
+    /* Public interface */
+
+    /**
+     * Exposes {@link toPathSegments} so the wire format can be tested without a server.
+     * <br/>
+     * NOTE: A static rather than a named export, because this module's `module.exports` is the class itself and adding
+     * named exports beside an export assignment makes the generated declaration file invalid.
+     *
+     * @method
+     * @param {string|string[]} path
+     * @returns {string[]}
+     * @public
+     */
+    static toPathSegments( path ) {
+        return toPathSegments( path );
+    }
+
+
+    /**
+     * Returns the optional behaviors this backend provides.
+     * <br/>
+     * NOTE: {@link TiCacheCapability.ATOMIC_JSON_EDIT} is declared because the protocol's document merge is required to
+     * be a single statement at the store — on D1 that is one UPDATE wrapping 'json_patch', which SQLite applies
+     * atomically. A service that implements the merge as a read, a change and a write MUST NOT be pointed at by this
+     * provider; see the site's 'deployment-architecture.md' §4.2 for what that costs.
+     *
+     * @property
+     * @returns {string[]}
+     * @override
+     * @public
+     */
+    get capabilities() {
+        return [
+            cacheCapability.KEY_EXPIRY,
+            cacheCapability.KEY_PATTERN_MATCH,
+            cacheCapability.HASH_FIELDS,
+            cacheCapability.JSON_DOCUMENTS,
+            cacheCapability.ATOMIC_JSON_EDIT
+        ];
+    }
+
+    /**
+     * Verifies that the state service is reachable and announces the connection.
+     * <br/>
+     * NOTE: Observers are notified BEFORE the returned promise settles, matching the Redis client's ordering. The
+     * cache singleton turns operational on that notification and validates capabilities once this resolves, so a
+     * provider that resolved first would be briefly reachable while still reported as down.
+     *
+     * @method
+     * @returns {Promise}
+     * @override
+     * @public
+     */
+    initialize() {
+        return this.#fetchJSON( statePath.HEALTH, null ).then( () => {
+            this.#markConnected();
+        } ).catch( ( error ) => {
+            throw exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE, {
+                details: `The state service at '${ this.#baseUrl }' did not answer the health probe: ${ error.message }`
+            } );
+        } );
+    }
+
+    /**
+     * Stops the connection probe and marks the backend closed.
+     * <br/>
+     * NOTE: There is no socket to close — every call is a separate request — so the only resource to release is the
+     * recovery timer, and the only state to set is the flag that stops a late response from re-announcing a connection
+     * after shut down.
+     *
+     * @method
+     * @returns {Promise}
+     * @override
+     * @public
+     */
+    shutDown() {
+        this.#isShutDown = true;
+        this.#isConnected = false;
+        this.#stopProbing();
+        return Promise.resolve();
+    }
+
+    /**
+     * Registers an observer for this backend's connection events.
+     *
+     * @method
+     * @param {ConnectionObserver} connectionObserver
+     * @override
+     * @public
+     */
+    addConnectionObserver( connectionObserver ) {
+        this.#observers.push( connectionObserver );
+    }
+
+    /**
+     * Used to search for keys by a given pattern.
+     *
+     * @method
+     * @param {string} pattern
+     * @returns {Promise<Array>}
+     * @override
+     * @public
+     */
+    matchKeys( pattern ) {
+        return this.#fetchJSON( statePath.MATCH_KEYS, { pattern: pattern } ).then( ( body ) => {
+            return Array.isArray( body.keys ) ? body.keys : [];
+        } );
+    }
+
+    /**
+     * Used to set a specific string value.
+     * <br/>
+     * NOTE: A falsy value resolves without reaching the service, and the original value is handed back rather than
+     * whatever the service answered. Both match the Redis backend exactly; callers depend on the return value being
+     * what they passed in.
+     *
+     * @method
+     * @param {string} key
+     * @param {string} value
+     * @param {number} [expiration] Expiration value is in seconds.
+     * @returns {Promise<string>}
+     * @override
+     * @public
+     */
+    setValue( key, value, expiration ) {
+        if ( !value ) {
+            return Promise.resolve( value );
+        }
+
+        let payload = { key: key, value: encodeValue( value ) };
+        if ( expiration ) {
+            payload.expiration = expiration;
+        }
+
+        return this.#fetchJSON( statePath.SET_VALUE, payload ).then( () => value );
+    }
+
+    /**
+     * Used to get a string value.
+     *
+     * @method
+     * @param {string} key
+     * @returns {Promise}
+     * @override
+     * @public
+     */
+    getValue( key ) {
+        return this.#fetchJSON( statePath.GET_VALUE, { key: key } ).then( ( body ) => {
+            // `undefined` rather than `null` for an absent key: that is what the Redis decoder returns, and
+            // `web-framework` distinguishes the two when deciding whether a session exists.
+            return _.isString( body.value ) ? tools.parseJSON( body.value ) : undefined;
+        } );
+    }
+
+    /**
+     * Used to set expiration in seconds to an existing key.
+     * <br/>
+     * NOTE: When "name" is given it is the hash the field belongs to, and "key" is the field within it. That argument
+     * order reads backwards but it is the established one.
+     *
+     * @method
+     * @param {string} key
+     * @param {number} seconds
+     * @param {string} [name] If a field in a hash set is to be expired instead, the name of that set.
+     * @returns {Promise<number>}
+     * @override
+     * @public
+     */
+    expireValue( key, seconds, name ) {
+        let payload = { key: key, seconds: seconds };
+        if ( name ) {
+            payload.hash = name;
+        }
+
+        return this.#fetchJSON( statePath.EXPIRE_KEY, payload ).then( () => seconds );
+    }
+
+    /**
+     * Used to set a single field in a hash set.
+     *
+     * @method
+     * @param {string} key
+     * @param {string} name
+     * @param {string|Object} value
+     * @returns {Promise}
+     * @override
+     * @public
+     */
+    hashSetField( key, name, value ) {
+        return this.#fetchJSON( statePath.SET_HASH_FIELD, {
+            key: key,
+            field: name,
+            value: encodeValue( value )
+        } ).then( () => undefined );
+    }
+
+    /**
+     * Used to fetch a single field from a hash set.
+     *
+     * @method
+     * @param {string} key
+     * @param {string} field
+     * @returns {Promise}
+     * @override
+     * @public
+     */
+    hashGetField( key, field ) {
+        return this.#fetchJSON( statePath.GET_HASH_FIELD, { key: key, field: field } ).then( ( body ) => {
+            return _.isString( body.value ) ? tools.parseJSON( body.value ) : null;
+        } );
+    }
+
+    /**
+     * Used to delete a single field from a hash set.
+     *
+     * @method
+     * @param {string} key
+     * @param {string} field
+     * @returns {Promise}
+     * @override
+     * @public
+     */
+    hashDeleteField( key, field ) {
+        return this.#fetchJSON( statePath.DELETE_HASH_FIELD, { key: key, field: field } ).then( ( body ) => {
+            return tools.toBool( body.deleted );
+        } );
+    }
+
+    /**
+     * Used to store a JSON document, or a branch of one.
+     *
+     * @method
+     * @param {string} key
+     * @param {Object} value
+     * @param {string|string[]} [path="$"] A dot-separated JSONPath string, or an array of literal key segments.
+     * @param {number} [overrideMode=0] 0 allows full override; 1 sets only if absent; 2 sets only if present.
+     * @returns {Promise}
+     * @override
+     * @public
+     */
+    setJSON( key, value, path = "$", overrideMode = 0 ) {
+        return this.#fetchJSON( statePath.SET_DOCUMENT, {
+            key: key,
+            path: toPathSegments( path ),
+            value: encodeValue( value ),
+            overrideMode: overrideMode
+        } ).then( () => undefined );
+    }
+
+    /**
+     * Used to fetch a JSON document, or a branch of one.
+     *
+     * @method
+     * @param {string} key
+     * @param {string|string[]} [path="$"] A dot-separated JSONPath string, or an array of literal key segments.
+     * @returns {Promise<Object>}
+     * @override
+     * @public
+     */
+    getJSON( key, path = "$" ) {
+        return this.#fetchJSON( statePath.GET_DOCUMENT, {
+            key: key,
+            path: toPathSegments( path )
+        } ).then( ( body ) => {
+            return _.isString( body.value ) ? tools.parseJSON( body.value ) : null;
+        } );
+    }
+
+    /**
+     * Used to merge a value into an existing JSON document at the given path.
+     * <br/>
+     * NOTE: The service applies this as one statement. See {@link HttpCacheProvider#capabilities} for why that is a
+     * requirement of the protocol rather than an implementation detail of whatever answers it.
+     *
+     * @method
+     * @param {string} key
+     * @param {Object} value
+     * @param {string|string[]} [path="$"] A dot-separated JSONPath string, or an array of literal key segments.
+     * @returns {Promise}
+     * @override
+     * @public
+     */
+    editJSON( key, value, path = "$" ) {
+        return this.#fetchJSON( statePath.MERGE_DOCUMENT, {
+            key: key,
+            path: toPathSegments( path ),
+            value: encodeValue( value )
+        } ).then( () => undefined );
+    }
+
+    /* Private interface */
+
+    /**
+     * Performs one protocol request and returns the decoded response body.
+     * <br/>
+     * NOTE: A transport failure and an error status are treated differently on purpose. The first means the service is
+     * unreachable and takes the whole cache out of operation through {@link ConnectionObserver#onConnectionDisrupted};
+     * the second means the service answered and rejected this particular call, which says nothing about the next one.
+     * Conflating them would let a single bad key mark the cache down.
+     *
+     * @method
+     * @param {string} path One of {@link statePath}.
+     * @param {Object} [payload] The request body; a null payload issues a GET.
+     * @returns {Promise<Object>}
+     */
+    #fetchJSON( path, payload ) {
+        let headers = { "accept": "application/json" };
+        if ( this.#authToken ) {
+            headers.authorization = `Bearer ${ this.#authToken }`;
+        }
+
+        let body = null;
+        if ( payload !== null && payload !== undefined ) {
+            body = JSON.stringify( payload );
+            headers[ "content-type" ] = "application/json";
+        }
+
+        let options = {
+            method: ( body === null ) ? "GET" : "POST",
+            headers: headers,
+            signal: AbortSignal.timeout( this.#requestTimeout )
+        };
+        if ( body !== null ) {
+            options.body = body;
+        }
+
+        return fetch( this.#baseUrl + path, options ).catch( ( error ) => {
+            this.#markDisrupted();
+            throw exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE, {
+                details: `The state service at '${ this.#baseUrl }' could not be reached for '${ path }': ${ error.message }`
+            } );
+        } ).then( ( response ) => {
+            // Reaching here means the service answered, whatever it answered with, so the connection is good even if
+            // the call is not. Announce recovery before deciding on the status.
+            this.#markConnected();
+
+            return response.text().then( ( text ) => {
+                if ( response.ok === false ) {
+                    throw exceptions.raise( exceptions.exceptionCode.E_GEN_JS_INTERNAL_ERROR, {
+                        details: `The state service answered '${ path }' with HTTP ${ response.status }: ${ text.slice( 0, 200 ) }`
+                    } );
+                }
+                // An empty body is a valid acknowledgement for the write operations, which have nothing to return.
+                return ( text.length > 0 ) ? tools.parseJSON( text ) : {};
+            } );
+        } );
+    }
+
+    /**
+     * Announces a working connection, once per transition.
+     *
+     * @method
+     */
+    #markConnected() {
+        if ( this.#isShutDown === true ) {
+            return;
+        }
+
+        this.#stopProbing();
+        if ( this.#isConnected === false ) {
+            this.#isConnected = true;
+            this.#observers.forEach( ( observer ) => observer.onConnectionRecovered( this.#connectionIdentifier ) );
+        }
+    }
+
+    /**
+     * Announces a broken connection and starts probing for its return.
+     * <br/>
+     * NOTE: The probe is what makes recovery possible at all. Once the cache singleton is told the connection is
+     * disrupted it stops passing calls through, so this provider would never see another request to discover the
+     * service on — the Redis client is spared this because its own reconnect loop runs independently of commands.
+     * This timer is that loop.
+     *
+     * @method
+     */
+    #markDisrupted() {
+        if ( this.#isShutDown === true ) {
+            return;
+        }
+
+        if ( this.#isConnected === true ) {
+            this.#isConnected = false;
+            this.#observers.forEach( ( observer ) => observer.onConnectionDisrupted( this.#connectionIdentifier ) );
+        }
+
+        if ( this.#probeTimer === null ) {
+            this.#probeTimer = setInterval( () => {
+                this.#fetchJSON( statePath.HEALTH, null ).catch( () => {
+                    // Still down. The next tick tries again; `#fetchJSON` has already re-reported the disruption.
+                } );
+            }, this.#probeInterval );
+            // Never hold the process open for a cache that is already down.
+            this.#probeTimer.unref();
+        }
+    }
+
+    /**
+     * Stops the recovery probe if one is running.
+     *
+     * @method
+     */
+    #stopProbing() {
+        if ( this.#probeTimer !== null ) {
+            clearInterval( this.#probeTimer );
+            this.#probeTimer = null;
+        }
+    }
+
+}
+
+module.exports = HttpCacheProvider;
