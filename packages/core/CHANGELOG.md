@@ -2,6 +2,10 @@
 
 This document contains the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.15.1
+
+* fix(test): stop the HTTP cache integration suite racing the runtime's cold start. It set a 500ms request timeout, and its root hook awaits `cache.instance.initialize()`, whose health probe is the FIRST `fetch` in a fresh process — about 50ms on an idle machine against roughly 2ms for every one after it, because undici initializes on first use. On a loaded runner with test files in parallel that cleared 500ms: the probe timed out, the hook threw, and node:test cancelled all seven tests under it. That failed the publish workflow's verify job on the 1.15.0 merge, so 1.15.0 never reached npm. Neither that file nor `http-cache-provider.test.js` tests timeout behaviour, so both now use the 5000ms default; the override bought nothing and raced the runtime rather than the service.
+
 ## Version 1.15.0
 
 * feat(cache): add `HttpCacheProvider`, a backend that keeps state in an HTTP service rather than in a database client, selected by the built-in provider name `"http"`. It exists for a deployment where the durable store is reachable only through a platform binding — a Cloudflare container reaching D1 through its Worker — so no SDK and no credential lives in the image. It is named for its transport, not for D1: the contract is an HTTP protocol, and what answers it is the deployment's business.
