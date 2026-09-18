@@ -38,6 +38,34 @@ declare class HttpCacheProvider extends CacheProvider {
      */
     static toPathSegments(path: string | string[]): string[];
     /**
+     * Exposes {@link validateDelay} so the refusal can be tested without a differently configured process.
+     *
+     * @method
+     * @param {*} value
+     * @param {string} settingName
+     * @returns {number}
+     * @public
+     */
+    static validateDelay(value: any, settingName: string): number;
+    /**
+     * Exposes {@link normalizeBaseUrl}, for the same reason.
+     *
+     * @method
+     * @param {*} value
+     * @returns {string}
+     * @public
+     */
+    static normalizeBaseUrl(value: any): string;
+    /**
+     * Exposes {@link verifyCredentialTransport}, whose rule is worth pinning in full.
+     *
+     * @method
+     * @param {string} baseUrl
+     * @param {boolean} allowInsecure
+     * @public
+     */
+    static verifyCredentialTransport(baseUrl: string, allowInsecure: boolean): void;
+    /**
      * Returns the optional behaviors this backend provides.
      * <br/>
      * NOTE: {@link TiCacheCapability.ATOMIC_JSON_EDIT} is declared because the protocol's document merge is required to

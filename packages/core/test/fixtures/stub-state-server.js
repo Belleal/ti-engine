@@ -120,17 +120,77 @@ function globToRegExp( pattern ) {
  */
 function startStubStateServer() {
     let values = new Map();
-    let expirations = new Map();
     let hashes = new Map();
     let documents = new Map();
+    let expiries = new Map();
     let requestLog = [];
     let failures = new Map();
+    let redirects = new Map();
+    let truncations = new Set();
     let transportBroken = false;
+    // Lets an expiry test move time instead of waiting for it. Sleeping for a real TTL would make the suite slow and
+    // flaky for no extra confidence.
+    let clockOffset = 0;
+
+    const now = () => Date.now() + clockOffset;
+    // A NUL separator, because a hash name or a field may legitimately contain any printable character.
+    const fieldKey = ( hash, field ) => `${ hash }\u0000${ field }`;
+
+    const hasExpired = ( key ) => expiries.has( key ) && expiries.get( key ) <= now();
+
+    /**
+     * Drops anything the key addresses if its deadline has passed, and reports whether it did.
+     */
+    const purge = ( key ) => {
+        if ( hasExpired( key ) === false ) {
+            return false;
+        }
+        expiries.delete( key );
+        values.delete( key );
+        hashes.delete( key );
+        documents.delete( key );
+        return true;
+    };
+
+    const purgeField = ( hash, field ) => {
+        let key = fieldKey( hash, field );
+        if ( hasExpired( key ) === false ) {
+            return false;
+        }
+        expiries.delete( key );
+        let fields = hashes.get( hash );
+        if ( fields ) {
+            fields.delete( field );
+        }
+        return true;
+    };
+
+    const liveKeys = () => {
+        let keys = [ ...new Set( [ ...values.keys(), ...hashes.keys(), ...documents.keys() ] ) ];
+        return keys.filter( ( key ) => purge( key ) === false );
+    };
+
+    // The method each path answers. A router that dispatched on the path alone would accept `GET /v1/values/get` and
+    // `POST /v1/health`, so a provider that sent the wrong verb would pass against this stub and fail against a real
+    // service.
+    const routes = new Map( [
+        [ "/v1/health", "GET" ],
+        [ "/v1/keys/match", "POST" ],
+        [ "/v1/keys/expire", "POST" ],
+        [ "/v1/values/set", "POST" ],
+        [ "/v1/values/get", "POST" ],
+        [ "/v1/values/delete", "POST" ],
+        [ "/v1/hashes/set", "POST" ],
+        [ "/v1/hashes/get", "POST" ],
+        [ "/v1/hashes/delete", "POST" ],
+        [ "/v1/documents/set", "POST" ],
+        [ "/v1/documents/get", "POST" ],
+        [ "/v1/documents/merge", "POST" ]
+    ] );
 
     const respond = ( response, status, body ) => {
-        let payload = JSON.stringify( body );
         response.writeHead( status, { "content-type": "application/json" } );
-        response.end( payload );
+        response.end( JSON.stringify( body ) );
     };
 
     const server = http.createServer( ( request, response ) => {
@@ -147,13 +207,43 @@ function startStubStateServer() {
 
             let path = request.url;
             let payload = ( chunks.length > 0 ) ? JSON.parse( Buffer.concat( chunks ).toString( "utf8" ) ) : {};
-            requestLog.push( { path: path, payload: payload, headers: request.headers } );
+            requestLog.push( { path: path, method: request.method, payload: payload, headers: request.headers } );
+
+            // Headers and the start of a chunked body, then the socket dies. The delay matters: undici does not
+            // hand back a Response until the body begins arriving, so destroying the socket immediately fails the
+            // `fetch()` call itself and never exercises the body-read path. With it, the caller gets a Response
+            // reading 200 and ok, and only `text()` rejects - a transport failure wearing a success.
+            if ( truncations.has( path ) === true ) {
+                truncations.delete( path );
+                response.writeHead( 200, { "content-type": "application/json", "transfer-encoding": "chunked" } );
+                response.write( '{"value": "partial' );
+                setTimeout( () => request.socket.destroy(), 60 );
+                return;
+            }
+
+            // Lets a test prove the provider refuses a redirect rather than resending this body somewhere else.
+            if ( redirects.has( path ) === true ) {
+                let location = redirects.get( path );
+                redirects.delete( path );
+                response.writeHead( 307, { location: location, "content-type": "application/json" } );
+                response.end( JSON.stringify( { error: "redirected by the test" } ) );
+                return;
+            }
 
             // Lets a test drive the error branches without taking the whole server down.
             if ( failures.has( path ) === true ) {
                 let status = failures.get( path );
                 failures.delete( path );
                 respond( response, status, { error: "forced by the test" } );
+                return;
+            }
+
+            if ( routes.has( path ) === false ) {
+                respond( response, 404, { error: `no handler for '${ path }'` } );
+                return;
+            }
+            if ( request.method !== routes.get( path ) ) {
+                respond( response, 405, { error: `'${ path }' answers ${ routes.get( path ) }, not ${ request.method }` } );
                 return;
             }
 
@@ -164,30 +254,34 @@ function startStubStateServer() {
 
                 case "/v1/keys/match": {
                     let expression = globToRegExp( payload.pattern );
-                    let keys = [ ...values.keys(), ...hashes.keys(), ...documents.keys() ];
-                    respond( response, 200, { keys: keys.filter( ( key ) => expression.test( key ) ) } );
+                    respond( response, 200, { keys: liveKeys().filter( ( key ) => expression.test( key ) ) } );
                     break;
                 }
 
                 case "/v1/keys/expire":
-                    expirations.set( ( payload.hash ) ? `${ payload.hash }/${ payload.key }` : payload.key, payload.seconds );
+                    expiries.set(
+                        ( payload.hash ) ? fieldKey( payload.hash, payload.key ) : payload.key,
+                        now() + ( payload.seconds * 1000 )
+                    );
                     respond( response, 200, { ok: true } );
                     break;
 
                 case "/v1/values/set":
                     values.set( payload.key, payload.value );
+                    expiries.delete( payload.key );
                     if ( payload.expiration !== undefined ) {
-                        expirations.set( payload.key, payload.expiration );
+                        expiries.set( payload.key, now() + ( payload.expiration * 1000 ) );
                     }
                     respond( response, 200, { ok: true } );
                     break;
 
                 case "/v1/values/get":
+                    purge( payload.key );
                     respond( response, 200, { value: values.has( payload.key ) ? values.get( payload.key ) : null } );
                     break;
 
                 case "/v1/values/delete":
-                    expirations.delete( payload.key );
+                    expiries.delete( payload.key );
                     respond( response, 200, { deleted: values.delete( payload.key ) } );
                     break;
 
@@ -195,11 +289,14 @@ function startStubStateServer() {
                     let fields = hashes.get( payload.key ) || new Map();
                     fields.set( payload.field, payload.value );
                     hashes.set( payload.key, fields );
+                    expiries.delete( fieldKey( payload.key, payload.field ) );
                     respond( response, 200, { ok: true } );
                     break;
                 }
 
                 case "/v1/hashes/get": {
+                    purge( payload.key );
+                    purgeField( payload.key, payload.field );
                     let fields = hashes.get( payload.key );
                     let value = ( fields && fields.has( payload.field ) ) ? fields.get( payload.field ) : null;
                     respond( response, 200, { value: value } );
@@ -207,12 +304,14 @@ function startStubStateServer() {
                 }
 
                 case "/v1/hashes/delete": {
+                    purgeField( payload.key, payload.field );
                     let fields = hashes.get( payload.key );
                     respond( response, 200, { deleted: ( fields ) ? fields.delete( payload.field ) : false } );
                     break;
                 }
 
                 case "/v1/documents/set": {
+                    purge( payload.key );
                     let existing = documents.has( payload.key ) ? documents.get( payload.key ) : undefined;
                     let addressed = readAtPath( existing, payload.path );
                     // 1 sets only if absent, 2 only if present; 0 always.
@@ -226,12 +325,14 @@ function startStubStateServer() {
                 }
 
                 case "/v1/documents/get": {
+                    purge( payload.key );
                     let addressed = readAtPath( documents.get( payload.key ), payload.path );
                     respond( response, 200, { value: ( addressed === undefined ) ? null : JSON.stringify( addressed ) } );
                     break;
                 }
 
                 case "/v1/documents/merge": {
+                    purge( payload.key );
                     let existing = documents.has( payload.key ) ? documents.get( payload.key ) : undefined;
                     let merged = mergePatch( readAtPath( existing, payload.path ), JSON.parse( payload.value ) );
                     documents.set( payload.key, writeAtPath( existing, payload.path, merged ) );
@@ -251,12 +352,15 @@ function startStubStateServer() {
                 server: server,
                 baseUrl: `http://127.0.0.1:${ server.address().port }`,
                 values: values,
-                expirations: expirations,
+                expiries: expiries,
                 hashes: hashes,
                 documents: documents,
                 requestLog: requestLog,
                 failNext: ( path, status ) => failures.set( path, status ),
-                breakTransport: ( flag ) => { transportBroken = flag; }
+                redirectNext: ( path, location ) => redirects.set( path, location ),
+                breakTransportAfterHeaders: ( path ) => truncations.add( path ),
+                breakTransport: ( flag ) => { transportBroken = flag; },
+                advanceClock: ( milliseconds ) => { clockOffset += milliseconds; }
             } );
         } );
     } );

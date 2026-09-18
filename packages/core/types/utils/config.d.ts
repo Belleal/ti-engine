@@ -23,6 +23,7 @@ declare const settingsEnum: import("../components/definitions.types").TiEnumOf<{
     MEMORY_CACHE_REDIS_HOST: string[];
     MEMORY_CACHE_REDIS_PORT: string[];
     MEMORY_CACHE_REQUIRED_CAPABILITIES: string[];
+    MEMORY_CACHE_STATE_ALLOW_INSECURE_AUTH: string[];
     MEMORY_CACHE_STATE_AUTH_TOKEN: string[];
     MEMORY_CACHE_STATE_TIMEOUT: string[];
     MEMORY_CACHE_STATE_URL: string[];

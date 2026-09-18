@@ -96,6 +96,102 @@ function encodeValue( value ) {
 }
 
 /**
+ * The largest delay both `AbortSignal.timeout` and `setInterval` handle without surprises.
+ * <br/>
+ * NOTE: `AbortSignal.timeout` accepts up to 4294967295, but `setInterval` silently wraps anything above this to 1ms -
+ * a busy loop rather than a slow probe. The stricter of the two bounds is the safe one for both.
+ *
+ * @readonly
+ */
+const MAX_DELAY_MS = 2147483647;
+
+/**
+ * Validates a millisecond setting before anything tries to use it as a timer.
+ * <br/>
+ * NOTE: This exists because `AbortSignal.timeout` throws a RangeError SYNCHRONOUSLY on a bad delay. An unparseable
+ * `TI_MEMORY_CACHE_STATE_TIMEOUT` therefore does not reject the promise a caller is awaiting - it throws out of the
+ * method, breaking the contract every other failure in this class honours. Failing in the constructor instead means a
+ * misconfigured deployment stops at startup, where somebody is watching.
+ *
+ * @method
+ * @param {*} value
+ * @param {string} settingName The setting to name in the exception, so the fix is obvious.
+ * @returns {number}
+ * @throws {TiException.E_GEN_INVALID_ARGUMENT_TYPE} If the value is not a usable delay.
+ * @public
+ */
+function validateDelay( value, settingName ) {
+    let delay = Number( value );
+    if ( Number.isInteger( delay ) === false || delay <= 0 || delay > MAX_DELAY_MS ) {
+        throw exceptions.raise( exceptions.exceptionCode.E_GEN_INVALID_ARGUMENT_TYPE, {
+            details: `The '${ settingName }' setting must be a positive whole number of milliseconds no greater than ${ MAX_DELAY_MS }; received '${ value }'.`
+        } );
+    }
+    return delay;
+}
+
+/**
+ * Strips trailing slashes from the configured base URL and rejects one that is not a URL at all.
+ *
+ * @method
+ * @param {*} value
+ * @returns {string}
+ * @throws {TiException.E_GEN_INVALID_ARGUMENT_TYPE} If the value cannot be parsed as a URL.
+ * @public
+ */
+function normalizeBaseUrl( value ) {
+    let candidate = String( value ).replace( /\/+$/, "" );
+    try {
+        void new URL( candidate );
+    } catch {
+        throw exceptions.raise( exceptions.exceptionCode.E_GEN_INVALID_ARGUMENT_TYPE, {
+            details: `The 'memoryCache.stateUrl' setting is not a valid URL: '${ value }'.`
+        } );
+    }
+    return candidate;
+}
+
+/**
+ * Determines whether a hostname never leaves the machine.
+ *
+ * @method
+ * @param {string} hostname
+ * @returns {boolean}
+ * @public
+ */
+function isLoopbackHost( hostname ) {
+    let host = String( hostname ).replace( /^\[/, "" ).replace( /]$/, "" );
+    return host === "localhost" || host === "::1" || /^127\./.test( host );
+}
+
+/**
+ * Refuses to put a bearer token on a transport that cannot protect it.
+ * <br/>
+ * NOTE: The check applies only when a token is configured, which is what keeps the documented Cloudflare deployment
+ * working untouched: there the container reaches its Worker over plain HTTP to a virtual hostname, and the binding
+ * itself is the authentication, so no token is set and there is nothing to leak. A token plus plain HTTP to anywhere
+ * that is not this machine is a credential on the wire, and that needs to be a deliberate choice rather than a typo
+ * in an environment variable.
+ *
+ * @method
+ * @param {string} baseUrl
+ * @param {boolean} allowInsecure The operator's explicit opt-in, passed in rather than read here so the whole rule
+ *                                can be tested without a differently configured process.
+ * @throws {TiException.E_GEN_INVALID_ARGUMENT_TYPE} If credentials would travel unprotected without an opt-in.
+ * @public
+ */
+function verifyCredentialTransport( baseUrl, allowInsecure ) {
+    let url = new URL( baseUrl );
+    if ( url.protocol === "https:" || isLoopbackHost( url.hostname ) === true || allowInsecure === true ) {
+        return;
+    }
+
+    throw exceptions.raise( exceptions.exceptionCode.E_GEN_INVALID_ARGUMENT_TYPE, {
+        details: `'memoryCache.stateAuthToken' is set, but 'memoryCache.stateUrl' is '${ baseUrl }' - a bearer token would travel unencrypted to a host that is not this machine. Use https, or set 'memoryCache.stateAllowInsecureAuth' if the transport is already protected by the platform.`
+    } );
+}
+
+/**
  * A cache backend that keeps its state in an HTTP service rather than in a database client.
  * <br/>
  * NOTE: This exists because the site runs in a Cloudflare container, where the durable store (D1) is reachable only
@@ -133,10 +229,14 @@ class HttpCacheProvider extends CacheProvider {
         super();
 
         this.#connectionIdentifier = connectionIdentifier;
-        this.#baseUrl = String( config.getSetting( config.setting.MEMORY_CACHE_STATE_URL, "http://state.internal" ) ).replace( /\/+$/, "" );
+        this.#baseUrl = normalizeBaseUrl( config.getSetting( config.setting.MEMORY_CACHE_STATE_URL, "http://state.internal" ) );
         this.#authToken = config.getSetting( config.setting.MEMORY_CACHE_STATE_AUTH_TOKEN, null );
-        this.#requestTimeout = Number( config.getSetting( config.setting.MEMORY_CACHE_STATE_TIMEOUT, 5000 ) );
-        this.#probeInterval = Number( config.getSetting( config.setting.MEMORY_CACHE_RETRY_MAX_INTERVAL, 5000 ) );
+        this.#requestTimeout = validateDelay( config.getSetting( config.setting.MEMORY_CACHE_STATE_TIMEOUT, 5000 ), "memoryCache.stateTimeout" );
+        this.#probeInterval = validateDelay( config.getSetting( config.setting.MEMORY_CACHE_RETRY_MAX_INTERVAL, 5000 ), "memoryCache.retryMaxInterval" );
+
+        if ( this.#authToken ) {
+            verifyCredentialTransport( this.#baseUrl, tools.toBool( config.getSetting( config.setting.MEMORY_CACHE_STATE_ALLOW_INSECURE_AUTH, false ) ) );
+        }
     }
 
     /* Public interface */
@@ -154,6 +254,43 @@ class HttpCacheProvider extends CacheProvider {
      */
     static toPathSegments( path ) {
         return toPathSegments( path );
+    }
+
+    /**
+     * Exposes {@link validateDelay} so the refusal can be tested without a differently configured process.
+     *
+     * @method
+     * @param {*} value
+     * @param {string} settingName
+     * @returns {number}
+     * @public
+     */
+    static validateDelay( value, settingName ) {
+        return validateDelay( value, settingName );
+    }
+
+    /**
+     * Exposes {@link normalizeBaseUrl}, for the same reason.
+     *
+     * @method
+     * @param {*} value
+     * @returns {string}
+     * @public
+     */
+    static normalizeBaseUrl( value ) {
+        return normalizeBaseUrl( value );
+    }
+
+    /**
+     * Exposes {@link verifyCredentialTransport}, whose rule is worth pinning in full.
+     *
+     * @method
+     * @param {string} baseUrl
+     * @param {boolean} allowInsecure
+     * @public
+     */
+    static verifyCredentialTransport( baseUrl, allowInsecure ) {
+        verifyCredentialTransport( baseUrl, allowInsecure );
     }
 
 
@@ -478,31 +615,44 @@ class HttpCacheProvider extends CacheProvider {
         let options = {
             method: ( body === null ) ? "GET" : "POST",
             headers: headers,
+            // A state service has no business redirecting. Following one would resend this body - and, on a 307 or
+            // 308, this request's credentials - to a host the configuration never named. Every 3xx falls through to
+            // the not-ok branch below instead.
+            redirect: "manual",
             signal: AbortSignal.timeout( this.#requestTimeout )
         };
         if ( body !== null ) {
             options.body = body;
         }
 
-        return fetch( this.#baseUrl + path, options ).catch( ( error ) => {
+        let asTransportFailure = ( error ) => {
             this.#markDisrupted();
-            throw exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE, {
+            return exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE, {
                 details: `The state service at '${ this.#baseUrl }' could not be reached for '${ path }': ${ error.message }`
             } );
-        } ).then( ( response ) => {
-            // Reaching here means the service answered, whatever it answered with, so the connection is good even if
-            // the call is not. Announce recovery before deciding on the status.
+        };
+
+        return fetch( this.#baseUrl + path, options ).then( ( response ) => {
+            // The body is read before anything at all is concluded from the response. A socket that dies part-way
+            // through a body is as much a transport failure as one that never connected, and announcing recovery
+            // first would leave this cache reporting itself operational over a connection that had just died - the
+            // same shape of defect the capability check carried in 1.13.0.
+            return response.text().then( ( text ) => ( { response: response, text: text } ), ( error ) => {
+                throw asTransportFailure( error );
+            } );
+        }, ( error ) => {
+            throw asTransportFailure( error );
+        } ).then( ( answered ) => {
+            // The service answered in full, so the connection is good even where the call is not.
             this.#markConnected();
 
-            return response.text().then( ( text ) => {
-                if ( response.ok === false ) {
-                    throw exceptions.raise( exceptions.exceptionCode.E_GEN_JS_INTERNAL_ERROR, {
-                        details: `The state service answered '${ path }' with HTTP ${ response.status }: ${ text.slice( 0, 200 ) }`
-                    } );
-                }
-                // An empty body is a valid acknowledgement for the write operations, which have nothing to return.
-                return ( text.length > 0 ) ? tools.parseJSON( text ) : {};
-            } );
+            if ( answered.response.ok === false ) {
+                throw exceptions.raise( exceptions.exceptionCode.E_GEN_JS_INTERNAL_ERROR, {
+                    details: `The state service answered '${ path }' with HTTP ${ answered.response.status }: ${ answered.text.slice( 0, 200 ) }`
+                } );
+            }
+            // An empty body is a valid acknowledgement for the write operations, which have nothing to return.
+            return ( answered.text.length > 0 ) ? tools.parseJSON( answered.text ) : {};
         } );
     }
 

@@ -10,7 +10,10 @@ It exists because a container has no business holding a database credential. Whe
 
 - Every operation is a `POST` with a JSON body, except the health probe, which is a `GET` with none.
 - Request bodies are `application/json`. Responses are JSON; an empty body is a valid acknowledgement for an operation with nothing to return.
-- `Authorization: Bearer <token>` is sent when `memoryCache.stateAuthToken` is configured, and omitted otherwise.
+- Each path answers exactly one method. A service must reject the wrong verb rather than guess.
+- `Authorization: Bearer <token>` is sent when `memoryCache.stateAuthToken` is configured, and omitted otherwise. The provider refuses to start if that token would travel as plain HTTP to anywhere but this machine, unless `memoryCache.stateAllowInsecureAuth` says the platform already protects the hop. The documented Cloudflare deployment sets no token at all — the Worker binding *is* the authentication — so it never meets this rule.
+- **The service never redirects.** The provider sends `redirect: "manual"` and treats every 3xx as a failed call. A `307` or `308` preserves method and body, so following one would resend stored state, and the credentials with it, to a host no configuration ever named.
+- **An expired key is gone on read.** `values/get`, `hashes/get` and `keys/match` must not return anything whose deadline has passed. A service that recorded durations without applying them would satisfy every assertion about what the provider *sent* and still serve the value forever.
 - A request that times out or never connects is a **transport failure**: the provider announces `onConnectionDisrupted`, which takes the whole cache out of service, and starts probing for recovery.
 - A response with a non-2xx status is an **operation failure**: that one call rejects and the connection is left up. A single bad key must never take the store down.
 
@@ -39,7 +42,7 @@ A path the service does not recognise must answer `404`. The set of paths below 
 | `POST /v1/documents/get` | `{ key, path }` | `{ value: string \| null }` |
 | `POST /v1/documents/merge` | `{ key, path, value }` | `{ ok: true }` |
 
-`pattern` is a Redis-style key glob: `*` and `?`.
+`pattern` is a Redis-style key glob: `*` and `?`. `GET` is the health probe's method; every other path is `POST`.
 
 `hash` on `keys/expire`, when present, names the hash the field belongs to — and `key` is then the field within it. That reads backwards; it is the established argument order of `CacheProvider#expireValue` and is preserved rather than quietly improved.
 

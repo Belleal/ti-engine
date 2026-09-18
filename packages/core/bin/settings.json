@@ -22,6 +22,7 @@
     "redisHost": "127.0.0.1",
     "redisPort": 6379,
     "requiredCapabilities": [],
+    "stateAllowInsecureAuth": false,
     "stateAuthToken": null,
     "stateTimeout": 5000,
     "stateUrl": "http://state.internal",

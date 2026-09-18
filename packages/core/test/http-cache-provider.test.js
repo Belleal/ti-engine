@@ -47,6 +47,15 @@ class RecordingObserver {
 }
 
 /**
+ * The most recent request the stub received.
+ *
+ * @returns {Object}
+ */
+function lastRequest() {
+    return stub.requestLog[ stub.requestLog.length - 1 ];
+}
+
+/**
  * Builds a provider already connected to the stub, with its observer attached.
  *
  * @returns {Promise<Object>}
@@ -215,7 +224,9 @@ describe( "HttpCacheProvider — values", () => {
         let { provider } = await connectedProvider();
 
         await provider.setValue( "temporary", "x", 60 );
-        assert.equal( stub.expirations.get( "temporary" ), 60 );
+        // Asserted from the request rather than the store: what the provider sends is its job, what the store then
+        // does with it is the protocol's.
+        assert.equal( lastRequest().payload.expiration, 60 );
     } );
 
     it( "resolves expireValue with the number of seconds it was asked for", async () => {
@@ -223,7 +234,36 @@ describe( "HttpCacheProvider — values", () => {
 
         await provider.setValue( "session:1", "x" );
         assert.equal( await provider.expireValue( "session:1", 900 ), 900 );
-        assert.equal( stub.expirations.get( "session:1" ), 900 );
+        assert.equal( lastRequest().payload.seconds, 900 );
+    } );
+
+    it( "stops reading and matching a key once its expiry has passed", async () => {
+        let { provider } = await connectedProvider();
+
+        await provider.setValue( "fleeting:1", "x", 60 );
+        assert.equal( await provider.getValue( "fleeting:1" ), "x" );
+        assert.deepEqual( await provider.matchKeys( "fleeting:*" ), [ "fleeting:1" ] );
+
+        stub.advanceClock( 61 * 1000 );
+
+        // The protocol requires expired rows to be filtered on read. A store that only recorded the duration would
+        // pass an assertion on the forwarded number and still serve the value forever.
+        assert.equal( await provider.getValue( "fleeting:1" ), undefined );
+        assert.deepEqual( await provider.matchKeys( "fleeting:*" ), [] );
+    } );
+
+    it( "expires one hash field without touching its siblings", async () => {
+        let { provider } = await connectedProvider();
+
+        await provider.hashSetField( "expiring-sessions", "short", 1 );
+        await provider.hashSetField( "expiring-sessions", "long", 2 );
+        // The argument order reads backwards: "short" is the field, "expiring-sessions" the hash holding it.
+        await provider.expireValue( "short", 30, "expiring-sessions" );
+
+        stub.advanceClock( 31 * 1000 );
+
+        assert.equal( await provider.hashGetField( "expiring-sessions", "short" ), null );
+        assert.equal( await provider.hashGetField( "expiring-sessions", "long" ), 2 );
     } );
 
     it( "matches keys by glob", async () => {
@@ -379,19 +419,99 @@ describe( "HttpCacheProvider — failure handling", () => {
 
 } );
 
+describe( "HttpCacheProvider — losing the connection", () => {
+
+    it( "announces the disruption once, on the transition rather than per failed call", async () => {
+        let { provider, observer } = await connectedProvider();
+
+        stub.breakTransport( true );
+        await assert.rejects( provider.getValue( "anything" ) );
+        await assert.rejects( provider.getValue( "anything" ) );
+        stub.breakTransport( false );
+
+        // The cache is either in service or it is not; a second failure while already down is not news.
+        assert.deepEqual( observer.events, [ "recovered:test-cache", "disrupted:test-cache" ] );
+
+        await provider.shutDown();
+    } );
+
+    it( "treats a body that dies part-way through as a transport failure, not a good response", async () => {
+        let { provider, observer } = await connectedProvider();
+        let before = observer.events.length;
+
+        // Headers arrive, then the socket dies before the body does. The response object exists and looks fine;
+        // only reading it fails. Concluding "the service answered" from the headers alone would announce recovery
+        // over a connection that had already gone.
+        stub.breakTransportAfterHeaders( "/v1/values/get" );
+        await assert.rejects(
+            provider.getValue( "anything" ),
+            ( error ) => {
+                assert.equal( error.code, exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE );
+                assert.match( error.data.details, /could not be reached/ );
+                return true;
+            }
+        );
+
+        assert.deepEqual( observer.events.slice( before ), [ "disrupted:test-cache" ] );
+
+        await provider.shutDown();
+    } );
+
+} );
+
+describe( "HttpCacheProvider — the shape of what it sends", () => {
+
+    it( "uses the method each path answers, probing with GET and writing with POST", async () => {
+        let before = stub.requestLog.length;
+        let { provider } = await connectedProvider();
+
+        await provider.setValue( "verbs", "x" );
+        await provider.getJSON( "verbs" );
+
+        let issued = stub.requestLog.slice( before );
+        // The stub answers 405 on a mismatch, so a wrong verb would already have failed the calls above; this pins
+        // the intent so neither side drifts.
+        assert.deepEqual( issued.map( ( entry ) => `${ entry.method } ${ entry.path }` ), [
+            "GET /v1/health",
+            "POST /v1/values/set",
+            "POST /v1/documents/get"
+        ] );
+    } );
+
+    it( "refuses a redirect instead of resending the body to wherever it points", async () => {
+        let { provider } = await connectedProvider();
+        // A second, perfectly reachable service. Redirecting somewhere that fails to resolve would prove nothing:
+        // the call would reject either way. This one answers, so following the redirect leaves a trace.
+        let elsewhere = await startStubStateServer();
+
+        try {
+            stub.redirectNext( "/v1/values/set", `${ elsewhere.baseUrl }/v1/values/set` );
+
+            // A 307 preserves method and body, so following one would hand this value - and the bearer token with
+            // it - to a host no configuration ever named.
+            await assert.rejects( provider.setValue( "should-not-travel", "secret" ) );
+
+            assert.deepEqual( elsewhere.requestLog, [] );
+            assert.equal( elsewhere.values.has( "should-not-travel" ), false );
+            assert.equal( stub.values.has( "should-not-travel" ), false );
+        } finally {
+            elsewhere.server.close();
+        }
+    } );
+
+} );
+
 describe( "HttpCacheProvider — when the state service goes away", () => {
 
     before( () => {
         return new Promise( ( resolve ) => stub.server.close( resolve ) );
     } );
 
-    it( "announces the disruption so the cache stops passing calls through", async () => {
-        let observer = new RecordingObserver();
+    it( "refuses to start against a service that is not listening", async () => {
         let provider = new HttpCacheProvider( "test-cache" );
-        provider.addConnectionObserver( observer );
 
-        // Connected as far as this provider knows, because nothing has failed yet.
-        provider.onConnectionRecovered = undefined;
+        // Only initialization is under test here. A provider that has never connected announces no disruption,
+        // because there is no transition to announce - that case is covered while the server is still up.
         await assert.rejects(
             provider.initialize(),
             ( error ) => {
