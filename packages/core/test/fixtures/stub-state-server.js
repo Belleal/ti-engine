@@ -125,6 +125,7 @@ function startStubStateServer() {
     let documents = new Map();
     let requestLog = [];
     let failures = new Map();
+    let transportBroken = false;
 
     const respond = ( response, status, body ) => {
         let payload = JSON.stringify( body );
@@ -136,6 +137,14 @@ function startStubStateServer() {
         let chunks = [];
         request.on( "data", ( chunk ) => chunks.push( chunk ) );
         request.on( "end", () => {
+            // A genuine transport failure - the socket dies with no response - rather than an error status. The two
+            // are handled differently by the provider on purpose, and only this one takes the cache out of service.
+            // The server keeps listening, so recovery is a flag flip rather than a re-bind on the same port.
+            if ( transportBroken === true ) {
+                request.socket.destroy();
+                return;
+            }
+
             let path = request.url;
             let payload = ( chunks.length > 0 ) ? JSON.parse( Buffer.concat( chunks ).toString( "utf8" ) ) : {};
             requestLog.push( { path: path, payload: payload } );
@@ -175,6 +184,11 @@ function startStubStateServer() {
 
                 case "/v1/values/get":
                     respond( response, 200, { value: values.has( payload.key ) ? values.get( payload.key ) : null } );
+                    break;
+
+                case "/v1/values/delete":
+                    expirations.delete( payload.key );
+                    respond( response, 200, { deleted: values.delete( payload.key ) } );
                     break;
 
                 case "/v1/hashes/set": {
@@ -241,7 +255,8 @@ function startStubStateServer() {
                 hashes: hashes,
                 documents: documents,
                 requestLog: requestLog,
-                failNext: ( path, status ) => failures.set( path, status )
+                failNext: ( path, status ) => failures.set( path, status ),
+                breakTransport: ( flag ) => { transportBroken = flag; }
             } );
         } );
     } );

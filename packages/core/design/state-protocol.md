@@ -27,6 +27,7 @@ A path the service does not recognise must answer `404`. The set of paths below 
 | `POST /v1/keys/expire` | `{ key, seconds, hash? }` | `{ ok: true }` |
 | `POST /v1/values/set` | `{ key, value, expiration? }` | `{ ok: true }` |
 | `POST /v1/values/get` | `{ key }` | `{ value: string \| null }` |
+| `POST /v1/values/delete` | `{ key }` | `{ deleted: boolean }` |
 | `POST /v1/hashes/set` | `{ key, field, value }` | `{ ok: true }` |
 | `POST /v1/hashes/get` | `{ key, field }` | `{ value: string \| null }` |
 | `POST /v1/hashes/delete` | `{ key, field }` | `{ deleted: boolean }` |
@@ -39,6 +40,8 @@ A path the service does not recognise must answer `404`. The set of paths below 
 `hash` on `keys/expire`, when present, names the hash the field belongs to — and `key` is then the field within it. That reads backwards; it is the established argument order of `CacheProvider#expireValue` and is preserved rather than quietly improved.
 
 `overrideMode` is `0` to write unconditionally, `1` to write only if the path is absent, `2` only if it is present. A skipped write is still a `200`.
+
+`values/delete` reports whether it removed anything. The Redis backend's `deleteValue` resolves the raw command result instead, contradicting its own signature; nothing calls it, so this protocol follows the declared contract rather than that behaviour.
 
 There is no operation for lists, sets, or multi-key batching. Those are used exclusively by the message exchange, and a deployment on this protocol has it disabled. `HttpCacheProvider` leaves those methods abstract, so calling one raises an exception naming the method rather than silently returning nothing.
 
@@ -109,6 +112,9 @@ The remaining operations are ordinary rows — `values` and `hashes` tables with
 
 ## 7. Testing an implementation
 
-`packages/core/test/fixtures/stub-state-server.js` is a complete in-memory implementation, and `packages/core/test/http-cache-provider.test.js` exercises the provider against it — including the test that matters most here, which asserts that `editJSON` issues exactly one `documents/merge` and no `documents/get`. A provider that emulated the merge fails it.
+`packages/core/test/fixtures/stub-state-server.js` is a complete in-memory implementation. Two suites run against it:
+
+- `http-cache-provider.test.js` exercises the provider directly, including the test that matters most here — that `editJSON` issues exactly one `documents/merge` and no `documents/get`. A provider that emulated the merge fails it.
+- `http-cache-integration.test.js` drives the whole path through `CommonMemoryCache`, and pins the recovery behaviour described in §1. The stub can sever a socket without answering, which is a genuine transport failure rather than an error status, so the suite can take the cache out of service, watch the guard refuse a second call *before* it reaches the provider, restore the service, and wait for the cache to come back with nothing having called it. Verified to fail when the probe is disabled.
 
 That test is the capability claim made checkable. The equivalent assurance for a real service is that its merge is one statement; there is no way to observe the difference from the outside until it is too late.

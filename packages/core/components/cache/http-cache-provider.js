@@ -41,6 +41,7 @@ const statePath = Object.freeze( {
     EXPIRE_KEY: "/v1/keys/expire",
     SET_VALUE: "/v1/values/set",
     GET_VALUE: "/v1/values/get",
+    DELETE_VALUE: "/v1/values/delete",
     SET_HASH_FIELD: "/v1/hashes/set",
     GET_HASH_FIELD: "/v1/hashes/get",
     DELETE_HASH_FIELD: "/v1/hashes/delete",
@@ -289,6 +290,25 @@ class HttpCacheProvider extends CacheProvider {
             // `undefined` rather than `null` for an absent key: that is what the Redis decoder returns, and
             // `web-framework` distinguishes the two when deciding whether a session exists.
             return _.isString( body.value ) ? tools.parseJSON( body.value ) : undefined;
+        } );
+    }
+
+    /**
+     * Used to delete a value / item.
+     * <br/>
+     * NOTE: This resolves the boolean the contract declares. The Redis backend resolves the raw command result - a
+     * count, or undefined - which contradicts its own signature; nothing calls it, so there is no behaviour to
+     * preserve and the declared contract wins.
+     *
+     * @method
+     * @param {string} key
+     * @returns {Promise<boolean>}
+     * @override
+     * @public
+     */
+    deleteValue( key ) {
+        return this.#fetchJSON( statePath.DELETE_VALUE, { key: key } ).then( ( body ) => {
+            return tools.toBool( body.deleted );
         } );
     }
 

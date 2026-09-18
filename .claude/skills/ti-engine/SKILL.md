@@ -170,7 +170,7 @@ history and older PR bodies; it is no longer the working branch.
   binding — the Cloudflare container the Boris Khan site targets reaches D1 through its Worker, so no SDK and no
   credential is in the image. Named for the transport, not for D1: what answers the protocol is the deployment's
   business, which is also what lets core test the whole contract against `node:http`.
-  The protocol is specified in `packages/core/design/state-protocol.md` — eleven paths, one per logical operation.
+  The protocol is specified in `packages/core/design/state-protocol.md` — twelve paths, one per logical operation.
   Two details there are load-bearing. **Values go on the wire as strings**, because `tools.stringifyJSON` passes
   scalars through untouched and a stored `42` would otherwise return as a number, fail the `isString` check that
   decides whether a key exists, and read back as absent. **Paths go as arrays of literal key segments**, never as a
@@ -178,8 +178,13 @@ history and older PR bodies; it is no longer the working branch.
   escape for a double quote inside a quoted label at all, so the D1 merge nests the patch inside the path and binds it
   to a bare `json_patch( value, ?1 )` rather than building a path string. One statement, therefore atomic, therefore
   `ATOMIC_JSON_EDIT` is a claim with evidence.
-  Only the ten methods the state store actually uses are implemented; lists, sets and multi-key batching stay abstract,
-  because they belong to the message exchange, which this deployment disables.
+  Only the methods the state store actually uses are implemented (the ten in use, plus `deleteValue`); lists, sets and
+  multi-key batching stay abstract, because they belong to the message exchange, which this deployment disables.
+  **The recovery probe is load-bearing and easy to delete by accident.** Once the singleton is told a connection is
+  disrupted it stops passing calls through, so this provider would never see another request to discover the service
+  on — the Redis client is spared this only because ioredis reconnects independently of commands. `#markDisrupted`
+  starts a timer that is the entire recovery path; `http-cache-integration.test.js` pins it, and that test was
+  verified to fail with the probe disabled.
 
 **Exception families** (`utils/exceptions.js`) — the class is `TiException` (renamed from `Exception` in 1.4.0); `raise()` accepts an optional `httpCode`:
 - `E_GEN_*` 1000–1010 (general; incl. `E_GEN_NOT_IMPLEMENTED` 1010)
@@ -221,10 +226,10 @@ module.exports.service = function (serviceDefinition, serviceParams, serviceCall
 
 **Test commands**:
 ```bash
-npm test    # node --test — runs test/*.test.js: 94 tests / 22 suites across 8 files
+npm test    # node --test — runs test/*.test.js: 101 tests / 24 suites across 9 files
             # (cache-capabilities, cache-get-values, cache-provider-selection,
-            #  http-cache-provider, localization, message-hash,
-            #  security-hash-key-warning, tools-proto-keys)
+            #  http-cache-provider, http-cache-integration, localization,
+            #  message-hash, security-hash-key-warning, tools-proto-keys)
             # test/fixtures/ holds StubCacheProvider (how the cache singleton is
             # driven without a live Redis) and startStubStateServer (an in-memory
             # implementation of the state protocol, on node:http) - neither is a

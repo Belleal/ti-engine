@@ -123,6 +123,20 @@ declare class HttpCacheProvider extends CacheProvider {
      */
     getValue(key: string): Promise<any>;
     /**
+     * Used to delete a value / item.
+     * <br/>
+     * NOTE: This resolves the boolean the contract declares. The Redis backend resolves the raw command result - a
+     * count, or undefined - which contradicts its own signature; nothing calls it, so there is no behaviour to
+     * preserve and the declared contract wins.
+     *
+     * @method
+     * @param {string} key
+     * @returns {Promise<boolean>}
+     * @override
+     * @public
+     */
+    deleteValue(key: string): Promise<boolean>;
+    /**
      * Used to set expiration in seconds to an existing key.
      * <br/>
      * NOTE: When "name" is given it is the hash the field belongs to, and "key" is the field within it. That argument
