@@ -87,7 +87,11 @@ class ServiceProvider extends ServiceConsumer {
                 let serviceDefinitions = this.serviceConfig.services;
                 return this.registerServices( serviceDefinitions );
             } ).then( () => {
-                messageDispatcher.instance.addMessageObserverRequestsIn( this.#serviceExecutor );
+                // A provider with the exchange off can receive no requests, so there is nothing to observe. The
+                // static getter is inherited from ServiceInstance through ServiceConsumer.
+                if ( ServiceConsumer.isMessageExchangeEnabled === true ) {
+                    messageDispatcher.instance.addMessageObserverRequestsIn( this.#serviceExecutor );
+                }
                 resolve();
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
