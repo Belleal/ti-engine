@@ -15,7 +15,9 @@
  * limitations under the License.
 */
 
-const { after, before, describe, it } = require( "node:test" );
+const { after, before, describe, it, mock } = require( "node:test" );
+const assert = require( "node:assert/strict" );
+const path = require( "node:path" );
 const { startStubStateServer } = require( "./fixtures/stub-state-server.js" );
 
 // The provider's shape, separately from the consumer's because only one ServiceInstance may exist per process. A
@@ -23,6 +25,7 @@ const { startStubStateServer } = require( "./fixtures/stub-state-server.js" );
 // crashed the same way.
 let stub = null;
 let provider = null;
+let catalogWrites = null;
 
 before( async () => {
     stub = await startStubStateServer();
@@ -32,12 +35,24 @@ before( async () => {
     process.env.TI_MESSAGE_EXCHANGE_ENABLED = "false";
 
     const ServiceProvider = require( "#service-provider" );
+    const cache = require( "#cache" );
+
+    // The cache singleton is frozen, so the spy goes on its class. Registration writes each service to the catalog
+    // with addToSet before binding its handler.
+    catalogWrites = mock.method( Object.getPrototypeOf( cache.instance ), "addToSet" );
+
+    // A service whose handler file loads. Without one, registration stops before the catalog and the test below
+    // passes either way. The provider resolves the path from the working directory.
+    const serviceFile = path.relative( process.cwd(), path.join( __dirname, "fixtures", "stub-service.js" ) );
 
     class QuietProvider extends ServiceProvider {}
-    provider = new QuietProvider( "without-exchange-provider", { services: [] } );
+    provider = new QuietProvider( "without-exchange-provider", {
+        services: [ { serviceAlias: "echo", serviceFile: serviceFile, serviceVersion: 1 } ]
+    } );
 } );
 
 after( () => {
+    mock.restoreAll();
     if ( stub && stub.server.listening === true ) {
         stub.server.close();
     }
@@ -47,6 +62,11 @@ describe( "a ServiceProvider with the message exchange disabled", () => {
 
     it( "starts, through both the consumer's registration and its own", async () => {
         await provider.start();
+    } );
+
+    it( "registers none of its configured services", () => {
+        // With no exchange it can receive no requests, so a catalog entry would advertise a service nobody can reach.
+        assert.equal( catalogWrites.mock.callCount(), 0 );
     } );
 
     it( "stops", async () => {

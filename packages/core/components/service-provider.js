@@ -85,7 +85,14 @@ class ServiceProvider extends ServiceConsumer {
 
             super.onStart().then( () => {
                 let serviceDefinitions = this.serviceConfig.services;
-                return this.registerServices( serviceDefinitions );
+                if ( ServiceConsumer.isMessageExchangeEnabled === true ) {
+                    return this.registerServices( serviceDefinitions );
+                }
+                // Services are served over the message exchange, so with it off there is nothing to register: an entry
+                // in the service catalog would advertise a service this instance can never receive a request for.
+                if ( _.size( serviceDefinitions ) > 0 ) {
+                    logger.log( `Service registration skipped for ${ _.size( serviceDefinitions ) } configured service(s): the message exchange is disabled for this instance, so it can receive no service requests (messageExchange.enabled / TI_MESSAGE_EXCHANGE_ENABLED).`, logger.logSeverity.WARNING );
+                }
             } ).then( () => {
                 // A provider with the exchange off can receive no requests, so there is nothing to observe. The
                 // static getter is inherited from ServiceInstance through ServiceConsumer.

@@ -202,7 +202,7 @@ history and older PR bodies; it is no longer the working branch.
 - `TI_MEMORY_CACHE_REQUIRED_CAPABILITIES` — comma-separated `TiCacheCapability` values the application requires of the cache backend. **Empty by default**, which is what keeps every deployment predating capabilities behaving as it did; when set, a backend missing any of them fails startup rather than raising from inside a request
 - `TI_MEMORY_CACHE_PROVIDER` — which cache backend to construct (1.14.0). `redis` (the default) and `http` (1.15.0) select built-ins; anything else is a module path resolved against the working directory and must export a `CacheProvider` subclass. A bad value fails at require time, on purpose
 - `TI_MEMORY_CACHE_STATE_URL` / `_STATE_AUTH_TOKEN` / `_STATE_TIMEOUT` / `_STATE_ALLOW_INSECURE_AUTH` — where the `http` backend finds its state service, the bearer token to send (omitted when unset), the per-request timeout in ms, and the opt-in that lets a token travel as plain HTTP to a remote host (1.15.0, default `false`; loopback and HTTPS never need it, and the Cloudflare deployment sets no token at all). A bad timeout or an unparseable URL fails in the constructor, because `AbortSignal.timeout` throws synchronously and would otherwise break the promise contract. Ignored by the Redis backend
-- `TI_MESSAGE_EXCHANGE_ENABLED` — whether to run the message exchange at all (1.14.0, default `true`). Off means the dispatcher is never initialized or shut down; see the note on the cache backend below for why that is what lets a non-Redis backend work. **Broken for every web server until 1.15.2**: `ServiceConsumer.onStart` registered with the uninitialized dispatcher unconditionally, so `TiWebServer` crashed at boot with it off. Anything that reaches the dispatcher must check `ServiceInstance.isMessageExchangeEnabled` first — the dispatcher now throws `E_GEN_NOT_INITIALIZED` rather than a `TypeError` if it doesn't
+- `TI_MESSAGE_EXCHANGE_ENABLED` — whether to run the message exchange at all (1.14.0, default `true`). Off means the dispatcher is never initialized or shut down; see the note on the cache backend below for why that is what lets a non-Redis backend work. **Broken for every web server until 1.15.2**: `ServiceConsumer.onStart` registered with the uninitialized dispatcher unconditionally, so `TiWebServer` crashed at boot with it off. Anything that reaches the dispatcher must check `ServiceInstance.isMessageExchangeEnabled` first — the dispatcher now throws `E_GEN_NOT_INITIALIZED` rather than a `TypeError` if it doesn't. A `ServiceProvider` with it off registers none of its configured services and logs a warning saying how many it skipped: it could receive no requests for them
 - `TI_MESSAGE_EXCHANGE_SECURITY_HASH_ENABLED` — toggle the message integrity hash (default `true`)
 - `TI_MESSAGE_EXCHANGE_SECURITY_HASH_KEY` — message-exchange HMAC-SHA256 key. **Empty by default**: if unset (or equal to the old published default UUID) a one-time startup WARNING logs and tamper protection is ineffective — set a private value in production.
 
@@ -226,7 +226,8 @@ module.exports.service = function (serviceDefinition, serviceParams, serviceCall
 
 **Test commands**:
 ```bash
-npm test    # node --test — runs test/*.test.js: 122 tests / 32 suites across 12 files
+npm test    # node --test — runs test/*.test.js: 124 tests / 32 suites across 12 files
+            # (the count includes the three test/fixtures/ modules: the default pattern runs them too)
             # (cache-capabilities, cache-get-values, cache-provider-selection,
             #  http-cache-provider, http-cache-integration, http-cache-config,
             #  localization, message-hash, security-hash-key-warning,
@@ -679,7 +680,7 @@ Token: YouTrack → Profile → Account Security → New token (scope: YouTrack)
 2. **Extending the web UI**: subclass `TiWebAppManager`, add an HTML fragment + matching Alpine component; reuse framework CSS primitives; obey the Alpine CSP rules (no inline styles, no `?.`).
 3. **Config-management, from a consumer's side**: a consuming application registers a config document (schema + file default + semantic validators + optional composite editor) through `TiWebAppManager.registerConfigDocument` / `registerConfigEditor`. Those seams live here; the documents themselves live in the consumer. Changing either seam is a breaking change for every consumer, so treat the `exports` map and these signatures as API.
 4. **Testing**: Node.js built-in `node --test` (no external framework); each package's `test/` directory. `npm test`
-   at the root fans out across workspaces — **1049 tests today: core 122, web-framework 524, web-content 403, tester
+   at the root fans out across workspaces — **1051 tests today: core 124, web-framework 524, web-content 403, tester
    none** (it is a runnable service, not a unit-tested one). The three checks that gate a push are in
    `CLAUDE.md` → *Definition of done*: `npm test`, `npm run lint` (0 errors; ESLint's only rule here is
    `no-unused-vars` as a **warning**, so a clean lint is no evidence the house style was followed — read a sibling
