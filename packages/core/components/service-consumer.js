@@ -77,7 +77,12 @@ class ServiceConsumer extends ServiceInstance {
             this.#serviceCaller = new ServiceCaller();
 
             super.onStart().then( () => {
-                messageDispatcher.instance.addMessageObserverResponsesIn( this.#serviceCaller );
+                // Gated the same way `ServiceInstance.onStart` gates constructing the exchange. Without it, the
+                // exchange switch added in 1.14.0 crashed every web server at boot - `TiWebServer` is a
+                // ServiceConsumer, and this line reached a dispatcher that had never been initialized.
+                if ( ServiceInstance.isMessageExchangeEnabled === true ) {
+                    messageDispatcher.instance.addMessageObserverResponsesIn( this.#serviceCaller );
+                }
                 resolve();
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );

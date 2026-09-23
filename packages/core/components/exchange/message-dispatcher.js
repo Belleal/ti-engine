@@ -85,6 +85,7 @@ class MessageDispatcher {
      */
     shutDown() {
         return new Promise( ( resolve, reject ) => {
+            this.#requireExchange();
             this.#messageExchange.disableMessaging().then( () => {
                 this.#messageExchange = null;
                 resolve();
@@ -104,6 +105,7 @@ class MessageDispatcher {
      */
     sendRequest( message ) {
         return new Promise( ( resolve, reject ) => {
+            this.#requireExchange();
             let retry = new tools.RetryPolicy( 3 );
             retry.onFailedAttempt( ( error ) => {
                 logger.log( `Failed to send message request with chain ID: ${ message.chainID }`, logger.logSeverity.WARNING, error );
@@ -134,6 +136,7 @@ class MessageDispatcher {
      */
     sendResponse( message ) {
         return new Promise( ( resolve, reject ) => {
+            this.#requireExchange();
             let retry = new tools.RetryPolicy( 3 );
             retry.onFailedAttempt( ( error ) => {
                 logger.log( `Failed to send message response with chain ID: ${ message.chainID }`, logger.logSeverity.WARNING, error );
@@ -155,6 +158,27 @@ class MessageDispatcher {
     }
 
     /**
+     * Refuses to proceed when there is no exchange to dispatch through.
+     * <br/>
+     * NOTE: Without this, every method here dereferences an undefined exchange and fails with a raw TypeError -
+     * "Cannot read properties of undefined (reading 'addMessageObserverResponsesIn')" - which names the symptom and
+     * hides the cause. There are two causes and the message names both: the dispatcher is used before
+     * {@link MessageDispatcher#initialize} ran, or the exchange is switched off by `messageExchange.enabled` and a
+     * caller did not check. The second is what shipped in 1.14.0: every web server crashed at boot with the exchange
+     * disabled, because `ServiceConsumer` registered its observer unconditionally.
+     *
+     * @method
+     * @throws {TiException.E_GEN_NOT_INITIALIZED} If there is no exchange.
+     */
+    #requireExchange() {
+        if ( !this.#messageExchange ) {
+            throw exceptions.raise( exceptions.exceptionCode.E_GEN_NOT_INITIALIZED, {
+                details: "The message dispatcher has no exchange: it is used before initialize() ran, or the message exchange is disabled (messageExchange.enabled / TI_MESSAGE_EXCHANGE_ENABLED) and the caller did not check."
+            } );
+        }
+    }
+
+    /**
      * Used to add an additional {@link MessageObserver} to the connection for the incoming message requests.
      *
      * @method
@@ -162,6 +186,7 @@ class MessageDispatcher {
      * @public
      */
     addMessageObserverRequestsIn( messageObserver ) {
+        this.#requireExchange();
         this.#messageExchange.addMessageObserverRequestsIn( messageObserver );
     }
 
@@ -173,6 +198,7 @@ class MessageDispatcher {
      * @public
      */
     addMessageObserverResponsesIn( messageObserver ) {
+        this.#requireExchange();
         this.#messageExchange.addMessageObserverResponsesIn( messageObserver );
     }
 

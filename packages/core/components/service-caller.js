@@ -196,6 +196,21 @@ class ServiceCallProcessor {
      */
     #execute() {
         return new Promise( ( resolve, reject ) => {
+            // Required here rather than at the top, as `prepareServiceCall` does, because service-instance.js
+            // requires this module's consumers and a top-level require would be circular.
+            const ServiceInstance = require( "#service-instance" );
+
+            // Checked first because otherwise the failure names the wrong thing. The registry lookup below needs set
+            // membership - abstract on a backend without sets, `false` on one with them - so a call made with the
+            // exchange off would report an unimplemented `isSetMember` or an unregistered service, and neither says
+            // that service calls simply cannot travel without an exchange.
+            if ( ServiceInstance.isMessageExchangeEnabled === false ) {
+                reject( exceptions.raise( exceptions.exceptionCode.E_GEN_FEATURE_UNSUPPORTED, {
+                    details: `Cannot call '${ this.#serviceAddress.serviceDomainName }.${ this.#serviceAddress.serviceAlias }': service calls travel over the message exchange, which is disabled for this instance (messageExchange.enabled / TI_MESSAGE_EXCHANGE_ENABLED).`
+                } ) );
+                return;
+            }
+
             findServiceInRegistry( this.#serviceAddress ).then( () => {
                 return prepareServiceCall( this.#messageID, this.#serviceAddress, this.#serviceParams, this.#serviceExecContext );
             } ).then( ( serviceCall ) => {
