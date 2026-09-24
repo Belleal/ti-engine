@@ -302,6 +302,8 @@ class TiException {
     }
 }
 
+module.exports.TiException = TiException;
+
 /**
  * Used to raise an exception from the provided source.
  * <br/>
@@ -309,16 +311,14 @@ class TiException {
  *
  * @method
  * @param {Error|TiExceptionCode|TiException} source Could be a standard JS Error, an ExceptionCode, or another TiException (in which case it will be raised further).
- * @param {Object} [data] Additional JSON data that can go with the exception. If more data is added on later Raise calls, it will be merged with the existing one.
- * @param {string} [exceptionID=undefined] Should be used only in cases when we have a recognizable exception ID beforehand. Should not be entered otherwise!
+ * @param {Object} [data=undefined] Additional JSON data that can go with the exception. If more data is added on later Raise calls, it will be merged with the existing one.
+ * @param {string|TiHttpCode} [exceptionID=undefined] Should be used only in cases when we have a recognizable exception ID beforehand. Should not be entered otherwise!
  * @param {TiHttpCode} [httpCode=undefined] An optional HTTP code in case this exception needs to be propagated to a web-application frontend. If provided, this will
  * override any preexisting HTTP code in 'source'!
  * @returns {TiException}
  * @public
  */
-module.exports.TiException = TiException;
-
-module.exports.raise = ( source, data, exceptionID = undefined, httpCode = undefined ) => {
+module.exports.raise = ( source, data = undefined, exceptionID = undefined, httpCode = undefined ) => {
     /** @type TiException */
     let exception;
 
