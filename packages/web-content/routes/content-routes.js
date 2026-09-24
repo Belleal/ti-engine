@@ -168,9 +168,15 @@ function contentHandler( repository, options ) {
             preview: preview
         };
 
-        // The session's CSRF token, minted only when a renderer actually reads it - which only a form that posts does,
-        // and which also marks the response per-session. A page that renders no form must not get one merely by being
-        // viewed: minting is what creates a session and two cookies, and on every page it made every page private.
+        // Whether the response must stay out of shared caches. Settled while rendering, not from the record alone: see
+        // the CSRF token below, and `markPerSession` further down.
+        let perSession = false;
+
+        // The session's CSRF token, minted only when a renderer actually reads it - which only a form that posts does.
+        // A page that renders no form must not get one merely by being viewed: minting is what creates a session and two
+        // cookies, and on every page it made every page private.
+        // Reading it marks the response per-session HERE, rather than trusting every renderer that reads it to say so:
+        // one that embedded the token and forgot would put a session's token into a page a CDN hands to everyone.
         // `request.csrfToken` is the framework's on-demand mint; a session's existing token is the fallback without it.
         // Asked once and remembered: a form reads the property more than once while drawing itself.
         let csrfToken;
@@ -179,6 +185,9 @@ function contentHandler( repository, options ) {
             get: () => {
                 if ( csrfToken === undefined ) {
                     csrfToken = ( typeof request.csrfToken === "function" ) ? request.csrfToken() : ( request.session ? request.session.csrfToken : undefined );
+                }
+                if ( csrfToken ) {
+                    perSession = true;
                 }
                 return csrfToken;
             }
@@ -196,8 +205,7 @@ function contentHandler( repository, options ) {
 
         // Render BEFORE the headers are chosen. Whether a page is shareable is not knowable from the record alone:
         // a section may embed the session's CSRF token, and a response carrying one is per-session however public
-        // the record is. Rendering first lets the renderer say so.
-        let perSession = false;
+        // the record is. Rendering first lets the render say so.
         context.markPerSession = function () {
             perSession = true;
         };

@@ -261,4 +261,30 @@ describe( "content-routes — a CSRF token only where a form needs one", () => {
         assert.equal( res.headers[ "Cache-Control" ], "private, no-store" );
     } );
 
+    it( "makes the page per-session whenever the token is read, even by a renderer that never says so", () => {
+        // A renderer that embeds the token and forgets `markPerSession()` would otherwise send one session's token out
+        // with public cache headers, to every visitor a CDN hands the page to.
+        const forgetful = contentHandler( repository, {
+            baseUrl: "https://anarandaris.com",
+            renderPage: ( record, context ) => `<input type="hidden" name="csrfToken" value="${ context.csrfToken }">`
+        } );
+        const request = mintingRequest( "/plain/" );
+        const res = fakeResponse();
+        forgetful( request, res, () => assert.fail( "should not fall through" ) );
+        assert.equal( request.minted, 1 );
+        assert.equal( res.headers[ "Cache-Control" ], "private, no-store" );
+        assert.equal( res.headers.Vary, "Cookie" );
+    } );
+
+    it( "leaves the page shareable when a renderer reads the token and there is none to give", () => {
+        const reader = contentHandler( repository, {
+            baseUrl: "https://anarandaris.com",
+            renderPage: ( record, context ) => `<p>${ context.csrfToken === undefined ? "no token" : "token" }</p>`
+        } );
+        const res = fakeResponse();
+        reader( fakeRequest( "/plain/" ), res, () => assert.fail( "should not fall through" ) );
+        assert.equal( res.body, "<p>no token</p>" );
+        assert.match( res.headers[ "Cache-Control" ], /^public,/ );
+    } );
+
 } );
