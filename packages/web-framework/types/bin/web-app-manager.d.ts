@@ -113,7 +113,7 @@ declare class TiWebAppManager {
      * @method
      * @param {string} html
      * @param {Object} [options]
-     * @param {string} [options.csrfToken] Optional CSRF token to inject into the HTML.
+     * @param {string|(() => (string|undefined))} [options.csrfToken] Optional CSRF token to inject into the HTML, or a function returning it - called only if the HTML has a placeholder for it.
      * @param {boolean} [options.isHome] Optional flag to indicate whether the requested route is the home page.
      * @param {string} [options.nonce] Optional CSP nonce to inject into inline scripts/styles.
      * @param {string} [options.title] Optional title to replace the placeholder in the HTML.
@@ -122,7 +122,7 @@ declare class TiWebAppManager {
      * @public
      */
     transformHtml(html: string, options?: {
-        csrfToken?: string;
+        csrfToken?: string | (() => (string | undefined));
         isHome?: boolean;
         nonce?: string;
         title?: string;
@@ -135,7 +135,7 @@ declare class TiWebAppManager {
      * @param {string[]} staticContentPaths
      * @param {string} route
      * @param {Object} [options]
-     * @param {string} [options.csrfToken] Optional CSRF token to inject into the HTML.
+     * @param {string|(() => (string|undefined))} [options.csrfToken] Optional CSRF token to inject into the HTML, or a function returning it - called only if the HTML has a placeholder for it.
      * @param {boolean} [options.isPartial] Optional flag to indicate whether the requested route is a partial load of a fragment.
      * @param {string} [options.view] Optional view name to load within this route.
      * @param {string} [options.nonce] Optional CSP nonce to inject into inline scripts/styles.
@@ -143,7 +143,7 @@ declare class TiWebAppManager {
      * @public
      */
     assembleHtmlView(session: TiSession, staticContentPaths: string[], route: string, options?: {
-        csrfToken?: string;
+        csrfToken?: string | (() => (string | undefined));
         isPartial?: boolean;
         view?: string;
         nonce?: string;

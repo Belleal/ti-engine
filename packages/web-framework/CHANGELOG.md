@@ -47,6 +47,26 @@ This document will contain the list of changes made to the framework. The format
   visit is served from the edge without waking the container, and browsing writes nothing to the store.
   Web-framework 540 to 551 tests.
 
+* fix(web-handlers): clear a `ti-xsrf-token` cookie that has no session behind it, on the next GET or HEAD (CA-166).
+  Found by CodeRabbit on this release's own PR. Minting on every page view used to overwrite a token cookie that had
+  outlived its session - signed out, or expired in the store - and nothing does now, so it stayed until it expired.
+  web-content's account menu trusts that cookie, so after signing out the same browser could not sign back in: every
+  attempt was refused with 403. Measured in real Chromium with the real account menu and the real `logoutHandler`: on
+  the unfixed tree the second sign-in is refused and the dead cookie survives the reload; with this, the reload
+  clears it, the menu asks `/csrf-token` for a new token, and the sign-in is accepted. The cookie's attributes now come
+  from one place, because a clear only works with the path the cookie was set with. Clearing sets no session.
+* fix(web-handlers): mint a framework view's CSRF token only if the view renders one (CA-166). `webAppHandler` minted
+  for every view it served, and `/not-found` - where every unknown URL is redirected - has no form, so each probe of a
+  random path stored a session and set two cookies. `TiWebAppManager#transformHtml` now also accepts the token as a
+  function, called only where the HTML has a placeholder for it, and `webAppHandler` passes one. A token given as a
+  string works as before, which is what competence's tests pass, and competence's `transformHtml` override only
+  forwards the options. The sign-in view still mints, and it is the only anonymous form the framework serves.
+  <br/>
+  **Verified.** 5 more tests on the same harness: a dead token cookie is cleared and no session is created; after a
+  real sign-out the old token is refused and a fresh one accepted; `/not-found`, rendered by the real manager through
+  the real handler, sets no cookie; the sign-in view mints and renders its session's token; a string token still
+  renders. The first three fail on the unfixed tree. Web-framework 551 to 556 tests.
+
 ## Version 1.37.0
 
 * fix(ti-charts): size chart ink in pixels, so text, lines and bars no longer scale with the card. The heatmap now

@@ -796,9 +796,11 @@ module.exports.webAppHandler = ( instance ) => {
                         nonce: nonce,
                         isPartial: isPartial,
                         view: request.params.view,
-                        // Minted on demand: these views are never shared-cached (`no-store` below), and a view with a
-                        // form needs the token rendered into it whether or not the visitor had a session yet.
-                        csrfToken: ( typeof request.csrfToken === "function" ) ? request.csrfToken() : request.session?.csrfToken
+                        // Minted only if the view has a form to render it into: `transformHtml` calls this only for a
+                        // view with a token placeholder, whether or not the visitor had a session yet. The views are
+                        // never shared-cached (`no-store` below), but a mint still creates a session and two cookies -
+                        // and `/not-found`, where every unknown URL is redirected, has no form to need one.
+                        csrfToken: () => ( ( typeof request.csrfToken === "function" ) ? request.csrfToken() : request.session?.csrfToken )
                     } ).then( ( html ) => {
                         response.set( "Cache-Control", "no-store" );
                         response.set( "Content-Type", "text/html; charset=utf-8" );
@@ -922,6 +924,14 @@ module.exports.originRefererValidationHandler = ( instance ) => {
 const CSRF_COOKIE_SENT = Symbol( "csrfCookieSent" );
 
 /**
+ * The readable cookie that carries the session's CSRF token to front-end code.
+ *
+ * @type {string}
+ * @private
+ */
+const CSRF_COOKIE_NAME = "ti-xsrf-token";
+
+/**
  * Whether the request's session exists beyond the request itself: loaded from the store through its cookie, or
  * written to earlier in this request.
  * <br/>
@@ -939,6 +949,26 @@ let isEstablishedSession = ( session ) => {
 };
 
 /**
+ * The attributes the CSRF cookie is set with. Clearing it takes the same path, or the browser keeps the old one.
+ *
+ * @method
+ * @param {TiWebServer} instance
+ * @param {ExpressRequest} request
+ * @returns {Object}
+ * @private
+ */
+let csrfCookieOptions = ( instance, request ) => {
+    const xfProto = String( request.get( "x-forwarded-proto" ) || "" ).toLowerCase();
+    const isSecure = ( request.secure === true ) || ( xfProto === "https" );
+    return {
+        path: instance.serviceConfig.cookies.path,
+        sameSite: instance.serviceConfig.cookies.sameSite,
+        secure: isSecure,
+        httpOnly: false
+    };
+};
+
+/**
  * Exposes a CSRF token to front-end code through a readable cookie (the double-submit pattern), once per response.
  *
  * @method
@@ -952,21 +982,14 @@ let setCsrfCookie = ( instance, request, response, token ) => {
     if ( response[ CSRF_COOKIE_SENT ] === true ) {
         return;
     }
-    const xfProto = String( request.get( "x-forwarded-proto" ) || "" ).toLowerCase();
-    const isSecure = ( request.secure === true ) || ( xfProto === "https" );
-    const cookieOptions = {
-        path: instance.serviceConfig.cookies.path,
-        sameSite: instance.serviceConfig.cookies.sameSite,
-        secure: isSecure,
-        httpOnly: false
-    };
+    const cookieOptions = csrfCookieOptions( instance, request );
     if ( cookieOptions.sameSite === "none" && !cookieOptions.secure ) {
         logger.log( "CSRF cookie may be blocked: SameSite=None requires Secure; ensure HTTPS or adjust config.", logger.logSeverity.WARNING );
     }
     if ( Number.isFinite( instance.serviceConfig.cookies.maxAge ) ) {
         cookieOptions.maxAge = instance.serviceConfig.cookies.maxAge;
     }
-    response.cookie( "ti-xsrf-token", token, cookieOptions );
+    response.cookie( CSRF_COOKIE_NAME, token, cookieOptions );
     response[ CSRF_COOKIE_SENT ] = true;
 };
 
@@ -1006,6 +1029,9 @@ let ensureCsrfToken = ( instance, request, response ) => {
  * express-session save a session and set two cookies on every anonymous page view - static files included - so every
  * response was private and nothing could be shared by a cache. Protecting state-changing requests is unchanged; see
  * {@link csrfProtectionHandler}.
+ * <br/>
+ * The one thing done for such a request is to clear a token cookie it still carries: one with no session behind it is
+ * dead, and front-end code that reads it would submit it and be refused.
  *
  * @method
  * @param {TiWebServer} instance
@@ -1016,8 +1042,16 @@ module.exports.csrfInitHandler = ( instance ) => {
     return ( request, response, next ) => {
         try {
             request.csrfToken = () => ensureCsrfToken( instance, request, response );
-            if ( ( request.method === "GET" || request.method === "HEAD" ) && isEstablishedSession( request.session ) ) {
-                ensureCsrfToken( instance, request, response );
+            if ( request.method === "GET" || request.method === "HEAD" ) {
+                if ( isEstablishedSession( request.session ) ) {
+                    ensureCsrfToken( instance, request, response );
+                } else if ( request.cookies && request.cookies[ CSRF_COOKIE_NAME ] ) {
+                    // Signed out, or expired in the store. Minting on every page view used to overwrite this cookie, and
+                    // nothing does now, so it would outlive its session until it expired - and a script that trusts it,
+                    // as web-content's account menu does, would submit it and be refused with 403 every time. Cleared,
+                    // the next submission asks for a fresh token instead.
+                    response.clearCookie( CSRF_COOKIE_NAME, csrfCookieOptions( instance, request ) );
+                }
             }
             next();
         } catch ( error ) {

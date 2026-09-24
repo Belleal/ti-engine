@@ -37,11 +37,21 @@ const session = require( "express-session" );
 const cookieParser = require( "cookie-parser" );
 
 const webHandlers = require( "#web-handlers" );
+const TiWebAppManager = require( "#web-app-manager" );
 
 const webServerSource = fs.readFileSync( path.resolve( __dirname, "..", "bin", "web-server.js" ), "utf8" );
+const STATIC_ROOT = path.resolve( __dirname, "..", "bin", "static" );
 
 // Only what csrfInitHandler reads from the server.
 const INSTANCE = { serviceConfig: { cookies: { path: "/", sameSite: "lax", maxAge: 8 * 60 * 60 * 1000 } } };
+
+// The framework's own views, rendered by the real manager: `/not-found` has no form, and the sign-in view has one.
+class WebApp extends TiWebAppManager {
+    constructor() {
+        super( "csrf-on-demand-test" );
+        this.setEnabledAuthMethods( [ "local" ] );
+    }
+}
 
 let server = null;
 let base = null;
@@ -73,6 +83,10 @@ before( async () => {
     } );
     app.get( "/csrf-token", webHandlers.csrfTokenHandler() );
     app.post( "/submit", ( request, response ) => response.send( "accepted" ) );
+    app.post( "/sign-out", webHandlers.logoutHandler() );
+    const webAppInstance = Object.assign( { webAppManager: new WebApp(), staticContentPaths: [ STATIC_ROOT ] }, INSTANCE );
+    app.get( "/not-found", webHandlers.webAppHandler( webAppInstance ) );
+    app.get( "/app", webHandlers.webAppHandler( webAppInstance ) );
     // Four parameters, or Express does not treat it as an error handler.
     app.use( ( error, request, response, next ) => {
         if ( response.headersSent ) {
@@ -114,6 +128,17 @@ function cookiesSet( response ) {
  */
 function cookieJar( response ) {
     return response.headers.getSetCookie().map( ( header ) => header.split( ";" )[ 0 ] ).join( "; " );
+}
+
+/**
+ * The raw `Set-Cookie` header a response carried for one cookie, attributes included.
+ *
+ * @param {Response} response
+ * @param {string} name
+ * @returns {string|undefined}
+ */
+function setCookieHeader( response, name ) {
+    return response.headers.getSetCookie().find( ( header ) => header.startsWith( `${ name }=` ) );
 }
 
 describe( "CSRF tokens — minted only where one is needed", () => {
@@ -196,6 +221,73 @@ describe( "CSRF tokens — what did not change", () => {
     it( "refuses one from a visitor who never had a session", async () => {
         const response = await fetch( `${ base }/submit`, { method: "POST", headers: { "x-xsrf-token": "anything" } } );
         assert.equal( response.status, 403 );
+    } );
+
+} );
+
+describe( "CSRF tokens — a token cookie that outlived its session", () => {
+
+    it( "is cleared on the next page view, and nothing else is set", async () => {
+        // Minting on every page view used to overwrite it. Nothing does now, so without this it stayed until it expired,
+        // and a script that trusts the cookie - web-content's account menu - would submit it and be refused every time.
+        const response = await fetch( `${ base }/page`, { headers: { cookie: "ti-xsrf-token=left-behind" } } );
+        const cleared = setCookieHeader( response, "ti-xsrf-token" );
+
+        assert.ok( cleared, "the dead token must be cleared" );
+        assert.match( cleared, /^ti-xsrf-token=;/ );
+        assert.match( cleared, /Expires=Thu, 01 Jan 1970/ );
+        assert.match( cleared, /Path=\// );
+        assert.equal( setCookieHeader( response, "connect.sid" ), undefined, "clearing it must not create a session" );
+    } );
+
+    it( "after sign-out, gives way to a fresh token that is accepted", async () => {
+        const minted = await fetch( `${ base }/csrf-token` );
+        const jar = cookieJar( minted );
+        const oldToken = cookiesSet( minted )[ "ti-xsrf-token" ][ 0 ];
+
+        const signOut = await fetch( `${ base }/sign-out`, { method: "POST", redirect: "manual", headers: { "cookie": jar, "x-xsrf-token": oldToken } } );
+        assert.equal( signOut.status, 303 );
+
+        // The browser still holds both cookies. The old token is dead - which is what the script used to keep sending.
+        const stale = await fetch( `${ base }/submit`, { method: "POST", headers: { "cookie": jar, "x-xsrf-token": oldToken } } );
+        assert.equal( stale.status, 403 );
+
+        // The next page view clears it, so the script asks for a new token, and that one is accepted.
+        const next = await fetch( `${ base }/page`, { headers: { cookie: jar } } );
+        assert.match( setCookieHeader( next, "ti-xsrf-token" ), /^ti-xsrf-token=;/ );
+        const withoutToken = jar.split( "; " ).filter( ( pair ) => !pair.startsWith( "ti-xsrf-token=" ) ).join( "; " );
+        const fresh = await fetch( `${ base }/csrf-token`, { headers: { cookie: withoutToken } } );
+        const freshToken = cookiesSet( fresh )[ "ti-xsrf-token" ][ 0 ];
+        assert.notEqual( freshToken, oldToken );
+
+        const accepted = await fetch( `${ base }/submit`, { method: "POST", headers: { "cookie": cookieJar( fresh ), "x-xsrf-token": freshToken } } );
+        assert.equal( accepted.status, 200 );
+    } );
+
+} );
+
+describe( "CSRF tokens — a framework view mints one only if it renders one", () => {
+
+    it( "renders /not-found with no session and no cookie", async () => {
+        // Every unknown URL is redirected here, so minting for it stored a session for every probe of a random path.
+        const response = await fetch( `${ base }/not-found`, { headers: { accept: "text/html" } } );
+        assert.equal( response.status, 200 );
+        assert.deepEqual( response.headers.getSetCookie(), [] );
+    } );
+
+    it( "mints for the sign-in view, and renders the token its form posts", async () => {
+        const response = await fetch( `${ base }/app`, { headers: { accept: "text/html" } } );
+        const cookies = cookiesSet( response );
+        const html = await response.text();
+
+        assert.ok( cookies[ "connect.sid" ], "the session holding the token must be saved and cookied" );
+        assert.equal( cookies[ "ti-xsrf-token" ].length, 1 );
+        assert.ok( html.includes( `value='${ cookies[ "ti-xsrf-token" ][ 0 ] }'` ), "the form must post the session's own token" );
+    } );
+
+    it( "still takes a token given as a plain string", async () => {
+        const html = await new WebApp().assembleHtmlView( null, [ STATIC_ROOT ], "/app", { csrfToken: "given-token" } );
+        assert.ok( html.includes( "value='given-token'" ) );
     } );
 
 } );

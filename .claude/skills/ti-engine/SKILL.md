@@ -269,7 +269,7 @@ npm test    # node --test — runs test/*.test.js: 139 tests / 34 suites across 
 | `bin/static/` | Frontend assets: HTMX, Alpine.js (CSP build), `safe-nonce`, framework CSS + themes, HTML fragments |
 | `bin/static/scripts/ti-charts.js` | CSP-safe SVG charting library (added 1.10.0); see *Charting primitives* below |
 | `design/admin-config-management.md` | Design doc + implementation log for the config-management feature |
-| `test/*.test.js` | `node --test` — **551 tests / 112 suites across 40 files**: the config subsystem + authorization + `ti-charts` (layout math + render structure) + the serving/deployment surface (`web-server-env-overrides`, `web-server.static-cache`, `web-server.route-seams`, `web-server.unprotected-routes`, `web-handlers.health`, `web-handlers.origin`, `web-app-manager.auth-visibility`) + the auth surface (`auth-manager`, `auth-manager.callback-path`, `auth-manager.email-verified`, **`auth-manager.openid-identity`**, `web-handlers.oauth-callback`, `web-handlers.session-*`) + **`web-handlers.csp-upgrade-insecure`** (which also pins that `cspHeaderHandler` and `httpRedirectHandler` agree about the scheme) + **`ti-framework.sidebar-overflow`** (which resolves the stylesheet's cascade rather than reading one block, because `.ti-sidebar` is declared twice and the later rule wins) + **`login-extra-slot`** (which asserts against the shipped files, because the defect it pins was what the package *contained*, and then drives `assembleHtmlView` to prove the slot actually resolves an application's component over the framework's empty default) |
+| `test/*.test.js` | `node --test` — **556 tests / 114 suites across 40 files**: the config subsystem + authorization + `ti-charts` (layout math + render structure) + the serving/deployment surface (`web-server-env-overrides`, `web-server.static-cache`, `web-server.route-seams`, `web-server.unprotected-routes`, `web-handlers.health`, `web-handlers.origin`, `web-app-manager.auth-visibility`) + the auth surface (`auth-manager`, `auth-manager.callback-path`, `auth-manager.email-verified`, **`auth-manager.openid-identity`**, `web-handlers.oauth-callback`, `web-handlers.session-*`) + **`web-handlers.csp-upgrade-insecure`** (which also pins that `cspHeaderHandler` and `httpRedirectHandler` agree about the scheme) + **`ti-framework.sidebar-overflow`** (which resolves the stylesheet's cascade rather than reading one block, because `.ti-sidebar` is declared twice and the later rule wins) + **`login-extra-slot`** (which asserts against the shipped files, because the defect it pins was what the package *contained*, and then drives `assembleHtmlView` to prove the slot actually resolves an application's component over the framework's empty default) |
 
 **Public exports** (`package.json` `exports`) — **six**: `./config-management` (config-service), `./web-application` (web-app-manager), `./web-server`, `./authorization`, `./config-drift`, `./definitions`. The last three are easy to forget and a consumer does import them: competence reaches for `./authorization` and `./config-drift` directly. Anything not on this list fails with `ERR_PACKAGE_PATH_NOT_EXPORTED`, so **adding a module a consumer needs means adding its `exports` entry** — that is the API surface, and changing it is a breaking change for every consumer.
 
@@ -279,10 +279,14 @@ npm test    # node --test — runs test/*.test.js: 139 tests / 34 suites across 
   save a brand-new session and cookie it (`saveUninitialized: false` holds only while nothing writes), so every
   response to a first-time visitor — stylesheets included — carried `connect.sid` + `ti-xsrf-token` and nothing was
   shareable by a CDN. Now: eagerly only for a session that already exists (anything besides its `cookie`, measured on
-  express-session 1.19); `request.csrfToken()` for a page that renders one (`webAppHandler` uses it, so the sign-in page
-  keeps its token); `GET /csrf-token` (unprotected, `no-store`, 204) for a script about to submit. **`request.session.csrfToken`
-  is no longer guaranteed on an anonymous request** — render `request.csrfToken()` instead. Protection of
-  state-changing requests is unchanged. `test/web-handlers.csrf-on-demand.test.js` pins both halves.
+  express-session 1.19); `request.csrfToken()` for a page that renders one; `GET /csrf-token` (unprotected, `no-store`, 204) for a script
+  about to submit. **`request.session.csrfToken` is no longer guaranteed on an anonymous request** — render
+  `request.csrfToken()` instead. `webAppHandler` passes the mint to `transformHtml` as a **function**, which is called
+  only where the HTML has a `{ti-csrf-placeholder}` — so the sign-in view mints and `/not-found` (every unknown URL
+  lands there) does not; a string token still works. A `ti-xsrf-token` cookie with no session behind it (signed out,
+  expired) is **cleared** on the next GET/HEAD: nothing re-mints on a page view any more, and the account menu, which
+  trusts the cookie, was refused with 403 after sign-out until this. Protection of state-changing requests is
+  unchanged. `test/web-handlers.csrf-on-demand.test.js` pins all of it.
 - **Chart ink is sized in pixels; only the geometry scales with the card** (1.37.0, CA-161). Every chart used to draw
   its text, stroke widths and bars inside a viewBox scaled to the card, so a 720px card drew 26px labels over 58px
   bars beside a 12px HTML legend, and a 280px card drew diverging labels at 5.6px. The mechanism, the fallback that
@@ -580,7 +584,7 @@ npm test    # node --test — runs test/*.test.js: 139 tests / 34 suites across 
 | `static/web-content.js` | The vanilla, dependency-free site script (reveal observer, dictionary toggle + filter, language menu, topbar toggle, audio player); served under `/static/` by `mountContentRoutes` and overridable by the consumer |
 | `design/author-site-engine.md` | Design record + phased plan |
 | `design/authoring-guide.md` | **The authoring guide** — how a record is found, the envelope, the `sections` body, every section type, and why a record does not appear. It ships with the engine (moved here in 0.2.0) so every consumer has it, and its guard came along: a section type present in the schema but absent from both the documented and the deferred lists **fails this package's suite** |
-| `test/*.test.js` | `node --test` — **406 tests / 104 suites across 22 files** (schema, loader, repository, taxonomy, transliterate, markdown + markdown-editorial, document, html, page, feeds, media, capture, sources, content-routes, routes-index, routes-not-found, …) |
+| `test/*.test.js` | `node --test` — **408 tests / 104 suites across 22 files** (schema, loader, repository, taxonomy, transliterate, markdown + markdown-editorial, document, html, page, feeds, media, capture, sources, content-routes, routes-index, routes-not-found, …) |
 
 **Content model**:
 - **Content types** — exactly four: `post`, `page`, `book`, `release`. A lexicon/dictionary is a **section on a `page`**, not a fifth type.
@@ -730,7 +734,7 @@ Token: YouTrack → Profile → Account Security → New token (scope: YouTrack)
 2. **Extending the web UI**: subclass `TiWebAppManager`, add an HTML fragment + matching Alpine component; reuse framework CSS primitives; obey the Alpine CSP rules (no inline styles, no `?.`).
 3. **Config-management, from a consumer's side**: a consuming application registers a config document (schema + file default + semantic validators + optional composite editor) through `TiWebAppManager.registerConfigDocument` / `registerConfigEditor`. Those seams live here; the documents themselves live in the consumer. Changing either seam is a breaking change for every consumer, so treat the `exports` map and these signatures as API.
 4. **Testing**: Node.js built-in `node --test` (no external framework); each package's `test/` directory. `npm test`
-   at the root fans out across workspaces — **1096 tests today: core 139, web-framework 551, web-content 406, tester
+   at the root fans out across workspaces — **1103 tests today: core 139, web-framework 556, web-content 408, tester
    none** (it is a runnable service, not a unit-tested one). The three checks that gate a push are in
    `CLAUDE.md` → *Definition of done*: `npm test`, `npm run lint` (0 errors; ESLint's only rule here is
    `no-unused-vars` as a **warning**, so a clean lint is no evidence the house style was followed — read a sibling
