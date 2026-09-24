@@ -2,6 +2,103 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.37.0
+
+* fix(ti-charts): size chart ink in pixels, so text, lines and bars no longer scale with the card. The heatmap now
+  honours its `width` option, and an application can localize the screen-reader tables (CA-161).
+  <br/>
+  **What was wrong.** Every chart draws in a viewBox scaled to the card's width, and every text size and stroke
+  width lived inside that viewBox. There a CSS pixel is one user unit, so a chart's ink grew and shrank with its
+  card. Measured in Chromium on 1.36.0 at card widths from 280 to 960px:
+  - stacked-bar labels 11–26px, over bars 25–58px thick, beside an HTML legend fixed at 12px;
+  - line-chart axis labels 9–20.5px, on a line 2.8–6.4px wide;
+  - box-plot labels 11–26px;
+  - diverging-bar labels 5.6–12.8px.
+
+  Separately, `renderHeatmap` hard-coded a 100-unit viewBox. `heatmapLayout` spreads the grid across the `width`
+  option, so any `width` above 100 cut the grid off.
+  <br/>
+  **Why it survived.** Each chart looked right at the one width it was tuned for. The consuming application
+  compensated chart by chart:
+  - a box-plot viewBox sized so its 4-unit labels land on 12px at the 680px cap;
+  - a 300px cap on the heatmap;
+  - unit-sized `barThickness` and `valueFontSize` on the grouped bars.
+
+  Each was right at exactly one card width. The heatmap's `width` did nothing except break the grid, so nobody
+  passed it.
+  <br/>
+  **What changed.**
+  - `renderChart` hands each drawn SVG to a ResizeObserver, one per figure. The observer sets `--ti-chart-u`, the
+    size of one screen pixel in viewBox units, after layout and before paint. It measures again whenever the SVG's
+    size changes, which covers a resized card and a hidden card being shown. Each render draws a new SVG, and a new
+    SVG is a new observation, so a re-render at an unchanged size is measured too.
+  - The size comes from the observer's content rect, which is the layout size. `getBoundingClientRect` would have
+    included CSS transforms: a chart first measured inside a dialog still scaling in at 0.5 would have kept 22px
+    text after the animation ended. Nothing reads layout synchronously during render.
+  - The stylesheet multiplies every chart text size, stroke width, dash pattern and marker radius by that value:
+    - labels render at `--fs-xs` (11px);
+    - bar captions render at `--fs-sm` (12px);
+    - lines are 1–2px and dots 3–4px.
+
+    Each rule's `var()` fallback reproduces its old unit size exactly. An unmeasured chart (hidden, or in a browser
+    without ResizeObserver) therefore renders as it did in 1.36.
+  - Bars lay out in pixels with no viewBox: widths are percentages of the SVG and heights are pixels. A stacked bar
+    is 10px (grouped and diverging bars 8px) under a 12px caption at every width. A chart with more rows only grows
+    taller.
+  - The heatmap's viewBox takes the layout's width.
+  - `spec.a11yHeaders` replaces the screen-reader table's column headers by position; a missing entry keeps the
+    English default. `data.sublabelName` names the gauge's sublabel row (default "Reporting"). A box plot's
+    accessible name now uses its median header's name.
+  - The gauge keeps unit sizes. Its text is part of the dial, and the dial is already capped at 240px.
+  <br/>
+  **Deprecated:** the grouped bars' `barThickness` and `valueFontSize`. Both are viewBox units, which the pixel layout
+  has no use for. Passing either keeps the 1.36 unit layout for that chart, so the option's meaning does not change
+  under a caller. A value caption now carries a `font-size` attribute only when `valueFontSize` asks for one.
+  <br/>
+  **Rejected:**
+  - Measuring during render with `getBoundingClientRect`. It forces a synchronous layout per chart, and an observer
+    is still needed for resizes and for charts rendered while hidden.
+  - `vector-effect: non-scaling-stroke` for the lines. It needs no measurement, but it silently reinterprets every
+    consumer's own unit `stroke-width` override as pixels. The consuming application sets 0.4 on its radar, which
+    would have become a hairline.
+  - Keeping the bars in a viewBox and laying them out again on resize. The observer would then change the height of
+    the very element it observes.
+  <br/>
+  **Verification.**
+  - Tests: 540 tests / 109 suites in this package, up from 524 / 107. The 16 new tests cover:
+    - the pixel layout of all three bar modes, and the unit layout kept for `barThickness`;
+    - the heatmap viewBox;
+    - `a11yHeaders`, `sublabelName`, the box plot's accessible name and the sparkline class;
+    - `unitsPerPixel`;
+    - the observer wiring, via a stub ResizeObserver: resize, re-render at the same size, the layout box preferred
+      over a transformed one, a hidden card, and bars never being observed;
+    - three stylesheet guards: every chart ink size falls back to exactly its 1.36 unit size, resolves to fixed
+      pixels when measured, and no chart rule sizes ink outside that table.
+  - Regressions: seven deliberate regressions each fail a test:
+    - a bare 4px heat label;
+    - a wrong fallback;
+    - the heatmap back at 100 units;
+    - measuring the transformed box;
+    - never releasing a replaced SVG;
+    - observing the bars;
+    - English scatter headers.
+  - Chromium, every chart type at 280, 400, 560, 720 and 960px:
+    - text is 11px (bar captions 12px), series lines 2px, dots 4px on lines and 3px on the radar, dashes 8/6px, all
+      at every width;
+    - with ResizeObserver removed, every measured size is identical to 1.36;
+    - resizing, re-rendering at the same size, showing a hidden card, a 17-step resize sweep and detaching the figure
+      produce no console errors and no ResizeObserver loop errors;
+    - a chart rendered under `transform: scale(0.5)` shows 11px text once the transform is removed.
+  - The consuming application's Insights route, served this build, puts the level-chart labels at 11px instead of
+    7px at a 700px viewport.
+  <br/>
+  **Not done.**
+  - Scatter bubble radii stay in viewBox units. A bubble's size encodes a value; it is not ink.
+  - Gutters that hold text stay in viewBox units, sized by the caller: heatmap `rowLabelW` / `colLabelH`, box
+    `padLeft` / `padBottom`, line `padL` / `padB`, and radar `labelPad`. On a very narrow card a long label can now
+    outgrow its gutter, where before it shrank with it.
+  - A consumer's own unit-sized `stroke-width` override keeps its unit size until the consumer changes it.
+
 ## Version 1.36.0
 
 * feat(web-app-manager)!: the login screen gets an application-extension slot, and the application-specific test-user

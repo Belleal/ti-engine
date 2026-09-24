@@ -17,6 +17,8 @@
 
 const { describe, it } = require( "node:test" );
 const assert = require( "node:assert/strict" );
+const fs = require( "node:fs" );
+const path = require( "node:path" );
 
 const TiCharts = require( "../bin/static/scripts/ti-charts.js" );
 
@@ -516,16 +518,132 @@ describe( "ti-charts — Phase-1 renderers (CSP discipline + structure)", () => 
         assert.ok( valueTexts.every( ( t ) => t.attrs[ "font-size" ] === "2.2" ) );    // value caption honours valueFontSize
     } );
 
-    it( "bars grouped: default bar height stays 4 and the value caption font-size defaults to 4 (via attribute, not CSS)", () => {
+    it( "bars grouped: without the unit options the bars are 8px and the value caption is left to the stylesheet", () => {
         const figure = makeNode( "figure" );
         withDocument( makeRenderDoc(), () => TiCharts.renderChart( figure, {
             type: "bars", a11yLabel: "Source comparison", options: { mode: "grouped", valueLabels: true },
+            data: { rows: [ { id: "E", label: "Expertise", values: [ { key: "self", v: 1.1 }, { key: "team", v: 0.55 } ] } ] }
+        } ) );
+        const svg = svgOf( figure )[ 0 ];
+        assert.equal( svg.attrs.viewBox, undefined );                                   // the pixel layout
+        const rects = collect( svg, ( n ) => n.tag === "rect" );
+        assert.ok( rects.every( ( r ) => r.attrs.height === "8" ) );
+        assert.deepEqual( rects.map( ( r ) => r.attrs.width ), [ "86%", "43%" ] );       // one shared max, short of the captions' gutter
+        const valueTexts = collect( svg, ( n ) => n.tag === "text" && n.attrs && ( n.attrs.class || "" ).indexOf( "ti-chart-bar-value" ) >= 0 );
+        // No font-size attribute: .ti-chart-bar-value:not([font-size]) sizes it in pixels. With the attribute, as the
+        // unit layout set it, the rule could not reach it and the caption scaled with the card.
+        assert.ok( valueTexts.every( ( t ) => t.attrs[ "font-size" ] === undefined ) );
+        assert.deepEqual( valueTexts.map( ( t ) => [ t.attrs.x, t.attrs.dx ] ), [ [ "86%", "6" ], [ "43%", "6" ] ] );
+    } );
+
+    it( "bars grouped: barThickness alone keeps the unit layout but leaves the caption's size to the stylesheet", () => {
+        const figure = makeNode( "figure" );
+        withDocument( makeRenderDoc(), () => TiCharts.renderChart( figure, {
+            type: "bars", a11yLabel: "Source comparison", options: { mode: "grouped", valueLabels: true, barThickness: 1.5 },
             data: { rows: [ { id: "E", label: "Expertise", values: [ { key: "self", v: 1.1 } ] } ] }
         } ) );
-        const rects = collect( svgOf( figure )[ 0 ], ( n ) => n.tag === "rect" );
-        assert.ok( rects.every( ( r ) => r.attrs.height === "4" ) );
-        const valueText = collect( svgOf( figure )[ 0 ], ( n ) => n.tag === "text" && n.attrs && ( n.attrs.class || "" ).indexOf( "ti-chart-bar-value" ) >= 0 )[ 0 ];
-        assert.equal( valueText.attrs[ "font-size" ], "4" );
+        const svg = svgOf( figure )[ 0 ];
+        assert.match( svg.attrs.viewBox, /^0 0 100 / );
+        const valueText = collect( svg, ( n ) => n.tag === "text" && n.attrs && ( n.attrs.class || "" ).indexOf( "ti-chart-bar-value" ) >= 0 )[ 0 ];
+        assert.equal( valueText.attrs[ "font-size" ], undefined );
+    } );
+
+    it( "bars stacked: pixel layout — no viewBox, percentage segments, 10px bars, height from the row count alone", () => {
+        const render = ( rowCount ) => {
+            const figure = makeNode( "figure" );
+            const rows = [];
+            for ( let i = 0; i < rowCount; i++ ) {
+                rows.push( { id: "r" + i, label: "Row " + i, valueLabel: "50%", segments: [ { key: "Closed", v: 3, tone: "grade-s" }, { key: "Open", v: 1 } ] } );
+            }
+            withDocument( makeRenderDoc(), () => TiCharts.renderChart( figure, { type: "bars", a11yLabel: "Coverage", data: { rows: rows } } ) );
+            return svgOf( figure )[ 0 ];
+        };
+        const one = render( 1 );
+        const four = render( 4 );
+        assert.equal( one.attrs.class, "ti-chart-flow" );
+        assert.equal( one.attrs.viewBox, undefined );
+        const rects = collect( four, ( n ) => n.tag === "rect" );
+        assert.deepEqual( rects.slice( 0, 2 ).map( ( r ) => [ r.attrs.x, r.attrs.width, r.attrs.height ] ), [ [ "0%", "75%", "10" ], [ "75%", "25%", "10" ] ] );
+        // Each extra row adds one caption band, one bar and one gap — the rhythm never depends on the card's width.
+        assert.equal( Number( four.attrs.height ) - Number( one.attrs.height ), 3 * ( 18 + 10 + 12 ) );
+        const values = collect( four, ( n ) => n.tag === "text" && n.attrs[ "text-anchor" ] === "end" );
+        assert.ok( values.length === 4 && values.every( ( t ) => t.attrs.x === "100%" ) );
+    } );
+
+    it( "bars diverging: pixel layout — the zero axis at 50%, bars either side of it in percent", () => {
+        const figure = makeNode( "figure" );
+        withDocument( makeRenderDoc(), () => TiCharts.renderChart( figure, {
+            type: "bars", a11yLabel: "Drivers", options: { mode: "diverging" },
+            data: { rows: [ { id: "E1", label: "E1", values: [ { key: "vsSelf", v: 0.4 }, { key: "vsTeam", v: -0.2 } ] } ] }
+        } ) );
+        const svg = svgOf( figure )[ 0 ];
+        assert.equal( svg.attrs.viewBox, undefined );
+        const axis = collect( svg, ( n ) => n.attrs && n.attrs.class === "ti-chart-bar-axis" )[ 0 ];
+        assert.equal( axis.attrs.x1, "50%" );
+        const rects = collect( svg, ( n ) => n.tag === "rect" );
+        assert.deepEqual( rects.map( ( r ) => [ r.attrs.x, r.attrs.width, r.attrs.height ] ), [ [ "50%", "50%", "8" ], [ "25%", "25%", "8" ] ] );
+    } );
+
+    it( "heatmap: the viewBox takes options.width, so a wider grid is not cut off at 100 units", () => {
+        const figure = makeNode( "figure" );
+        const cols = [ "SE", "BA", "QE", "PM" ].map( ( id ) => ( { id: id, label: id } ) );
+        withDocument( makeRenderDoc(), () => TiCharts.renderChart( figure, {
+            type: "heatmap", a11yLabel: "Heatmap", options: { width: 160, rowLabelW: 20 },
+            data: { rows: [ { id: "E1", label: "E1" } ], cols: cols, cells: cols.map( ( c, i ) => ( { r: 0, c: i, v: i } ) ) }
+        } ) );
+        const svg = svgOf( figure )[ 0 ];
+        assert.match( svg.attrs.viewBox, /^0 0 160 / );
+        const cells = collect( svg, ( n ) => n.tag === "rect" );
+        const right = Math.max( ...cells.map( ( c ) => Number( c.attrs.x ) + Number( c.attrs.width ) ) );
+        assert.equal( right, 160 );                                                       // was drawn out to 160 inside a 100-wide viewBox
+    } );
+
+    it( "a11yHeaders replaces the screen-reader table's headers by position; a missing entry keeps the default", () => {
+        const headersOf = ( figure ) => srTableOf( figure )[ 0 ].children[ 0 ].children[ 0 ].children.map( ( th ) => th.textContent );
+        const scatter = makeNode( "figure" );
+        withDocument( makeRenderDoc(), () => TiCharts.renderChart( scatter, {
+            type: "scatter", a11yLabel: "Съвпадение", a11yHeaders: [ "Служител", "Ръководител", "Самооценка" ],
+            data: { points: [ { id: "e1", x: 1, y: 1.1, label: "Ann" } ] }
+        } ) );
+        assert.deepEqual( headersOf( scatter ), [ "Служител", "Ръководител", "Самооценка", "Team" ] );
+
+        const radar = makeNode( "figure" );
+        withDocument( makeRenderDoc(), () => TiCharts.renderChart( radar, {
+            type: "radar", a11yLabel: "Profile", a11yHeaders: [ "Подкатегория", "", "Ръководител" ],
+            data: { axes: [ { id: "E1", max: 1.3 } ], series: [ { key: "self", values: { E1: 1 } }, { key: "manager", values: { E1: 1.1 } } ] }
+        } ) );
+        assert.deepEqual( headersOf( radar ), [ "Подкатегория", "self", "Ръководител" ] );   // "" keeps the series key
+    } );
+
+    it( "gauge: data.sublabelName names the sublabel's row in the screen-reader table", () => {
+        const rowsOf = ( figure ) => srTableOf( figure )[ 0 ].children[ 1 ].children.map( ( tr ) => tr.children.map( ( td ) => td.textContent ) );
+        const named = makeNode( "figure" );
+        withDocument( makeRenderDoc(), () => TiCharts.renderChart( named, {
+            type: "gauge", a11yLabel: "Обхват", data: { value: 0.5, label: "Завършени", sublabel: "10 / 20", sublabelName: "Приключени" }
+        } ) );
+        assert.deepEqual( rowsOf( named )[ 1 ], [ "Приключени", "10 / 20" ] );
+        const unnamed = makeNode( "figure" );
+        withDocument( makeRenderDoc(), () => TiCharts.renderChart( unnamed, { type: "gauge", a11yLabel: "Coverage", data: { value: 0.5, sublabel: "10 / 20" } } ) );
+        assert.deepEqual( rowsOf( unnamed )[ 1 ], [ "Reporting", "10 / 20" ] );
+    } );
+
+    it( "box: a box's accessible name calls the median by its a11yHeaders name", () => {
+        const figure = makeNode( "figure" );
+        withDocument( makeRenderDoc(), () => TiCharts.renderChart( figure, {
+            type: "box", a11yLabel: "Нива", a11yHeaders: [ "Ниво", "Мин", "Q1", "Медиана" ],
+            data: { groups: [ { id: "S2", label: "S2", min: 60, q1: 80, median: 100, q3: 110, max: 130, n: 5 } ] }
+        } ) );
+        const box = collect( svgOf( figure )[ 0 ], ( n ) => n.attrs && n.attrs.class === "ti-chart-box-box" )[ 0 ];
+        assert.equal( box.attrs[ "aria-label" ], "S2: 80–110, Медиана 100" );
+    } );
+
+    it( "line: a sparkline's svg is marked, so the stylesheet can keep its dots small", () => {
+        const figure = makeNode( "figure" );
+        withDocument( makeRenderDoc(), () => TiCharts.renderChart( figure, {
+            type: "line", a11yLabel: "Trend", options: { sparkline: true },
+            data: { x: [ { id: "a" }, { id: "b" } ], series: [ { key: "mean", values: [ 1, 2 ] } ] }
+        } ) );
+        assert.equal( svgOf( figure )[ 0 ].attrs.class, "ti-chart-sparkline" );
     } );
 
     it( "radar: rings + axis labels + one polygon per series + sr-table; data-ti-chart-type set", () => {
@@ -663,4 +781,296 @@ describe( "ti-charts — lineLayout (CA-X1)", () => {
         assert.equal( l.series[ 0 ].dots.length, 2 );
     } );
 
+} );
+
+/* ===================== ink sized in pixels (the measured scale) ===================== */
+
+describe( "ti-charts — the measured scale (--ti-chart-u)", () => {
+    // A fake DOM whose style accepts custom properties through setProperty only — the one CSP-legal way to style an
+    // element from script. getBoundingClientRect answers `box.transformed`: what a CSS transform would make of the
+    // layout size, which the measurement must not use.
+    function makeMeasuredDoc( box ) {
+        const node = ( tag, ns ) => {
+            const n = {
+                tag: tag, ns: ns || null, attrs: {}, children: [], textContent: "", props: {},
+                setAttribute( k, v ) { this.attrs[ k ] = String( v ); },
+                getAttribute( k ) { return ( k in this.attrs ) ? this.attrs[ k ] : null; },
+                removeAttribute( k ) { delete this.attrs[ k ]; },
+                appendChild( c ) { this.children.push( c ); return c; },
+                removeChild( c ) { const i = this.children.indexOf( c ); if ( i >= 0 ) { this.children.splice( i, 1 ); } return c; },
+                get firstChild() { return this.children.length ? this.children[ 0 ] : null; },
+                getBoundingClientRect() { return box.transformed || box.current; }
+            };
+            const style = {
+                setProperty( name, value ) {
+                    if ( name.indexOf( "--" ) !== 0 ) {
+                        throw new Error( "only --custom properties may be set" );
+                    }
+                    n.props[ name ] = value;
+                }
+            };
+            n.style = new Proxy( style, { set() { throw new Error( "element.style.* is forbidden" ); } } );
+            return n;
+        };
+        return { createElement( tag ) { return node( tag ); }, createElementNS( ns, tag ) { return node( tag, ns ); } };
+    }
+    function withGlobals( globals, fn ) {
+        const saved = Object.keys( globals ).map( ( k ) => [ k, Object.prototype.hasOwnProperty.call( global, k ), global[ k ] ] );
+        Object.assign( global, globals );
+        try {
+            return fn();
+        } finally {
+            for ( const [ k, had, prev ] of saved ) {
+                if ( had ) { global[ k ] = prev; } else { delete global[ k ]; }
+            }
+        }
+    }
+    // Stands in for the browser's ResizeObserver: report() delivers what the browser would after a layout, each record
+    // carrying the observed element's layout size as its content rect.
+    function stubResizeObserver( box ) {
+        const observers = [];
+        class StubResizeObserver {
+            constructor( callback ) { this.callback = callback; this.targets = []; this.observeCalls = 0; observers.push( this ); }
+            observe( target ) { this.targets.push( target ); this.observeCalls += 1; }
+            unobserve( target ) { this.targets = this.targets.filter( ( t ) => t !== target ); }
+            report() { this.callback( this.targets.map( ( t ) => ( { target: t, contentRect: box.current } ) ) ); }
+        }
+        return { observers: observers, ResizeObserver: StubResizeObserver };
+    }
+    const svgOf = ( figure ) => figure.children.find( ( c ) => c.tag === "svg" );
+    const lineSpec = { type: "line", a11yLabel: "Trend", data: { x: [ { id: "a" }, { id: "b" } ], series: [ { key: "mean", values: [ 1, 2 ] } ] } };
+
+    it( "unitsPerPixel is the reciprocal of the tighter axis scale, and null while the svg has no size", () => {
+        assert.equal( TiCharts.unitsPerPixel( { width: 100, height: 60 }, { width: 640, height: 384 } ), 0.1563 );
+        // max-height clamped the box: "meet" fits the drawing to the height, so the height sets the scale
+        assert.equal( TiCharts.unitsPerPixel( { width: 100, height: 100 }, { width: 700, height: 460 } ), 0.2174 );
+        assert.equal( TiCharts.unitsPerPixel( { width: 100, height: 60 }, { width: 0, height: 0 } ), null );   // display: none
+        assert.equal( TiCharts.unitsPerPixel( { width: 0, height: 0 }, { width: 640, height: 384 } ), null );
+        assert.equal( TiCharts.unitsPerPixel( null, { width: 640, height: 384 } ), null );
+    } );
+
+    it( "measures the svg when the observer reports — after a resize, and after a re-render at an unchanged size", () => {
+        const box = { current: { width: 640, height: 384 } };
+        const stub = stubResizeObserver( box );
+        const doc = makeMeasuredDoc( box );
+        withGlobals( { document: doc, ResizeObserver: stub.ResizeObserver }, () => {
+            const figure = doc.createElement( "figure" );
+            TiCharts.renderChart( figure, lineSpec );
+            assert.equal( stub.observers.length, 1 );
+            const first = svgOf( figure );
+            assert.deepEqual( stub.observers[ 0 ].targets, [ first ] );       // the svg itself, whose layout size counts
+            assert.equal( first.props[ "--ti-chart-u" ], undefined );         // no synchronous layout read during render
+            stub.observers[ 0 ].report();
+            assert.equal( first.props[ "--ti-chart-u" ], "0.1563" );          // 100 units over 640px
+
+            box.current = { width: 320, height: 192 };                        // the card narrows
+            stub.observers[ 0 ].report();
+            assert.equal( first.props[ "--ti-chart-u" ], "0.3125" );
+
+            // A new spec on the same card: the new svg is a new observation, so it is reported although nothing
+            // changed size — and the one it replaced is no longer watched.
+            TiCharts.renderChart( figure, lineSpec );
+            const second = svgOf( figure );
+            assert.notEqual( second, first );
+            assert.equal( stub.observers.length, 1, "one observer per figure, however often it renders" );
+            assert.deepEqual( stub.observers[ 0 ].targets, [ second ] );
+            stub.observers[ 0 ].report();
+            assert.equal( second.props[ "--ti-chart-u" ], "0.3125" );
+        } );
+    } );
+
+    it( "sizes by the layout box, not a transformed one — a chart measured mid-animation keeps its text right", () => {
+        // A dialog scaling in at 0.5: getBoundingClientRect would say 320px, and u would come out twice too large.
+        const box = { current: { width: 640, height: 384 }, transformed: { width: 320, height: 192 } };
+        const stub = stubResizeObserver( box );
+        const doc = makeMeasuredDoc( box );
+        withGlobals( { document: doc, ResizeObserver: stub.ResizeObserver }, () => {
+            const figure = doc.createElement( "figure" );
+            TiCharts.renderChart( figure, lineSpec );
+            stub.observers[ 0 ].report();
+            assert.equal( svgOf( figure ).props[ "--ti-chart-u" ], "0.1563" );
+        } );
+    } );
+
+    it( "leaves a hidden card on the unit fallback until it is laid out", () => {
+        const box = { current: { width: 0, height: 0 } };
+        const stub = stubResizeObserver( box );
+        const doc = makeMeasuredDoc( box );
+        withGlobals( { document: doc, ResizeObserver: stub.ResizeObserver }, () => {
+            const figure = doc.createElement( "figure" );
+            TiCharts.renderChart( figure, lineSpec );
+            stub.observers[ 0 ].report();
+            assert.equal( svgOf( figure ).props[ "--ti-chart-u" ], undefined );
+            box.current = { width: 400, height: 240 };                        // shown
+            stub.observers[ 0 ].report();
+            assert.equal( svgOf( figure ).props[ "--ti-chart-u" ], "0.25" );
+        } );
+    } );
+
+    it( "never observes bars — their pixel layout has no viewBox, and the stylesheet fixes their scale at 1", () => {
+        const box = { current: { width: 640, height: 200 } };
+        const stub = stubResizeObserver( box );
+        const doc = makeMeasuredDoc( box );
+        withGlobals( { document: doc, ResizeObserver: stub.ResizeObserver }, () => {
+            const figure = doc.createElement( "figure" );
+            TiCharts.renderChart( figure, lineSpec );
+            TiCharts.renderChart( figure, { type: "bars", a11yLabel: "Coverage", data: { rows: [ { id: "a", label: "A", segments: [ { key: "Closed", v: 1 } ] } ] } } );
+            assert.deepEqual( stub.observers[ 0 ].targets, [] );              // the line's svg released, the bars' never watched
+            stub.observers[ 0 ].report();
+            assert.deepEqual( svgOf( figure ).props, {} );
+
+            const stat = doc.createElement( "figure" );                       // no svg at all
+            TiCharts.renderChart( stat, { type: "stat", a11yLabel: "Score", data: { value: 1, label: "Score" } } );
+            assert.deepEqual( stub.observers[ 1 ].targets, [] );
+        } );
+    } );
+} );
+
+describe( "ti-charts — stylesheet: chart ink goes through --ti-chart-u", () => {
+    const css = fs.readFileSync( path.join( __dirname, "..", "bin", "static", "scripts", "ti-framework.css" ), "utf8" ).replace( /\/\*[\s\S]*?\*\//g, "" );
+    const tokens = {};
+    for ( const m of css.matchAll( /(--fs-[a-z0-9]+):\s*([\d.]+)px;/g ) ) {
+        if ( !( m[ 1 ] in tokens ) ) { tokens[ m[ 1 ] ] = m[ 2 ]; }
+    }
+    // Every chart rule's declarations, keyed by its exact selector.
+    const rules = new Map();
+    for ( const m of css.matchAll( /([^{}]+)\{([^{}]*)\}/g ) ) {
+        const selector = m[ 1 ].trim();
+        if ( selector.indexOf( "ti-chart" ) < 0 ) { continue; }
+        const decls = rules.get( selector ) || {};
+        for ( const d of m[ 2 ].split( ";" ) ) {
+            const i = d.indexOf( ":" );
+            if ( i > 0 ) { decls[ d.slice( 0, i ).trim() ] = d.slice( i + 1 ).trim(); }
+        }
+        rules.set( selector, decls );
+    }
+    // Replaces var(--ti-chart-u, fallback) with u — or with its fallback, as a browser does before any measurement.
+    function substituteScale( value, u ) {
+        const marker = "var(--ti-chart-u";
+        let out = "";
+        let i = 0;
+        while ( i < value.length ) {
+            if ( value.startsWith( marker, i ) ) {
+                let depth = 0;
+                let j = i;
+                for ( ; j < value.length; j++ ) {
+                    if ( value[ j ] === "(" ) { depth += 1; }
+                    if ( value[ j ] === ")" ) { depth -= 1; if ( depth === 0 ) { break; } }
+                }
+                const fallback = value.slice( i + marker.length, j ).replace( /^\s*,/, "" );
+                out += "(" + ( ( u === null ) ? fallback : String( u ) ) + ")";
+                i = j + 1;
+            } else {
+                out += value[ i ];
+                i += 1;
+            }
+        }
+        return out;
+    }
+    // Evaluates the products and quotients a calc() here is made of.
+    function evaluate( expression ) {
+        const t = expression.match( /\d+(?:\.\d+)?|[()*/]/g );
+        let pos = 0;
+        const factor = () => {
+            const token = t[ pos++ ];
+            if ( token === "(" ) { const v = product(); pos += 1; return v; }
+            return Number( token );
+        };
+        const product = () => {
+            let v = factor();
+            while ( t[ pos ] === "*" || t[ pos ] === "/" ) {
+                const op = t[ pos++ ];
+                const rhs = factor();
+                v = ( op === "*" ) ? v * rhs : v / rhs;
+            }
+            return v;
+        };
+        return product();
+    }
+    // The size a declaration resolves to, per space-separated term (a dash array has two), at scale u.
+    function resolve( value, u ) {
+        const terms = [];
+        let depth = 0, start = 0;
+        for ( let i = 0; i <= value.length; i++ ) {
+            if ( value[ i ] === "(" ) { depth += 1; }
+            if ( value[ i ] === ")" ) { depth -= 1; }
+            if ( ( i === value.length || value[ i ] === " " ) && depth === 0 ) {
+                if ( i > start ) { terms.push( value.slice( start, i ) ); }
+                start = i + 1;
+            }
+        }
+        return terms.map( ( term ) => {
+            const plain = substituteScale( term, u ).replace( /var\((--fs-[a-z0-9]+)\)/g, ( m, name ) => tokens[ name ] ).replace( /calc\(/g, "(" ).replace( /px/g, "" );
+            assert.match( plain, /^[\d\s.*/()]+$/, "unexpected term in " + value );
+            return Math.round( evaluate( plain ) * 1000 ) / 1000;
+        } ).join( " " );
+    }
+    // selector, property, the size before the measurement existed (viewBox units), the size at u = 1 (pixels).
+    const INK = [
+        [ ".ti-chart-axis-label", "font-size", "4", "11" ],
+        [ ".ti-chart-heat-label", "font-size", "4", "11" ],
+        [ ".ti-chart-box-label", "font-size", "4", "11" ],
+        [ ".ti-chart-box-ref-label", "font-size", "4", "11" ],
+        [ ".ti-chart-bar-label", "font-size", "4", "12" ],
+        [ ".ti-chart-bar-value:not([font-size])", "font-size", "4", "11" ],
+        [ ".ti-chart-radar-axis-label", "font-size", "3.6", "11" ],
+        [ ".ti-chart-line-xlabel", "font-size", "3.2", "11" ],
+        [ ".ti-chart-scatter-diag", "stroke-width", "0.5", "1.5" ],
+        [ ".ti-chart-scatter-mid", "stroke-width", "0.4", "1" ],
+        [ ".ti-chart-scatter-pt", "stroke-width", "0.3", "1" ],
+        [ ".ti-chart-heat-cell", "stroke-width", "0.5", "2" ],
+        [ ".ti-chart-box-box", "stroke-width", "0.6", "1.5" ],
+        [ ".ti-chart-box-median", "stroke-width", "1", "2" ],
+        [ ".ti-chart-box-whisker", "stroke-width", "0.5", "1" ],
+        [ ".ti-chart-box-cap", "stroke-width", "0.5", "1" ],
+        [ ".ti-chart-box-expected", "stroke-width", "0.8", "2" ],
+        [ ".ti-chart-box-ref", "stroke-width", "0.5", "1" ],
+        [ ".ti-chart-bar-axis", "stroke-width", "0.4", "1" ],
+        [ ".ti-chart-radar-ring", "stroke-width", "0.4", "1" ],
+        [ ".ti-chart-radar-spoke", "stroke-width", "0.3", "1" ],
+        [ ".ti-chart-radar-poly", "stroke-width", "0.8", "2" ],
+        [ ".ti-chart-line-axis", "stroke-width", "0.3", "1" ],
+        [ ".ti-chart-line-series", "stroke-width", "1", "2" ],
+        [ ".ti-chart-line-dot.provisional", "stroke-width", "0.6", "1.5" ],
+        [ ".ti-chart-box-mean", "r", "0.9", "3" ],
+        [ ".ti-chart-radar-dot", "r", "0.9", "3" ],
+        [ ".ti-chart-line-dot", "r", "1.1", "4" ],
+        [ ".ti-chart-sparkline .ti-chart-line-dot", "r", "0.8", "2" ],
+        [ ".ti-chart-provisional", "stroke-dasharray", "4 3", "4 3" ],
+        [ ".ti-chart-scatter-diag", "stroke-dasharray", "2 2", "4 4" ],
+        [ ".ti-chart-box-expected", "stroke-dasharray", "2 2", "4 4" ],
+        [ ".ti-chart-box-ref", "stroke-dasharray", "3 2", "6 4" ],
+        [ ".ti-chart-radar-poly[stroke-dasharray]", "stroke-dasharray", "3 2", "8 6" ],
+        [ ".ti-chart-line-series[stroke-dasharray]", "stroke-dasharray", "3 2", "8 6" ]
+    ];
+    const SIZED = [ "font-size", "stroke-width", "r", "stroke-dasharray" ];
+    // The gauge's text and ring are part of the dial and scale with it; stat tiles and legends are HTML.
+    const exempt = ( selector ) => /gauge|stat|legend/.test( selector );
+
+    it( "unmeasured, every chart size falls back to exactly its old viewBox-unit value", () => {
+        for ( const [ selector, property, unitSize ] of INK ) {
+            const decls = rules.get( selector );
+            assert.ok( decls && decls[ property ], selector + " { " + property + " } is missing" );
+            assert.equal( resolve( decls[ property ], null ), unitSize, selector + " " + property );
+        }
+    } );
+
+    it( "measured, every chart size is a fixed number of pixels", () => {
+        for ( const [ selector, property, , pixels ] of INK ) {
+            assert.equal( resolve( rules.get( selector )[ property ], 1 ), pixels, selector + " " + property );
+        }
+        assert.equal( rules.get( ".ti-chart svg.ti-chart-flow" )[ "--ti-chart-u" ], "1" );   // bars: one unit is one pixel
+    } );
+
+    it( "no chart rule sizes ink in bare viewBox units — each one is in the table above", () => {
+        const listed = new Set( INK.map( ( [ selector, property ] ) => selector + " | " + property ) );
+        for ( const [ selector, decls ] of rules ) {
+            if ( exempt( selector ) ) { continue; }
+            for ( const property of SIZED ) {
+                if ( decls[ property ] === undefined ) { continue; }
+                assert.ok( decls[ property ].indexOf( "var(--ti-chart-u" ) >= 0, selector + " { " + property + ": " + decls[ property ] + " } scales with the card" );
+                assert.ok( listed.has( selector + " | " + property ), selector + " { " + property + " } is not covered by the fallback table" );
+            }
+        }
+    } );
 } );
