@@ -2,65 +2,71 @@
 
 This document contains the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.15.3
+
+* fix (exceptions): fixed broken JSDoc for `raise` method
+* build (deps): update `@types/node` from ^26.5.1 to ^26.6.2
+
 ## Version 1.15.2
 
-* fix(service-consumer): start with the message exchange disabled. 1.14.0 made the exchange optional in `ServiceInstance.onStart`, which skips constructing it, but `ServiceConsumer.onStart` still registered with the dispatcher unconditionally - on a dispatcher that was never initialized. `TiWebServer` is a ServiceConsumer, so every web server crashed at boot in the one mode 1.14.0 added: `Cannot read properties of undefined (reading 'addMessageObserverResponsesIn')`. `ServiceProvider.onStart` had the same defect for incoming requests. Both now register only when the exchange is enabled. Found by running a real site on the configuration a Cloudflare container uses, before deploying it; 1.14.0 had no test that started a consumer or provider with the exchange off.
-* fix(message-dispatcher): raise `E_GEN_NOT_INITIALIZED`, naming both possible causes, instead of a raw `TypeError` from every entry point when there is no exchange. The `TypeError` is what made the crash above hard to read: it names a property on `undefined` and nothing about which component was missing, or why.
-* fix(service-caller): reject a service call made with the exchange disabled with `E_GEN_FEATURE_UNSUPPORTED`, saying so. The registry lookup needs set membership, so without this the failure named the wrong thing - an unimplemented `isSetMember` on a backend without sets, or an unregistered service on one with them.
-* fix(service-provider): register none of a provider's configured services with the exchange disabled. Registration writes each service to the service catalog before binding its handler, which advertises to other instances a service this one can never receive a request for. On the HTTP backend, which has no sets, it failed instead, logging two misleading errors per service - that it could not be added to the registry and would not be visible to consumers - while startup carried on. It now logs one warning naming how many configured services it skipped.
-* test(service-consumer): start and stop a real ServiceConsumer and ServiceProvider with the exchange off, on state over HTTP. One file each, because only one ServiceInstance may exist per process. Each verified to fail with its gate removed. The provider is configured with a service whose handler file loads, and a spy on the cache asserts nothing is written to the catalog: without a loadable handler, registration stops before the catalog and that assertion passes either way. Core 116 to 124 tests, one of them the new fixture module, which `node --test` runs like the other two.
+* fix (service-consumer): start with the message exchange disabled. 1.14.0 made the exchange optional in `ServiceInstance.onStart`, which skips constructing it, but `ServiceConsumer.onStart` still registered with the dispatcher unconditionally - on a dispatcher that was never initialized. `TiWebServer` is a ServiceConsumer, so every web server crashed at boot in the one mode 1.14.0 added: `Cannot read properties of undefined (reading 'addMessageObserverResponsesIn')`. `ServiceProvider.onStart` had the same defect for incoming requests. Both now register only when the exchange is enabled. Found by running a real site on the configuration a Cloudflare container uses, before deploying it; 1.14.0 had no test that started a consumer or provider with the exchange off.
+* fix (message-dispatcher): raise `E_GEN_NOT_INITIALIZED`, naming both possible causes, instead of a raw `TypeError` from every entry point when there is no exchange. The `TypeError` is what made the crash above hard to read: it names a property on `undefined` and nothing about which component was missing, or why.
+* fix (service-caller): reject a service call made with the exchange disabled with `E_GEN_FEATURE_UNSUPPORTED`, saying so. The registry lookup needs set membership, so without this the failure named the wrong thing - an unimplemented `isSetMember` on a backend without sets, or an unregistered service on one with them.
+* fix (service-provider): register none of a provider's configured services with the exchange disabled. Registration writes each service to the service catalog before binding its handler, which advertises to other instances a service this one can never receive a request for. On the HTTP backend, which has no sets, it failed instead, logging two misleading errors per service - that it could not be added to the registry and would not be visible to consumers - while startup carried on. It now logs one warning naming how many configured services it skipped.
+* test (service-consumer): start and stop a real ServiceConsumer and ServiceProvider with the exchange off, on state over HTTP. One file each, because only one ServiceInstance may exist per process. Each verified to fail with its gate removed. The provider is configured with a service whose handler file loads, and a spy on the cache asserts nothing is written to the catalog: without a loadable handler, registration stops before the catalog and that assertion passes either way. Core 116 to 124 tests, one of them the new fixture module, which `node --test` runs like the other two.
 
 ## Version 1.15.1
 
-* fix(test): stop the HTTP cache integration suite racing the runtime's cold start. It set a 500ms request timeout, and its root hook awaits `cache.instance.initialize()`, whose health probe is the FIRST `fetch` in a fresh process — about 50ms on an idle machine against roughly 2ms for every one after it, because undici initializes on first use. On a loaded runner with test files in parallel that cleared 500ms: the probe timed out, the hook threw, and node:test cancelled all seven tests under it. That failed the publish workflow's verify job on the 1.15.0 merge, so 1.15.0 never reached npm. Neither that file nor `http-cache-provider.test.js` tests timeout behaviour, so both now use the 5000ms default; the override bought nothing and raced the runtime rather than the service.
+* fix (test): stop the HTTP cache integration suite racing the runtime's cold start. It set a 500ms request timeout, and its root hook awaits `cache.instance.initialize()`, whose health probe is the FIRST `fetch` in a fresh process — about 50ms on an idle machine against roughly 2ms for every one after it, because undici initializes on first use. On a loaded runner with test files in parallel that cleared 500ms: the probe timed out, the hook threw, and node:test cancelled all seven tests under it. That failed the publish workflow's verify job on the 1.15.0 merge, so 1.15.0 never reached npm. Neither that file nor `http-cache-provider.test.js` tests timeout behaviour, so both now use the 5000ms default; the override bought nothing and raced the runtime rather than the service.
 
 ## Version 1.15.0
 
-* feat(cache): add `HttpCacheProvider`, a backend that keeps state in an HTTP service rather than in a database client, selected by the built-in provider name `"http"`. It exists for a deployment where the durable store is reachable only through a platform binding — a Cloudflare container reaching D1 through its Worker — so no SDK and no credential lives in the image. It is named for its transport, not for D1: the contract is an HTTP protocol, and what answers it is the deployment's business.
-* feat(cache): specify that protocol in `design/state-protocol.md` — twelve paths, one per logical operation, JSON bodies, values on the wire as strings. Paths travel as an array of literal key segments rather than as a JSONPath expression, because RedisJSON wants `$["a"]` and SQLite wants `$."a"`, and handing a service a dialect to re-parse is how an escaping bug gets in. The document records the D1 mapping too, including why the merge nests the patch inside the path instead of addressing it with `json_set`: SQLite's path grammar has no escape for a double quote inside a quoted label, so a path expression built from a caller-supplied key is a latent failure. Verified against SQLite 3.45.1.
-* feat(config): add `memoryCache.stateUrl` (`TI_MEMORY_CACHE_STATE_URL`), `memoryCache.stateAuthToken` (`TI_MEMORY_CACHE_STATE_AUTH_TOKEN`) and `memoryCache.stateTimeout` (`TI_MEMORY_CACHE_STATE_TIMEOUT`) for the above. Redis deployments are untouched; `redis` remains the default backend.
-* feat(cache): implement `deleteValue` on the HTTP backend, to the `Promise<boolean>` its contract declares. The Redis backend resolves the raw command result instead, which contradicts its own signature; nothing calls it, so there is no behaviour to preserve.
-* test(cache): 28 tests against an in-memory implementation of the protocol, so the contract is checkable without the platform it was designed for. The one that matters asserts `editJSON` issues exactly one `documents/merge` and no `documents/get` — verified to fail against a read-modify-write emulation, which is the silent data loss `ATOMIC_JSON_EDIT` exists to rule out. Core 66 to 94 tests.
-* test(cache): drive the whole path through `CommonMemoryCache` and pin the recovery behaviour, in 7 more tests. The provider's recovery probe is the only way it can come back: once the singleton is told the connection is disrupted it stops passing calls through, so nothing would otherwise reach the service to discover it again. The stub server can sever a socket without answering, which is a genuine transport failure rather than an error status, so the suite takes the cache out of service, watches the guard refuse the next call *before* it reaches the provider, restores the service and waits for the cache to return with nothing having called it. Verified to fail with the probe disabled. Core 94 to 101 tests.
-* test(cache): assert the configured bearer token travels on every request, the health probe included — it was written but never exercised. Core 101 to 102 tests.
-* fix(cache): treat a response body that dies part-way through as a transport failure. `#markConnected()` ran as soon as the headers arrived, before `response.text()`, and the body read had no rejection handler — so a socket that died mid-body left the cache announcing recovery and reporting itself operational over a connection that had just gone, while the caller was told the call failed. The same rollback shape the capability check carried in 1.13.0. Reproducing it needed a chunked body and a delay, because undici does not hand back a Response until the body begins arriving; destroying the socket sooner fails `fetch()` itself and never reaches the path at fault.
-* fix(cache): send `redirect: "manual"`. `fetch` follows redirects by default, and a 307 or 308 preserves method and body — so a redirect would have resent stored state, and the bearer token with it, to a host no configuration ever named. Every 3xx is now a failed call.
-* fix(cache): validate `memoryCache.stateTimeout` and `memoryCache.retryMaxInterval` in the constructor. `AbortSignal.timeout` throws a RangeError SYNCHRONOUSLY on a bad delay, so an unparseable environment variable did not reject the promise a caller was awaiting — it threw straight out of the method, breaking the contract every other failure in the class honours. The bound is `setInterval`'s, the stricter of the two, because anything above it silently becomes a 1ms busy loop.
-* feat(cache): refuse to start when a configured bearer token would travel as plain HTTP to anywhere but this machine, unless the new `memoryCache.stateAllowInsecureAuth` setting (`TI_MEMORY_CACHE_STATE_ALLOW_INSECURE_AUTH`) says the platform already protects the hop. The documented Cloudflare deployment sets no token — the Worker binding is the authentication — so it is unaffected.
-* test(cache): make the stub state server hold up its end of the protocol rather than approximately. It now dispatches on method as well as path (405 otherwise), records the method, and enforces expiry on reads and key matching through a test-controlled clock, so an expiry assertion measures behaviour instead of a forwarded number. Core 102 to 116 tests.
-* docs(cache): record two deliberate omissions in the protocol. Nothing is retried, because the protocol carries no idempotency key and a retried `documents/merge` or an expiring `values/set` whose first attempt landed would apply twice; retries need a request identifier first. And the HTTP backend never escalates to `onConnectionLost`, because HTTP has no signal for a connection that is gone for good.
+* feat (cache): add `HttpCacheProvider`, a backend that keeps state in an HTTP service rather than in a database client, selected by the built-in provider name `"http"`. It exists for a deployment where the durable store is reachable only through a platform binding — a Cloudflare container reaching D1 through its Worker — so no SDK and no credential lives in the image. It is named for its transport, not for D1: the contract is an HTTP protocol, and what answers it is the deployment's business.
+* feat (cache): specify that protocol in `design/state-protocol.md` — twelve paths, one per logical operation, JSON bodies, values on the wire as strings. Paths travel as an array of literal key segments rather than as a JSONPath expression, because RedisJSON wants `$["a"]` and SQLite wants `$."a"`, and handing a service a dialect to re-parse is how an escaping bug gets in. The document records the D1 mapping too, including why the merge nests the patch inside the path instead of addressing it with `json_set`: SQLite's path grammar has no escape for a double quote inside a quoted label, so a path expression built from a caller-supplied key is a latent failure. Verified against SQLite 3.45.1.
+* feat (config): add `memoryCache.stateUrl` (`TI_MEMORY_CACHE_STATE_URL`), `memoryCache.stateAuthToken` (`TI_MEMORY_CACHE_STATE_AUTH_TOKEN`) and `memoryCache.stateTimeout` (`TI_MEMORY_CACHE_STATE_TIMEOUT`) for the above. Redis deployments are untouched; `redis` remains the default backend.
+* feat (cache): implement `deleteValue` on the HTTP backend, to the `Promise<boolean>` its contract declares. The Redis backend resolves the raw command result instead, which contradicts its own signature; nothing calls it, so there is no behaviour to preserve.
+* test (cache): 28 tests against an in-memory implementation of the protocol, so the contract is checkable without the platform it was designed for. The one that matters asserts `editJSON` issues exactly one `documents/merge` and no `documents/get` — verified to fail against a read-modify-write emulation, which is the silent data loss `ATOMIC_JSON_EDIT` exists to rule out. Core 66 to 94 tests.
+* test (cache): drive the whole path through `CommonMemoryCache` and pin the recovery behaviour, in 7 more tests. The provider's recovery probe is the only way it can come back: once the singleton is told the connection is disrupted it stops passing calls through, so nothing would otherwise reach the service to discover it again. The stub server can sever a socket without answering, which is a genuine transport failure rather than an error status, so the suite takes the cache out of service, watches the guard refuse the next call
+  *before* it reaches the provider, restores the service and waits for the cache to return with nothing having called it. Verified to fail with the probe disabled. Core 94 to 101 tests.
+* test (cache): assert the configured bearer token travels on every request, the health probe included — it was written but never exercised. Core 101 to 102 tests.
+* fix (cache): treat a response body that dies part-way through as a transport failure. `#markConnected()` ran as soon as the headers arrived, before `response.text()`, and the body read had no rejection handler — so a socket that died mid-body left the cache announcing recovery and reporting itself operational over a connection that had just gone, while the caller was told the call failed. The same rollback shape the capability check carried in 1.13.0. Reproducing it needed a chunked body and a delay, because undici does not hand back a Response until the body begins arriving; destroying the socket sooner fails `fetch()` itself and never reaches the path at fault.
+* fix (cache): send `redirect: "manual"`. `fetch` follows redirects by default, and a 307 or 308 preserves method and body — so a redirect would have resent stored state, and the bearer token with it, to a host no configuration ever named. Every 3xx is now a failed call.
+* fix (cache): validate `memoryCache.stateTimeout` and `memoryCache.retryMaxInterval` in the constructor. `AbortSignal.timeout` throws a RangeError SYNCHRONOUSLY on a bad delay, so an unparseable environment variable did not reject the promise a caller was awaiting — it threw straight out of the method, breaking the contract every other failure in the class honours. The bound is `setInterval`'s, the stricter of the two, because anything above it silently becomes a 1ms busy loop.
+* feat (cache): refuse to start when a configured bearer token would travel as plain HTTP to anywhere but this machine, unless the new `memoryCache.stateAllowInsecureAuth` setting (`TI_MEMORY_CACHE_STATE_ALLOW_INSECURE_AUTH`) says the platform already protects the hop. The documented Cloudflare deployment sets no token — the Worker binding is the authentication — so it is unaffected.
+* test (cache): make the stub state server hold up its end of the protocol rather than approximately. It now dispatches on method as well as path (405 otherwise), records the method, and enforces expiry on reads and key matching through a test-controlled clock, so an expiry assertion measures behaviour instead of a forwarded number. Core 102 to 116 tests.
+* docs (cache): record two deliberate omissions in the protocol. Nothing is retried, because the protocol carries no idempotency key and a retried `documents/merge` or an expiring `values/set` whose first attempt landed would apply twice; retries need a request identifier first. And the HTTP backend never escalates to `onConnectionLost`, because HTTP has no signal for a connection that is gone for good.
 
 ## Version 1.14.0
 
-* feat(cache): select the backend through the new `memoryCache.provider` setting (`TI_MEMORY_CACHE_PROVIDER`). `"redis"` selects the built-in provider and remains the default; any other value is a module path resolved against the working directory and must export a `CacheProvider` subclass. Without this the provider contract added in 1.13.0 could not actually be pointed at anything else.
-* feat(service-instance): make the message exchange optional through `messageExchange.enabled` (`TI_MESSAGE_EXCHANGE_ENABLED`), defaulting to `true`. When off, neither the exchange nor the dispatcher is initialized or shut down — and the exchange is the only remaining user of the cache primitives a non-Redis backend cannot reasonably provide (`blockingCommand`, pub/sub).
-* feat(service-instance): make health reporting optional through `serviceConfig.healthCheckEnabled`, defaulting to `true`. The default interval is a six-field cron, so this writes once per second for the life of the instance; that is what an orchestrator watching a mesh wants and pure cost for a single instance with nothing reading the key.
-* fix(cache): validate the configured provider class before constructing it. `typeof === "function"` accepts an arrow function, which is not a constructor — `new` on one threw a raw `TypeError` instead of the documented `E_GEN_INVALID_ARGUMENT_TYPE` — and asking `instanceof` after construction meant an unrelated class had its constructor run, executing arbitrary code from a misconfigured path, before anything rejected it. Both now fail the same declared way, without constructing anything.
-* test(cache): cover backend selection and, with a stub backend that reproduces the Redis client's notify-then-resolve ordering, the rollback on a refused start — the 1.13.0 fix that shipped untested because it needed a live server. Verified to fail without the rollback. Core 53 to 60 tests.
+* feat (cache): select the backend through the new `memoryCache.provider` setting (`TI_MEMORY_CACHE_PROVIDER`). `"redis"` selects the built-in provider and remains the default; any other value is a module path resolved against the working directory and must export a `CacheProvider` subclass. Without this the provider contract added in 1.13.0 could not actually be pointed at anything else.
+* feat (service-instance): make the message exchange optional through `messageExchange.enabled` (`TI_MESSAGE_EXCHANGE_ENABLED`), defaulting to `true`. When off, neither the exchange nor the dispatcher is initialized or shut down — and the exchange is the only remaining user of the cache primitives a non-Redis backend cannot reasonably provide (`blockingCommand`, pub/sub).
+* feat (service-instance): make health reporting optional through `serviceConfig.healthCheckEnabled`, defaulting to `true`. The default interval is a six-field cron, so this writes once per second for the life of the instance; that is what an orchestrator watching a mesh wants and pure cost for a single instance with nothing reading the key.
+* fix (cache): validate the configured provider class before constructing it. `typeof === "function"` accepts an arrow function, which is not a constructor — `new` on one threw a raw `TypeError` instead of the documented `E_GEN_INVALID_ARGUMENT_TYPE` — and asking `instanceof` after construction meant an unrelated class had its constructor run, executing arbitrary code from a misconfigured path, before anything rejected it. Both now fail the same declared way, without constructing anything.
+* test (cache): cover backend selection and, with a stub backend that reproduces the Redis client's notify-then-resolve ordering, the rollback on a refused start — the 1.13.0 fix that shipped untested because it needed a live server. Verified to fail without the rollback. Core 53 to 60 tests.
 
 ## Version 1.13.0
 
-* feat(cache): introduce `CacheProvider`, an abstract backend contract, and move every Redis-specific detail behind it into `RedisCacheProvider`. `CommonMemoryCache` keeps its public API and now owns only the operational state, the connection observation and one guard shared by all twenty-one data methods.
-* feat(cache): declare backend capabilities (`TiCacheCapability`) and reconcile them at startup against the new `memoryCache.requiredCapabilities` setting (`TI_MEMORY_CACHE_REQUIRED_CAPABILITIES`), so a backend that cannot do what the application needs fails where somebody is watching. `ATOMIC_JSON_EDIT` is declared separately from `JSON_DOCUMENTS` because a backend can store JSON while applying a path edit as a read-modify-write, which loses one of two concurrent writes silently.
-* fix(cache): roll the cache back to non-operational and shut the backend down when capability reconciliation fails. The Redis client notifies its connection observers from inside its `ready` handler, before `initialize()` resolves, so the cache is already operational by the time the check runs; rejecting without undoing that left a live connection behind a cache reporting itself usable, while the caller had been told startup failed.
-* test(cache): cover the provider contract and the startup reconciliation — 11 new tests, core 42 to 53.
+* feat (cache): introduce `CacheProvider`, an abstract backend contract, and move every Redis-specific detail behind it into `RedisCacheProvider`. `CommonMemoryCache` keeps its public API and now owns only the operational state, the connection observation and one guard shared by all twenty-one data methods.
+* feat (cache): declare backend capabilities (`TiCacheCapability`) and reconcile them at startup against the new `memoryCache.requiredCapabilities` setting (`TI_MEMORY_CACHE_REQUIRED_CAPABILITIES`), so a backend that cannot do what the application needs fails where somebody is watching. `ATOMIC_JSON_EDIT` is declared separately from `JSON_DOCUMENTS` because a backend can store JSON while applying a path edit as a read-modify-write, which loses one of two concurrent writes silently.
+* fix (cache): roll the cache back to non-operational and shut the backend down when capability reconciliation fails. The Redis client notifies its connection observers from inside its `ready` handler, before `initialize()` resolves, so the cache is already operational by the time the check runs; rejecting without undoing that left a live connection behind a cache reporting itself usable, while the caller had been told startup failed.
+* test (cache): cover the provider contract and the startup reconciliation — 11 new tests, core 42 to 53.
 
 ## Version 1.12.3
 
-* chore(package): update `package.json` structure
+* chore (package): update `package.json` structure
 
 ## Version 1.12.2
 
-* fix(start): move the logger reporting the .env file loading after the instance has received an ID (for real this time).
+* fix (start): move the logger reporting the .env file loading after the instance has received an ID (for real this time).
 
 ## Version 1.12.1
 
-* fix(start): move the logger reporting the .env file loading after the instance has received an ID.
-* build(deps): update `@types/node` from ^26.2.0 to ^26.5.1.
+* fix (start): move the logger reporting the .env file loading after the instance has received an ID.
+* build (deps): update `@types/node` from ^26.2.0 to ^26.5.1.
 
 ## Version 1.12.0
 
-* feat(start-instance): report which `.env` file was loaded, or that none was found at the resolved path, at `DEBUG`.
+* feat (start-instance): report which `.env` file was loaded, or that none was found at the resolved path, at `DEBUG`.
   The path is derived from `process.cwd()`, and a missing file is deliberately not fatal — a container legitimately
   supplies its whole environment directly. But the two cases were indistinguishable: an instance started from a
   different working directory (an IDE run configuration, a wrapper script) read no env file at all, and every
@@ -73,8 +79,8 @@ This document contains the list of changes made to the framework. The format is 
 
 License change only — no functional code changed.
 
-* chore(license): relicense package from `GPL-3.0-or-later` to `Apache-2.0`. See `LICENSE` and `NOTICE`
-* docs(license): update every source file's license header to the Apache-2.0 notice
+* chore (license): relicense package from `GPL-3.0-or-later` to `Apache-2.0`. See `LICENSE` and `NOTICE`
+* docs (license): update every source file's license header to the Apache-2.0 notice
 
 ## Version 1.11.0
 
@@ -94,11 +100,11 @@ a real cache. `decycle` also runs on the message-exchange integrity-hash path, a
 **This is a minor rather than a patch release because it requires a consumer code change** — see the note below. The
 fix is a bug fix, but the replica's prototype is part of the observable contract.
 
-* fix(tools): build `decycle`'s object replica with `Object.create( null )`, so a key named `__proto__` is an ordinary
+* fix (tools): build `decycle`'s object replica with `Object.create( null )`, so a key named `__proto__` is an ordinary
   own key with no setter to hit. Verified against both consumers of the output — `_.isPlainObject` accepts a
   null-prototype object, so `decomposeJSON` (message hashing) and `_.toPlainObject` (serialization) are unaffected
-* fix(tools): the same guard in `errorToJSON`, which copied an error's own property names with the identical pattern
-* fix(cache)!: `Cache.getValues( keys, prefix )` resolved **every key to `null`**, whatever Redis returned. Its ternary
+* fix (tools): the same guard in `errorToJSON`, which copied an error's own property names with the identical pattern
+* fix (cache)!: `Cache.getValues( keys, prefix )` resolved **every key to `null`**, whatever Redis returned. Its ternary
   inspected `results`, the accumulator being built, instead of `result`, the per-key `[ error, value ]` entry — and
   `{}.length` is `undefined`, so the comparison was always false. The single-key `getValue()` had the correct form; the
   two expressions were near-identical and one drifted. No first-party caller existed, which is why nothing caught it.
@@ -109,10 +115,10 @@ fix is a bug fix, but the replica's prototype is part of the observable contract
   cache keys come from the caller, and one named `__proto__` would otherwise repoint the map's prototype. Marked
   breaking only because the returned map now has a null prototype (see the note below); the value behaviour is a
   straight bug fix
-* test(tools): pin the regression, the cycle handling it must not break, the `decomposeJSON` and `retrocycle` paths,
+* test (tools): pin the regression, the cycle handling it must not break, the `decomposeJSON` and `retrocycle` paths,
   and the fact that a key named `constructor` was **never** affected — it is an ordinary writable data property, so
   bracket assignment always shadowed it correctly, and the fix's shape should not imply otherwise
-* build(release): bump package version from `1.10.0` to `1.11.0`
+* build (release): bump package version from `1.10.0` to `1.11.0`
 
 `retrocycle` was checked and is not affected: it mutates objects that already came through `JSON.parse`, which creates
 `__proto__` as an own data property, and assignment to an existing own property shadows the inherited setter.
@@ -122,13 +128,13 @@ for an `Error`, and by `Cache.getValues` now have a **null prototype**, so they 
 them to `JSON.stringify`, lodash, or `decomposeJSON` is unaffected; the following are not, and the first two throw
 rather than merely behaving differently:
 
-| Expression on the returned object | Before | Now |
-|---|---|---|
-| `` `${ result }` ``, `String( result )`, `result + ""` | `"[object Object]"` | **`TypeError: Cannot convert object to primitive value`** |
-| `result.toString()`, `result.valueOf()` | works | **`TypeError`** |
-| `result.hasOwnProperty( key )` | works | **`TypeError`** — use `Object.prototype.hasOwnProperty.call( result, key )` |
-| `result instanceof Object` | `true` | `false` |
-| `result.constructor` | `Object` | `undefined` |
+| Expression on the returned object                      | Before              | Now                                                                         |
+|--------------------------------------------------------|---------------------|-----------------------------------------------------------------------------|
+| `` `${ result }` ``, `String( result )`, `result + ""` | `"[object Object]"` | **`TypeError: Cannot convert object to primitive value`**                   |
+| `result.toString()`, `result.valueOf()`                | works               | **`TypeError`**                                                             |
+| `result.hasOwnProperty( key )`                         | works               | **`TypeError`** — use `Object.prototype.hasOwnProperty.call( result, key )` |
+| `result instanceof Object`                             | `true`              | `false`                                                                     |
+| `result.constructor`                                   | `Object`            | `undefined`                                                                 |
 
 The likeliest way to hit this is interpolating an `errorToJSON` result straight into a log line. Wrap such a value in
 `_.cloneDeep( … )` — which normalizes the prototype back — or serialize it explicitly. No call site in this monorepo
@@ -140,14 +146,14 @@ were already being corrupted in transit, so this surfaces a pre-existing problem
 
 ## Version 1.10.0
 
-* feat(localization): `getLabel( label, language, fallback )` takes an optional third argument returned when the key
+* feat (localization): `getLabel( label, language, fallback )` takes an optional third argument returned when the key
   is absent from the loaded catalogue, instead of the `!!! label not found !!!` placeholder. The placeholder is an
   internal detail and was not exported, so a caller needing this had no option but to hard-code and compare against
   it — which `@ti-engine/web-framework` and `@ti-engine/competence` both did. The default is unchanged, so a missing
   label stays loud for every existing call site. This matters because an application configures exactly one labels
   path (`TI_LOCALIZATION_LABELS_PATH`) — its own — so a *framework*-owned screen resolving its own strings finds
   nothing in a consumer and needs a literal to degrade to
-* build(release): bump package version from `1.9.1` to `1.10.0`
+* build (release): bump package version from `1.9.1` to `1.10.0`
 
 ## Version 1.9.1
 
@@ -160,11 +166,11 @@ options, putting Node's types in scope for the check and for nothing else. It re
 against declarations that gave a real consumer two. That pin is gone: the check now runs with
 nothing configured, which is what a consumer's compiler does.
 
-* fix(types): emit `/// <reference types="node" />` into declarations that name a Node global.
+* fix (types): emit `/// <reference types="node" />` into declarations that name a Node global.
   TypeScript emits no such reference on its own — not from the directive written in the JavaScript
   source, and not from `types` set in the emit configuration; both were tried — so the declaration
   build adds it
-* build(release): bump package version from `1.9.0` to `1.9.1`
+* build (release): bump package version from `1.9.0` to `1.9.1`
 
 ## Version 1.9.0
 
@@ -178,431 +184,436 @@ larger than the 45 that measurement eventually admitted to. A parse error anywhe
 semantic pass, so the malformed declarations in one package were hiding every unresolved name in the other two: the
 first honest measurement across all three was **251** errors, not 7.
 
-* feat(types): generate and publish `.d.ts` declarations for every module, wired into `exports` and `imports` through
+* feat (types): generate and publish `.d.ts` declarations for every module, wired into `exports` and `imports` through
   `types` conditions so both a consumer's import and the framework's own `#` specifiers resolve to them
-* feat(exceptions): export the `TiException` class. It is named in the signature of everything that raises or inspects
+* feat (exceptions): export the `TiException` class. It is named in the signature of everything that raises or inspects
   an exception and was never exported, so no consumer could name the type it was being handed
-* feat(tools): `tools.enum()` now returns a type carrying the seed's own members. Every enum was previously documented
+* feat (tools): `tools.enum()` now returns a type carrying the seed's own members. Every enum was previously documented
   as returning `Object`, on which TypeScript permits no property access at all — `exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS`
   did not type-check, and neither did any other enum member in the framework. A misspelled member is now a compile
   error rather than `undefined` at runtime
-* feat(definitions): expose the shared type definitions as `@ti-engine/core/definitions`. The types in it appear
+* feat (definitions): expose the shared type definitions as `@ti-engine/core/definitions`. The types in it appear
   throughout the public API and the module declaring them was not exported
-* fix(types)!: rewrite every closure-style `{function(...)}` JSDoc annotation in arrow syntax. The declaration emitter
+* fix (types)!: rewrite every closure-style `{function(...)}` JSDoc annotation in arrow syntax. The declaration emitter
   reduces that form to a nameless `: Function` and leaks the remainder of the annotation into the doc comment, which is
   a syntax error in the emitted declaration — so the annotations documenting a callback were the ones destroying it
-* fix(types): stop marking `#`-named members `@private`. The emitter combines the two into `private #name`, which
+* fix (types): stop marking `#`-named members `@private`. The emitter combines the two into `private #name`, which
   TypeScript rejects outright; the `#private` brand each class already emits carries the same meaning
-* fix(exchange): `onConnectionDisrupted`, `onConnectionRecovered` and `onConnectionLost` are no longer marked
+* fix (exchange): `onConnectionDisrupted`, `onConnectionRecovered` and `onConnectionLost` are no longer marked
   `@private` in `MessageHandler`. They override public methods of `ConnectionObserver` and their own documentation
   tells you to override them, so the tag contradicted both the base class and the instruction directly above it
-* fix(types): `Object.<K,V>` in a standalone `@typedef` emits as the non-generic `Object<K,V>`; the map typedefs are
+* fix (types): `Object.<K,V>` in a standalone `@typedef` emits as the non-generic `Object<K,V>`; the map typedefs are
   now `Record<K,V>`, and `TiLabelsTree` an index signature, since a self-referential `Record` alias is circular
-* refactor(exchange): the lazy `require` inside `addMessageObserver` binds under a distinct name. As `MessageObserver`
+* refactor (exchange): the lazy `require` inside `addMessageObserver` binds under a distinct name. As `MessageObserver`
   it shadowed the file-level type import, leaving the documented parameter type unresolvable
-* build(deps): add `@types/node`. The published declarations name `NodeJS.Process`, so a consumer cannot read them
+* build (deps): add `@types/node`. The published declarations name `NodeJS.Process`, so a consumer cannot read them
   without it
 
 ## Version 1.8.1
 
 Presentation and documentation only — no functional change. The npm page is the first thing a prospective user sees, and it was working against the package.
 
-The two JSDoc corrections here were found while attempting to generate TypeScript declarations from the framework's JSDoc. That work is **deferred to a later release**: the generated declarations did not type-check for a consumer using TypeScript's default settings, and fixing that properly means rewiring the cross-file typedef graph rather than patching the output. These two fixes stand on their own regardless, because the JSDoc was wrong.
+The two JSDoc corrections here were found while attempting to generate TypeScript declarations from the framework's JSDoc. That work is **deferred to a later
+release**: the generated declarations did not type-check for a consumer using TypeScript's default settings, and fixing that properly means rewiring the cross-file typedef graph rather than patching the output. These two fixes stand on their own regardless, because the JSDoc was wrong.
 
-* fix(types): correct the `TiEnum` typedef's function-property annotations. `function( (number|string), [string] ): (string|undefined)` cannot be parsed — the JSDoc-optional bracket inside a function type is not readable — so `name`, `description` and `contains` were described as unnamed `Function` members. Documentation that reads correctly to a person and not at all to a parser
-* refactor(tools): declare the enum factory as a named constant and export it as `module.exports.enum = createEnum`. Identical export name, arguments and behaviour; a direct assignment to a reserved word emits invalid syntax in a generated declaration, so this removes the obstacle ahead of the deferred work
-* fix(docs): remove the CodeRabbit badge, which rendered as `provider or repo not found` — an error message sitting in the first line of the package page
-* fix(docs): remove the `npms.io` popularity and quality badges. They were not broken; they worked, and published `popularity 4%` and `quality 47%` about this package on its own front page. Popularity is a restatement of the download count, which no niche framework wins, and there is no reason to advertise either
-* feat(docs): show `npm version`, monthly downloads, the supported Node range, the licence and CI status instead — facts that stay true on their own, sourced from npm and GitHub rather than a third-party scoring service. Provenance needs no badge: npm renders it natively beside the version
-* feat(docs): open the README with the install command and a minimal working service — the class and the handler — so the first screenful shows what using the framework looks like rather than three paragraphs about it
-* fix(package): replace the description, which was the generic monorepo blurb shared verbatim with `tester`, with one that says what this package is. It is the line npm shows in search results
-* fix(package): drop the `pubsub` keyword and add `message-queue`, `ioredis` and `microservice-framework`. The framework does not use Redis pub/sub at all — its exchange is built on lists, hashes and RedisJSON — so that keyword advertised something it does not do
+* fix (types): correct the `TiEnum` typedef's function-property annotations. `function( (number|string), [string] ): (string|undefined)` cannot be parsed — the JSDoc-optional bracket inside a function type is not readable — so `name`, `description` and `contains` were described as unnamed `Function` members. Documentation that reads correctly to a person and not at all to a parser
+* refactor (tools): declare the enum factory as a named constant and export it as `module.exports.enum = createEnum`. Identical export name, arguments and behaviour; a direct assignment to a reserved word emits invalid syntax in a generated declaration, so this removes the obstacle ahead of the deferred work
+* fix (docs): remove the CodeRabbit badge, which rendered as `provider or repo not found` — an error message sitting in the first line of the package page
+* fix (docs): remove the `npms.io` popularity and quality badges. They were not broken; they worked, and published `popularity 4%` and `quality 47%` about this package on its own front page. Popularity is a restatement of the download count, which no niche framework wins, and there is no reason to advertise either
+* feat (docs): show `npm version`, monthly downloads, the supported Node range, the licence and CI status instead — facts that stay true on their own, sourced from npm and GitHub rather than a third-party scoring service. Provenance needs no badge: npm renders it natively beside the version
+* feat (docs): open the README with the install command and a minimal working service — the class and the handler — so the first screenful shows what using the framework looks like rather than three paragraphs about it
+* fix (package): replace the description, which was the generic monorepo blurb shared verbatim with `tester`, with one that says what this package is. It is the line npm shows in search results
+* fix (package): drop the `pubsub` keyword and add `message-queue`, `ioredis` and `microservice-framework`. The framework does not use Redis pub/sub at all — its exchange is built on lists, hashes and RedisJSON — so that keyword advertised something it does not do
 
 ## Version 1.8.0
 
-`ioredis` 6 makes RESP3 its default wire protocol. The framework does not set the `protocol` option, so this changes how every `core` connection talks to Redis without a line of framework code changing — and the suite here never touches a live Redis, so a green test run says nothing about it either way. It was checked against a real server rather than assumed: for every command the framework issues — `hgetall`, `smembers`, `hget`, `get`, `brpop`, the same commands through the generic `call()` path used for RedisJSON, and again inside `multi` — RESP3 and RESP2 return **identical** JavaScript values, because `ioredis` maps the new protocol's map and set types back to the objects and arrays it always returned. No consumer code changes.
+`ioredis` 6 makes RESP3 its default wire protocol. The framework does not set the `protocol` option, so this changes how every `core` connection talks to Redis without a line of framework code changing — and the suite here never touches a live Redis, so a green test run says nothing about it either way. It was checked against a real server rather than assumed: for every command the framework issues — `hgetall`, `smembers`, `hget`, `get`, `brpop`, the same commands through the generic `call()` path used for RedisJSON, and again inside `multi` — RESP3 and RESP2 return
+**identical** JavaScript values, because `ioredis` maps the new protocol's map and set types back to the objects and arrays it always returned. No consumer code changes.
 
-The cost is the Redis floor. `ioredis` negotiates with a `HELLO 3` on connect and **throws** when the server cannot answer it — there is no fallback to RESP2 — so a server older than 6.0 now fails to connect instead of working as it did before.
+The cost is the Redis floor. `ioredis` negotiates with a `HELLO 3` on connect and
+**throws** when the server cannot answer it — there is no fallback to RESP2 — so a server older than 6.0 now fails to connect instead of working as it did before.
 
-* build(deps)!: update `ioredis` from ^5.11.1 to ^6.0.0. **BREAKING**: raises the minimum Redis version from 5.0.14 to **6.0**, because `ioredis` 6 defaults to RESP3 and refuses a server that cannot negotiate it. A deployment pinned to Redis 5 must upgrade the server; a consumer that needs the old wire protocol for another reason can pass `protocol: 2` in its Redis options
-* docs(core): correct the documented Redis prerequisite from 5.0.14 to 6.0 and record why the floor moved
-* build(release): bump package version from `1.7.2` to `1.8.0`
+* build (deps)!: update `ioredis` from ^5.11.1 to ^6.0.0. **BREAKING**: raises the minimum Redis version from 5.0.14 to
+  **6.0**, because `ioredis` 6 defaults to RESP3 and refuses a server that cannot negotiate it. A deployment pinned to Redis 5 must upgrade the server; a consumer that needs the old wire protocol for another reason can pass `protocol: 2` in its Redis options
+* docs (core): correct the documented Redis prerequisite from 5.0.14 to 6.0 and record why the floor moved
+* build (release): bump package version from `1.7.2` to `1.8.0`
 
 ## Version 1.7.2
 
 No functional change — the framework code is what `1.7.1` shipped. The version exists to exercise the automated npm publish that replaced the release-triggered workflow, and to prove this package's own trusted publisher configuration on npmjs.com: OIDC trust is granted per package, so it is only ever validated by an actual publish of that package.
 
-* build(release): bump package version from `1.7.1` to `1.7.2`
+* build (release): bump package version from `1.7.1` to `1.7.2`
 
 ## Version 1.7.1
 
-* fix(exchange): preserve a configured-but-falsy `securityHashKey` — only a truly absent (`null`/`undefined`) value falls back to the empty key, so a configured `0`/`false` is no longer silently downgraded to the insecure empty-key path (PR #83, CodeRabbit)
-* build(release): bump package version from `1.7.0` to `1.7.1`
+* fix (exchange): preserve a configured-but-falsy `securityHashKey` — only a truly absent (`null`/`undefined`) value falls back to the empty key, so a configured `0`/`false` is no longer silently downgraded to the insecure empty-key path (PR #83, CodeRabbit)
+* build (release): bump package version from `1.7.0` to `1.7.1`
 
 ## Version 1.7.0
 
-* refactor(core)!: load the `.env` file via native `process.loadEnvFile` instead of `@dotenvx/dotenvx`
-* build(deps)!: remove the `@dotenvx/dotenvx` dependency — core now has three runtime dependencies (`ioredis`, `lodash`, `node-schedule`)
-* build(core)!: raise the minimum Node.js version to `>=20.12.0` (required for `process.loadEnvFile`)
+* refactor (core)!: load the `.env` file via native `process.loadEnvFile` instead of `@dotenvx/dotenvx`
+* build (deps)!: remove the `@dotenvx/dotenvx` dependency — core now has three runtime dependencies (`ioredis`, `lodash`, `node-schedule`)
+* build (core)!: raise the minimum Node.js version to `>=20.12.0` (required for `process.loadEnvFile`)
 
 > The native loader matches the prior behavior: a missing `.env` file is tolerated (ENOENT is ignored, as with the previous `quiet: true`) and existing environment variables are not overridden. The `--env` / `--env-file` / `--dotenv` / `--dotenv-path` / `-e` CLI aliases for choosing the env-file path are unchanged. Encrypted `.env` files (a dotenvx-only feature this framework never used) are not supported. Consumers on Node 20.0–20.11 must upgrade to Node ≥ 20.12.
 
 ## Version 1.6.1
 
-* build(deps): update `@dotenvx/dotenvx` from ^1.73.1 to ^1.75.1
-* build(deps): remove `zeromq` as optional dependency
+* build (deps): update `@dotenvx/dotenvx` from ^1.73.1 to ^1.75.1
+* build (deps): remove `zeromq` as optional dependency
 
 ## Version 1.6.0
 
-* refactor(exchange)!: replace the blake2 keyed hash with native `node:crypto` HMAC-SHA256 in the message integrity check
-* build(deps)!: remove the `blake2` native addon dependency (no longer builds on Node 26; replaced by the built-in `node:crypto`)
-* fix(exchange): use a constant-time comparison for the message security hash
-* fix(exchange): ship an empty default `securityHashKey` and warn (once) when the security hash is enabled with a missing/default key
-* test(exchange): add the first core test suite — message-hash determinism, tamper detection, and the constant-time comparison
+* refactor (exchange)!: replace the blake2 keyed hash with native `node:crypto` HMAC-SHA256 in the message integrity check
+* build (deps)!: remove the `blake2` native addon dependency (no longer builds on Node 26; replaced by the built-in `node:crypto`)
+* fix (exchange): use a constant-time comparison for the message security hash
+* fix (exchange): ship an empty default `securityHashKey` and warn (once) when the security hash is enabled with a missing/default key
+* test (exchange): add the first core test suite — message-hash determinism, tamper detection, and the constant-time comparison
 
-> **BREAKING (wire):** the message security hash changes from keyed-BLAKE2b (128 hex) to HMAC-SHA256 (64 hex). Old and new core versions produce mutually incompatible hashes. When upgrading across this version with `securityHashEnabled=true`, redeploy all services together — recommended order: set `securityHashEnabled=false` everywhere → deploy the new core to all services → re-enable. HMAC also accepts keys of any length (custom keys >64 bytes that previously failed under blake2b now work). The default `securityHashKey` is now empty: set `TI_MESSAGE_EXCHANGE_SECURITY_HASH_KEY` in any real deployment, otherwise tamper protection is ineffective.
+> **BREAKING (
+wire):** the message security hash changes from keyed-BLAKE2b (128 hex) to HMAC-SHA256 (64 hex). Old and new core versions produce mutually incompatible hashes. When upgrading across this version with `securityHashEnabled=true`, redeploy all services together — recommended order: set `securityHashEnabled=false` everywhere → deploy the new core to all services → re-enable. HMAC also accepts keys of any length (custom keys >64 bytes that previously failed under blake2b now work). The default `securityHashKey` is now empty: set `TI_MESSAGE_EXCHANGE_SECURITY_HASH_KEY` in any real deployment, otherwise tamper protection is ineffective.
 
 ## Version 1.5.1
 
-* build(deps): update `@dotenvx/dotenvx` from ^1.66.0 to ^1.73.1
-* build(deps): update `ioredis` from ^5.10.1 to ^5.11.1
+* build (deps): update `@dotenvx/dotenvx` from ^1.66.0 to ^1.73.1
+* build (deps): update `ioredis` from ^5.10.1 to ^5.11.1
 
 ## Version 1.5.0
 
-* feat(exceptions): add `E_APP_RESOURCE_ALREADY_EXISTS` (5006) for resource-creation conflicts; intended to be raised with HTTP `409`
+* feat (exceptions): add `E_APP_RESOURCE_ALREADY_EXISTS` (5006) for resource-creation conflicts; intended to be raised with HTTP `409`
 
 ## Version 1.4.6
 
-* build(deps): update `@dotenvx/dotenvx` from ^1.65.0 to ^1.66.0
+* build (deps): update `@dotenvx/dotenvx` from ^1.65.0 to ^1.66.0
 
 ## Version 1.4.5
 
-* feat(cache): add array-based path support to all `*JSON` methods — passing an array of strings as `path` treats each element as a literal key name using bracket notation, preventing misinterpretation of key names containing dots or other JSONPath special characters
+* feat (cache): add array-based path support to all `*JSON` methods — passing an array of strings as `path` treats each element as a literal key name using bracket notation, preventing misinterpretation of key names containing dots or other JSONPath special characters
 
 ## Version 1.4.4
 
-* build(deps): update `@dotenvx/dotenvx` from ^1.60.0 to ^1.65.0
+* build (deps): update `@dotenvx/dotenvx` from ^1.60.0 to ^1.65.0
 
 ## Version 1.4.3
 
-* build(deps): update `@dotenvx/dotenvx` from ^1.59.1 to ^1.60.0
+* build (deps): update `@dotenvx/dotenvx` from ^1.59.1 to ^1.60.0
 
 ## Version 1.4.2
 
-* build(deps): update `@dotenvx/dotenvx` from ^1.55.1 to ^1.59.1
-* build(deps): update `ioredis` from ^5.10.0 to ^5.10.1
-* build(deps): update `lodash` from ^4.17.23 to ^4.18.1
+* build (deps): update `@dotenvx/dotenvx` from ^1.55.1 to ^1.59.1
+* build (deps): update `ioredis` from ^5.10.0 to ^5.10.1
+* build (deps): update `lodash` from ^4.17.23 to ^4.18.1
 
 ## Version 1.4.1
 
-* build(deps): update `@dotenvx/dotenvx` from ^1.54.1 to ^1.55.1
+* build (deps): update `@dotenvx/dotenvx` from ^1.54.1 to ^1.55.1
 
 ## Version 1.4.0
 
-* feat(redis integration): implement support for `JSON.MERGE` and `JSON.MGET` commands
-* feat(cache): add `editJSON` method
-* feat(cache): implement consistent RedisJSON path handling and uniform error wrapping
-* feat(exceptions): add new standardized exception code `E_GEN_NOT_IMPLEMENTED` to use for cases where a feature is not yet implemented
-* feat(exceptions): add new optional, flexible parameter `httpCode` to the `raise` method
-* refactor(exceptions)!: rename the exception class from `Exception` to `TiException` in all referred places
-* refactor(definitions): move all object definitions to a new `definitions.types.js` file
-* refactor(gcloud integration)!: remove file `gcloud-integration.js` and all related functionality (as it was obsolete and a security vulnerability)
-* fix(cache): fix a bug where RedisJSON methods would return `E_GEN_FEATURE_UNSUPPORTED` error while discarding the details of that error
-* fix(config): fix the ENV `TI_LOCALIZATION_LABELS_PATH` to properly support multiple paths to label files
-* build(deps): update `@dotenvx/dotenvx` from ^1.52.0 to ^1.54.1
-* build(deps): update `ioredis` from ^5.9.2 to ^5.10.0
-* build(deps)!: remove `@google-cloud/error-reporting`
+* feat (redis integration): implement support for `JSON.MERGE` and `JSON.MGET` commands
+* feat (cache): add `editJSON` method
+* feat (cache): implement consistent RedisJSON path handling and uniform error wrapping
+* feat (exceptions): add new standardized exception code `E_GEN_NOT_IMPLEMENTED` to use for cases where a feature is not yet implemented
+* feat (exceptions): add new optional, flexible parameter `httpCode` to the `raise` method
+* refactor (exceptions)!: rename the exception class from `Exception` to `TiException` in all referred places
+* refactor (definitions): move all object definitions to a new `definitions.types.js` file
+* refactor (gcloud integration)!: remove file `gcloud-integration.js` and all related functionality (as it was obsolete and a security vulnerability)
+* fix (cache): fix a bug where RedisJSON methods would return `E_GEN_FEATURE_UNSUPPORTED` error while discarding the details of that error
+* fix (config): fix the ENV `TI_LOCALIZATION_LABELS_PATH` to properly support multiple paths to label files
+* build (deps): update `@dotenvx/dotenvx` from ^1.52.0 to ^1.54.1
+* build (deps): update `ioredis` from ^5.9.2 to ^5.10.0
+* build (deps)!: remove `@google-cloud/error-reporting`
 
 ## Version 1.3.14
 
-* build(deps): update `@dotenvx/dotenvx` from ^1.51.1 to ^1.52.0
-* build(deps): update `blake2` from ^5.0.0 to ^5.0.1
-* build(deps): update `ioredis` from ^5.8.2 to ^5.9.2
-* build(deps): update `lodash` from ^4.17.21 to ^4.17.23
-* build(engines): update Node.js requirement from >=18.0.0 to >=20.0.0
+* build (deps): update `@dotenvx/dotenvx` from ^1.51.1 to ^1.52.0
+* build (deps): update `blake2` from ^5.0.0 to ^5.0.1
+* build (deps): update `ioredis` from ^5.8.2 to ^5.9.2
+* build (deps): update `lodash` from ^4.17.21 to ^4.17.23
+* build (engines): update Node.js requirement from >=18.0.0 to >=20.0.0
 
 ## Version 1.3.13
 
-* feat(exceptions): add new exception code `E_GEN_UNALLOWED_OVERRIDE` (1009) for detecting attempts to override protected or private methods/properties
-* feat(auditing): enhance console data formatting with recursive, depth-limited formatting (max depth: 5), circular reference detection and handling, improved readability for nested objects and multi-line strings, and proper indentation and prefixing for structured output
-* fix(start instance): modified `start-instance.js` to initialize serviceConfig as undefined instead of an empty object when `TI_INSTANCE_CONFIG` environment variable is not provided
-* build(npm): update npm dependencies to their latest versions
+* feat (exceptions): add new exception code `E_GEN_UNALLOWED_OVERRIDE` (1009) for detecting attempts to override protected or private methods/properties
+* feat (auditing): enhance console data formatting with recursive, depth-limited formatting (max depth: 5), circular reference detection and handling, improved readability for nested objects and multi-line strings, and proper indentation and prefixing for structured output
+* fix (start instance): modified `start-instance.js` to initialize serviceConfig as undefined instead of an empty object when `TI_INSTANCE_CONFIG` environment variable is not provided
+* build (npm): update npm dependencies to their latest versions
 
 ## Version 1.3.12
 
-* feat(exceptions): add new exception code `E_COM_SERVICE_EXEC_FAILED`
-* feat(localization): add new public method `getAllLabels`
-* feat(localization): use new `deepFreeze` method to freeze all label trees
-* feat(tools): add new public method `deepFreeze` for freezing an object and all its sub-objects recursively
-* feat(config): use new `deepFreeze` method to freeze all configuration settings
+* feat (exceptions): add new exception code `E_COM_SERVICE_EXEC_FAILED`
+* feat (localization): add new public method `getAllLabels`
+* feat (localization): use new `deepFreeze` method to freeze all label trees
+* feat (tools): add new public method `deepFreeze` for freezing an object and all its sub-objects recursively
+* feat (config): use new `deepFreeze` method to freeze all configuration settings
 * docs: add more information about the `localization` module in `README.md` file
-* build(npm): update npm dependencies to their latest versions
+* build (npm): update npm dependencies to their latest versions
 
 ## Version 1.3.11
 
-* feat(tools): add `arrayUniques` method to the tools module that helps extract only the unique array values
-* fix(start instance): fix `undefined` instance ID in the log message about starting the instance
+* feat (tools): add `arrayUniques` method to the tools module that helps extract only the unique array values
+* fix (start instance): fix `undefined` instance ID in the log message about starting the instance
 
 ## Version 1.3.10
 
 * chore: fix various minor issues reported by the linter
-* build(npm): add more information and options to the `package.json` file
+* build (npm): add more information and options to the `package.json` file
 * docs: add some JSDoc descriptions to classes and methods
 
 ## Version 1.3.9
 
-* feat(exceptions): add new exception code `E_GEN_NOT_INITIALIZED`
+* feat (exceptions): add new exception code `E_GEN_NOT_INITIALIZED`
 * docs: fix image links in the `README.md` file
 
 ## Version 1.3.8
 
-* fix(tester): fix the relative paths of various files in the tester service. The configuration now assumes that the working directory is the root of the tester package instead of the repository itself
-* build(npm): update npm dependencies to their latest versions
+* fix (tester): fix the relative paths of various files in the tester service. The configuration now assumes that the working directory is the root of the tester package instead of the repository itself
+* build (npm): update npm dependencies to their latest versions
 * docs: fix some outdated information in the `README.md` file and add some more details
 
 ## Version 1.3.7
 
-* feat(exceptions): add new exception code `E_SEC_UNRECOGNIZED_AUTH_METHOD`
-* fix(config): fix potential issue with `TI_GCLOUD_ENABLED` parsing as boolean
+* feat (exceptions): add new exception code `E_SEC_UNRECOGNIZED_AUTH_METHOD`
+* fix (config): fix potential issue with `TI_GCLOUD_ENABLED` parsing as boolean
 * docs: adjust some of the JSDoc descriptions and definitions
 
 ## Version 1.3.6
 
-* feat(exceptions): add new exception code `E_GEN_INVALID_ARGUMENT_TYPE`
-* feat(exceptions): add public enum with all HTTP codes exported as `httpCode` and typedef `TiHttpCode`. Use it as the type for the `httpCode` exception property
-* feat(tools): add `description` property to enum objects
-* feat(tools): add `contains` property to enum objects
-* feat(tools)!: change enum factory behavior to create a copy of the seed object instead of modifying it (may break code relying on seed object mutation)
-* refactor(exceptions): invalid `httpCode` inputs are coerced to `undefined`; `Exception.asJSON` includes `httpCode` only when defined
-* refactor(tools): deprecate method `getEnumName` in favor of `enum.name`; removal planned for 1.4.0
-* refactor(tools)!: remove method `createCSVFile` as it is unnecessary for the framework's operation. It also eliminates the dependency from `fs-extra` package
-* refactor(tools)!: disallow reserved keys as enum names; make enum properties non-enumerable and freeze the enum object to enforce immutability (may affect code relying on enumeration/extension)
-* fix(tools): fix a bug in the `RetryPolicy` class that caused the `maxAttempts` property to be ignored
-* build(npm): update npm dependencies to their latest versions
-* build(npm): remove `fs-extra` package as it is not used by the framework
-* build(npm)!: bump the minimum supported Node.js version to 18.0.0
+* feat (exceptions): add new exception code `E_GEN_INVALID_ARGUMENT_TYPE`
+* feat (exceptions): add public enum with all HTTP codes exported as `httpCode` and typedef `TiHttpCode`. Use it as the type for the `httpCode` exception property
+* feat (tools): add `description` property to enum objects
+* feat (tools): add `contains` property to enum objects
+* feat (tools)!: change enum factory behavior to create a copy of the seed object instead of modifying it (may break code relying on seed object mutation)
+* refactor (exceptions): invalid `httpCode` inputs are coerced to `undefined`; `Exception.asJSON` includes `httpCode` only when defined
+* refactor (tools): deprecate method `getEnumName` in favor of `enum.name`; removal planned for 1.4.0
+* refactor (tools)!: remove method `createCSVFile` as it is unnecessary for the framework's operation. It also eliminates the dependency from `fs-extra` package
+* refactor (tools)!: disallow reserved keys as enum names; make enum properties non-enumerable and freeze the enum object to enforce immutability (may affect code relying on enumeration/extension)
+* fix (tools): fix a bug in the `RetryPolicy` class that caused the `maxAttempts` property to be ignored
+* build (npm): update npm dependencies to their latest versions
+* build (npm): remove `fs-extra` package as it is not used by the framework
+* build (npm)!: bump the minimum supported Node.js version to 18.0.0
 
 ## Version 1.3.5
 
-* fix(redis integration): fix a duplicated log entry on connection ready event if multiple observers are registered
-* feat(service caller)!: change log level of error result in `process` method from `ERROR` to `DEBUG`. Implementers are expected to handle this and decide if the error should be propagated further or not
+* fix (redis integration): fix a duplicated log entry on connection ready event if multiple observers are registered
+* feat (service caller)!: change log level of error result in `process` method from `ERROR` to `DEBUG`. Implementers are expected to handle this and decide if the error should be propagated further or not
 * docs: update and fix various issues with the `README.md` file
 
 ## Version 1.3.4
 
-* fix(service instance): fix the way `ServiceConfiguration` is propagated via child classes and remove unnecessary defaults. Also update the relevant JSDoc
+* fix (service instance): fix the way `ServiceConfiguration` is propagated via child classes and remove unnecessary defaults. Also update the relevant JSDoc
 
 ## Version 1.3.3
 
-* feat(exceptions): add new parameter `includeData` to `Exception.asJSON` method which allows the exclusion of the data parameter from the returned JSON
-* feat(exceptions): remove several excessive exception codes that were unlikely to be used
-* fix(localization): add several missing exception labels
+* feat (exceptions): add new parameter `includeData` to `Exception.asJSON` method which allows the exclusion of the data parameter from the returned JSON
+* feat (exceptions): remove several excessive exception codes that were unlikely to be used
+* fix (localization): add several missing exception labels
 
 ## Version 1.3.2
 
-* feat(exceptions): add a set of new exception codes for the needs of any wrapping `web-server` standard communication
-* feat(exception)!: change the default prefix path for exception labels to `system.exceptions.`
-* feat(localization): add an Enum list of all language codes based on ISO 639-1 standard
-* feat(localization): add an option to the `getLabel` method to provide the language code to use for localization. If not provided, the system will use the language code from the `localization.language` setting
-* feat(localization)!: change the default structure of system labels from `labels.general.[...]` to `system.[...]`
-* refactor(localization): add typedefs and JSDoc structure for the objects used in localization
-* refactor(exceptions): refactor and fix various JSDoc descriptions
-* refactor(auditing): change the type name of `LogEntry` to `TiLogEntry` and fix some JSDoc descriptions
-* fix(exceptions): fix an issue which caused the exception to disregard the `description` value sent in the constructor and use the default one instead
-* fix(config): fix an issue with the `TI_LOCALIZATION_LABELS_PATH` variable not respecting that the underlying setting expected an array. Now it is expected to be a single path and it will be wrapped into an array automatically
-* fix(auditing): fix a potential problem with setting the log entry reporter from an ENV variable; instead, the system will now use the `ServiceInstance.instanceID` property
+* feat (exceptions): add a set of new exception codes for the needs of any wrapping `web-server` standard communication
+* feat (exception)!: change the default prefix path for exception labels to `system.exceptions.`
+* feat (localization): add an Enum list of all language codes based on ISO 639-1 standard
+* feat (localization): add an option to the `getLabel` method to provide the language code to use for localization. If not provided, the system will use the language code from the `localization.language` setting
+* feat (localization)!: change the default structure of system labels from `labels.general.[...]` to `system.[...]`
+* refactor (localization): add typedefs and JSDoc structure for the objects used in localization
+* refactor (exceptions): refactor and fix various JSDoc descriptions
+* refactor (auditing): change the type name of `LogEntry` to `TiLogEntry` and fix some JSDoc descriptions
+* fix (exceptions): fix an issue which caused the exception to disregard the `description` value sent in the constructor and use the default one instead
+* fix (config): fix an issue with the `TI_LOCALIZATION_LABELS_PATH` variable not respecting that the underlying setting expected an array. Now it is expected to be a single path and it will be wrapped into an array automatically
+* fix (auditing): fix a potential problem with setting the log entry reporter from an ENV variable; instead, the system will now use the `ServiceInstance.instanceID` property
 
 ## Version 1.3.1
 
-* feat(service caller): refactor the entire service call execution flow for clarity and better performance
-* feat(service caller): create a new private class `ServiceCallProcessor` to handle individual service calls in a contained scope
-* feat(message observer): add new property `priority` to the message observer class. It is used to determine the order in which the observers are notified about the messages
-* feat(message observer)!: change method `onMessage` to now return the message it received. This allows for the message to be modified before it is passed to the next observer based on `priority`
-* feat(message handler)!: change method `onMessage` to `notifyMessageObservers` for clarity. It now implements the `MessageObserver` functionality for prioritization and message modification
-* fix(service caller): fix an issue which did not allow for a service call to be marked as completed thus being entered into the trace log as still pending
-* fix(redis integration): remove hardcoded `#retryMaxAttempts` value in `#setupClient` method
-* fix(redis integration): fix an issue which was setting the client status to `DISCONNECTED` during a normal shut down procedure
+* feat (service caller): refactor the entire service call execution flow for clarity and better performance
+* feat (service caller): create a new private class `ServiceCallProcessor` to handle individual service calls in a contained scope
+* feat (message observer): add new property `priority` to the message observer class. It is used to determine the order in which the observers are notified about the messages
+* feat (message observer)!: change method `onMessage` to now return the message it received. This allows for the message to be modified before it is passed to the next observer based on `priority`
+* feat (message handler)!: change method `onMessage` to `notifyMessageObservers` for clarity. It now implements the `MessageObserver` functionality for prioritization and message modification
+* fix (service caller): fix an issue which did not allow for a service call to be marked as completed thus being entered into the trace log as still pending
+* fix (redis integration): remove hardcoded `#retryMaxAttempts` value in `#setupClient` method
+* fix (redis integration): fix an issue which was setting the client status to `DISCONNECTED` during a normal shut down procedure
 
 ## Version 1.3.0
 
-* feat(redis integration)!: change `reconnectOnError` behavior to also resubmit the failed command in case the error was of type `READONLY`
-* feat(redis integration): improve the reliability and usage of the event notification mechanism for connection observers
-* feat(redis integration): implement listener to the `end` event on Redis connection to capture when connection can no longer be recovered
-* feat(redis integration): notify connection observers `onConnectionLost` event
-* feat(redis integration): add redis client platform-specific status. It is used internally by the platform and can also be accessed via `redisClient.clientStatus` property
-* feat(connection observer): add new event handler `onConnectionLost` that will be invoked when the observed connection is irrevocably lost
-* feat(cache)!: implement `onConnectionLost` handler that will cause the service instance to immediately stop since it cannot work without the cache
-* fix(service caller): fix multiple promise reject condition when a service call timed out and the service handler still attempted to complete with subsequent error
-* fix(service instance): limit health check reporting to one attempt at a time to avoid unnecessary cache requests and log spam
-* fix(redis integration): fix a multiple promise resolve condition on Redis `reconnect` event
-* fix(redis integration): fix broken event propagation on `disrupted` events to some connection observers
+* feat (redis integration)!: change `reconnectOnError` behavior to also resubmit the failed command in case the error was of type `READONLY`
+* feat (redis integration): improve the reliability and usage of the event notification mechanism for connection observers
+* feat (redis integration): implement listener to the `end` event on Redis connection to capture when connection can no longer be recovered
+* feat (redis integration): notify connection observers `onConnectionLost` event
+* feat (redis integration): add redis client platform-specific status. It is used internally by the platform and can also be accessed via `redisClient.clientStatus` property
+* feat (connection observer): add new event handler `onConnectionLost` that will be invoked when the observed connection is irrevocably lost
+* feat (cache)!: implement `onConnectionLost` handler that will cause the service instance to immediately stop since it cannot work without the cache
+* fix (service caller): fix multiple promise reject condition when a service call timed out and the service handler still attempted to complete with subsequent error
+* fix (service instance): limit health check reporting to one attempt at a time to avoid unnecessary cache requests and log spam
+* fix (redis integration): fix a multiple promise resolve condition on Redis `reconnect` event
+* fix (redis integration): fix broken event propagation on `disrupted` events to some connection observers
 
 ## Version 1.2.5
 
-* feat(cache): extend method `expireValue` to work with has set fields as well
+* feat (cache): extend method `expireValue` to work with has set fields as well
 
 ## Version 1.2.4
 
-* feat(cache): expose the cache module as export in `package.json`
-* feat(cache): add method `hashDeleteField` to remove a hash-set field. This implements the `hdel` Redis command
-* fix(tools): optimize method `stringifyJSON` not to call unnecessary decycling of the value if it's not an object
-* fix(cache): replace `hmset` with `hset` Redis command in both methods that set hash-set values. Also remove unnecessary `_.isObjectLike` call in `hashSetFields` method
+* feat (cache): expose the cache module as export in `package.json`
+* feat (cache): add method `hashDeleteField` to remove a hash-set field. This implements the `hdel` Redis command
+* fix (tools): optimize method `stringifyJSON` not to call unnecessary decycling of the value if it's not an object
+* fix (cache): replace `hmset` with `hset` Redis command in both methods that set hash-set values. Also remove unnecessary `_.isObjectLike` call in `hashSetFields` method
 
 ## Version 1.2.3
 
-* feat(start instance): add support for providing a custom path to the `.env` file to be used at service startup as process argument. Accepted arguments are `--env`, `--env-file`, `--dotenv`, `--dotenv-path`, and `-e`. The path itself should be relative to the working directory and should include the file name
+* feat (start instance): add support for providing a custom path to the `.env` file to be used at service startup as process argument. Accepted arguments are `--env`, `--env-file`, `--dotenv`, `--dotenv-path`, and `-e`. The path itself should be relative to the working directory and should include the file name
 
 ## Version 1.2.2
 
-* feat(start instance): change package `dotenv` to `@dotenvx/dotenvx` for loading of ENV variables. The new package supports encrypting the ENV variables. For more information see https://dotenvx.com/docs/
+* feat (start instance): change package `dotenv` to `@dotenvx/dotenvx` for loading of ENV variables. The new package supports encrypting the ENV variables. For more information see https://dotenvx.com/docs/
 
 ## Version 1.2.1
 
-* feat(localization): add support for adding custom labels to the localization system. These have to follow the same format as the system labels
+* feat (localization): add support for adding custom labels to the localization system. These have to follow the same format as the system labels
 * docs: add section about localization to the `README.md` file
 
 ## Version 1.2.0
 
-* feat(config)!: change the setting `localization.labelsPath` to be an array of strings. It can now be used to supply any additional custom labels in one or more files to the framework
-* feat(message memory cache): implement graceful exception handling during shut down procedure in `receiveMessage` and `sendMessage` methods
-* fix(default message sender): add missing initialization of the memory cache on enable
-* fix(default message receiver): add missing initialization of the memory cache on enable
-* fix(message receiver): ensure `receive` method is no longer called recursively when the receiver has been disabled
-* fix(redis integration)!: change the way the Redis client is initialized as the previous sequence was leaving unresolved promises and in some cases failed to fetch the Redis server settings. Also, it will now notify the listeners only once when the server settings are fetched and the connection is ready to be used
-* fix(localization)!: change the way system labels are loaded as the previous implementation could cause a critical startup error if the working dir was different from expected
-* fix(package): add the missing main export to the `start-instance.js` script. Without it was impossible to start the framework in specific cases like in a workspaces repository
-* fix(message tracer): exclude `E_GEN_FEATURE_UNSUPPORTED` exception from the initialization of the message tracer exception handler
-* fix(service executor)!: change the individual service registration process to ensure service registration does actually happen before the service provider finishes its initialization
+* feat (config)!: change the setting `localization.labelsPath` to be an array of strings. It can now be used to supply any additional custom labels in one or more files to the framework
+* feat (message memory cache): implement graceful exception handling during shut down procedure in `receiveMessage` and `sendMessage` methods
+* fix (default message sender): add missing initialization of the memory cache on enable
+* fix (default message receiver): add missing initialization of the memory cache on enable
+* fix (message receiver): ensure `receive` method is no longer called recursively when the receiver has been disabled
+* fix (redis integration)!: change the way the Redis client is initialized as the previous sequence was leaving unresolved promises and in some cases failed to fetch the Redis server settings. Also, it will now notify the listeners only once when the server settings are fetched and the connection is ready to be used
+* fix (localization)!: change the way system labels are loaded as the previous implementation could cause a critical startup error if the working dir was different from expected
+* fix (package): add the missing main export to the `start-instance.js` script. Without it was impossible to start the framework in specific cases like in a workspaces repository
+* fix (message tracer): exclude `E_GEN_FEATURE_UNSUPPORTED` exception from the initialization of the message tracer exception handler
+* fix (service executor)!: change the individual service registration process to ensure service registration does actually happen before the service provider finishes its initialization
 
 ## Version 1.1.10
 
-* fix(cache): fix redis client creation sequence. It is now created inside the constructor as intended. It still needs to be initialized explicitly using the `initialize` method.
+* fix (cache): fix redis client creation sequence. It is now created inside the constructor as intended. It still needs to be initialized explicitly using the `initialize` method.
 
 ## Version 1.1.9
 
-* feat(redis integration)!: change the way the `redis` client is initialized. Instead of happening automatically on class instantiation, it is now initialized on demand using the `initialize` method.
-* feat(cache): change the way the main cache instance is initialized in compliance with the new redis integration
-* feat(message memory cache)!: change the way the message memory cache is initialized in compliance with the new redis integration. The `initialize` method needs to be called explicitly to initialize the cache instance before it can be used.
-* fix(message dispatcher): fix the way the `messageExchange` is initialized in the `MessageDispatcher` class (was not returning a promise)
+* feat (redis integration)!: change the way the `redis` client is initialized. Instead of happening automatically on class instantiation, it is now initialized on demand using the `initialize` method.
+* feat (cache): change the way the main cache instance is initialized in compliance with the new redis integration
+* feat (message memory cache)!: change the way the message memory cache is initialized in compliance with the new redis integration. The `initialize` method needs to be called explicitly to initialize the cache instance before it can be used.
+* fix (message dispatcher): fix the way the `messageExchange` is initialized in the `MessageDispatcher` class (was not returning a promise)
 
 ## Version 1.1.8
 
-* feat(auditing): change export of the singleton class in an `instance` variable for consistency and clarity
-* feat(message dispatcher): change export of the singleton class in an `instance` variable for consistency and clarity
-* feat(cache): change export of the singleton class in an `instance` variable for consistency and clarity
-* feat(service executor): implement service registration retry policy
+* feat (auditing): change export of the singleton class in an `instance` variable for consistency and clarity
+* feat (message dispatcher): change export of the singleton class in an `instance` variable for consistency and clarity
+* feat (cache): change export of the singleton class in an `instance` variable for consistency and clarity
+* feat (service executor): implement service registration retry policy
 
 ## Version 1.1.7
 
-* feat(start instance): add support for the detection of `SIGBREAK` events and graceful shutdown on Windows
-* feat(service instance)!: prevent the initialization of multiple `ServiceInstance` within the same process
-* feat(message tracer)!: covert to singleton instance and add initialization method
-* feat(message dispatcher): initialize the message tracer on start before message exchange is enabled
-* fix(message tracer): optimize `recordTraceEntry` to not call set JSON command on every request
-* fix(gcloud integration): fix the bool conversion of the `TI_GCLOUD_ENABLED` ENV variable
-* fix(redis integration): update links to official commands documentation
+* feat (start instance): add support for the detection of `SIGBREAK` events and graceful shutdown on Windows
+* feat (service instance)!: prevent the initialization of multiple `ServiceInstance` within the same process
+* feat (message tracer)!: covert to singleton instance and add initialization method
+* feat (message dispatcher): initialize the message tracer on start before message exchange is enabled
+* fix (message tracer): optimize `recordTraceEntry` to not call set JSON command on every request
+* fix (gcloud integration): fix the bool conversion of the `TI_GCLOUD_ENABLED` ENV variable
+* fix (redis integration): update links to official commands documentation
 
 ## Version 1.1.6
 
-* feat(start instance): add fail-fast mode as default behavior on promise unhandled rejections
-* feat(start instance): implement functionality to derive safe default service domain name when none is provided in the configuration
-* feat(config): add support for new ENV variable `TI_FAIL_FAST_ON_UNHANDLED_OFF` that controls the fail-fast mode
-* feat(service instance): ensure instance ID naming standard is followed when creating new instances and no ID is provided in the configuration
-* feat(redis integration): marked command `hmset` as deprecated (according to official documentation)
-* feat(redis integration)!: change redis client default behavior: set to automatically resend all pending commands on connection recovery with no limit on the retry attempts. This behavior cannot be changed. Arguments `autoRetryUnfulfilled` and `maxRetries` have been removed from the constructor
-* feat(redis integration)!: add options to configure redis connection retry policy. This can be controlled with two new arguments in the constructor `retryMaxIntervalMs` and `retryMaxAttempts`.
-* feat(redis integration)!: improve and extend the behavior of pub/sub implementation functionality. The `subscribeCommand` method can now only subscribe once to the same channel. The client instance will keep a map of all channels it has subscribed to. To unsubscribe, use the `unsubscribeCommand` method
-* feat(redis integration): add a `shutDown` method to gracefully close a redis connection. This is now used on instance shut down sequence as well as in the default message sender and receiver implementations
-* fix(start instance): fix the logging of reason for unhandled rejections and multiple resolves
-* fix(service instance): use the static service domain name to initialize the health check instead of the ENV variable
-* fix(redis integration): add detection of ReJSON2 in the verification of JSON support in the redis server
-* build(npm): update npm dependencies to their latest versions
+* feat (start instance): add fail-fast mode as default behavior on promise unhandled rejections
+* feat (start instance): implement functionality to derive safe default service domain name when none is provided in the configuration
+* feat (config): add support for new ENV variable `TI_FAIL_FAST_ON_UNHANDLED_OFF` that controls the fail-fast mode
+* feat (service instance): ensure instance ID naming standard is followed when creating new instances and no ID is provided in the configuration
+* feat (redis integration): marked command `hmset` as deprecated (according to official documentation)
+* feat (redis integration)!: change redis client default behavior: set to automatically resend all pending commands on connection recovery with no limit on the retry attempts. This behavior cannot be changed. Arguments `autoRetryUnfulfilled` and `maxRetries` have been removed from the constructor
+* feat (redis integration)!: add options to configure redis connection retry policy. This can be controlled with two new arguments in the constructor `retryMaxIntervalMs` and `retryMaxAttempts`.
+* feat (redis integration)!: improve and extend the behavior of pub/sub implementation functionality. The `subscribeCommand` method can now only subscribe once to the same channel. The client instance will keep a map of all channels it has subscribed to. To unsubscribe, use the `unsubscribeCommand` method
+* feat (redis integration): add a `shutDown` method to gracefully close a redis connection. This is now used on instance shut down sequence as well as in the default message sender and receiver implementations
+* fix (start instance): fix the logging of reason for unhandled rejections and multiple resolves
+* fix (service instance): use the static service domain name to initialize the health check instead of the ENV variable
+* fix (redis integration): add detection of ReJSON2 in the verification of JSON support in the redis server
+* build (npm): update npm dependencies to their latest versions
 * docs: add section about ENV variables to the `README.md` file
 
 ## Version 1.1.5
 
-* fix(service instance): add overrides of the `reportHealthy` method in `ServiceConsumer` and `ServiceProvider` classes
-* fix(tester): implement `reportHealthy` method
-* docs(license): add a `LICENSE` file
-* docs(license): change all licensing information in source files to GNU 3.0
+* fix (service instance): add overrides of the `reportHealthy` method in `ServiceConsumer` and `ServiceProvider` classes
+* fix (tester): implement `reportHealthy` method
+* docs (license): add a `LICENSE` file
+* docs (license): change all licensing information in source files to GNU 3.0
 * docs: improve the information in `README.md` file
 
 ## Version 1.1.4
 
-* feat(service instance): expose method `reportHealthy` and mark it as virtual to allow for overrides with custom health status reporting logic
+* feat (service instance): expose method `reportHealthy` and mark it as virtual to allow for overrides with custom health status reporting logic
 
 ## Version 1.1.3
 
-* feat(config)!: removed ENV variable `TI_OPERATION_MODE` as it was duplicating the practical purpose of `NODE_ENV`
-* feat(config)!: setting `OPERATION_MODE` is now initialized by the `NODE_ENV` ENV variable (if provided)
-* feat(service instance): show application operation mode in log at successful startup
+* feat (config)!: removed ENV variable `TI_OPERATION_MODE` as it was duplicating the practical purpose of `NODE_ENV`
+* feat (config)!: setting `OPERATION_MODE` is now initialized by the `NODE_ENV` ENV variable (if provided)
+* feat (service instance): show application operation mode in log at successful startup
 * docs: add more sections and information in `README.md`
 
 ## Version 1.1.2
 
-* feat(localization): add new functionality for localization based on labels and system language. It is currently utilized by the `exceptions` module for localizing the exception descriptions. The new `localization` module can also be accessed externally in the implementing application's files via standard import
-* feat(config): add new setting `localization.labelsPath` that specifies the file path for the localization labels
-* feat(config): add new setting `localization.language` that specifies the language to be used for the labels
-* feat(config): add new ENV variable `TI_LOCALIZATION_LABELS_PATH` that controls the `localization.labelsPath` setting
-* feat(config): add new ENV variable `TI_LOCALIZATION_LANGUAGE` that controls the `localization.language` setting
-* feat(logger): log exception label instead of system-level description
-* fix(start instance): fix the order of ENV loading in the `start-instance.js` script. It will now properly load the `.env` file first and then proceed with any configuration overrides in `config` module
-* fix(service provider): normalize service file paths on dynamic service handler loading
-* build(npm): update npm dependencies to their latest versions
+* feat (localization): add new functionality for localization based on labels and system language. It is currently utilized by the `exceptions` module for localizing the exception descriptions. The new `localization` module can also be accessed externally in the implementing application's files via standard import
+* feat (config): add new setting `localization.labelsPath` that specifies the file path for the localization labels
+* feat (config): add new setting `localization.language` that specifies the language to be used for the labels
+* feat (config): add new ENV variable `TI_LOCALIZATION_LABELS_PATH` that controls the `localization.labelsPath` setting
+* feat (config): add new ENV variable `TI_LOCALIZATION_LANGUAGE` that controls the `localization.language` setting
+* feat (logger): log exception label instead of system-level description
+* fix (start instance): fix the order of ENV loading in the `start-instance.js` script. It will now properly load the `.env` file first and then proceed with any configuration overrides in `config` module
+* fix (service provider): normalize service file paths on dynamic service handler loading
+* build (npm): update npm dependencies to their latest versions
 
 ## Version 1.1.1
 
-* feat(config): add new ENV variable `TI_AUDITING_LOG_DETAILS` that controls the `auditing.logDetails` setting
-* feat(service provider): add a method that returns a list of the currently registered services
-* feat(tester service): improved the structure, configuration, and inline docs of tester service
-* fix(logger): fix the way Exception is logged when it's a part of the main logging data object
-* docs(readme): expanded the general documentation in `README.md` with a new section and improved many of the older sections
+* feat (config): add new ENV variable `TI_AUDITING_LOG_DETAILS` that controls the `auditing.logDetails` setting
+* feat (service provider): add a method that returns a list of the currently registered services
+* feat (tester service): improved the structure, configuration, and inline docs of tester service
+* fix (logger): fix the way Exception is logged when it's a part of the main logging data object
+* docs (readme): expanded the general documentation in `README.md` with a new section and improved many of the older sections
 * docs: improved some of the JSDoc definitions across the framework
 
 ## Version 1.1.0
 
-* feat(redis integration): implement better process for fetching and storing the remote Redis server settings and enabled features
-* feat(redis integration): add getter method `serverVersion` that returns the Redis server version
-* feat(redis integration): add support for RedisJSON functionality
-* feat(redis integration): add getter method `isJSONSupported` to verify if this module is enabled/supported in Redis server
-* feat(redis integration): add separate enum for override modes `TiRedisOverrideMode`
-* feat(redis integration): add support for executing any single command in Redis that is otherwise unsupported by the underlying framework. Use method `callCommand` for that in case you need to access something more exotic or currently unimplemented
-* feat(cache): add support for working with JSON values. Currently supporting operations `set`, `get`, and `append array` with more coming in future versions
-* feat(cache): add support for setting manual expiration of values
-* feat(message tracer): change log level of trace entries from `DEBUG` to `NOTICE` for all events
-* feat(message tracer): add functionality for storing the trace entries in the `cache` in JSON format. This is the default behavior and will always work. Traces can later be retrieved from the `cache` for further processing by specialized application
-* feat(message tracer): add new property `traceTimestamp` to the trace entries as it may differ from the actual message timestamp
-* feat(config): add new setting `messageExchange.traceExpirationTime` that controls the preservation time for all trace entries. Default is one hour and will be refreshed every time a new trace is generated. Setting this to `0` will disable
+* feat (redis integration): implement better process for fetching and storing the remote Redis server settings and enabled features
+* feat (redis integration): add getter method `serverVersion` that returns the Redis server version
+* feat (redis integration): add support for RedisJSON functionality
+* feat (redis integration): add getter method `isJSONSupported` to verify if this module is enabled/supported in Redis server
+* feat (redis integration): add separate enum for override modes `TiRedisOverrideMode`
+* feat (redis integration): add support for executing any single command in Redis that is otherwise unsupported by the underlying framework. Use method `callCommand` for that in case you need to access something more exotic or currently unimplemented
+* feat (cache): add support for working with JSON values. Currently supporting operations `set`, `get`, and `append array` with more coming in future versions
+* feat (cache): add support for setting manual expiration of values
+* feat (message tracer): change log level of trace entries from `DEBUG` to `NOTICE` for all events
+* feat (message tracer): add functionality for storing the trace entries in the `cache` in JSON format. This is the default behavior and will always work. Traces can later be retrieved from the `cache` for further processing by specialized application
+* feat (message tracer): add new property `traceTimestamp` to the trace entries as it may differ from the actual message timestamp
+* feat (config): add new setting `messageExchange.traceExpirationTime` that controls the preservation time for all trace entries. Default is one hour and will be refreshed every time a new trace is generated. Setting this to `0` will disable
   expiration altogether
-* feat(config): add new setting `messageExchange.traceRepository` that specifies the name of the key in `cache` that will store the trace entries. The default one should be sufficient for most cases
-* feat(config): change default of setting `messageExchange.traceLogEnabled` to `false`. With this change trace entries will not be written to the standard log output
-* feat(exceptions): add new exception code `1006` as `E_GEN_FEATURE_UNSUPPORTED` to indicate functionality that is unsupported by the system or integrated application
-* refactor(config)!: correct the name of the ENV variable controlling `memoryCache.user` to `TI_MEMORY_CACHE_USER` from previous `MEMORY_CACHE_USER`
-* build(npm): update npm development dependencies to their latest versions
+* feat (config): add new setting `messageExchange.traceRepository` that specifies the name of the key in `cache` that will store the trace entries. The default one should be sufficient for most cases
+* feat (config): change default of setting `messageExchange.traceLogEnabled` to `false`. With this change trace entries will not be written to the standard log output
+* feat (exceptions): add new exception code `1006` as `E_GEN_FEATURE_UNSUPPORTED` to indicate functionality that is unsupported by the system or integrated application
+* refactor (config)!: correct the name of the ENV variable controlling `memoryCache.user` to `TI_MEMORY_CACHE_USER` from previous `MEMORY_CACHE_USER`
+* build (npm): update npm development dependencies to their latest versions
 * docs: update some JSDoc types and other entries to reflect the current state of the code
 
 ## Version 1.0.14
 
-* feat(message exchange): improve the behavior of `onConnectionRecovered` and `onConnectionDisrupted` events in modules `cache`, `message-handler` and `service-executor` to prevent cross-activation or deactivation
-* feat(redis integration): improve Redis integration for greater stability, support of Redis Cloud, and support for Redis 7
-* feat(config): enable setting `auditing.logDetails` by default for all logs
+* feat (message exchange): improve the behavior of `onConnectionRecovered` and `onConnectionDisrupted` events in modules `cache`, `message-handler` and `service-executor` to prevent cross-activation or deactivation
+* feat (redis integration): improve Redis integration for greater stability, support of Redis Cloud, and support for Redis 7
+* feat (config): enable setting `auditing.logDetails` by default for all logs
 * docs: update general documentation
 
 ## Version 1.0.13
 
-* build(npm): update npm dependencies to their latest versions
+* build (npm): update npm dependencies to their latest versions
 
 ## Version 1.0.12
 
-* build(npm): update npm dependencies to their latest versions
+* build (npm): update npm dependencies to their latest versions
 
 ## Version 1.0.11
 
-* feat(message exchange): implement message tampering and insertion protection
-* feat(config): provide option to turn on/off the message tampering and insertion protection
-* feat(config): provide option to turn on/off message tracing
-* build(npm): update npm dependencies to their latest versions
-* refactor(config)!: rename all environment variables that set configuration settings to match their related setting
+* feat (message exchange): implement message tampering and insertion protection
+* feat (config): provide option to turn on/off the message tampering and insertion protection
+* feat (config): provide option to turn on/off message tracing
+* build (npm): update npm dependencies to their latest versions
+* refactor (config)!: rename all environment variables that set configuration settings to match their related setting
 * docs: add a change log
 
 ## Version 1.0.0
