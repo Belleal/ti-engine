@@ -154,7 +154,6 @@ function contentHandler( repository, options ) {
             lang: record.lang,
             counterpart: counterpart ? counterpart.record : null,
             nonce: response.locals ? response.locals.nonce : undefined,
-            csrfToken: request.session ? request.session.csrfToken : undefined,
             path: requestPath,
             // Set by the capture endpoint's POST-Redirect-GET, so the outcome survives without JavaScript.
             captureStatus: ( request.query || {} ).capture,
@@ -168,6 +167,22 @@ function contentHandler( repository, options ) {
             auth: opts.auth,
             preview: preview
         };
+
+        // The session's CSRF token, minted only when a renderer actually reads it - which only a form that posts does,
+        // and which also marks the response per-session. A page that renders no form must not get one merely by being
+        // viewed: minting is what creates a session and two cookies, and on every page it made every page private.
+        // `request.csrfToken` is the framework's on-demand mint; a session's existing token is the fallback without it.
+        // Asked once and remembered: a form reads the property more than once while drawing itself.
+        let csrfToken;
+        Object.defineProperty( context, "csrfToken", {
+            enumerable: true,
+            get: () => {
+                if ( csrfToken === undefined ) {
+                    csrfToken = ( typeof request.csrfToken === "function" ) ? request.csrfToken() : ( request.session ? request.session.csrfToken : undefined );
+                }
+                return csrfToken;
+            }
+        } );
 
         // Everything the templates need beyond the record itself: eyebrow, meta, terms, breadcrumb, prev/next.
         // Built for THIS viewer, so adjacent-post links can never point at a record the repository would withhold.

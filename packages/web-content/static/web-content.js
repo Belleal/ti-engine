@@ -126,23 +126,41 @@
     }
 
     /**
+     * The CSRF token to submit with, asking the framework for one first when this browser has none yet.
+     *
+     * A shared-cached page cannot carry a per-session token, and the server no longer mints one merely because a page
+     * was viewed -- minting creates a session and two cookies, which is what used to make every page private. So a
+     * visitor submitting for the first time has no token cookie until this one request creates it.
+     */
+    function ensureToken() {
+        const existing = readCookie( "ti-xsrf-token" );
+        if ( existing ) {
+            return Promise.resolve( existing );
+        }
+        return fetch( "/csrf-token", { credentials: "same-origin", cache: "no-store" } )
+            .then( function () { return readCookie( "ti-xsrf-token" ); } );
+    }
+
+    /**
      * Posts a form to its own action with the CSRF token attached, and reports the HTTP status. Uses the form's own
      * fields, so the markup stays the single description of what is sent.
      */
     function submitForm( form ) {
-        const body = new URLSearchParams( new FormData( form ) );
-        body.set( "csrfToken", readCookie( "ti-xsrf-token" ) );
-        return fetch( form.getAttribute( "action" ), {
-            method: "POST",
-            credentials: "same-origin",
-            headers: { "content-type": "application/x-www-form-urlencoded" },
-            body: body.toString(),
-            // NOT followed. The framework answers a successful sign-in with a 303, and following it makes the
-            // outcome depend on whatever the target happens to return -- including failing outright, which is what
-            // happens when the CSP carries `upgrade-insecure-requests` and the site is being served over plain HTTP:
-            // the POST lands and creates the session, the redirect leg fails, fetch rejects, and the form reports an
-            // error for a sign-in that actually worked. The user then presses F5 and finds themselves logged in.
-            redirect: "manual"
+        return ensureToken().then( function ( token ) {
+            const body = new URLSearchParams( new FormData( form ) );
+            body.set( "csrfToken", token );
+            return fetch( form.getAttribute( "action" ), {
+                method: "POST",
+                credentials: "same-origin",
+                headers: { "content-type": "application/x-www-form-urlencoded" },
+                body: body.toString(),
+                // NOT followed. The framework answers a successful sign-in with a 303, and following it makes the
+                // outcome depend on whatever the target happens to return -- including failing outright, which is what
+                // happens when the CSP carries `upgrade-insecure-requests` and the site is being served over plain HTTP:
+                // the POST lands and creates the session, the redirect leg fails, fetch rejects, and the form reports an
+                // error for a sign-in that actually worked. The user then presses F5 and finds themselves logged in.
+                redirect: "manual"
+            } );
         } );
     }
 

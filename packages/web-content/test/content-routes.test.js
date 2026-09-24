@@ -209,3 +209,56 @@ describe( "content-routes — catch-all resolution", () => {
     } );
 
 } );
+
+describe( "content-routes — a CSRF token only where a form needs one", () => {
+
+    // A token is per-session: minting one creates a session and two cookies, and embedding it makes the page private.
+    // Every page view used to pay that, so no anonymous page could be shared by a cache. Now only a form asks.
+    const repository = new ContentRepository( buildIndex( [
+        post( "plain", "/plain/" ),
+        {
+            id: "signup", type: "page", path: "/signup/", lang: "en", title: "Sign up",
+            visibility: "public", status: "published", seo: { description: "D" },
+            sections: [ { type: "capture", purpose: "newsletter" } ]
+        }
+    ] ) );
+    const handler = contentHandler( repository, { baseUrl: "https://anarandaris.com" } );
+
+    function mintingRequest( path ) {
+        const request = fakeRequest( path );
+        request.minted = 0;
+        request.csrfToken = () => {
+            request.minted += 1;
+            return "minted-token";
+        };
+        return request;
+    }
+
+    it( "never asks for one on a page that renders no form, which stays shareable", () => {
+        const request = mintingRequest( "/plain/" );
+        const res = fakeResponse();
+        handler( request, res, () => assert.fail( "should not fall through" ) );
+        assert.equal( res.statusCode, 200 );
+        assert.equal( request.minted, 0 );
+        assert.match( res.headers[ "Cache-Control" ], /^public,/ );
+    } );
+
+    it( "asks once for a page with a capture form, renders it, and makes the page per-session", () => {
+        const request = mintingRequest( "/signup/" );
+        const res = fakeResponse();
+        handler( request, res, () => assert.fail( "should not fall through" ) );
+        assert.equal( res.statusCode, 200 );
+        assert.equal( request.minted, 1 );
+        assert.ok( String( res.body ).includes( "<input type=\"hidden\" name=\"csrfToken\" value=\"minted-token\">" ) );
+        assert.equal( res.headers[ "Cache-Control" ], "private, no-store" );
+        assert.equal( res.headers.Vary, "Cookie" );
+    } );
+
+    it( "falls back to the session's own token when the framework offers no mint", () => {
+        const res = fakeResponse();
+        handler( fakeRequest( "/signup/", { csrfToken: "session-token" } ), res, () => assert.fail( "should not fall through" ) );
+        assert.ok( String( res.body ).includes( "value=\"session-token\"" ) );
+        assert.equal( res.headers[ "Cache-Control" ], "private, no-store" );
+    } );
+
+} );
