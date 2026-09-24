@@ -796,7 +796,9 @@ module.exports.webAppHandler = ( instance ) => {
                         nonce: nonce,
                         isPartial: isPartial,
                         view: request.params.view,
-                        csrfToken: request.session?.csrfToken
+                        // Minted on demand: these views are never shared-cached (`no-store` below), and a view with a
+                        // form needs the token rendered into it whether or not the visitor had a session yet.
+                        csrfToken: ( typeof request.csrfToken === "function" ) ? request.csrfToken() : request.session?.csrfToken
                     } ).then( ( html ) => {
                         response.set( "Cache-Control", "no-store" );
                         response.set( "Content-Type", "text/html; charset=utf-8" );
@@ -911,8 +913,99 @@ module.exports.originRefererValidationHandler = ( instance ) => {
 };
 
 /**
- * Ensure a per-session CSRF token and expose it to the client via a non-HTTPOnly cookie (double-submit token).
- * Set only on GET/HEAD to avoid caching/set-cookie noise on API calls.
+ * Marks a response whose CSRF cookie has been set, so a request that both refreshes an existing session's token and
+ * renders a form sends the cookie once rather than twice.
+ *
+ * @type {symbol}
+ * @private
+ */
+const CSRF_COOKIE_SENT = Symbol( "csrfCookieSent" );
+
+/**
+ * Whether the request's session exists beyond the request itself: loaded from the store through its cookie, or
+ * written to earlier in this request.
+ * <br/>
+ * express-session hands EVERY request a session object, and a brand-new one carries nothing but its `cookie`. It is
+ * neither saved nor cookied unless something writes to it (`saveUninitialized: false`) - which is exactly what lets an
+ * anonymous page be shared by a cache, and exactly what minting a token into it on every GET used to undo.
+ *
+ * @method
+ * @param {TiSession} session
+ * @returns {boolean}
+ * @private
+ */
+let isEstablishedSession = ( session ) => {
+    return !!session && Object.keys( session ).some( ( key ) => key !== "cookie" );
+};
+
+/**
+ * Exposes a CSRF token to front-end code through a readable cookie (the double-submit pattern), once per response.
+ *
+ * @method
+ * @param {TiWebServer} instance
+ * @param {ExpressRequest} request
+ * @param {ExpressResponse} response
+ * @param {string} token
+ * @private
+ */
+let setCsrfCookie = ( instance, request, response, token ) => {
+    if ( response[ CSRF_COOKIE_SENT ] === true ) {
+        return;
+    }
+    const xfProto = String( request.get( "x-forwarded-proto" ) || "" ).toLowerCase();
+    const isSecure = ( request.secure === true ) || ( xfProto === "https" );
+    const cookieOptions = {
+        path: instance.serviceConfig.cookies.path,
+        sameSite: instance.serviceConfig.cookies.sameSite,
+        secure: isSecure,
+        httpOnly: false
+    };
+    if ( cookieOptions.sameSite === "none" && !cookieOptions.secure ) {
+        logger.log( "CSRF cookie may be blocked: SameSite=None requires Secure; ensure HTTPS or adjust config.", logger.logSeverity.WARNING );
+    }
+    if ( Number.isFinite( instance.serviceConfig.cookies.maxAge ) ) {
+        cookieOptions.maxAge = instance.serviceConfig.cookies.maxAge;
+    }
+    response.cookie( "ti-xsrf-token", token, cookieOptions );
+    response[ CSRF_COOKIE_SENT ] = true;
+};
+
+/**
+ * Returns the session's CSRF token, minting one first if it has none, and exposes it through the cookie.
+ * <br/>
+ * Minting writes to the session, so on an anonymous request it is what creates one - saved, and cookied. That is the
+ * price of a token, and it is paid only where one is needed: a page that embeds a form, or a script about to submit.
+ *
+ * @method
+ * @param {TiWebServer} instance
+ * @param {ExpressRequest} request
+ * @param {ExpressResponse} response
+ * @returns {string|undefined} The token, or undefined when the request has no session to hold one.
+ * @private
+ */
+let ensureCsrfToken = ( instance, request, response ) => {
+    const session = request.session;
+    if ( !session ) {
+        return undefined;
+    }
+    if ( !session.csrfToken ) {
+        session.csrfToken = randomBytes( 32 ).toString( "base64url" );
+    }
+    setCsrfCookie( instance, request, response, session.csrfToken );
+    return session.csrfToken;
+};
+
+/**
+ * Offers every request its CSRF token on demand, and keeps an existing session's token exposed to front-end code.
+ * <br/>
+ * `request.csrfToken()` returns the session's token, minting it first if there is none - call it wherever a token
+ * must be rendered into a page. On GET/HEAD, a session that already exists (signed in, or given a token earlier) has
+ * its token minted if missing and its cookie refreshed, exactly as before.
+ * <br/>
+ * A request WITHOUT a session is left alone. Minting into it used to happen on every GET, and that write is what made
+ * express-session save a session and set two cookies on every anonymous page view - static files included - so every
+ * response was private and nothing could be shared by a cache. Protecting state-changing requests is unchanged; see
+ * {@link csrfProtectionHandler}.
  *
  * @method
  * @param {TiWebServer} instance
@@ -921,36 +1014,40 @@ module.exports.originRefererValidationHandler = ( instance ) => {
  */
 module.exports.csrfInitHandler = ( instance ) => {
     return ( request, response, next ) => {
-        if ( request.method !== "GET" && request.method !== "HEAD" ) {
-            next();
-        } else {
-            try {
-                const session = request.session;
-                if ( session ) {
-                    if ( !session.csrfToken ) {
-                        session.csrfToken = randomBytes( 32 ).toString( "base64url" );
-                    }
-                    // Expose the token via a readable cookie for front-end code (double-submit pattern):
-                    const xfProto = String( request.get( "x-forwarded-proto" ) || "" ).toLowerCase();
-                    const isSecure = ( request.secure === true ) || ( xfProto === "https" );
-                    const cookieOptions = {
-                        path: instance.serviceConfig.cookies.path,
-                        sameSite: instance.serviceConfig.cookies.sameSite,
-                        secure: isSecure,
-                        httpOnly: false
-                    };
-                    if ( cookieOptions.sameSite === "none" && !cookieOptions.secure ) {
-                        logger.log( "CSRF cookie may be blocked: SameSite=None requires Secure; ensure HTTPS or adjust config.", logger.logSeverity.WARNING );
-                    }
-                    if ( Number.isFinite( instance.serviceConfig.cookies.maxAge ) ) {
-                        cookieOptions.maxAge = instance.serviceConfig.cookies.maxAge;
-                    }
-                    response.cookie( "ti-xsrf-token", session.csrfToken, cookieOptions );
-                }
-                next();
-            } catch ( error ) {
-                next( exceptions.raise( error, null, exceptions.httpCode.C_500 ) );
+        try {
+            request.csrfToken = () => ensureCsrfToken( instance, request, response );
+            if ( ( request.method === "GET" || request.method === "HEAD" ) && isEstablishedSession( request.session ) ) {
+                ensureCsrfToken( instance, request, response );
             }
+            next();
+        } catch ( error ) {
+            next( exceptions.raise( error, null, exceptions.httpCode.C_500 ) );
+        }
+    };
+};
+
+/**
+ * Hands a script its CSRF token before it submits: mints one if the session has none, and answers through the
+ * cookie, with no body.
+ * <br/>
+ * The counterpart of not minting on every page view. A shared-cached page cannot carry a per-session token, so a
+ * script about to post reads it from the cookie - and when there is no cookie yet, asks here first. The answer is
+ * `no-store`: it carries a session cookie.
+ *
+ * @method
+ * @returns {ExpressHandler}
+ * @public
+ */
+module.exports.csrfTokenHandler = () => {
+    return ( request, response, next ) => {
+        const token = ( typeof request.csrfToken === "function" ) ? request.csrfToken() : undefined;
+        if ( !token ) {
+            next( exceptions.raise( exceptions.exceptionCode.E_GEN_JS_INTERNAL_ERROR, {
+                details: "No session is available to hold a CSRF token; the session and CSRF middleware must run before this handler."
+            }, exceptions.httpCode.C_500 ) );
+        } else {
+            response.set( "Cache-Control", "no-store" );
+            response.status( exceptions.httpCode.C_204 ).end();
         }
     };
 };
@@ -958,7 +1055,7 @@ module.exports.csrfInitHandler = ( instance ) => {
 /**
  * Require and validate the CSRF token on state-changing requests.
  * Accept from the header 'X-CSRF-Token' or 'X-XSRF-Token', or body/query 'csrfToken'.
- * Token must match the one in the current session set by {@link csrfInitHandler}.
+ * Token must match the one in the current session, minted by {@link csrfInitHandler} or {@link csrfTokenHandler}.
  *
  * @method
  * @returns {ExpressHandler}

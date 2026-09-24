@@ -589,6 +589,8 @@ class TiWebServer extends ServiceConsumer {
      * - /app/config
      * - /logout
      * - /login/:method
+     * - /health
+     * - /csrf-token
      * <br/>
      * NOTE: You can define custom unprotected routes by overriding the {@link TiWebServer#defineUnprotectedRoutes} method.
      *
@@ -621,6 +623,9 @@ class TiWebServer extends ServiceConsumer {
         this.#webServer.post( "/login/:method", webHandlers.authenticationHandler( this ) );
         this.#webServer.post( "/logout", webHandlers.logoutHandler() );
         this.#webServer.get( "/health", webHandlers.healthHandler() );
+        // A script's way to a CSRF token when the page it runs on was served from a shared cache, which cannot carry
+        // one. Tokens are no longer minted on every anonymous page view, precisely so that such pages can be shared.
+        this.#webServer.get( "/csrf-token", webHandlers.csrfTokenHandler() );
         this.#webServer.get( "/me", webHandlers.userInformationHandler() );
         // NOTE: A callback is registered by its path, never by the configured value verbatim — that value is commonly
         // the absolute URL registered with the identity provider, which Express cannot parse as a route pattern.
@@ -671,6 +676,8 @@ class TiWebServer extends ServiceConsumer {
         this.#unprotectedRoutes.push( /^\/login\/[^/]+$/i );
         this.#unprotectedRoutes.push( "/logout" );
         this.#unprotectedRoutes.push( "/health" );
+        // Must be reachable before sign-in: the sign-in form itself is one of the forms that needs a token.
+        this.#unprotectedRoutes.push( "/csrf-token" );
         this.#unprotectedRoutes.push( RE_STATIC_UNPROTECTED );
         this.#unprotectedRoutes.push( RE_WELL_KNOWN_UNPROTECTED );
     }

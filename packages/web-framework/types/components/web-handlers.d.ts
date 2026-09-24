@@ -15,6 +15,7 @@ export declare var webAppHandler: (instance: TiWebServer) => ExpressHandler;
 export declare var sessionRefreshHandler: (instance: TiWebServer) => ExpressHandler;
 export declare var originRefererValidationHandler: (instance: any) => ExpressHandler;
 export declare var csrfInitHandler: (instance: TiWebServer) => ExpressHandler;
+export declare var csrfTokenHandler: () => ExpressHandler;
 export declare var csrfProtectionHandler: () => ExpressHandler;
 import type { TiAuthMethod } from "#auth-manager";
 import type TiWebServer from "#web-server";

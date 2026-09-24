@@ -2,6 +2,51 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.38.0
+
+* feat(web-handlers)!: mint CSRF tokens on demand, so an anonymous page view no longer creates a session or sets a
+  cookie (CA-166).
+  <br/>
+  **What was wrong.** `csrfInitHandler` wrote a token into the session on every GET that found none, then set the
+  `ti-xsrf-token` cookie on every GET regardless. Writing to the session is what makes express-session save a
+  brand-new session and cookie it - `saveUninitialized: false` only holds while nothing writes - so every response to
+  a first-time visitor, a stylesheet included, carried two `Set-Cookie` headers. Every response was therefore
+  private: a CDN could share nothing, every page view reached the server, and every one wrote a session to the store.
+  Measured on the Boris Khan site's staging deploy: two `Set-Cookie` headers on `/`, on a post and on
+  `/static/fonts.css`, and no page ever served from the edge.
+  <br/>
+  **What changed.** A token is minted only where one is needed:
+  - eagerly on GET/HEAD for a session that already exists (signed in, or given a token earlier), so signed-in pages
+    and the htmx and fetch clients that read the cookie work exactly as before;
+  - through `request.csrfToken()`, now attached to every request, for a page that renders one. The framework's own
+    views (`webAppHandler`) use it, so the sign-in page still carries its token;
+  - through the new `GET /csrf-token` (unprotected, `no-store`, 204, answers through the cookie) for a script about
+    to submit from a page that was shared-cached.
+
+  Protection of state-changing requests is unchanged: a POST still needs the session's own token, and one from a
+  visitor who never had a session is still refused. A session "exists" when it carries anything besides its cookie,
+  which is how express-session 1.19 shapes a new session, a loaded one and one behind a stale cookie - measured, not
+  assumed.
+  <br/>
+  **Breaking, narrowly.** `request.session.csrfToken` is no longer guaranteed on an anonymous request. Code that
+  renders it for a visitor who may have no session must call `request.csrfToken()` instead. Nothing in this repository
+  or in competence reads it that way; web-content's route did, and 0.4.0 changes it.
+  <br/>
+  **Verified.** 11 tests drive a real express-session app wired as `TiWebServer` wires it:
+  - no cookie on an anonymous page view, where 1.37.0 sets both;
+  - a token, and the session to hold it, for a page that renders one;
+  - the endpoint's `no-store` 204;
+  - a refresh without rotation for an existing session;
+  - a signed-in session minted on its next view;
+  - one cookie per response;
+  - the protection cases.
+
+  In real Chromium, against the real account-menu markup, a first-time visitor's sign-in fetches `/csrf-token` and
+  passes the check, while the web-content 0.3.1 client is refused with 403 - so web-content 0.4.0 ships with this.
+  Running the Boris Khan site on this tree, public pages carry no cookie and are edge-stored, a second anonymous
+  visit is served from the edge without waking the container, and browsing writes nothing to the store.
+  Web-framework 540 to 551 tests.
+
 ## Version 1.37.0
 
 * fix(ti-charts): size chart ink in pixels, so text, lines and bars no longer scale with the card. The heatmap now
