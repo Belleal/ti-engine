@@ -107,6 +107,12 @@ if ( settings.messageExchange ) {
     settings.messageExchange.securityHashKey = ( process.env.TI_MESSAGE_EXCHANGE_SECURITY_HASH_KEY !== undefined ) ? process.env.TI_MESSAGE_EXCHANGE_SECURITY_HASH_KEY : settings.messageExchange.securityHashKey;
     settings.messageExchange.traceLogEnabled = ( process.env.TI_MESSAGE_EXCHANGE_TRACE_LOG_ENABLED !== undefined ) ? tools.toBool( process.env.TI_MESSAGE_EXCHANGE_TRACE_LOG_ENABLED ) : settings.messageExchange.traceLogEnabled;
 }
+if ( settings.serviceConfig ) {
+    // The heartbeat an orchestrator watches. 1.14.0 made it optional, but without this the switch lived only in this
+    // package's own settings file, which no application can override - so a single instance with nothing watching
+    // it wrote a heartbeat every second regardless.
+    settings.serviceConfig.healthCheckEnabled = ( process.env.TI_SERVICE_HEALTH_CHECK_ENABLED !== undefined ) ? tools.toBool( process.env.TI_SERVICE_HEALTH_CHECK_ENABLED ) : settings.serviceConfig.healthCheckEnabled;
+}
 
 // Make sure GCloud is enabled before trying to set it up:
 if ( tools.toBool( process.env.TI_GCLOUD_ENABLED ) === true && settings.gcloudIntegration ) {

@@ -179,7 +179,7 @@ describe( "HttpCacheProvider — initialize", () => {
         assert.deepEqual( seenAtResolution, [ "recovered:test-cache" ] );
     } );
 
-    it( "refuses to start when the state service rejects the health probe", async () => {
+    it( "refuses to start when the state service rejects the health probe, and says how", async () => {
         stub.failNext( "/v1/health", 503 );
 
         let provider = new HttpCacheProvider( "test-cache" );
@@ -188,9 +188,36 @@ describe( "HttpCacheProvider — initialize", () => {
             ( error ) => {
                 assert.equal( error.code, exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE );
                 assert.match( error.data.details, /did not answer the health probe/ );
+                // The status is the reason. The line used to end in "undefined" instead: it read `message` from an
+                // exception that has none.
+                assert.match( error.data.details, /HTTP 503/ );
+                assert.doesNotMatch( error.data.details, /undefined/ );
                 return true;
             }
         );
+    } );
+
+    it( "names the transport failure when the probe cannot reach the service at all", async () => {
+        let provider = new HttpCacheProvider( "test-cache" );
+
+        // `fetch` says only "fetch failed" for every network-level failure, with the reason in `cause`. A deployment
+        // whose state hostname does not resolve failed exactly like this, and the log could not say so.
+        stub.breakTransport( true );
+        try {
+            await assert.rejects(
+                provider.initialize(),
+                ( error ) => {
+                    assert.equal( error.code, exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE );
+                    assert.match( error.data.details, /could not be reached for '\/v1\/health'/ );
+                    assert.match( error.data.details, /fetch failed: other side closed/ );
+                    assert.doesNotMatch( error.data.details, /undefined/ );
+                    return true;
+                }
+            );
+        } finally {
+            stub.breakTransport( false );
+            await provider.shutDown();
+        }
     } );
 
 } );
