@@ -198,6 +198,7 @@ history and older PR bodies; it is no longer the working branch.
 - `TI_INSTANCE_CLASS` — path to ServiceInstance subclass (required)
 - `TI_INSTANCE_CONFIG` — path to service config JSON
 - `TI_AUDITING_LOG_MIN_LEVEL` — log filter (0–800)
+- `TI_AUDITING_LOG_USES_JSON` — one JSON line per log entry instead of the text format (default `false`); WARNING and above go to stderr. The line carries the numeric `severity`, which GCloud reads, **and** since 1.16.0 a `level` of `debug`/`info`/`warn`/`error` (below INFO is `debug`, ERROR and up is `error`). The `level` is for platforms that read neither the number nor the stream: Cloudflare's container logs showed every line as `info` without it, stderr included. It is added to the console line only, never to the log entry. Keep the output to one line per entry: a platform that records each printed line as an event (Cloudflare again) turns the text format's data lines into separate `info` events
 - `TI_MEMORY_CACHE_REDIS_HOST` / `TI_MEMORY_CACHE_REDIS_PORT` / `TI_MEMORY_CACHE_AUTH_KEY` / `TI_MEMORY_CACHE_REDIS_DB` — Redis connection
 - `TI_MEMORY_CACHE_REQUIRED_CAPABILITIES` — comma-separated `TiCacheCapability` values the application requires of the cache backend. **Empty by default**, which is what keeps every deployment predating capabilities behaving as it did; when set, a backend missing any of them fails startup rather than raising from inside a request
 - `TI_MEMORY_CACHE_PROVIDER` — which cache backend to construct (1.14.0). `redis` (the default) and `http` (1.15.0) select built-ins; anything else is a module path resolved against the working directory and must export a `CacheProvider` subclass. A bad value fails at require time, on purpose
@@ -227,9 +228,9 @@ module.exports.service = function (serviceDefinition, serviceParams, serviceCall
 
 **Test commands**:
 ```bash
-npm test    # node --test — runs test/*.test.js: 127 tests / 33 suites across 13 files
+npm test    # node --test — runs test/*.test.js: 139 tests / 34 suites across 14 files
             # (the count includes the three test/fixtures/ modules: the default pattern runs them too)
-            # (cache-capabilities, cache-get-values, cache-provider-selection,
+            # (auditing-json-console, cache-capabilities, cache-get-values, cache-provider-selection,
             #  http-cache-provider, http-cache-integration, http-cache-config,
             #  localization, message-hash, security-hash-key-warning,
             #  service-consumer-without-exchange, service-instance-health-check,
@@ -729,7 +730,7 @@ Token: YouTrack → Profile → Account Security → New token (scope: YouTrack)
 2. **Extending the web UI**: subclass `TiWebAppManager`, add an HTML fragment + matching Alpine component; reuse framework CSS primitives; obey the Alpine CSP rules (no inline styles, no `?.`).
 3. **Config-management, from a consumer's side**: a consuming application registers a config document (schema + file default + semantic validators + optional composite editor) through `TiWebAppManager.registerConfigDocument` / `registerConfigEditor`. Those seams live here; the documents themselves live in the consumer. Changing either seam is a breaking change for every consumer, so treat the `exports` map and these signatures as API.
 4. **Testing**: Node.js built-in `node --test` (no external framework); each package's `test/` directory. `npm test`
-   at the root fans out across workspaces — **1084 tests today: core 127, web-framework 551, web-content 406, tester
+   at the root fans out across workspaces — **1096 tests today: core 139, web-framework 551, web-content 406, tester
    none** (it is a runnable service, not a unit-tested one). The three checks that gate a push are in
    `CLAUDE.md` → *Definition of done*: `npm test`, `npm run lint` (0 errors; ESLint's only rule here is
    `no-unused-vars` as a **warning**, so a clean lint is no evidence the house style was followed — read a sibling

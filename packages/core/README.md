@@ -495,6 +495,7 @@ AUDITING_LOG_USES_JSON
 : JSON path `auditing.logUsesJSON`, type `boolean`, default `false`
 : ENV variable `TI_AUDITING_LOG_USES_JSON`
 : This setting controls whether the log entries would be sent to output formatted as JSONs or not. By default, the framework outputs log entries as prettified text. In some cases, however, you might want to have the entire entry as a JSON for further processing (for example, if you're sending all logs to Elasticsearch).
+: Each entry is written as a single line, so a platform that records every line of a container's output as an event of its own keeps one entry as one event. Entries of severity WARNING and above go to STD ERR, the rest to STD OUT. The line carries the level twice, for different platforms: the numeric `severity`, which GCloud reads, and a `level` of `debug`, `info`, `warn` or `error` (1.16.0) for platforms that read neither the number nor the stream. Cloudflare's container logs are one of those: without `level` they showed every line as `info`. Anything below INFO is `debug`, and everything from ERROR up is `error`.
 
 GCLOUD_API_KEY (Alpha)
 : JSON path `gcloudIntegration.apiKey`
