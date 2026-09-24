@@ -28,7 +28,7 @@ the header block verbatim from an existing file in the same package.
 ti-engine/                         npm workspace root (v1.3.0; workspaces = packages/*)
 ├── packages/
 │   ├── core/          v1.15.2     Framework foundation (pluggable cache backend — Redis or HTTP, optional messaging, lifecycle, utils) + shipped TypeScript declarations
-│   ├── web-framework/ v1.36.0     Express server + auth (incl. real local auth) + admin config-management + config drift + Profile/About + ti-charts + role gate + TI_WEB_* env overrides + /health + route seams
+│   ├── web-framework/ v1.37.0     Express server + auth (incl. real local auth) + admin config-management + config drift + Profile/About + ti-charts + role gate + TI_WEB_* env overrides + /health + route seams
 │   ├── web-content/   v0.3.1      Content-publishing engine — path-index routing, deny-by-default visibility, SEO documents, feeds, email capture (WIP)
 │   └── tester/        v1.3.5      Reference/example service implementation + the docker-build target
 ├── .github/workflows/             ci.yml (lint/test/build) · codeql-analysis.yml · npm-publish.yml · cla.yml
@@ -241,7 +241,7 @@ npm test    # node --test — runs test/*.test.js: 124 tests / 32 suites across 
 
 ---
 
-## Package: web-framework (v1.36.0)
+## Package: web-framework (v1.37.0)
 
 **Role**: Express.js web server + authentication layer + a reusable **admin config-management subsystem** for web-facing UIs + a CSP-safe **charting primitive library** (`ti-charts.js`) + the container-deployment surface (`TI_WEB_*` env overrides, `GET /health`) and the **route-registration seams** (1.17.0) a subclass uses to mount its own routes — what `web-content` is built on.
 
@@ -267,11 +267,17 @@ npm test    # node --test — runs test/*.test.js: 124 tests / 32 suites across 
 | `bin/static/` | Frontend assets: HTMX, Alpine.js (CSP build), `safe-nonce`, framework CSS + themes, HTML fragments |
 | `bin/static/scripts/ti-charts.js` | CSP-safe SVG charting library (added 1.10.0); see *Charting primitives* below |
 | `design/admin-config-management.md` | Design doc + implementation log for the config-management feature |
-| `test/*.test.js` | `node --test` — **524 tests / 107 suites across 39 files**: the config subsystem + authorization + `ti-charts` (layout math + render structure) + the serving/deployment surface (`web-server-env-overrides`, `web-server.static-cache`, `web-server.route-seams`, `web-server.unprotected-routes`, `web-handlers.health`, `web-handlers.origin`, `web-app-manager.auth-visibility`) + the auth surface (`auth-manager`, `auth-manager.callback-path`, `auth-manager.email-verified`, **`auth-manager.openid-identity`**, `web-handlers.oauth-callback`, `web-handlers.session-*`) + **`web-handlers.csp-upgrade-insecure`** (which also pins that `cspHeaderHandler` and `httpRedirectHandler` agree about the scheme) + **`ti-framework.sidebar-overflow`** (which resolves the stylesheet's cascade rather than reading one block, because `.ti-sidebar` is declared twice and the later rule wins) + **`login-extra-slot`** (which asserts against the shipped files, because the defect it pins was what the package *contained*, and then drives `assembleHtmlView` to prove the slot actually resolves an application's component over the framework's empty default) |
+| `test/*.test.js` | `node --test` — **540 tests / 109 suites across 39 files**: the config subsystem + authorization + `ti-charts` (layout math + render structure) + the serving/deployment surface (`web-server-env-overrides`, `web-server.static-cache`, `web-server.route-seams`, `web-server.unprotected-routes`, `web-handlers.health`, `web-handlers.origin`, `web-app-manager.auth-visibility`) + the auth surface (`auth-manager`, `auth-manager.callback-path`, `auth-manager.email-verified`, **`auth-manager.openid-identity`**, `web-handlers.oauth-callback`, `web-handlers.session-*`) + **`web-handlers.csp-upgrade-insecure`** (which also pins that `cspHeaderHandler` and `httpRedirectHandler` agree about the scheme) + **`ti-framework.sidebar-overflow`** (which resolves the stylesheet's cascade rather than reading one block, because `.ti-sidebar` is declared twice and the later rule wins) + **`login-extra-slot`** (which asserts against the shipped files, because the defect it pins was what the package *contained*, and then drives `assembleHtmlView` to prove the slot actually resolves an application's component over the framework's empty default) |
 
 **Public exports** (`package.json` `exports`) — **six**: `./config-management` (config-service), `./web-application` (web-app-manager), `./web-server`, `./authorization`, `./config-drift`, `./definitions`. The last three are easy to forget and a consumer does import them: competence reaches for `./authorization` and `./config-drift` directly. Anything not on this list fails with `ERR_PACKAGE_PATH_NOT_EXPORTED`, so **adding a module a consumer needs means adding its `exports` entry** — that is the API surface, and changing it is a breaking change for every consumer.
 
-**Since the skill's last sync (1.25.1 → 1.36.0):**
+**Since the skill's last sync (1.25.1 → 1.37.0):**
+- **Chart ink is sized in pixels; only the geometry scales with the card** (1.37.0, CA-161). Every chart used to draw
+  its text, stroke widths and bars inside a viewBox scaled to the card, so a 720px card drew 26px labels over 58px
+  bars beside a 12px HTML legend, and a 280px card drew diverging labels at 5.6px. The mechanism, the fallback that
+  keeps an unmeasured chart identical to 1.36, and the stylesheet table that guards it are under *Charting
+  primitives* below. The same release fixed `renderHeatmap` ignoring `options.width`: it had hard-coded a 100-unit
+  viewBox. It also added `spec.a11yHeaders`.
 - **The login screen has an application-extension slot, and the application-specific test-user panel is gone**
   (1.36.0, BREAKING). `frame-login.html` shipped a "Test user" pill panel whose profile list was a literal array of
   **competence's** employee IDs and role codes, with its behaviour and the `ti-test-user` cookie in
@@ -482,10 +488,43 @@ npm test    # node --test — runs test/*.test.js: 124 tests / 32 suites across 
 **Frontend**: HTMX + Alpine.js (CSP build) for fragment-driven UIs. Reusable CSS primitives in `ti-framework.css` — `.ti-page-head`, `.ti-data-grid*`, `.ti-form*`, `.ti-panel-head*`, `.ti-panel-body-intro` (the canonical intro/description line under a panel head — don't hand-style per screen), `.ti-kv-label` / `.ti-kv-value` (key/value rhythm), `.ti-modal-*`, and the mask-based `.ti-icon` system (size modifiers `.xs`–`.xl`, ~40 variants); themes `ti-theme-daylight.css` / `ti-theme-black-glass.css`. `ti-framework.js` exposes the `tiApplication` Alpine store (incl. `hasRole`, `setScreenTitle`, topbar CTA slots, and `notify`/`formatException` which support a `{ message, details }` payload — the details line shows the specifics under the generic message; toasts render above open modals). Prefer these primitives over screen-specific CSS. **Remember the Alpine CSP constraints** (no inline styles, no `?.`).
 
 **Charting primitives** (`bin/static/scripts/ti-charts.js`, added 1.10.0 — built for competence's Statistics & Results reporting, which now consumes it from npm):
-- A single `renderChart(figure, spec)` dispatcher over a `{ type, data, options, a11yLabel, provisional }` spec; eight `type`s: `gauge`, `bars` (modes `stacked`/`grouped`/`diverging`), `stat`, `scatter`, `heatmap` (scales `sequential`/`diverging`), `box`, `radar`, `line` (mean + p25–p75 band, `sparkline`, stacked, `provisionalLastPoint` dashed trailing segment). Grouped `bars` and `radar` take optional legends + value labels, and `radar` optional per-axis tones (1.12.0).
+- A single `renderChart(figure, spec)` dispatcher over a `{ type, data, options, a11yLabel, a11yDesc, a11yHeaders, provisional }` spec; eight `type`s: `gauge`, `bars` (modes `stacked`/`grouped`/`diverging`), `stat`, `scatter`, `heatmap` (scales `sequential`/`diverging`), `box`, `radar`, `line` (mean + p25–p75 band, `sparkline`, stacked, `provisionalLastPoint` dashed trailing segment). Grouped `bars` and `radar` take optional legends + value labels, and `radar` optional per-axis tones (1.12.0).
 - **Pure layout helpers are unit-tested in isolation** (`gaugeArcPath`, `barSegments`, `scatterLayout`, `heatmapLayout`, `boxLayout`, `radarLayout`, `lineLayout`, …) — add a new primitive by adding its layout + render + a `SUPPORTED_TYPES` entry + a dispatch case, mirroring an existing pair.
 - **CSP discipline (enforced by tests):** build SVG with `createElementNS` + `setAttribute` only — **never** `element.style.*` except `setProperty("--var", …)`; every chart ships a visually-hidden `.ti-chart-sr` table; interactivity via `addEventListener` (the `ti-chart:select` CustomEvent).
 - Bind from Alpine with the `x-ti-chart="someSpec"` directive on a `<figure class="ti-chart">`; per-type size caps come from `figure[data-ti-chart-type]` CSS (set by `renderChart`). Tones use `--chart-seq-1…5` + grade colours in both themes.
+- **Geometry scales with the card; ink does not** (1.37.0).
+  - **Measurement.** `renderChart` hands each drawn SVG to a ResizeObserver, one per figure (kept in a `WeakMap`, so
+    a chart swapped out of the page takes its observer with it). The observer sets `--ti-chart-u`, the size of one
+    screen pixel in viewBox units, after layout and before paint. The pure helper is `unitsPerPixel`, which takes
+    the tighter axis because of `meet`.
+  - **The SVG is observed, not the figure.** Each render draws a new SVG, and a new observation always reports, so a
+    re-render at an unchanged size is measured too.
+  - **Size from the record's `contentRect`, never `getBoundingClientRect`.** The latter includes CSS transforms,
+    so a chart first measured inside a dialog scaling in at 0.5 kept 22px text afterwards (measured in Chromium).
+  - **Nothing reads layout during render**, so the fake-DOM tests never measure. A stub ResizeObserver drives the
+    measurement tests.
+  - **The CSS pattern.** Every chart text size, stroke width, dash pattern and dot radius in `ti-framework.css` is
+    `calc(<px> * var(--ti-chart-u, <old units ÷ px>))`. An unmeasured chart — hidden, or in a browser without
+    ResizeObserver — falls back to exactly the pre-1.37 unit size. That was measured identical in Chromium.
+  - **The guard.** `test/ti-charts.test.js` keeps a table of every such declaration with its old unit size and its
+    pixel size. It fails on any chart rule that sizes ink outside the table, so **a new chart rule with a size needs
+    a row there.**
+  - **Exempt: the gauge** (its text is part of the dial), and HTML stat tiles and legends.
+- **Bars have no viewBox** (1.37.0). x and width are percentages of the SVG and every height is a pixel
+  (`BAR_RHYTHM`). `.ti-chart-flow` fixes `--ti-chart-u: 1`, and the height attribute stands as the SVG's natural
+  height under the stylesheet's `height: auto` (measured in Chromium).
+  - The grouped bars' `barThickness` and `valueFontSize` are viewBox units, now **deprecated**. Passing either keeps
+    that chart on the old unit layout (`_renderBarsGroupedInUnits`), so the options mean what they always did.
+  - `.ti-chart-bar-value:not([font-size])` sizes a caption only when it carries no `font-size` attribute.
+- **Still in viewBox units, by design:** data geometry (cells, boxes, bubble radii — a bubble's size is a value) and
+  the text gutters the caller passes (heatmap `rowLabelW` / `colLabelH`, box `padLeft` / `padBottom`, radar
+  `labelPad`). On a very narrow card a long label can outgrow its gutter.
+- **Localizing the screen-reader mirror:**
+  - `spec.a11yHeaders` replaces the table's column headers by position; an empty or missing entry keeps the English
+    default.
+  - `data.sublabelName` names the gauge's sublabel row.
+  - A box's accessible name calls the median by its header.
+  - `options.width` sets the heatmap's viewBox width; before 1.37.0 it was ignored and a wider grid was cut off.
 
 **ENV variables (web-framework)** — applied by `applyWebConfigEnvOverrides`; every list-valued one **replaces** the configured array (an explicitly empty value means "none"):
 - `TI_WEB_HOST` / `TI_WEB_PORT` / `TI_WEB_USE_TLS` / `TI_WEB_TLS_CERT_PATH` / `TI_WEB_TLS_KEY_PATH` / `TI_WEB_COOKIE_SECRET` — binding, TLS, session-cookie secret (1.14.0)

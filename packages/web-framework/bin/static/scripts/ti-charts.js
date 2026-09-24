@@ -23,6 +23,11 @@
  * helpers below (unit-tested via node:test); the renderers build SVG via createElementNS +
  * setAttribute only. Dynamic visuals are presentation attributes or CSS classes — never
  * element.style.* (the single sanctioned exception is element.style.setProperty( "--var", … )).
+ *
+ * Sizing: a chart's geometry lives in viewBox units and scales with its card; its ink — text, stroke widths, marker
+ * dots — is sized in CSS pixels. The stylesheet multiplies each of those by --ti-chart-u, the size of one pixel in
+ * viewBox units, which a ResizeObserver measures once the SVG is laid out and again whenever its size changes. Bars
+ * skip the viewBox altogether and lay out in pixels. The gauge is the one exception: its text is part of the dial.
  */
 const TiCharts = ( function () {
 
@@ -777,11 +782,13 @@ const TiCharts = ( function () {
 
     /**
      * @typedef {Object} TiChartSpec
-     * @property {"gauge"|"bars"|"stat"|"scatter"|"heatmap"|"box"|"radar"} type   P0: gauge/bars/stat; 1A: scatter/heatmap/box; P3: radar.
+     * @property {"gauge"|"bars"|"stat"|"scatter"|"heatmap"|"box"|"radar"|"line"} type   P0: gauge/bars/stat; 1A: scatter/heatmap/box; P3: radar; P4: line.
      * @property {Object}  data                 per-primitive payload (the aggregation output)
      * @property {Object}  [options]            domains, sizing, labels, formatting
      * @property {string}  a11yLabel            role=img label (also injected as <title>)
      * @property {string}  [a11yDesc]           injected as <desc>
+     * @property {string[]} [a11yHeaders]       column headers of the screen-reader table, by position; a missing entry
+     *                                          keeps the renderer's English default
      * @property {boolean} [provisional]        draws the "as of now / % reporting" hatch for ACTIVE cycles
      */
 
@@ -793,7 +800,7 @@ const TiCharts = ( function () {
      */
     function normalizeSpec( spec ) {
         if ( !spec || typeof spec !== "object" ) {
-            return { type: "unsupported", data: {}, options: {}, a11yLabel: "", a11yDesc: "", provisional: false };
+            return { type: "unsupported", data: {}, options: {}, a11yLabel: "", a11yDesc: "", a11yHeaders: [], provisional: false };
         }
         const supported = ( SUPPORTED_TYPES.indexOf( spec.type ) >= 0 );
         return {
@@ -802,8 +809,22 @@ const TiCharts = ( function () {
             options: ( spec.options && typeof spec.options === "object" ) ? spec.options : {},
             a11yLabel: ( typeof spec.a11yLabel === "string" ) ? spec.a11yLabel : "",
             a11yDesc: ( typeof spec.a11yDesc === "string" ) ? spec.a11yDesc : "",
+            a11yHeaders: Array.isArray( spec.a11yHeaders ) ? spec.a11yHeaders : [],
             provisional: Boolean( spec.provisional )
         };
+    }
+
+    /**
+     * The screen-reader table's column headers: the spec's a11yHeaders by position, falling back to the renderer's own
+     * for any column the spec leaves out. The defaults are English, and a table read out in a localized application is
+     * otherwise the one part of the chart the application cannot translate.
+     * @param {TiChartSpec} spec
+     * @param {string[]} defaults
+     * @returns {string[]}
+     */
+    function _srHeaders( spec, defaults ) {
+        const given = Array.isArray( spec.a11yHeaders ) ? spec.a11yHeaders : [];
+        return defaults.map( ( header, i ) => ( typeof given[ i ] === "string" && given[ i ] !== "" ) ? given[ i ] : header );
     }
 
     function _clearChildren( node ) {
@@ -813,11 +834,80 @@ const TiCharts = ( function () {
     }
 
     /**
+     * The size of one CSS pixel in viewBox units, for an SVG drawn with preserveAspectRatio="xMidYMid meet" — the
+     * reciprocal of the smaller of its two axis scales, since "meet" fits the drawing to whichever axis is tighter. The
+     * stylesheet multiplies chart text, stroke widths and marker dots by it (as --ti-chart-u), which is what keeps them
+     * one pixel size while the drawing scales with its card. Pure.
+     * @param {{width:number,height:number}} viewBox  the viewBox extent, in user units
+     * @param {{width:number,height:number}} box      the rendered size, in CSS pixels
+     * @returns {number|null} units per pixel to four decimals, or null when either size is empty (a hidden card)
+     */
+    function unitsPerPixel( viewBox, box ) {
+        if ( !viewBox || !box || !( viewBox.width > 0 ) || !( viewBox.height > 0 ) || !( box.width > 0 ) || !( box.height > 0 ) ) {
+            return null;
+        }
+        const scale = Math.min( box.width / viewBox.width, box.height / viewBox.height );
+        return Math.round( 10000 / scale ) / 10000;
+    }
+
+    // The viewBox extent of an SVG, or null when it has none — a pixel layout (the bars) needs no measuring.
+    function _viewBoxOf( svg ) {
+        const extent = String( svg.getAttribute( "viewBox" ) || "" ).trim().split( /[\s,]+/ );
+        return ( extent.length === 4 ) ? { width: Number( extent[ 2 ] ), height: Number( extent[ 3 ] ) } : null;
+    }
+
+    // Sets --ti-chart-u on a rendered SVG from the layout size its ResizeObserver reported. The observer's content
+    // rect rather than getBoundingClientRect, because the latter includes CSS transforms: a chart first measured inside
+    // a dialog still scaling in would have kept its text off by the animation's scale until the next resize. With no
+    // size yet (a hidden card) the property stays unset and the stylesheet's fallback applies.
+    function _applyScale( svg, box ) {
+        const viewBox = _viewBoxOf( svg );
+        const u = viewBox ? unitsPerPixel( viewBox, box ) : null;
+        if ( u !== null && svg.style && typeof svg.style.setProperty === "function" ) {
+            svg.style.setProperty( "--ti-chart-u", String( u ) ); // sanctioned --var exception
+        }
+    }
+
+    // Per figure: the SVG it currently shows and the ResizeObserver measuring it. A WeakMap keyed by the figure, and an
+    // observer per figure rather than one shared, so a chart swapped out of the page takes both with it — a shared
+    // observer would hold every SVG it had ever watched.
+    const _scaleTracking = ( typeof WeakMap === "function" ) ? new WeakMap() : null;
+
+    // Has a freshly rendered SVG measured by a ResizeObserver rather than on the spot: the observer reports after
+    // layout and before paint, so the first frame is already right without forcing a synchronous layout per chart, and
+    // it reports again whenever the SVG's size changes — a resized card, a hidden card shown. Each render draws a new
+    // SVG and a new SVG is a new observation, so a re-render at an unchanged size is measured too.
+    function _trackScale( figure, svg ) {
+        if ( !_scaleTracking || typeof ResizeObserver !== "function" ) {
+            return;
+        }
+        let entry = _scaleTracking.get( figure );
+        if ( !entry ) {
+            entry = { svg: null };
+            entry.observer = new ResizeObserver( ( records ) => {
+                for ( let i = 0; i < records.length; i++ ) {
+                    _applyScale( records[ i ].target, records[ i ].contentRect );
+                }
+            } );
+            _scaleTracking.set( figure, entry );
+        }
+        if ( entry.svg ) {
+            entry.observer.unobserve( entry.svg );
+        }
+        entry.svg = ( svg && typeof svg.getAttribute === "function" && _viewBoxOf( svg ) ) ? svg : null;
+        if ( entry.svg ) {
+            entry.observer.observe( entry.svg );
+        }
+    }
+
+    /**
      * Renders a Coverage-style gauge: a 270° track, a value arc (dashed cap when provisional),
      * a centre value, a label, an optional sublabel ("% reporting" caveat), and optional sub-rows.
-     * All geometry from gaugeArcPath/gaugeRowsLayout.
+     * All geometry from gaugeArcPath/gaugeRowsLayout. `data.sublabelName` names the sublabel's row in the
+     * screen-reader table (default "Reporting").
      * @param {Element} figure host <figure class="ti-chart">
      * @param {TiChartSpec} spec
+     * @returns {Element} the svg
      */
     function renderGauge( figure, spec ) {
         const data = spec.data;
@@ -861,10 +951,10 @@ const TiCharts = ( function () {
         figure.appendChild( svg );
 
         // a11y mirror: overall (+ the reporting caveat) + each sub-row
-        const headers = [ "Group", "Coverage" ];
+        const headers = _srHeaders( spec, [ "Group", "Coverage" ] );
         const srRows = [ [ data.label || spec.a11yLabel, formatPercent( value ) ] ];
         if ( data.sublabel ) {
-            srRows.push( [ "Reporting", data.sublabel ] );
+            srRows.push( [ ( typeof data.sublabelName === "string" && data.sublabelName !== "" ) ? data.sublabelName : "Reporting", data.sublabel ] );
         }
         if ( Array.isArray( data.rows ) ) {
             const laid = gaugeRowsLayout( data.rows, { width: 100 } );
@@ -873,6 +963,7 @@ const TiCharts = ( function () {
             }
         }
         figure.appendChild( buildSrTable( headers, srRows ) );
+        return svg;
     }
 
     // Appends a <title>/<desc> pair to an svg from the spec's a11y fields.
@@ -887,11 +978,41 @@ const TiCharts = ( function () {
         }
     }
 
+    // Bar rhythm, in CSS pixels. Bars lay out without a viewBox: every x and width is a percentage of the SVG's width
+    // and every height a pixel, so a bar and its caption keep one size on any card and a chart with more rows simply
+    // grows taller. In the 100-unit viewBox they used to share, the whole drawing scaled with the card, and a 720px
+    // chart drew 58px bars under 26px captions beside the 12px HTML legend underneath it.
+    const BAR_RHYTHM = {
+        padTop: 2,
+        captionH: 18,           // the band above a bar that holds its caption line
+        captionBaseline: 13,    // the caption's baseline inside that band, leaving its descenders clear of the bar
+        barH: 10,               // a stacked bar
+        subBarH: 8,             // each bar of a grouped or diverging row
+        subGap: 4,              // between the bars of one row — an 11px value caption needs the 12px pitch
+        rowGap: 12,             // between a row's last bar and the next caption
+        padBottom: 2,
+        radius: 2,
+        valueTrack: 86,         // percent of the width a grouped bar may span when a value caption follows it
+        valueGap: 6             // between a grouped bar's end and its value caption
+    };
+
+    // The SVG of a pixel layout. With no viewBox one user unit is one CSS pixel, and the height attribute stands as its
+    // natural height under the stylesheet's height: auto.
+    function _barsSvg( height ) {
+        return svgEl( "svg", { class: "ti-chart-flow", height: _round( height ), role: "img" } );
+    }
+
+    // A percentage attribute value, for an x or width in the pixel layout.
+    function _pct( n ) {
+        return _round( n ) + "%";
+    }
+
     /**
      * Renders bars. Dispatches on options.mode: "stacked" (default, the Phase-0 horizontal stacked segments),
      * "grouped" (sub-bars per row sharing one global max — R2 time), "diverging" (centered on zero — R6 drivers).
      * @param {Element} figure
      * @param {TiChartSpec} spec
+     * @returns {Element|null} the svg, or null for an empty chart
      */
     function renderBars( figure, spec ) {
         const mode = ( spec.options && spec.options.mode ) || "stacked";
@@ -914,34 +1035,31 @@ const TiCharts = ( function () {
         const rows = Array.isArray( data.rows ) ? data.rows : [];
         if ( rows.length === 0 ) {
             figure.setAttribute( "data-ti-chart-empty", "1" );
-            return;
+            return null;
         }
-        // viewBox units — not CSS pixels. Per row: a caption line (labelH) + the bar (rowH) + a gap. Bars opt out of
-        // the global svg max-height (ti-framework.css), so this scale stays identical regardless of how many rows a
-        // chart has — a short subtree chart and a tall org-wide one render at the same bar thickness.
-        const trackW = 100, rowH = 9, gap = 7, labelH = 5, padTop = 4;
-        const height = padTop + ( rows.length * ( labelH + rowH + gap ) );
+        const R = BAR_RHYTHM;
+        const height = R.padTop + ( rows.length * ( R.captionH + R.barH ) ) + ( ( rows.length - 1 ) * R.rowGap ) + R.padBottom;
 
-        const svg = svgEl( "svg", { viewBox: "0 0 100 " + _round( height ), preserveAspectRatio: "xMidYMid meet", role: "img" } );
+        const svg = _barsSvg( height );
         _appendA11yTitle( svg, spec );
 
         const srRows = [];
-        let cursorY = padTop;
+        let cursorY = R.padTop;
         for ( let r = 0; r < rows.length; r++ ) {
             const row = rows[ r ];
             // Caption: row label on the left, optional value (e.g. "% complete") right-aligned above the bar.
-            const capY = _round( cursorY + labelH - 2 );
+            const capY = cursorY + R.captionBaseline;
             const lbl = svgEl( "text", { x: 0, y: capY, class: "ti-chart-bar-label" } );
             lbl.textContent = row.label || row.id || "";
             svg.appendChild( lbl );
             if ( row.valueLabel ) {
-                const val = svgEl( "text", { x: trackW, y: capY, "text-anchor": "end", class: "ti-chart-bar-label" } );
+                const val = svgEl( "text", { x: "100%", y: capY, "text-anchor": "end", class: "ti-chart-bar-label" } );
                 val.textContent = row.valueLabel;
                 svg.appendChild( val );
             }
-            const barY = cursorY + labelH;
+            const barY = cursorY + R.captionH;
             const segSource = row.segments || row.values || [];
-            const segs = barSegments( segSource, { width: trackW, total: row.total } );
+            const segs = barSegments( segSource, { width: 100, total: row.total } );
             for ( let s = 0; s < segs.length; s++ ) {
                 let cls = "ti-chart-bar-seg";
                 if ( segs[ s ].tone ) {
@@ -950,17 +1068,18 @@ const TiCharts = ( function () {
                 if ( spec.provisional && segs[ s ].key === "Not started" ) {
                     cls = cls + " ti-chart-provisional";
                 }
-                const rect = svgEl( "rect", { x: segs[ s ].x, y: barY, width: segs[ s ].width, height: rowH, rx: 2, class: cls } );
+                const rect = svgEl( "rect", { x: _pct( segs[ s ].x ), y: barY, width: _pct( segs[ s ].width ), height: R.barH, rx: R.radius, class: cls } );
                 svg.appendChild( rect );
                 srRows.push( [ row.label || row.id, segs[ s ].key, String( segSource[ s ].v || 0 ) ] );
             }
-            cursorY = barY + rowH + gap;
+            cursorY = barY + R.barH + R.rowGap;
         }
         figure.appendChild( svg );
         if ( spec.options && Array.isArray( spec.options.legend ) && spec.options.legend.length > 0 ) {
             figure.appendChild( _buildChartLegend( spec.options.legend ) );
         }
-        figure.appendChild( buildSrTable( [ "Row", "Segment", "Count" ], srRows ) );
+        figure.appendChild( buildSrTable( _srHeaders( spec, [ "Row", "Segment", "Count" ] ), srRows ) );
+        return svg;
     }
 
     /**
@@ -992,22 +1111,94 @@ const TiCharts = ( function () {
      * Grouped horizontal bars: per row, one sub-bar per value, all widths on one shared global max so rows compare.
      * A swatch legend is rendered below the chart when spec.options.legend is provided, and a per-bar value caption
      * (formatNumber, 2dp) is drawn at each bar's end when spec.options.valueLabels is set.
+     *
+     * spec.options.barThickness and valueFontSize are viewBox units — they size a chart in the unit layout, so passing
+     * either one keeps that layout (see _renderBarsGroupedInUnits). Both are deprecated: the pixel layout needs neither.
      */
     function _renderBarsGrouped( figure, spec ) {
         const data = spec.data;
         const rows = Array.isArray( data.rows ) ? data.rows : [];
         if ( rows.length === 0 ) {
             figure.setAttribute( "data-ti-chart-empty", "1" );
-            return;
+            return null;
         }
-        const valueLabels = !!( spec.options && spec.options.valueLabels );
-        // Optional bar height + value-caption font (viewBox units) — default to the layout's own 4 / the CSS size.
-        const barThickness = ( spec.options && typeof spec.options.barThickness === "number" ) ? spec.options.barThickness : null;
-        const valueFontSize = ( spec.options && typeof spec.options.valueFontSize === "number" ) ? spec.options.valueFontSize : null;
+        const options = spec.options || {};
+        if ( typeof options.barThickness === "number" || typeof options.valueFontSize === "number" ) {
+            return _renderBarsGroupedInUnits( figure, spec, rows );
+        }
+        const R = BAR_RHYTHM;
+        const valueLabels = !!options.valueLabels;
+        // Widths are percentages of the SVG; a value caption needs room after the longest bar, so the track stops short.
+        const layout = barsGroupedLayout( rows, { trackW: valueLabels ? R.valueTrack : 100, barH: R.subBarH, gap: R.subGap } );
+        // barsGroupedLayout counts a gap after every bar, the last one included; the pixel layout draws none after it.
+        // A row with no values has no bars and no trailing gap to take back.
+        const barsH = ( row ) => Math.max( 0, row.rowHeight - R.subGap );
+        let height = R.padTop + R.padBottom;
+        for ( let i = 0; i < layout.rows.length; i++ ) {
+            height += R.captionH + barsH( layout.rows[ i ] ) + ( ( i > 0 ) ? R.rowGap : 0 );
+        }
+
+        const svg = _barsSvg( height );
+        _appendA11yTitle( svg, spec );
+
+        const srRows = [];
+        let cursorY = R.padTop;
+        for ( let r = 0; r < layout.rows.length; r++ ) {
+            const row = layout.rows[ r ];
+            const lbl = svgEl( "text", { x: 0, y: cursorY + R.captionBaseline, class: "ti-chart-bar-label" } );
+            lbl.textContent = row.label;
+            svg.appendChild( lbl );
+            const barsTop = cursorY + R.captionH;
+            for ( let b = 0; b < row.bars.length; b++ ) {
+                const bar = row.bars[ b ];
+                let cls = "ti-chart-bar-seg";
+                if ( bar.tone ) {
+                    cls = cls + " tone-" + bar.tone;
+                }
+                const barY = barsTop + bar.subY;
+                const rect = svgEl( "rect", { x: 0, y: barY, width: _pct( bar.width ), height: bar.height, rx: R.radius, class: cls } );
+                if ( spec.provisional ) {
+                    rect.setAttribute( "opacity", "0.7" );
+                }
+                svg.appendChild( rect );
+                if ( valueLabels ) {
+                    // No font-size attribute: the stylesheet sizes .ti-chart-bar-value in pixels, and only a caption
+                    // that carries the attribute (the unit layout's valueFontSize) is exempt from that rule.
+                    const vt = svgEl( "text", {
+                        x: _pct( bar.width ),
+                        dx: R.valueGap,
+                        y: _round( barY + ( bar.height / 2 ) ),
+                        class: "ti-chart-bar-value",
+                        "dominant-baseline": "central"
+                    } );
+                    vt.textContent = formatNumber( bar.v, 2 );
+                    svg.appendChild( vt );
+                }
+                srRows.push( [ row.label, bar.key, String( bar.v ) ] );
+            }
+            cursorY = barsTop + barsH( row ) + R.rowGap;
+        }
+        figure.appendChild( svg );
+        if ( Array.isArray( options.legend ) && options.legend.length > 0 ) {
+            figure.appendChild( _buildChartLegend( options.legend ) );
+        }
+        figure.appendChild( buildSrTable( _srHeaders( spec, [ "Row", "Series", "Value" ] ), srRows ) );
+        return svg;
+    }
+
+    // The grouped bars' unit layout — a 100-unit viewBox — kept for callers still passing barThickness or
+    // valueFontSize, which only mean something there. Everything else about it is as it was before the pixel layout.
+    function _renderBarsGroupedInUnits( figure, spec, rows ) {
+        const options = spec.options;
+        const valueLabels = !!options.valueLabels;
+        const barThickness = ( typeof options.barThickness === "number" ) ? options.barThickness : null;
+        const valueFontSize = ( typeof options.valueFontSize === "number" ) ? options.valueFontSize : null;
         // Reserve a right gutter for the value caption so it never spills past the 100-wide viewBox.
         const trackW = valueLabels ? 86 : 100, rowGap = 6, labelH = 5, padTop = 4;
         const layoutOpts = { trackW: trackW };
-        if ( barThickness !== null ) { layoutOpts.barH = barThickness; }
+        if ( barThickness !== null ) {
+            layoutOpts.barH = barThickness;
+        }
         const layout = barsGroupedLayout( rows, layoutOpts );
         let height = padTop;
         for ( let i = 0; i < layout.rows.length; i++ ) {
@@ -1037,16 +1228,18 @@ const TiCharts = ( function () {
                 }
                 svg.appendChild( rect );
                 if ( valueLabels ) {
-                    // The caption uses .ti-chart-bar-value (fill only — NO font-size in CSS), so the font-size
-                    // presentation attribute actually governs; a CSS font-size rule (e.g. .ti-chart-bar-label) would
-                    // otherwise win over it. Default 4 matches the prior caption size.
-                    const vt = svgEl( "text", {
+                    const attrs = {
                         x: _round( bar.width + 1.5 ),
                         y: _round( barsTop + bar.subY + ( bar.height / 2 ) ),
                         class: "ti-chart-bar-value",
-                        "font-size": ( valueFontSize !== null ) ? valueFontSize : 4,
                         "dominant-baseline": "central"
-                    } );
+                    };
+                    // The attribute governs only because the stylesheet's .ti-chart-bar-value rule skips a caption
+                    // carrying one; without valueFontSize the caption is sized by that rule like every other.
+                    if ( valueFontSize !== null ) {
+                        attrs[ "font-size" ] = valueFontSize;
+                    }
+                    const vt = svgEl( "text", attrs );
                     vt.textContent = formatNumber( bar.v, 2 );
                     svg.appendChild( vt );
                 }
@@ -1055,10 +1248,11 @@ const TiCharts = ( function () {
             cursorY = barsTop + row.rowHeight + rowGap;
         }
         figure.appendChild( svg );
-        if ( spec.options && Array.isArray( spec.options.legend ) && spec.options.legend.length > 0 ) {
-            figure.appendChild( _buildChartLegend( spec.options.legend ) );
+        if ( Array.isArray( options.legend ) && options.legend.length > 0 ) {
+            figure.appendChild( _buildChartLegend( options.legend ) );
         }
-        figure.appendChild( buildSrTable( [ "Row", "Series", "Value" ], srRows ) );
+        figure.appendChild( buildSrTable( _srHeaders( spec, [ "Row", "Series", "Value" ] ), srRows ) );
+        return svg;
     }
 
     /**
@@ -1070,28 +1264,35 @@ const TiCharts = ( function () {
         const rows = Array.isArray( data.rows ) ? data.rows : [];
         if ( rows.length === 0 ) {
             figure.setAttribute( "data-ti-chart-empty", "1" );
-            return;
+            return null;
         }
-        // Landscape viewBox (width 200) so a 9-row diverging chart reads wide, not portrait; the bar math scales to trackW.
-        const trackW = 200, rowH = 8, gap = 3, labelH = 5, padTop = 4;
-        const layout = barsDivergingLayout( rows, { trackW: trackW } );
-        const bandH = labelH + rowH + gap;
-        const height = padTop + ( layout.rows.length * bandH );
+        const R = BAR_RHYTHM;
+        // Percentages of the SVG's width: the centre sits at 50 and each half spans one max-abs.
+        const layout = barsDivergingLayout( rows, { trackW: 100 } );
+        const barsH = ( row ) => ( Math.max( 1, row.bars.length ) * ( R.subBarH + R.subGap ) ) - R.subGap;
+        let height = R.padTop + R.padBottom;
+        for ( let i = 0; i < layout.rows.length; i++ ) {
+            height += R.captionH + barsH( layout.rows[ i ] ) + ( ( i > 0 ) ? R.rowGap : 0 );
+        }
 
-        const svg = svgEl( "svg", { viewBox: "0 0 200 " + _round( height ), preserveAspectRatio: "xMidYMid meet", role: "img" } );
+        const svg = _barsSvg( height );
         _appendA11yTitle( svg, spec );
-        svg.appendChild( svgEl( "line", { x1: layout.center, y1: padTop, x2: layout.center, y2: _round( height ), class: "ti-chart-bar-axis" } ) );
+        svg.appendChild( svgEl( "line", {
+            x1: _pct( layout.center ),
+            y1: R.padTop,
+            x2: _pct( layout.center ),
+            y2: _round( height - R.padBottom ),
+            class: "ti-chart-bar-axis"
+        } ) );
 
         const srRows = [];
+        let cursorY = R.padTop;
         for ( let r = 0; r < layout.rows.length; r++ ) {
             const row = layout.rows[ r ];
-            const bandTop = padTop + ( r * bandH );
-            const lbl = svgEl( "text", { x: 0, y: _round( bandTop + 3.5 ), class: "ti-chart-bar-label" } );
+            const lbl = svgEl( "text", { x: 0, y: cursorY + R.captionBaseline, class: "ti-chart-bar-label" } );
             lbl.textContent = row.label;
             svg.appendChild( lbl );
-            const barsTop = bandTop + labelH;
-            const sub = Math.max( 1, row.bars.length );
-            const subH = rowH / sub;
+            const barsTop = cursorY + R.captionH;
             for ( let b = 0; b < row.bars.length; b++ ) {
                 const bar = row.bars[ b ];
                 let cls = "ti-chart-bar-seg";
@@ -1099,11 +1300,11 @@ const TiCharts = ( function () {
                     cls = cls + " tone-" + bar.tone;
                 }
                 const rect = svgEl( "rect", {
-                    x: bar.x,
-                    y: _round( barsTop + ( b * subH ) ),
-                    width: bar.width,
-                    height: _round( subH * 0.9 ),
-                    rx: 0.5,
+                    x: _pct( bar.x ),
+                    y: barsTop + ( b * ( R.subBarH + R.subGap ) ),
+                    width: _pct( bar.width ),
+                    height: R.subBarH,
+                    rx: R.radius,
                     class: cls
                 } );
                 if ( spec.provisional ) {
@@ -1112,9 +1313,11 @@ const TiCharts = ( function () {
                 svg.appendChild( rect );
                 srRows.push( [ row.label, bar.key, String( bar.v ) ] );
             }
+            cursorY = barsTop + barsH( row ) + R.rowGap;
         }
         figure.appendChild( svg );
-        figure.appendChild( buildSrTable( [ "Row", "Series", "Gap" ], srRows ) );
+        figure.appendChild( buildSrTable( _srHeaders( spec, [ "Row", "Series", "Gap" ] ), srRows ) );
+        return svg;
     }
 
     /**
@@ -1122,6 +1325,7 @@ const TiCharts = ( function () {
      * fill width rides as a CSS var via setProperty (the sanctioned style exception).
      * @param {Element} figure
      * @param {TiChartSpec} spec
+     * @returns {null} a stat tile draws no svg
      */
     function renderStat( figure, spec ) {
         const data = spec.data;
@@ -1155,7 +1359,8 @@ const TiCharts = ( function () {
             wrap.appendChild( bar );
         }
         figure.appendChild( wrap );
-        figure.appendChild( buildSrTable( [ "Metric", "Value" ], [ [ data.label || spec.a11yLabel, ( hasValue ? formatNumber( data.value ) : "—" ) ] ] ) );
+        figure.appendChild( buildSrTable( _srHeaders( spec, [ "Metric", "Value" ] ), [ [ data.label || spec.a11yLabel, ( hasValue ? formatNumber( data.value ) : "—" ) ] ] ) );
+        return null;
     }
 
     /**
@@ -1163,6 +1368,7 @@ const TiCharts = ( function () {
      * point (radius from z when options.bubble==="z"). Points are drill-interactive unless options.anonymize.
      * @param {Element} figure
      * @param {TiChartSpec} spec
+     * @returns {Element} the svg
      */
     function renderScatter( figure, spec ) {
         const data = spec.data;
@@ -1213,14 +1419,17 @@ const TiCharts = ( function () {
             srRows.push( [ anonymize ? "" : ( ( p.label !== null && p.label !== undefined ) ? String( p.label ) : String( p.id || "" ) ), formatNumber( p.x, 2 ), formatNumber( p.y, 2 ), ( p.z !== null ) ? formatNumber( p.z, 2 ) : "—" ] );
         }
         figure.appendChild( svg );
-        figure.appendChild( buildSrTable( [ "Point", "Manager", "Self", "Team" ], srRows ) );
+        figure.appendChild( buildSrTable( _srHeaders( spec, [ "Point", "Manager", "Self", "Team" ] ), srRows ) );
+        return svg;
     }
 
     /**
      * Renders a heatmap (R4): a grid of cells colored by a sequential quantile ramp (cell-q1..5) or a diverging
      * grade scale (cell-pos/neg with magnitude as the opacity presentation attribute), plus row/column labels.
+     * options.width sets the viewBox width, and with it the grid's aspect ratio.
      * @param {Element} figure
      * @param {TiChartSpec} spec
+     * @returns {Element|null} the svg, or null for an empty chart
      */
     function renderHeatmap( figure, spec ) {
         const data = spec.data;
@@ -1229,12 +1438,14 @@ const TiCharts = ( function () {
         const cells = Array.isArray( data.cells ) ? data.cells : [];
         if ( rows.length === 0 || cols.length === 0 ) {
             figure.setAttribute( "data-ti-chart-empty", "1" );
-            return;
+            return null;
         }
         const scale = ( spec.options && spec.options.scale === "diverging" ) ? "diverging" : "sequential";
         const layout = heatmapLayout( rows, cols, cells, Object.assign( {}, spec.options, { scale: scale } ) );
 
-        const svg = svgEl( "svg", { viewBox: "0 0 100 " + _round( layout.height ), preserveAspectRatio: "xMidYMid meet", role: "img" } );
+        // The layout's own width, not a fixed 100: heatmapLayout spreads the grid across options.width, and a viewBox
+        // that ignored it cut off every column past 100 units.
+        const svg = svgEl( "svg", { viewBox: "0 0 " + _round( layout.width ) + " " + _round( layout.height ), preserveAspectRatio: "xMidYMid meet", role: "img" } );
         _appendA11yTitle( svg, spec );
 
         const _heatRowLabels = rows.map( ( r ) => r.label || r.id );
@@ -1282,7 +1493,8 @@ const TiCharts = ( function () {
             const v = cell.suppressed ? "n<min" : ( ( scale === "diverging" ) ? formatNumber( cell.delta, 2 ) : formatNumber( cell.v, 2 ) );
             srRows.push( [ String( rowByIndex[ cell.r ] || cell.r ), String( colByIndex[ cell.c ] || cell.c ), v ] );
         }
-        figure.appendChild( buildSrTable( [ "Row", "Column", ( scale === "diverging" ) ? "Gap" : "Value" ], srRows ) );
+        figure.appendChild( buildSrTable( _srHeaders( spec, [ "Row", "Column", ( scale === "diverging" ) ? "Gap" : "Value" ] ), srRows ) );
+        return svg;
     }
 
     /**
@@ -1290,14 +1502,16 @@ const TiCharts = ( function () {
      * optional dashed expected marker and mean dot, plus global reference line(s).
      * @param {Element} figure
      * @param {TiChartSpec} spec
+     * @returns {Element|null} the svg, or null for an empty chart
      */
     function renderBox( figure, spec ) {
         const data = spec.data;
         const groups = Array.isArray( data.groups ) ? data.groups : [];
         if ( groups.length === 0 ) {
             figure.setAttribute( "data-ti-chart-empty", "1" );
-            return;
+            return null;
         }
+        const headers = _srHeaders( spec, [ "Level", "Min", "Q1", "Median", "Q3", "Max", "N" ] );
         const layout = boxLayout( groups, Object.assign( { reference: data.reference }, spec.options ) );
 
         const svg = svgEl( "svg", {
@@ -1346,7 +1560,8 @@ const TiCharts = ( function () {
             } ) );
             // box (q1..q3) — note yQ3 (higher score) is the smaller pixel, so it is the top
             const boxRect = svgEl( "rect", { x: box.x, y: box.yQ3, width: box.w, height: _round( box.yQ1 - box.yQ3 ), class: "ti-chart-box-box" } );
-            const boxLabel = String( box.label ) + ": " + formatNumber( box.q1 ) + "–" + formatNumber( box.q3 ) + " med " + formatNumber( box.median );
+            // The median is named by its column header, so a localized a11yHeaders names it here too.
+            const boxLabel = String( box.label ) + ": " + formatNumber( box.q1 ) + "–" + formatNumber( box.q3 ) + ", " + headers[ 3 ] + " " + formatNumber( box.median );
             _attachSelect( boxRect, { id: box.id }, boxLabel );
             svg.appendChild( boxRect );
             svg.appendChild( svgEl( "line", { x1: box.x, y1: box.yMed, x2: _round( box.x + box.w ), y2: box.yMed, class: "ti-chart-box-median" } ) );
@@ -1365,7 +1580,8 @@ const TiCharts = ( function () {
             srRows.push( [ String( box.label ), formatNumber( box.min ), formatNumber( box.q1 ), formatNumber( box.median ), formatNumber( box.q3 ), formatNumber( box.max ), String( box.n ) ] );
         }
         figure.appendChild( svg );
-        figure.appendChild( buildSrTable( [ "Level", "Min", "Q1", "Median", "Q3", "Max", "N" ], srRows ) );
+        figure.appendChild( buildSrTable( headers, srRows ) );
+        return svg;
     }
 
     /**
@@ -1374,6 +1590,7 @@ const TiCharts = ( function () {
      * via radarLayout + setAttribute; an "expected"/provisional series draws unfilled with stroke-dasharray.
      * @param {Element} figure
      * @param {TiChartSpec} spec
+     * @returns {Element|null} the svg, or null for an empty chart
      */
     function renderRadar( figure, spec ) {
         const data = spec.data;
@@ -1381,7 +1598,7 @@ const TiCharts = ( function () {
         const series = Array.isArray( data.series ) ? data.series : [];
         if ( axes.length === 0 ) {
             figure.setAttribute( "data-ti-chart-empty", "1" );
-            return;
+            return null;
         }
         const layout = radarLayout( axes, series, spec.options || {} );
 
@@ -1429,7 +1646,7 @@ const TiCharts = ( function () {
             figure.appendChild( _buildChartLegend( spec.options.legend ) );
         }
 
-        const headers = [ "Axis" ].concat( layout.series.map( ( s ) => s.key ) );
+        const headers = _srHeaders( spec, [ "Axis" ].concat( layout.series.map( ( s ) => s.key ) ) );
         const srRows = layout.axes.map( ( ax ) => {
             const row = [ String( ax.label ) ];
             for ( let i = 0; i < layout.series.length; i++ ) {
@@ -1439,6 +1656,7 @@ const TiCharts = ( function () {
             return row;
         } );
         figure.appendChild( buildSrTable( headers, srRows ) );
+        return svg;
     }
 
     /**
@@ -1446,9 +1664,11 @@ const TiCharts = ( function () {
      * (p25–p75), a polyline per contiguous segment (null gaps break the line), vertex dots, x-axis cycle labels, and an
      * sr-table. A `style:"dashed"` series (or spec.provisional) draws dashed; `options.provisionalLastPoint` dashes just
      * the final connector of the primary series (the live ACTIVE cycle still in flight) and marks its last dot. Sparkline
-     * mode drops the axis/labels. All geometry via lineLayout + setAttribute (no element.style).
+     * mode drops the axis/labels and marks the svg .ti-chart-sparkline, whose dots the stylesheet keeps smaller. All
+     * geometry via lineLayout + setAttribute (no element.style).
      * @param {Element} figure
      * @param {TiChartSpec} spec
+     * @returns {Element|null} the svg, or null for an empty chart
      */
     function renderLine( figure, spec ) {
         const data = spec.data;
@@ -1456,12 +1676,15 @@ const TiCharts = ( function () {
         const series = Array.isArray( data.series ) ? data.series : [];
         if ( x.length === 0 || series.length === 0 ) {
             figure.setAttribute( "data-ti-chart-empty", "1" );
-            return;
+            return null;
         }
         const options = spec.options || {};
         const layout = lineLayout( series, Object.assign( {}, options, { xCount: x.length } ) );
 
         const svg = svgEl( "svg", { viewBox: "0 0 " + _round( layout.W ) + " " + _round( layout.H ), preserveAspectRatio: "xMidYMid meet", role: "img" } );
+        if ( layout.sparkline ) {
+            svg.setAttribute( "class", "ti-chart-sparkline" );
+        }
         _appendA11yTitle( svg, spec );
 
         if ( !layout.sparkline ) {
@@ -1518,7 +1741,7 @@ const TiCharts = ( function () {
 
         figure.appendChild( svg );
 
-        const headers = [ "Cycle" ].concat( series.map( ( s ) => s.key ) );
+        const headers = _srHeaders( spec, [ "Cycle" ].concat( series.map( ( s ) => s.key ) ) );
         const srRows = x.map( ( xi, i ) => {
             const row = [ String( ( xi.label !== undefined ) ? xi.label : xi.id ) ];
             for ( let j = 0; j < series.length; j++ ) {
@@ -1528,10 +1751,12 @@ const TiCharts = ( function () {
             return row;
         } );
         figure.appendChild( buildSrTable( headers, srRows ) );
+        return svg;
     }
 
     /**
-     * Top-level dispatcher: clears the host figure, normalizes the spec, routes to a renderer.
+     * Top-level dispatcher: clears the host figure, normalizes the spec, routes to a renderer, then has the drawn svg
+     * measured so the stylesheet can size its ink in pixels (see _trackScale).
      * @param {Element} figure  host <figure class="ti-chart">
      * @param {*} rawSpec
      */
@@ -1548,25 +1773,27 @@ const TiCharts = ( function () {
         if ( spec.a11yLabel ) {
             figure.setAttribute( "aria-label", spec.a11yLabel );
         }
+        let svg = null;
         if ( spec.type === "gauge" ) {
-            renderGauge( figure, spec );
+            svg = renderGauge( figure, spec );
         } else if ( spec.type === "bars" ) {
-            renderBars( figure, spec );
+            svg = renderBars( figure, spec );
         } else if ( spec.type === "stat" ) {
-            renderStat( figure, spec );
+            svg = renderStat( figure, spec );
         } else if ( spec.type === "scatter" ) {
-            renderScatter( figure, spec );
+            svg = renderScatter( figure, spec );
         } else if ( spec.type === "heatmap" ) {
-            renderHeatmap( figure, spec );
+            svg = renderHeatmap( figure, spec );
         } else if ( spec.type === "box" ) {
-            renderBox( figure, spec );
+            svg = renderBox( figure, spec );
         } else if ( spec.type === "radar" ) {
-            renderRadar( figure, spec );
+            svg = renderRadar( figure, spec );
         } else if ( spec.type === "line" ) {
-            renderLine( figure, spec );
+            svg = renderLine( figure, spec );
         } else {
             figure.setAttribute( "data-ti-chart-empty", "1" );
         }
+        _trackScale( figure, svg );
     }
 
     return {
@@ -1584,6 +1811,7 @@ const TiCharts = ( function () {
         barsDivergingLayout,
         radarLayout,
         lineLayout,
+        unitsPerPixel,
         svgEl,
         buildSrTable,
         renderChart,
