@@ -1,7 +1,7 @@
 export { exceptionCodeEnum as exceptionCode };
 export { httpCodeEnum as httpCode };
 export { TiException };
-export declare var raise: (source: any, data: any, exceptionID?: undefined, httpCode?: undefined) => TiException;
+export declare var raise: (source: Error | TiExceptionCode | TiException, data?: Object, exceptionID?: string | TiHttpCode, httpCode?: TiHttpCode) => TiException;
 export declare var isException: (object: any) => boolean;
 export type TiExceptionCode = number;
 /**

@@ -83,3 +83,11 @@ License change only — no functional code changed.
 
 * chore(license): relicense package from `GPL-3.0-or-later` to `Apache-2.0`. See `LICENSE` and `NOTICE`
 * docs(license): update every source file's license header to the Apache-2.0 notice
+
+## Version 0.4.0
+
+Requires `@ti-engine/web-framework` 1.38.0, which stopped minting a CSRF token on every page view (CA-166).
+
+* fix(content-routes): mint the CSRF token only when a page renders a form that needs it. `context.csrfToken` is read through the framework's `request.csrfToken()` on first use, and remembered. A page with a capture form gets its token and is marked per-session, as before; every other page mints nothing and stays shareable. It used to copy `request.session.csrfToken`, which the framework now leaves unset for an anonymous visitor, so a capture form would have rendered without a token and been refused on submit. Three route-level tests; the capture case fails against 0.3.1's route.
+* fix(web-content.js): fetch a CSRF token before the first submission. The account menu's sign-in form read the token from the `ti-xsrf-token` cookie at submit time, and a first-time visitor on a shared-cached page no longer has one, so it now asks `GET /csrf-token` first when the cookie is missing. Verified in real Chromium: the sign-in passes the CSRF check, where the 0.3.1 client is refused with 403 against web-framework 1.38.0. Against an older framework the cookie is always present, so the extra request never happens. Web-content 403 to 406 tests.
+* fix(content-routes): make a page per-session whenever `context.csrfToken` hands out a token (CA-166). Found by CodeRabbit. The getter minted on first read but left marking the page per-session to the renderer, and only the capture form's renderer did it, so a custom `renderPage` that embedded the token without calling `markPerSession()` would have sent one session's token out with public cache headers, to every visitor a CDN served the page to. The getter now marks the response itself when it returns a token. A read that finds no token leaves the page shareable. 2 tests: the forgetful renderer, which fails on the unfixed route, and the read with no token. Web-content 406 to 408 tests.

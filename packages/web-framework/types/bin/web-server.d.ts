@@ -295,6 +295,8 @@ declare class TiWebServer extends ServiceConsumer {
      * - /app/config
      * - /logout
      * - /login/:method
+     * - /health
+     * - /csrf-token
      * <br/>
      * NOTE: You can define custom unprotected routes by overriding the {@link TiWebServer#defineUnprotectedRoutes} method.
      *

@@ -297,7 +297,7 @@ class TiWebAppManager {
      * @method
      * @param {string} html
      * @param {Object} [options]
-     * @param {string} [options.csrfToken] Optional CSRF token to inject into the HTML.
+     * @param {string|(() => (string|undefined))} [options.csrfToken] Optional CSRF token to inject into the HTML, or a function returning it - called only if the HTML has a placeholder for it.
      * @param {boolean} [options.isHome] Optional flag to indicate whether the requested route is the home page.
      * @param {string} [options.nonce] Optional CSP nonce to inject into inline scripts/styles.
      * @param {string} [options.title] Optional title to replace the placeholder in the HTML.
@@ -323,8 +323,12 @@ class TiWebAppManager {
                 transformedHtml = transformedHtml.replace( RE_HTMX_CONFIG, JSON.stringify( htmxConfig ) );
             }
 
-            const csrfToken = ( typeof options?.csrfToken === "string" ) ? options?.csrfToken : "";
-            transformedHtml = transformedHtml.replaceAll( RE_CSRF_ATTR, csrfToken );
+            // A token given as a function is asked for only where the HTML has a placeholder to fill: asking can be
+            // what mints it, and minting creates a session and two cookies that a view without a form has no use for.
+            transformedHtml = transformedHtml.replaceAll( RE_CSRF_ATTR, () => {
+                const csrfToken = ( typeof options?.csrfToken === "function" ) ? options.csrfToken() : options?.csrfToken;
+                return ( typeof csrfToken === "string" ) ? csrfToken : "";
+            } );
 
             transformedHtml = transformedHtml.replace( "{ti-title-placeholder}", options.title || "" );
 
@@ -343,7 +347,7 @@ class TiWebAppManager {
      * @param {string[]} staticContentPaths
      * @param {string} route
      * @param {Object} [options]
-     * @param {string} [options.csrfToken] Optional CSRF token to inject into the HTML.
+     * @param {string|(() => (string|undefined))} [options.csrfToken] Optional CSRF token to inject into the HTML, or a function returning it - called only if the HTML has a placeholder for it.
      * @param {boolean} [options.isPartial] Optional flag to indicate whether the requested route is a partial load of a fragment.
      * @param {string} [options.view] Optional view name to load within this route.
      * @param {string} [options.nonce] Optional CSP nonce to inject into inline scripts/styles.
@@ -706,7 +710,7 @@ class TiWebAppManager {
      * @param {string[]} staticContentPaths
      * @param {Object} fragment
      * @param {Object} [options]
-     * @param {string} [options.csrfToken] Optional CSRF token to inject into the HTML.
+     * @param {string|(() => (string|undefined))} [options.csrfToken] Optional CSRF token to inject into the HTML, or a function returning it - called only if the HTML has a placeholder for it.
      * @param {boolean} [options.isHome] Optional flag to indicate whether the requested route is the home page.
      * @param {string} [options.nonce] Optional CSP nonce to inject into inline scripts/styles.
      * @returns {Promise<string>}

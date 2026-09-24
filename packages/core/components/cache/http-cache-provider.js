@@ -333,8 +333,11 @@ class HttpCacheProvider extends CacheProvider {
         return this.#fetchJSON( statePath.HEALTH, null ).then( () => {
             this.#markConnected();
         } ).catch( ( error ) => {
+            // `#fetchJSON` rejects with a raised TiException, which keeps its account of what went wrong in
+            // `data.details` and has no `message` at all. Reading `message` reported every failure as "undefined",
+            // hiding the one fact this line exists to give: why the probe failed.
             throw exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE, {
-                details: `The state service at '${ this.#baseUrl }' did not answer the health probe: ${ error.message }`
+                details: `The state service at '${ this.#baseUrl }' did not answer the health probe: ${ error?.data?.details || error?.message || String( error ) }`
             } );
         } );
     }
@@ -628,7 +631,7 @@ class HttpCacheProvider extends CacheProvider {
         let asTransportFailure = ( error ) => {
             this.#markDisrupted();
             return exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE, {
-                details: `The state service at '${ this.#baseUrl }' could not be reached for '${ path }': ${ error.message }`
+                details: `The state service at '${ this.#baseUrl }' could not be reached for '${ path }': ${ HttpCacheProvider.#describeTransportError( error ) }`
             } );
         };
 
@@ -654,6 +657,24 @@ class HttpCacheProvider extends CacheProvider {
             // An empty body is a valid acknowledgement for the write operations, which have nothing to return.
             return ( answered.text.length > 0 ) ? tools.parseJSON( answered.text ) : {};
         } );
+    }
+
+    /**
+     * What a failed `fetch` actually says went wrong.
+     * <br/>
+     * `fetch` rejects with the bare message "fetch failed" for every network-level failure and puts the reason - a
+     * DNS lookup that found nothing, a socket the other side closed - in `cause`. Reporting the message alone makes a
+     * hostname that does not resolve indistinguishable from a service that is down.
+     *
+     * @method
+     * @param {Error} error
+     * @returns {string}
+     */
+    static #describeTransportError( error ) {
+        const message = ( error && error.message ) || String( error );
+        const cause = error && error.cause;
+        const causeMessage = cause ? ( cause.message || cause.code || String( cause ) ) : "";
+        return ( causeMessage && causeMessage !== message ) ? `${ message }: ${ causeMessage }` : message;
     }
 
     /**

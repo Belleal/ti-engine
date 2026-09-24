@@ -109,6 +109,9 @@ class Auditing {
     /**
      * Used to write the log entries to the system console (i.e., STD OUT and STD ERR).
      * <br/>
+     * In JSON mode every entry is one line, carrying both the numeric `severity` and a `level` name, because the two
+     * are read by different log platforms (see `#getConsoleLevel`).
+     * <br/>
      * NOTE: There was an issue in previous Node versions with console that can crash the application if the number of
      * outputs exceeds several thousands per second. To be monitored and adjusted as necessary!
      *
@@ -117,16 +120,42 @@ class Auditing {
      */
     static #logToConsole( logEntry ) {
         if ( config.getSetting( config.setting.AUDITING_LOG_USES_JSON ) === true ) {
+            let logLine = tools.stringifyJSON( _.assign( { level: Auditing.#getConsoleLevel( logEntry.severity ) }, logEntry ) );
             if ( logEntry.severity >= logger.logSeverity.WARNING ) {
-                console.error( tools.stringifyJSON( logEntry ) );
+                console.error( logLine );
             } else {
-                console.log( tools.stringifyJSON( logEntry ) );
+                console.log( logLine );
             }
         } else {
             console.log( Auditing.#formatConsoleMessage( logEntry ) );
             if ( !_.isEmpty( logEntry.data ) ) {
                 console.log( Auditing.#formatConsoleData( logEntry.data, "   " ) );
             }
+        }
+    }
+
+    /**
+     * Used to name a log severity the way log platforms other than GCloud expect a level to be named.
+     * <br/>
+     * The numeric `severity` is GCloud's own LogSeverity, and GCloud reads it from the line. Cloudflare reads neither
+     * that number nor the stream: with only `severity` on the line, its container logs showed every entry as `info`,
+     * a DEBUG entry and WARNING entries sent to stderr included. Its own events carry the level as a plain `level`
+     * field in this vocabulary. DEFAULT is `debug` too: it sits below DEBUG in the enum, and the minimum level the
+     * README recommends for production (INFO) drops both.
+     *
+     * @method
+     * @param {TiLogSeverity} severity
+     * @returns {string} One of `debug`, `info`, `warn` or `error`.
+     */
+    static #getConsoleLevel( severity ) {
+        if ( severity >= logger.logSeverity.ERROR ) {
+            return "error";
+        } else if ( severity >= logger.logSeverity.WARNING ) {
+            return "warn";
+        } else if ( severity >= logger.logSeverity.INFO ) {
+            return "info";
+        } else {
+            return "debug";
         }
     }
 
