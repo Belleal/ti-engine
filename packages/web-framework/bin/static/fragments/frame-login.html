@@ -1,13 +1,8 @@
 <div id="ti-login">
     <div class="ti-login-container">
-        <!-- Brand mark -->
-        <div class="ti-login-brand">
-            <div class="ti-login-brand-mark">T</div>
-            <div class="ti-login-brand-text">
-                <div class="ti-login-brand-title">Welcome back</div>
-                <div class="ti-login-brand-sub">Sign in to continue</div>
-            </div>
-        </div>
+        <!-- Brand slot. The framework ships a generic default; an application supplies its own
+             `fragments/components/component-login-brand.html` to name itself here (CA-179). -->
+        <ti-component-login-brand-placeholder></ti-component-login-brand-placeholder>
 
         <!-- Login card -->
         <div class="ti-login-card">
@@ -36,6 +31,7 @@
                            autocapitalize="none"
                            spellcheck="false"
                            required class="ti-input"
+                           x-text-label:placeholder="interface.default.login.username-placeholder"
                            placeholder="Enter your username"/>
                 </div>
                 <div>
@@ -46,6 +42,7 @@
                            autocomplete="current-password"
                            enterkeyhint="go"
                            required class="ti-input"
+                           x-text-label:placeholder="interface.default.login.password-placeholder"
                            placeholder="Enter your password"/>
                 </div>
                 <button type="submit" class="ti-btn primary lg full ti-login-submit">
@@ -62,7 +59,7 @@
             <!-- Divider -->
             <div class="ti-login-divider">
                 <div class="ti-login-divider-line"></div>
-                <span class="ti-login-divider-label">or continue with</span>
+                <span class="ti-login-divider-label" x-text-label="interface.default.login.or-continue-with">or continue with</span>
                 <div class="ti-login-divider-line"></div>
             </div>
             <!--/ti-auth-divider-->
@@ -97,7 +94,7 @@
 
             <!--ti-auth-none-->
             <!-- Shown only when no authentication method is enabled/configured. -->
-            <div class="ti-login-empty">No sign-in method is configured. Please contact your administrator.</div>
+            <div class="ti-login-empty" x-text-label="interface.default.login.no-sign-in-method">No sign-in method is configured. Please contact your administrator.</div>
             <!--/ti-auth-none-->
         </div>
 

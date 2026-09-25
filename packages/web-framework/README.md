@@ -101,6 +101,19 @@ On every boot, the file is read and reconciled into the running directory: an ad
 
 **There is no rate limiting, no lockout after repeated failures, and no password policy.** Treat `local` on an internet-facing deployment as a deliberate risk until those exist.
 
+## The login screen
+
+The login screen renders before sign-in, so none of an application's own fragments are in play. It has two slots an application fills by shipping a file of the same relative path in its own static directory; the static-path search is reverse-order, so the application's copy wins:
+
+| Slot | Where | Framework default |
+|---|---|---|
+| `fragments/components/component-login-brand.html` | above the sign-in card | the framework's mark, "Welcome back" and "Sign in to continue" |
+| `fragments/components/component-login-extra.html` | below the sign-in card | empty |
+
+Use the brand slot to name the application and say what it is for. Use the extra slot for anything a first-time visitor should read after the sign-in controls. Neither slot can change the sign-in controls themselves; those stay the framework's, gated to the enabled methods.
+
+Every string on the screen goes through `x-text-label` under `interface.default.login.*`: `welcome`, `sign-in-prompt`, `username`, `username-placeholder`, `password`, `password-placeholder`, `sign-in`, `or-continue-with`, `sign-in-google`, `sign-in-azure`, `no-sign-in-method` and `error-sign-in-failed`. An application normally points `TI_LOCALIZATION_LABELS_PATH` at its own catalogue alone, so the framework's translations never reach it. It adds the keys it wants translated to its own catalogue, and a key it leaves out renders the English text written in the fragment.
+
 ## Static asset caching
 
 Everything under `/static` is served with a `Cache-Control` policy configured by the `staticCache` block:

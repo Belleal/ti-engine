@@ -2,6 +2,37 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.40.0
+
+* feat (web-app-manager): give the login screen a brand slot, `component-login-brand`, above the sign-in card (CA-179).
+  <br/>
+  **What was wrong.** The brand block (the "T" mark, "Welcome back", "Sign in to continue") was written inline in
+  `frame-login.html`. An application could not replace it. The login screen renders before sign-in, so none of its
+  own fragments are in play, and its one seam, `component-login-extra`, renders *below* the card. Every consumer's
+  login screen therefore opened with the framework's letter and a generic greeting, and none could name itself.
+  <br/>
+  **What changed.** The block is now `fragments/components/component-login-brand.html`, declared on the `login`
+  descriptor beside `component-login-extra`. It is resolved by the same reverse-order static-path search, so an
+  application's copy replaces the default. The default renders the same markup as before, now labelled. The
+  placeholder sits before the card in the DOM, so a screen reader announces the brand first.
+* fix (static): label every string on the login screen. The greeting, its prompt, both input placeholders, the "or
+  continue with" divider and the no-sign-in-method message were literal English, so they stayed English in a
+  Bulgarian deployment while the buttons and field labels beside them were translated. They go through `x-text-label`
+  under `interface.default.login.*` (`welcome`, `sign-in-prompt`, `username-placeholder`, `password-placeholder`,
+  `or-continue-with`, `no-sign-in-method`), each keeping its English as the fallback. An application loads its own
+  catalogue, not this one, so it adds the keys it wants translated.
+* fix (web-app-manager): an OpenID-only login screen no longer stores a session for every anonymous visit (CA-180).
+  `transformHtml` filled the CSRF placeholder *before* the auth-method gating stripped the local form. So the token
+  was minted, and a session saved and two cookies set to hold it, for a form that was then removed from the page.
+  The gating now runs first, so a token is asked for only where the local form survives, as 1.38.0 (CA-166)
+  intended. Measured on competence with Microsoft sign-in alone: an anonymous visit to the login screen set
+  `ti-xsrf-token` and `connect.sid` and stored one more session row in D1. It now sets neither and stores nothing.
+  With `local` enabled, the form still posts the token its cookie carries.
+
+Compatibility: an application that ships neither component sees the same login screen as before. One that
+overrides the whole of `frame-login.html` keeps its copy, and that copy has no brand placeholder, so nothing is
+spliced into it.
+
 ## Version 1.39.0
 
 * feat (web-app-manager): serve the label catalogue as a content-addressed bundle instead of inside `/app/config`
