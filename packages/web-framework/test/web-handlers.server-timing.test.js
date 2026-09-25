@@ -59,6 +59,48 @@ class SlowStore extends session.MemoryStore {
     }
 }
 
+const WRITEHEAD_ROUTES = [ "/writehead-object", "/writehead-message", "/writehead-array" ];
+
+/**
+ * Routes that hand their own Server-Timing to `writeHead`, in each of the three forms Node accepts. Node applies
+ * headers passed that way over those set with `setHeader` before it.
+ *
+ * @param {express.Express} app
+ */
+function mountWriteHeadRoutes( app ) {
+    app.get( "/writehead-object", ( request, response ) => {
+        response.writeHead( 200, { "Server-Timing": "db;dur=5", "content-type": "text/plain" } );
+        response.end( "ok" );
+    } );
+    app.get( "/writehead-message", ( request, response ) => {
+        response.writeHead( 200, "Fine", { "server-timing": "db;dur=5", "content-type": "text/plain" } );
+        response.end( "ok" );
+    } );
+    app.get( "/writehead-array", ( request, response ) => {
+        response.writeHead( 200, [ "Server-Timing", "db;dur=5", "content-type", "text/plain" ] );
+        response.end( "ok" );
+    } );
+}
+
+/**
+ * Asserts that each writeHead route answered with its own metric, the timing handler's, and its other headers.
+ *
+ * @param {string} base
+ * @param {Object} headers
+ * @param {string[]} expected The timing handler's metric names.
+ */
+async function assertWriteHeadRoutesKeepEveryMetric( base, headers, expected ) {
+    for ( const route of WRITEHEAD_ROUTES ) {
+        const response = await rawGet( `${ base }${ route }`, headers );
+        const metrics = metricsOf( [].concat( response.headers[ "server-timing" ] ).join( ", " ) );
+        assert.equal( metrics.db && metrics.db.dur, 5, `${ route }: the handler's own metric` );
+        for ( const name of expected ) {
+            assert.ok( metrics[ name ], `${ route }: no ${ name } in ${ response.headers[ "server-timing" ] }` );
+        }
+        assert.equal( response.headers[ "content-type" ], "text/plain", `${ route }: the handler's other headers` );
+    }
+}
+
 /**
  * Starts an app wired as `TiWebServer` wires it with `serverTiming` on.
  *
@@ -90,6 +132,7 @@ async function startApp( instance ) {
         response.setHeader( "Server-Timing", "db;dur=5" );
         response.send( "ok" );
     } );
+    mountWriteHeadRoutes( app );
     const manager = new WebApp();
     app.get( "/app/:view", webHandlers.webAppHandler( Object.assign( { webAppManager: manager, staticContentPaths: [ STATIC_ROOT ] }, INSTANCE ) ) );
     const server = await new Promise( ( resolve ) => {
@@ -180,6 +223,31 @@ describe( "Server-Timing, when it is on", () => {
         const metrics = metricsOf( response.headers[ "server-timing" ] );
         assert.equal( metrics.db.dur, 5 );
         assert.ok( metrics.app && metrics.session );
+    } );
+
+    it( "adds to a Server-Timing a handler passes to writeHead, in every form Node accepts, and keeps its other headers", async () => {
+        await assertWriteHeadRoutesKeepEveryMetric( base, { cookie: cookie }, [ "app", "session" ] );
+    } );
+
+} );
+
+describe( "Server-Timing, with nothing between it and the handler", () => {
+
+    it( "still adds to a Server-Timing the handler passes to writeHead", async () => {
+        // In the server, compression and express-session sit between the two and turn writeHead's headers into
+        // setHeader calls first, which hid this. On its own, the timing handler's metrics were replaced by the
+        // handler's: Node lets headers passed to writeHead win over those set before it (CodeRabbit on #167).
+        const app = express();
+        app.use( webHandlers.serverTimingHandler( { describeInstance: () => "here" } ) );
+        mountWriteHeadRoutes( app );
+        const server = await new Promise( ( resolve ) => {
+            const listening = app.listen( 0, "127.0.0.1", () => resolve( listening ) );
+        } );
+        try {
+            await assertWriteHeadRoutesKeepEveryMetric( `http://127.0.0.1:${ server.address().port }`, {}, [ "app" ] );
+        } finally {
+            server.close();
+        }
     } );
 
 } );

@@ -22,6 +22,7 @@ const { randomBytes, timingSafeEqual } = require( "node:crypto" );
 const URL = require( "node:url" ).URL;
 const _ = require( "lodash" );
 const helmet = require( "helmet" );
+const onHeaders = require( "on-headers" );
 const cache = require( "@ti-engine/core/cache" );
 const authMethod = require( "#auth-manager" ).authMethod;
 const authorization = require( "#authorization" );
@@ -601,18 +602,17 @@ module.exports.serverTimingHandler = ( instance ) => {
         const began = process.hrtime.bigint();
         const timings = [];
         response[ SERVER_TIMINGS ] = timings;
-        const writeHead = response.writeHead;
-        // Patched rather than hooked through a listener: Node writes implicit headers through this same method, so
-        // every response - `send`, a static file, a 304, an error - passes here once, before its head goes out.
-        response.writeHead = function writeHeadWithServerTiming( ...parameters ) {
-            if ( !response.headersSent ) {
-                const metrics = [ `app;dur=${ millisecondsSince( began ) }${ description ? `;desc=${ description }` : "" }` ]
-                    .concat( timings.map( ( timing ) => `${ timing.name };dur=${ timing.duration }` ) );
-                const existing = [].concat( response.getHeader( "Server-Timing" ) || [] );
-                response.setHeader( "Server-Timing", existing.concat( metrics ).join( ", " ) );
-            }
-            return writeHead.apply( this, parameters );
-        };
+        // Hooked through `on-headers`, as compression and express-session hook the head. It fires on every response
+        // (`send`, a static file, a 304, an error), including the implicit head `end()` writes. It also applies any
+        // headers a handler hands to `writeHead( status, headers )` with `setHeader` before calling this. Node lets
+        // those win over `setHeader`, so metrics merely set earlier were replaced when a handler passed its own
+        // Server-Timing that way (CodeRabbit on #167). The server hid that by mounting compression after this handler.
+        onHeaders( response, function appendServerTiming() {
+            const metrics = [ `app;dur=${ millisecondsSince( began ) }${ description ? `;desc=${ description }` : "" }` ]
+                .concat( timings.map( ( timing ) => `${ timing.name };dur=${ timing.duration }` ) );
+            const existing = [].concat( this.getHeader( "Server-Timing" ) || [] );
+            this.setHeader( "Server-Timing", existing.concat( metrics ).join( ", " ) );
+        } );
         next();
     };
 };

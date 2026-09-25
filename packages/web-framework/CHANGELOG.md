@@ -35,11 +35,12 @@ This document will contain the list of changes made to the framework. The format
   - `describeInstance()`, a new virtual method, gives `app` a description, such as where a container platform placed the
     instance.
 
-  An existing header is appended to. It is off by default, because timings disclose a little about the server.
-  Without it, the only way to split a slow response between the process and the network was to reproduce it
-  elsewhere.
+  An existing header is appended to, including one a handler passes to `writeHead( status, headers )`. The metrics are
+  added through `on-headers`, now a declared dependency, which applies such headers before them. It is off by default,
+  because timings disclose a little about the server. Without it, the only way to split a slow response between the
+  process and the network was to reproduce it elsewhere.
 
-Tests: 618 -> 647 web-framework tests, 130 -> 139 suites, 47 -> 50 files. Design record:
+Tests: 618 -> 649 web-framework tests, 130 -> 140 suites, 47 -> 50 files. Design record:
 `docs/superpowers/specs/2026-09-26-web-framework-screen-latency-design.md`.
 
 ## Version 1.40.0

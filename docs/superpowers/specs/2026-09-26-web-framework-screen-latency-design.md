@@ -212,3 +212,17 @@ D1 service over `node:sqlite`, in Bulgarian, and every state-store call was coun
 - Every response carried, for example, `Server-Timing: app;dur=4.1;desc="Frankfurt am Main (WEUR, DE)", session;dur=2.4`.
   The description came from competence's `describeInstance()` over `CLOUDFLARE_LOCATION` / `REGION` /
   `COUNTRY_A2`, set by hand for the run.
+
+**CodeRabbit round, 2026-09-26.** The finding: a handler that passes its own `Server-Timing` to
+`writeHead( status, headers )` replaces the `app` and `session` metrics, because Node applies headers passed to
+`writeHead` over those set with `setHeader` before it.
+- **Reproduced**, in all three forms Node accepts: a headers object, a status message plus an object, and a flat array.
+  The handler's `db;dur=5` was all that arrived.
+- **Not reachable in `TiWebServer`.** `compression` and `express-session` are mounted after the timing handler. Both
+  hook the head through `on-headers`, which turns `writeHead`'s headers into `setHeader` calls before the next
+  wrapper runs, so the same three routes kept every metric in the server's stack. That is why no test saw it.
+- **Fixed anyway.** Correctness rested on an incidental ordering, so the handler now adds its metrics through
+  `on-headers` itself, declared as a dependency. The same three routes now keep every metric with nothing between
+  the handler and the route. That test fails on the previous handler.
+- Tests: 647 → 649 web-framework, 139 → 140 suites.
+
