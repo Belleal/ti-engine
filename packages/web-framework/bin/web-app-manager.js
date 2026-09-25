@@ -402,6 +402,12 @@ class TiWebAppManager {
         return new Promise( ( resolve, reject ) => {
             let transformedHtml = String( html );
 
+            // Gate the login page's sign-in controls to the effective enabled auth methods (no-op on other fragments).
+            // First, because what it strips decides whether a CSRF token is needed at all: the local form holds the
+            // login view's only placeholder. Gated after the token was filled, a deployment with OpenID alone minted a
+            // token, and so stored a session and set two cookies, on every anonymous visit, for a form it then removed.
+            transformedHtml = applyAuthMethodVisibility( transformedHtml, this.#enabledAuthMethods );
+
             // Insert nonce in all placeholder locations. If nonce is not provided or is invalid, this will use an empty string instead to remove the placeholder:
             const nonce = ( typeof options?.nonce === "string" && RE_CSP_NONCE.test( options?.nonce ) ) ? options?.nonce : "";
             transformedHtml = transformedHtml.replaceAll( RE_NONCE_ATTR, nonce );
@@ -424,9 +430,6 @@ class TiWebAppManager {
             } );
 
             transformedHtml = transformedHtml.replace( "{ti-title-placeholder}", options.title || "" );
-
-            // Gate login-page OpenID provider buttons to the effective enabled auth methods (no-op on other fragments).
-            transformedHtml = applyAuthMethodVisibility( transformedHtml, this.#enabledAuthMethods );
 
             resolve( transformedHtml );
         } );

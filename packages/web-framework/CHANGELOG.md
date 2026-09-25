@@ -21,6 +21,13 @@ This document will contain the list of changes made to the framework. The format
   under `interface.default.login.*` (`welcome`, `sign-in-prompt`, `username-placeholder`, `password-placeholder`,
   `or-continue-with`, `no-sign-in-method`), each keeping its English as the fallback. An application loads its own
   catalogue, not this one, so it adds the keys it wants translated.
+* fix (web-app-manager): an OpenID-only login screen no longer stores a session for every anonymous visit (CA-180).
+  `transformHtml` filled the CSRF placeholder *before* the auth-method gating stripped the local form. So the token
+  was minted, and a session saved and two cookies set to hold it, for a form that was then removed from the page.
+  The gating now runs first, so a token is asked for only where the local form survives, as 1.38.0 (CA-166)
+  intended. Measured on competence with Microsoft sign-in alone: an anonymous visit to the login screen set
+  `ti-xsrf-token` and `connect.sid` and stored one more session row in D1. It now sets neither and stores nothing.
+  With `local` enabled, the form still posts the token its cookie carries.
 
 Compatibility: an application that ships neither component sees the same login screen as before. One that
 overrides the whole of `frame-login.html` keeps its copy, and that copy has no brand placeholder, so nothing is

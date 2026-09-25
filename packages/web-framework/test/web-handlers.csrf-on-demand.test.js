@@ -53,6 +53,14 @@ class WebApp extends TiWebAppManager {
     }
 }
 
+// The same sign-in view with a chosen set of methods enabled. With OpenID alone it has no local form, so no token.
+class MethodsWebApp extends TiWebAppManager {
+    constructor( methods ) {
+        super( "csrf-on-demand-methods-test" );
+        this.setEnabledAuthMethods( methods );
+    }
+}
+
 let server = null;
 let base = null;
 
@@ -87,6 +95,10 @@ before( async () => {
     const webAppInstance = Object.assign( { webAppManager: new WebApp(), staticContentPaths: [ STATIC_ROOT ] }, INSTANCE );
     app.get( "/not-found", webHandlers.webAppHandler( webAppInstance ) );
     app.get( "/app", webHandlers.webAppHandler( webAppInstance ) );
+    // Mounted under a prefix, the handler still sees `/app`: it renders `request.path`, which a router makes relative.
+    const openIDOnly = express.Router();
+    openIDOnly.get( "/app", webHandlers.webAppHandler( Object.assign( { webAppManager: new MethodsWebApp( [ "openid-azure" ] ), staticContentPaths: [ STATIC_ROOT ] }, INSTANCE ) ) );
+    app.use( "/openid-only", openIDOnly );
     // Four parameters, or Express does not treat it as an error handler.
     app.use( ( error, request, response, next ) => {
         if ( response.headersSent ) {
@@ -283,6 +295,43 @@ describe( "CSRF tokens — a framework view mints one only if it renders one", (
         assert.ok( cookies[ "connect.sid" ], "the session holding the token must be saved and cookied" );
         assert.equal( cookies[ "ti-xsrf-token" ].length, 1 );
         assert.ok( html.includes( `value='${ cookies[ "ti-xsrf-token" ][ 0 ] }'` ), "the form must post the session's own token" );
+    } );
+
+    it( "renders the sign-in view with no session and no cookie when OpenID is the only method", async () => {
+        // The local form holds the view's only token, and the auth-method gating strips it when `local` is off. The
+        // token used to be asked for before that strip, so every anonymous visit to an OpenID-only login screen stored
+        // a session and set two cookies for a form that was not on the page (CA-180).
+        const response = await fetch( `${ base }/openid-only/app`, { headers: { accept: "text/html" } } );
+        const html = await response.text();
+
+        assert.equal( response.status, 200 );
+        assert.ok( html.includes( "/login/openid-azure" ), "the OpenID button must still render" );
+        assert.ok( !html.includes( "_csrf" ), "there is no form, so there is no token field" );
+        assert.deepEqual( response.headers.getSetCookie(), [] );
+    } );
+
+    it( "asks for a token only when the local form survives the auth-method gating", async () => {
+        const render = async ( methods ) => {
+            let asked = 0;
+            const html = await new MethodsWebApp( methods ).assembleHtmlView( null, [ STATIC_ROOT ], "/app", {
+                csrfToken: () => {
+                    asked++;
+                    return "minted-token";
+                }
+            } );
+            return { asked: asked, html: html };
+        };
+
+        for ( const methods of [ [ "openid-azure" ], [ "openid-google" ], [ "openid-azure", "openid-google" ], [] ] ) {
+            const { asked, html } = await render( methods );
+            assert.equal( asked, 0, `${ methods.join( " + " ) || "no method" }: no local form, so nothing may be minted` );
+            assert.ok( !html.includes( "{ti-csrf-placeholder}" ), "no placeholder may survive into the page" );
+        }
+        for ( const methods of [ [ "local" ], [ "local", "openid-azure" ] ] ) {
+            const { asked, html } = await render( methods );
+            assert.equal( asked, 1, `${ methods.join( " + " ) }: the local form renders, so the token is asked for once` );
+            assert.ok( html.includes( "value='minted-token'" ), "the form must post the token it was given" );
+        }
     } );
 
     it( "still takes a token given as a plain string", async () => {
