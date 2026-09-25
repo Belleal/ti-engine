@@ -1,6 +1,6 @@
 {
   "name": "@ti-engine/core",
-  "version": "1.16.0",
+  "version": "1.17.0",
   "description": "Microservice framework for Node.js: a Redis-backed message exchange with end-to-end call tracing, retries and tamper-evident message envelopes.",
   "keywords": [
     "microservices",
@@ -49,6 +49,10 @@
     "./service-provider": {
       "types": "./types/components/service-provider.d.ts",
       "default": "./components/service-provider.js"
+    },
+    "./state-service": {
+      "types": "./types/components/cache/d1-state-service.d.ts",
+      "default": "./components/cache/d1-state-service.js"
     },
     "./tools": {
       "types": "./types/utils/tools.d.ts",

@@ -299,6 +299,20 @@ declare class RedisCacheProvider extends CacheProvider {
      */
     getJSON(key: string, path?: string | string[]): Promise<Object>;
     /**
+     * Used to fetch the value at a path of a JSON variable — the value, not RedisJSON's list of matches.
+     * <br/>
+     * NOTE: A JSONPath read answers every match: `[ value ]` where the path exists, `[]` where it does not, and `null`
+     * when the key does not. This reduces that to the value (the first match for a wildcard), so a caller never
+     * unwraps `result[ 0 ]` itself — which is right here and wrong for any stored array over HTTP (CA-178).
+     *
+     * @method
+     * @param {string} key
+     * @param {string|string[]} [path="$"] A dot-separated JSONPath string, or an array of literal key segments.
+     * @returns {Promise<*>} The addressed value, or `null`.
+     * @public
+     */
+    getJSONValue(key: string, path?: string | string[]): Promise<any>;
+    /**
      * Used to update/edit an existing JSON variable.
      * <br/>
      * NOTE: Requires ReJSON module installed on server to work.

@@ -103,7 +103,8 @@ Claude-Session: <session URL>
 ```
 
 **Never commit:** a model identifier in any file, message or PR body (chat replies only); `.env`; `.run/*.run.xml`
-(they carry live local credentials); any secret value in a committed file — secrets live in Secret Manager.
+(they carry live local credentials); any secret value in a committed file — secrets live in the deployment's secret
+store (Worker secrets on Cloudflare).
 
 ---
 

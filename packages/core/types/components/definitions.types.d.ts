@@ -37,6 +37,28 @@ export type SettingsMemoryCache = {
     retryMaxInterval: number;
     user: string;
 };
+export type TiHttpCacheSettings = {
+    /**
+     * The state service's base URL.
+     */
+    stateUrl?: string;
+    /**
+     * A bearer token for the service, if it wants one.
+     */
+    stateAuthToken?: string;
+    /**
+     * Milliseconds before a request is abandoned.
+     */
+    stateTimeout?: number;
+    /**
+     * Milliseconds between recovery probes.
+     */
+    retryMaxInterval?: number;
+    /**
+     * Whether a token may travel over plain HTTP to a non-loopback host.
+     */
+    stateAllowInsecureAuth?: boolean;
+};
 export type SettingsMessageExchange = {
     messageQueuePrefix: string;
     messageStore: string;
@@ -294,6 +316,17 @@ export type Message = {
  * @property {number} retryMaxAttempts
  * @property {number} retryMaxInterval
  * @property {string} user
+ */
+/**
+ * The state-service settings an HTTP cache store may carry instead of the configured `memoryCache.state*` ones. Every
+ * field is optional; an absent one falls back to the configuration.
+ *
+ * @typedef {Object} TiHttpCacheSettings
+ * @property {string} [stateUrl] The state service's base URL.
+ * @property {string} [stateAuthToken] A bearer token for the service, if it wants one.
+ * @property {number} [stateTimeout] Milliseconds before a request is abandoned.
+ * @property {number} [retryMaxInterval] Milliseconds between recovery probes.
+ * @property {boolean} [stateAllowInsecureAuth] Whether a token may travel over plain HTTP to a non-loopback host.
  */
 /**
  * @typedef {Object} SettingsMessageExchange

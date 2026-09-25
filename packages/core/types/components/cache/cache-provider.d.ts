@@ -282,6 +282,11 @@ declare class CacheProvider {
     setJSON(key: string, value: Object, path?: string | string[], overrideMode?: number): Promise<any>;
     /**
      * Used to fetch a JSON document, or a branch of one.
+     * <br/>
+     * NOTE: The two built-in backends answer this in different shapes, and a caller must not paper over it by
+     * unwrapping `result[ 0 ]`: Redis answers RedisJSON's **list of matches** (`[ value ]`, `[]` for a missing path),
+     * HTTP answers **the value itself**. The unwrap is right for Redis and truncates any stored array over HTTP — a
+     * competency baseline read back as its first code (CA-178). Use {@link CacheProvider#getJSONValue} for one shape.
      *
      * @method
      * @param {string} key
@@ -292,6 +297,21 @@ declare class CacheProvider {
      * @public
      */
     getJSON(key: string, path?: string | string[]): Promise<Object>;
+    /**
+     * Used to fetch the value at a path of a JSON document — the value itself, whatever the backend.
+     * <br/>
+     * The one shape both backends agree on: the addressed value, or `null` when the key or the path is absent. A path
+     * with a wildcard answers its first match, which is what every caller that took `result[ 0 ]` from Redis had.
+     *
+     * @method
+     * @param {string} key
+     * @param {string|string[]} [path="$"] A dot-separated JSONPath string, or an array of literal key segments.
+     * @returns {Promise<*>} The addressed value, or `null`.
+     * @requires {TiCacheCapability.JSON_DOCUMENTS}
+     * @abstract
+     * @public
+     */
+    getJSONValue(key: string, path?: string | string[]): Promise<any>;
     /**
      * Used to merge a value into an existing JSON document at the given path.
      * <br/>

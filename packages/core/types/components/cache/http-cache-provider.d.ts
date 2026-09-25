@@ -2,6 +2,7 @@
 export = HttpCacheProvider;
 import CacheProvider = require("#cache-provider");
 import type ConnectionObserver from "#connection-observer";
+import type { TiHttpCacheSettings } from "#definitions";
 /**
  * A cache backend that keeps its state in an HTTP service rather than in a database client.
  * <br/>
@@ -23,8 +24,11 @@ declare class HttpCacheProvider extends CacheProvider {
     /**
      * @constructor
      * @param {string} connectionIdentifier The identifier under which this backend's connection is observed.
+     * @param {TiHttpCacheSettings} [settings] Overrides for the configured `memoryCache.state*` settings. The
+     * configured cache takes none; a store opened with {@link createCacheStore} names its own service this way, so an
+     * application's records need not live wherever the framework's sessions do.
      */
-    constructor(connectionIdentifier: string);
+    constructor(connectionIdentifier: string, settings?: TiHttpCacheSettings);
     /**
      * Exposes {@link toPathSegments} so the wire format can be tested without a server.
      * <br/>
@@ -237,6 +241,18 @@ declare class HttpCacheProvider extends CacheProvider {
      * @public
      */
     getJSON(key: string, path?: string | string[]): Promise<Object>;
+    /**
+     * Used to fetch the value at a path of a JSON document. The protocol already answers the value itself, so this is
+     * {@link HttpCacheProvider#getJSON} under the name whose shape both backends share.
+     *
+     * @method
+     * @param {string} key
+     * @param {string|string[]} [path="$"] A dot-separated JSONPath string, or an array of literal key segments.
+     * @returns {Promise<*>} The addressed value, or `null`.
+     * @override
+     * @public
+     */
+    getJSONValue(key: string, path?: string | string[]): Promise<any>;
     /**
      * Used to merge a value into an existing JSON document at the given path.
      * <br/>
