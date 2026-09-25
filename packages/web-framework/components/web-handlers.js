@@ -22,6 +22,7 @@ const { randomBytes, timingSafeEqual } = require( "node:crypto" );
 const URL = require( "node:url" ).URL;
 const _ = require( "lodash" );
 const helmet = require( "helmet" );
+const onHeaders = require( "on-headers" );
 const cache = require( "@ti-engine/core/cache" );
 const authMethod = require( "#auth-manager" ).authMethod;
 const authorization = require( "#authorization" );
@@ -538,6 +539,109 @@ module.exports.healthHandler = () => {
 };
 
 /**
+ * The longest description a `Server-Timing` metric carries. A description names a place, not a document.
+ *
+ * @type {number}
+ */
+const SERVER_TIMING_DESCRIPTION_MAX_LENGTH = 100;
+
+/**
+ * Where the durations measured for a response wait until its headers are written. A symbol, so that no application
+ * code iterating `response.locals` meets it.
+ *
+ * @type {symbol}
+ */
+const SERVER_TIMINGS = Symbol( "tiServerTimings" );
+
+/**
+ * Milliseconds since a `process.hrtime.bigint()` reading, to one decimal place.
+ *
+ * @method
+ * @param {bigint} began
+ * @returns {string}
+ */
+const millisecondsSince = ( began ) => ( Number( process.hrtime.bigint() - began ) / 1e6 ).toFixed( 1 );
+
+/**
+ * Formats a `Server-Timing` metric's `desc`: accents folded, then printable ASCII only, backslashes and double quotes
+ * escaped, quoted. A header value outside Latin-1 makes `setHeader` throw, which would fail the response for the sake
+ * of a diagnostic, and a place name from a hosting platform can be in any script.
+ *
+ * @method
+ * @param {*} description
+ * @returns {string|null} The quoted description, or null when nothing printable is left.
+ */
+const formatServerTimingDescription = ( description ) => {
+    if ( typeof description !== "string" ) {
+        return null;
+    }
+    const printable = description.normalize( "NFKD" ).replace( /[̀-ͯ]/g, "" ).replace( /[^\x20-\x7E]/g, "" ).trim().slice( 0, SERVER_TIMING_DESCRIPTION_MAX_LENGTH );
+    return ( printable.length > 0 ) ? `"${ printable.replace( /[\\"]/g, "\\$&" ) }"` : null;
+};
+
+/**
+ * Handler that reports, in a `Server-Timing` header, where a response's time went inside this process:
+ * - `app`: from the request reaching the process to its headers being written;
+ * - any metric {@link timedHandler} measured on the way, such as `session`.
+ * <br/>
+ * Mounted first, so nothing the process does falls outside `app`. Without it, a slow response on a hosted platform
+ * gave no way to tell the application's own time from the network in front of it: the process took 4-7 ms per screen
+ * while the browser waited 0.6-0.9 s, and nothing in the response said which was which (CA-183).
+ * <br/>
+ * The header is appended to, never replaced, so a proxy that adds its own metrics shows them alongside these in the
+ * browser's timing view.
+ *
+ * @method
+ * @param {TiWebServer} instance Its `describeInstance()` supplies the `desc` of the `app` metric. It is read once.
+ * @returns {ExpressHandler}
+ * @public
+ */
+module.exports.serverTimingHandler = ( instance ) => {
+    const description = formatServerTimingDescription( ( instance && typeof instance.describeInstance === "function" ) ? instance.describeInstance() : undefined );
+    return ( request, response, next ) => {
+        const began = process.hrtime.bigint();
+        const timings = [];
+        response[ SERVER_TIMINGS ] = timings;
+        // Hooked through `on-headers`, as compression and express-session hook the head. It fires on every response
+        // (`send`, a static file, a 304, an error), including the implicit head `end()` writes. It also applies any
+        // headers a handler hands to `writeHead( status, headers )` with `setHeader` before calling this. Node lets
+        // those win over `setHeader`, so metrics merely set earlier were replaced when a handler passed its own
+        // Server-Timing that way (CodeRabbit on #167). The server hid that by mounting compression after this handler.
+        onHeaders( response, function appendServerTiming() {
+            const metrics = [ `app;dur=${ millisecondsSince( began ) }${ description ? `;desc=${ description }` : "" }` ]
+                .concat( timings.map( ( timing ) => `${ timing.name };dur=${ timing.duration }` ) );
+            const existing = [].concat( this.getHeader( "Server-Timing" ) || [] );
+            this.setHeader( "Server-Timing", existing.concat( metrics ).join( ", " ) );
+        } );
+        next();
+    };
+};
+
+/**
+ * Wraps a middleware so that the time it takes to call `next` becomes a `Server-Timing` metric. For express-session,
+ * that time is the session lookup: it calls `next` once the store has answered, so the metric is one round trip to
+ * the state store. Without {@link serverTimingHandler} in front, the measurement is dropped.
+ *
+ * @method
+ * @param {string} name The metric's name. It must be a token, e.g. `session`.
+ * @param {ExpressHandler} handler
+ * @returns {ExpressHandler}
+ * @public
+ */
+module.exports.timedHandler = ( name, handler ) => {
+    return ( request, response, next ) => {
+        const began = process.hrtime.bigint();
+        handler( request, response, ( error ) => {
+            const timings = response[ SERVER_TIMINGS ];
+            if ( Array.isArray( timings ) ) {
+                timings.push( { name: name, duration: millisecondsSince( began ) } );
+            }
+            next( error );
+        } );
+    };
+};
+
+/**
  * Handler for retrieving authenticated user information.
  *
  * @method
@@ -829,10 +933,17 @@ module.exports.webAppHandler = ( instance ) => {
                     const nonceHeader = request.get( "x-csp-nonce" ) || "";
                     const nonce = isPartial ? nonceHeader : ( request.cspNonce || request.nonce || resLocals.cspNonce || resLocals.nonce );
                     let embedsCsrfToken = false;
+                    let isAddressed = false;
                     instance.webAppManager.assembleHtmlView( request.session, instance.staticContentPaths, request.path, {
                         nonce: nonce,
                         isPartial: isPartial,
                         view: request.params.view,
+                        // The content address a reference to an immutable fragment carries (CA-183). The manager says
+                        // whether it names what was rendered; only then may the browser keep the answer for good.
+                        version: ( request.query && typeof request.query.v === "string" ) ? request.query.v : undefined,
+                        onAddressed: () => {
+                            isAddressed = true;
+                        },
                         // Minted only if the view has a form to render it into: `transformHtml` calls this only for a
                         // view with a token placeholder, whether or not the visitor had a session yet. The views are
                         // never shared-cached (`private`/`no-store` below), but a mint still creates a session and
@@ -844,7 +955,12 @@ module.exports.webAppHandler = ( instance ) => {
                     } ).then( ( html ) => {
                         // One URL answers a navigation with the whole page and HTMX with the screen's fragment alone.
                         response.vary( "HX-Request" );
-                        if ( isPartial === true && embedsCsrfToken === false ) {
+                        if ( isPartial === true && embedsCsrfToken === false && isAddressed === true ) {
+                            // An immutable fragment asked for by its current content address: the URL names these exact
+                            // bytes, so the browser may keep them without asking again. A revalidation saves bytes but
+                            // not the round trip, and on a hosted deployment the round trip is 0.6-0.9 s (CA-183).
+                            response.set( "Cache-Control", "private, max-age=31536000, immutable" );
+                        } else if ( isPartial === true && embedsCsrfToken === false ) {
                             // A fragment is a template: its markup is the same on every visit and its data arrives by a
                             // separate request. Re-sent on each screen switch it cost 5-59 KB every time; revalidated,
                             // a repeat visit is a 304 against the ETag Express computes. Access is still decided on

@@ -278,6 +278,22 @@ class TiWebServer extends ServiceConsumer {
     }
 
     /**
+     * Describes where this instance runs, such as the data centre a container platform placed it in. With
+     * `serverTiming` on, the description becomes the `desc` of every response's `app` metric, so the browser's timing
+     * view says where the time was spent. It is read once, at start, and nothing else reads it.
+     * <br/>
+     * NOTE: Override in a subclass that knows its placement. The default describes nothing.
+     *
+     * @method
+     * @returns {string|undefined}
+     * @virtual
+     * @public
+     */
+    describeInstance() {
+        return undefined;
+    }
+
+    /**
      * Starts the web server.
      *
      * @method
@@ -321,6 +337,12 @@ class TiWebServer extends ServiceConsumer {
                     if ( typeof this.#netServer.keepAliveTimeout === "number" ) {
                         this.#netServer.keepAliveTimeout = resolvedRequestTimeout + 1000;
                     }
+                }
+
+                // Opt-in `Server-Timing` (CA-183): ahead of everything that serves a response, so `app` covers all of it.
+                const isServerTimingEnabled = ( this.serviceConfig.serverTiming === true );
+                if ( isServerTimingEnabled ) {
+                    this.#webServer.use( webHandlers.serverTimingHandler( this ) );
                 }
 
                 // Compress what the browser accepts to have compressed (brotli, else gzip). First, so it wraps every
@@ -372,7 +394,7 @@ class TiWebServer extends ServiceConsumer {
                 this.#webServer.use( express.json( { limit: "1mb" } ) );
                 this.#webServer.use( express.urlencoded( { extended: false, limit: "100kb" } ) );
                 this.#webServer.use( cookieParser() );
-                this.#webServer.use( session( {
+                const sessionHandler = session( {
                     secret: this.serviceConfig.cookies.secret || randomBytes( 32 ).toString( "base64" ),
                     resave: false,
                     saveUninitialized: false,
@@ -394,7 +416,9 @@ class TiWebServer extends ServiceConsumer {
                     },
                     unset: "destroy",
                     store: new SessionStore()
-                } ) );
+                } );
+                // Timed, the session lookup is the `session` metric: the state-store round trip every request makes.
+                this.#webServer.use( isServerTimingEnabled ? webHandlers.timedHandler( "session", sessionHandler ) : sessionHandler );
                 this.#webServer.use( webHandlers.csrfInitHandler( this ) );
                 this.#webServer.use( webHandlers.originRefererValidationHandler( this ) );
                 this.#webServer.use( webHandlers.csrfProtectionHandler() );

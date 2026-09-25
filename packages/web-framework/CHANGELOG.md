@@ -2,6 +2,47 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.41.0
+
+* feat (web-app-manager): serve screens that never change under content addresses, so a revisit makes no request
+  (CA-183).
+  <br/>
+  **What was wrong.** Since 1.39.0 every screen switch revalidates: a repeat visit is a `304` of a few hundred bytes.
+  That saved bytes but not the round trip, and on a hosted deployment the round trip is the whole cost. On
+  competence's Cloudflare deployment, reopening a User Guide chapter took 583-818 ms for a `304`. The same request took
+  4-7 ms of server time locally, with one state-store read.
+  <br/>
+  **What changed.** `addFragment( id, { ..., immutable: true } )` declares that a fragment renders the same markup for
+  every viewer until the next deployment.
+  - Every `hx-get="/app/<id>"` in every served fragment, the shell included, carries `?v=<version>`.
+  - A `true` `hx-push-url` or `hx-replace-url` on the same element names the plain path, so the address bar is
+    unchanged.
+  - A request for the current version is answered `private, max-age=31536000, immutable`. Anything else revalidates
+    as before.
+  - One version covers every immutable fragment together, because they link to one another. Per-fragment hashes would
+    either form a cycle or leave a cached chapter linking to a stale copy of the next.
+  - Each response is also hashed and compared with the markup its version was computed from. A fragment whose output
+    depends on the request (a nonce, a CSRF token, anything `transformHtml` adds) never qualifies, and is reported
+    once.
+  - `immutable` with `roles` throws, since the browser, not the session, keeps the copy.
+  - Nothing is addressed while the fragment file cache is off.
+
+  The rewrite is `#fragment-fingerprint`. It tokenizes start tags with quoted values read whole, so Alpine's
+  `x-show="a > b"` does not end a tag, and it skips comments and `<script>`/`<style>` text.
+* feat (web-server): opt-in `Server-Timing` on every response: `serverTiming`, or `TI_WEB_SERVER_TIMING` (CA-183).
+  - `app` is the time from the request reaching the process to its headers.
+  - `session` is the session lookup, one state-store round trip.
+  - `describeInstance()`, a new virtual method, gives `app` a description, such as where a container platform placed the
+    instance.
+
+  An existing header is appended to, including one a handler passes to `writeHead( status, headers )`. The metrics are
+  added through `on-headers`, now a declared dependency, which applies such headers before them. It is off by default,
+  because timings disclose a little about the server. Without it, the only way to split a slow response between the
+  process and the network was to reproduce it elsewhere.
+
+Tests: 618 -> 649 web-framework tests, 130 -> 140 suites, 47 -> 50 files. Design record:
+`docs/superpowers/specs/2026-09-26-web-framework-screen-latency-design.md`.
+
 ## Version 1.40.0
 
 * feat (web-app-manager): give the login screen a brand slot, `component-login-brand`, above the sign-in card (CA-179).

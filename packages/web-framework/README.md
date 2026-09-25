@@ -26,6 +26,7 @@ The web server configuration (host, port, TLS, cookies, etc.) is normally provid
 * `TI_WEB_STATIC_MAX_AGE` (whole seconds) overrides `staticCache.maxAge`. See [Static asset caching](#static-asset-caching).
 * `TI_WEB_STATIC_IMMUTABLE` (`true`/`false`) overrides `staticCache.immutable`.
 * `TI_WEB_STATIC_IMMUTABLE_PATHS` (comma-separated) **replaces** `staticCache.immutablePaths`. An explicitly empty value means *no long-lived paths*.
+* `TI_WEB_SERVER_TIMING` (`true`/`false`) overrides `serverTiming`: whether every response says, in a `Server-Timing` header, where its time went in the process. Off by default. See [Timing a response](#timing-a-response).
 
 OpenID Connect providers are configured with their own variables — `TI_AZURE_AUTH_CLIENT_ID` / `TI_AZURE_AUTH_CLIENT_SECRET` / `TI_AZURE_AUTH_CALLBACK_URL` / `TI_AZURE_AUTH_DISCOVERY_URL`, and the `TI_GCLOUD_AUTH_*` equivalents. A callback URL may be given either as the full absolute URL registered with the provider (`https://your-host/login/azure-callback`) or as a path (`/login/azure-callback`): the server always listens on the path, while the `redirect_uri` sent to the provider is the absolute value verbatim if one was configured, and otherwise assembled from the request's forwarded protocol/host.
 
@@ -154,6 +155,64 @@ Since 1.39.0:
 * **The label catalogue is not in `/app/config`.** The configuration carries `labelsBundle: { hash, url }`, and `GET /app/labels/<hash>` serves the catalogue `immutable` — the browser downloads it once per release and language. Override `getClientLabels( language )` in your `TiWebAppManager` to leave out what the browser never reads; the result must not change for the life of the process, since it is hashed once.
 * **Screen fragments requested by HTMX revalidate** (`private, no-cache`), so a repeat visit to a screen is a `304`. Full pages stay `no-store`.
 * **`/static` is served before the session middleware**, so an asset never reads or writes a session.
+
+## Screens that never change
+
+A screen fragment is served at an address that names the screen, not a version of it, so by default it revalidates:
+a repeat visit costs a request answered `304`. That saves the bytes, but not the round trip. On a hosted deployment
+the round trip is the whole cost: a user guide chapter took 4–7 ms in the process and 0.6–0.9 s in the browser.
+
+A fragment whose markup is the same for every viewer until the next deployment can be declared `immutable` (since
+1.41.0):
+
+```js
+this.addFragment( "help-overview", { title: "User Guide", path: "fragments/frame-help-overview.html", immutable: true } );
+```
+
+How it behaves:
+
+* **Every reference carries an address.** Every `hx-get="/app/help-overview"` in every fragment the framework serves,
+  the shell included, is written `hx-get="/app/help-overview?v=<version>"`. A `hx-push-url="true"` (or
+  `hx-replace-url`) on the same element becomes `hx-push-url="/app/help-overview"`, so the address bar shows the
+  plain path.
+* **A request for the current version is kept for good.** It is answered `private, max-age=31536000, immutable`, and
+  a revisit makes no request at all. A stale or missing `v` gets the normal revalidating answer.
+* **One version covers every immutable fragment together.** Chapters link to one another, so any change to any of them
+  moves every address. A deployment that changes none of them keeps every cached copy.
+
+The declaration is a promise the framework also checks:
+
+* **Each response is compared with the markup its address was computed from.** A fragment whose output depends on the
+  request (the nonce placeholder, a CSRF token, anything `transformHtml` adds per request) never matches. It is served
+  revalidating, and a warning is logged once.
+* **A fragment with `roles` cannot be `immutable`.** `addFragment` throws. The browser keeps the copy, not the session,
+  so it would be served to whoever next uses that browser, without a role check.
+* **Nothing is addressed while `TI_WEB_APP_STATIC_CACHE_DISABLED=true`**, a development setting. A file edited under a
+  running process would change its bytes without changing its address.
+
+Only declare content that anyone signed in may see and that carries nothing about the viewer, such as help,
+documentation or a static reference page. A screen whose data arrives by a separate request gains nothing: its `304`
+is already cheap in bytes, and its template changes with releases just the same.
+
+## Timing a response
+
+With `serverTiming: true` (or `TI_WEB_SERVER_TIMING=true`), every response carries a `Server-Timing` header (since
+1.41.0), which the browser's developer tools show under *Timing*:
+
+```text
+Server-Timing: app;dur=4.1;desc="Frankfurt am Main (WEUR, DE)", session;dur=2.4
+```
+
+* `app`: from the request reaching the process to its headers being written.
+* `session`: how long reading the session took, which is the state-store round trip. It is absent for `/static`, which
+  is served before the session.
+
+A header already set, for example by a proxy that adds its own metrics, is appended to. Override
+`describeInstance()` in your `TiWebServer` subclass to give `app` a description, such as where a container platform
+placed the instance. It is read once, at start, reduced to printable ASCII, and quoted.
+
+It is off by default: response timings are a small disclosure of how the server works, and a deployment chooses to
+make it.
 
 ## Configure HTTPS for development
 
