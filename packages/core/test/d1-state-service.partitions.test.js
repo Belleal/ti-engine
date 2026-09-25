@@ -61,10 +61,12 @@ async function get( key, path ) {
 
 describe( "The partition spec", () => {
 
-    it( "accepts competence's spec, two keys with two patterns each among it", () => {
+    it( "accepts competence's spec, a key with four patterns and one with two among it", () => {
         const spec = normalizePartitions( competencePartitions );
         assert.equal( spec.size, 11 );
-        assert.deepEqual( spec.get( AUDIT_LOG ), [ [ "employees", "*", "*" ], [ "evaluations", "*", "*" ] ] );
+        assert.deepEqual( spec.get( AUDIT_LOG ), [
+            [ "employees", "*", "*" ], [ "cycles", "*", "*" ], [ "activeCompetencySets", "*", "*" ], [ "evaluations", "*", "*" ]
+        ] );
         assert.ok( Object.isFrozen( spec.get( AUDIT_LOG ) ) && Object.isFrozen( spec.get( AUDIT_LOG )[ 0 ] ) );
         assert.equal( normalizePartitions( undefined ).size, 0 );
     } );
