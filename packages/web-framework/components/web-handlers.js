@@ -547,9 +547,45 @@ module.exports.healthHandler = () => {
 module.exports.userInformationHandler = () => {
     return ( request, response, next ) => {
         if ( request.session && request.session.user ) {
+            // Who is signed in, answered per request. Without a policy of its own this left the decision to whatever
+            // sat between the browser and the server.
+            response.set( "Cache-Control", "no-store" );
             response.status( exceptions.httpCode.C_200 ).send( { isSuccessful: true, data: { user: _.cloneDeep( request.session.user ) } } );
         } else {
             next( exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 ) );
+        }
+    };
+};
+
+/**
+ * Handler serving a client label catalogue by its content hash (`GET /app/labels/:hash`).
+ * <br/>
+ * A hash that names a catalogue this process holds is answered with it, `immutable`: the URL is the hash of the bytes,
+ * so it can never address anything else, and the browser keeps it without asking again. Any other hash — a page loaded
+ * a moment before a deploy changed the catalogue — gets the current catalogue for the session's language, `no-store`:
+ * usable for that page, and cached nowhere under an address it does not match.
+ *
+ * @method
+ * @param {TiWebServer} instance
+ * @returns {ExpressHandler}
+ * @public
+ */
+module.exports.labelsBundleHandler = ( instance ) => {
+    return ( request, response, next ) => {
+        const manager = instance && instance.webAppManager;
+        if ( !manager || typeof manager.getLabelsBundle !== "function" ) {
+            return next();
+        }
+        try {
+            const requested = String( request.params?.hash || "" );
+            const held = manager.findLabelsBundle( requested );
+            const bundle = held || manager.getLabelsBundle( request.session?.language );
+            const isAddressed = ( bundle.hash === requested );
+            response.set( "Cache-Control", isAddressed ? "public, max-age=31536000, immutable" : "no-store" );
+            response.set( "Content-Type", "application/json; charset=utf-8" );
+            response.status( exceptions.httpCode.C_200 ).send( bundle.body );
+        } catch ( error ) {
+            next( exceptions.raise( error ) );
         }
     };
 };
@@ -792,17 +828,38 @@ module.exports.webAppHandler = ( instance ) => {
                     const isPartial = isHtmxRequest( request );
                     const nonceHeader = request.get( "x-csp-nonce" ) || "";
                     const nonce = isPartial ? nonceHeader : ( request.cspNonce || request.nonce || resLocals.cspNonce || resLocals.nonce );
+                    let embedsCsrfToken = false;
                     instance.webAppManager.assembleHtmlView( request.session, instance.staticContentPaths, request.path, {
                         nonce: nonce,
                         isPartial: isPartial,
                         view: request.params.view,
                         // Minted only if the view has a form to render it into: `transformHtml` calls this only for a
                         // view with a token placeholder, whether or not the visitor had a session yet. The views are
-                        // never shared-cached (`no-store` below), but a mint still creates a session and two cookies -
-                        // and `/not-found`, where every unknown URL is redirected, has no form to need one.
-                        csrfToken: () => ( ( typeof request.csrfToken === "function" ) ? request.csrfToken() : request.session?.csrfToken )
+                        // never shared-cached (`private`/`no-store` below), but a mint still creates a session and
+                        // two cookies - and `/not-found`, where every unknown URL is redirected, has no form to need one.
+                        csrfToken: () => {
+                            embedsCsrfToken = true;
+                            return ( typeof request.csrfToken === "function" ) ? request.csrfToken() : request.session?.csrfToken;
+                        }
                     } ).then( ( html ) => {
-                        response.set( "Cache-Control", "no-store" );
+                        // One URL answers a navigation with the whole page and HTMX with the screen's fragment alone.
+                        response.vary( "HX-Request" );
+                        if ( isPartial === true && embedsCsrfToken === false ) {
+                            // A fragment is a template: its markup is the same on every visit and its data arrives by a
+                            // separate request. Re-sent on each screen switch it cost 5-59 KB every time; revalidated,
+                            // a repeat visit is a 304 against the ETag Express computes. Access is still decided on
+                            // every request - Express settles freshness inside `send`, after `verifyAccess` has run.
+                            // `private` keeps it out of any shared cache: it is only ever served to a session.
+                            response.set( "Cache-Control", "private, no-cache" );
+                        } else {
+                            // A full page carries this request's CSP nonce, and a token-bearing form a secret: neither
+                            // is ever reused. The token also rules out compression - a compressed secret beside
+                            // attacker-influenced bytes is the BREACH shape, whether or not anything reflects today.
+                            response.set( "Cache-Control", "no-store" );
+                            if ( embedsCsrfToken === true ) {
+                                response.locals.tiNoCompress = true;
+                            }
+                        }
                         response.set( "Content-Type", "text/html; charset=utf-8" );
                         response.status( exceptions.httpCode.C_200 ).send( html );
                     } ).catch( ( error ) => {

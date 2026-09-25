@@ -100,3 +100,13 @@
  * @property {Object|null} runtime Runtime facts (node/platform/instance), or `null` when withheld.
  * @property {TiInfoSection[]} sections Application-contributed extra sections.
  */
+
+/**
+ * One language's client label catalogue, as the browser downloads it. Built by
+ * {@link TiWebAppManager#getLabelsBundle}; `/app/config` hands out `hash` and `url`, never `body`.
+ *
+ * @typedef {Object} TiLabelsBundle
+ * @property {string} hash The first 16 hex characters of the SHA-256 of `body` — the catalogue's address.
+ * @property {string} url Where the catalogue is served: `/app/labels/<hash>`, answered `immutable` for this hash.
+ * @property {string} body The serialized label tree.
+ */

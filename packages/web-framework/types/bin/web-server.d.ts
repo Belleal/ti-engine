@@ -84,6 +84,14 @@ declare const RE_STATIC_UNPROTECTED: RegExp;
  */
 declare const RE_WELL_KNOWN_UNPROTECTED: RegExp;
 /**
+ * Default unprotected route matcher for a client label catalogue (`/app/labels/<hash>`, see
+ * {@link TiWebAppManager#getLabelsBundle}). The sign-in page resolves its labels before anyone is signed in. Exactly
+ * one segment of lower-case hex, so nothing else under `/app/` can ride on it.
+ *
+ * @type {RegExp}
+ */
+declare const RE_LABELS_BUNDLE_UNPROTECTED: RegExp;
+/**
  * A web server microservice based on the ti-engine.
  * <br/>
  * Note: The web server is fully functional and already comes with all the necessary fundamentals and security features. However, it is designed to be extended
@@ -293,6 +301,7 @@ declare class TiWebServer extends ServiceConsumer {
      * - /app
      * - /app/enter
      * - /app/config
+     * - /app/labels/:hash
      * - /logout
      * - /login/:method
      * - /health
@@ -398,6 +407,38 @@ declare class TiWebServer extends ServiceConsumer {
      */
     static staticCacheControlFor(rootPath: string, filePath: string, policy: Object): string;
     /**
+     * Builds the `Cache-Control` value for one `/static` response, given the fingerprint the request asked for.
+     * <br/>
+     * A request whose `v` is the file's current content fingerprint names exactly one version of it — the framework
+     * writes every `/static` reference in a served fragment that way (see `components/static-fingerprint.js`) — so the
+     * promise `immutable` makes is kept by construction, and the browser stops asking. Any other request (no `v`, a
+     * stale one after a deploy, a guessed one) gets {@link TiWebServer.staticCacheControlFor}: the configured policy
+     * for a stable filename, unchanged. Pure and static; exposed for unit testing — not part of the customization
+     * surface.
+     *
+     * @method
+     * @static
+     * @param {string} rootPath The directory this `/static` mount serves.
+     * @param {string} filePath The absolute path of the file being served.
+     * @param {Object} policy A policy as returned by {@link TiWebServer.resolveStaticCachePolicy}.
+     * @param {*} requestedFingerprint The request's `v` query value, if any.
+     * @param {import("node:fs").Stats} [stat] The file's stat, which express.static already holds.
+     * @returns {string}
+     * @public
+     */
+    static staticResponseCacheControl(rootPath: string, filePath: string, policy: Object, requestedFingerprint: any, stat?: import("node:fs").Stats): string;
+    /**
+     * Creates the response-compression middleware the server mounts first: brotli or gzip, by what the browser
+     * accepts, for every compressible type — except a response flagged `response.locals.tiNoCompress`, which
+     * `webAppHandler` sets on a view that embeds a CSRF token. Static so a test mounts exactly what the server does.
+     *
+     * @method
+     * @static
+     * @returns {Function} Express middleware.
+     * @public
+     */
+    static createCompressionHandler(): Function;
+    /**
      * Normalizes an HTTP method to a lower-case Express routing verb, or returns null if it is not a supported,
      * registrable verb. Anything that is not a string is rejected outright rather than coerced — otherwise a value
      * whose `toString()` happens to yield a verb (`[ "get" ]`, `new String( "get" )`) would register a route and
@@ -429,4 +470,5 @@ declare class TiWebServer extends ServiceConsumer {
 declare namespace TiWebServer {
     export { RE_STATIC_UNPROTECTED };
     export { RE_WELL_KNOWN_UNPROTECTED };
+    export { RE_LABELS_BUNDLE_UNPROTECTED };
 }

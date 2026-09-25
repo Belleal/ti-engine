@@ -28,6 +28,37 @@ const session = require( "express-session" );
 const sessionStoreName = "ti:web:sessions";
 
 /**
+ * How long, in seconds, a session's expiry written to the store stands before another request refreshes it.
+ * <br/>
+ * express-session calls `touch` on every request of a rolling session and waits for it before ending the response, so
+ * unthrottled, each screen switch paid a store write per request before its first byte. Every expiry this store writes
+ * carries this interval as slack on top of the cookie's `maxAge`, so skipping a touch inside it never lets the store
+ * expire a session its cookie still vouches for: written at t0 it lasts until t0 + maxAge + interval, and the cookie a
+ * later request re-stamps at t1 lasts until t1 + maxAge, with t1 - t0 below the interval whenever the write is skipped.
+ *
+ * @type {number}
+ */
+const TOUCH_INTERVAL_SECONDS = 60;
+
+/**
+ * Beyond this many remembered sessions, entries whose interval has passed are dropped before another is added. They
+ * carry no information once it has: the next touch writes regardless.
+ *
+ * @type {number}
+ */
+const TOUCH_MEMORY_SWEEP_THRESHOLD = 10000;
+
+/**
+ * Converts a session cookie's remaining lifetime into the expiry, in seconds, the store keeps the session for.
+ *
+ * @param {SessionData} session
+ * @returns {number|null} Null when the cookie has no lifetime (a browser-session cookie), which the store keeps forever.
+ */
+function storeExpiryFor( session ) {
+    return ( session && session.cookie && _.isNumber( session.cookie.maxAge ) ) ? Math.ceil( session.cookie.maxAge / 1000 ) + TOUCH_INTERVAL_SECONDS : null;
+}
+
+/**
  * A session store for the web server using the standard 'cache' module of the ti-engine.
  * <br/>
  * NOTE: This implementation is compatible with the 'express-session' module.
@@ -36,6 +67,9 @@ const sessionStoreName = "ti:web:sessions";
  * @public
  */
 class SessionStore extends session.Store {
+
+    // When this process last wrote each session's expiry to the store, in epoch milliseconds.
+    #expiryWrittenAt = new Map();
 
     /**
      * @constructor
@@ -55,9 +89,10 @@ class SessionStore extends session.Store {
      */
     set( sessionID, session, callback ) {
         cache.instance.hashSetField( sessionStoreName, sessionID, session ).then( () => {
-            let expire = ( session.cookie && _.isNumber( session.cookie.maxAge ) ) ? session.cookie.maxAge / 1000 : null;
+            let expire = storeExpiryFor( session );
             return ( expire ) ? cache.instance.expireValue( sessionID, expire, sessionStoreName ) : null;
         } ).then( () => {
+            this.#rememberExpiryWrite( sessionID );
             callback();
         } ).catch( ( error ) => {
             logger.log( `Error while trying to store user session in cache!`, logger.logSeverity.ERROR, error );
@@ -91,6 +126,7 @@ class SessionStore extends session.Store {
      * @public
      */
     destroy( sessionID, callback ) {
+        this.#expiryWrittenAt.delete( sessionID );
         cache.instance.hashDeleteField( sessionStoreName, sessionID ).then( () => {
             callback();
         } ).catch( ( error ) => {
@@ -109,8 +145,15 @@ class SessionStore extends session.Store {
      * @public
      */
     touch( sessionID, session, callback ) {
-        let expire = ( session.cookie && _.isNumber( session.cookie.maxAge ) ) ? session.cookie.maxAge / 1000 : null;
+        const writtenAt = this.#expiryWrittenAt.get( sessionID );
+        if ( writtenAt !== undefined && ( Date.now() - writtenAt ) < TOUCH_INTERVAL_SECONDS * 1000 ) {
+            // The expiry written moments ago still outlasts the cookie this response re-stamps (see
+            // TOUCH_INTERVAL_SECONDS), so this write would change nothing but the response's latency.
+            return callback();
+        }
+        let expire = storeExpiryFor( session );
         cache.instance.expireValue( sessionID, expire, sessionStoreName ).then( () => {
+            this.#rememberExpiryWrite( sessionID );
             callback();
         } ).catch( ( error ) => {
             logger.log( `Error while trying to refresh user session expiration in cache!`, logger.logSeverity.ERROR, error );
@@ -118,6 +161,27 @@ class SessionStore extends session.Store {
         } );
     }
 
+    /**
+     * Records that this process has just written a session's expiry, dropping remembered writes whose interval has
+     * passed once there are many of them.
+     *
+     * @method
+     * @param {string} sessionID
+     */
+    #rememberExpiryWrite( sessionID ) {
+        const now = Date.now();
+        if ( this.#expiryWrittenAt.size >= TOUCH_MEMORY_SWEEP_THRESHOLD ) {
+            for ( const [ knownID, writtenAt ] of this.#expiryWrittenAt ) {
+                if ( ( now - writtenAt ) >= TOUCH_INTERVAL_SECONDS * 1000 ) {
+                    this.#expiryWrittenAt.delete( knownID );
+                }
+            }
+        }
+        this.#expiryWrittenAt.set( sessionID, now );
+    }
+
 }
+
+SessionStore.TOUCH_INTERVAL_SECONDS = TOUCH_INTERVAL_SECONDS;
 
 module.exports = SessionStore;
