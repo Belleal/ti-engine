@@ -2,6 +2,59 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.39.0
+
+* feat (web-app-manager): serve the label catalogue as a content-addressed bundle instead of inside `/app/config`
+  (CA-174).
+  <br/>
+  **What was wrong.** `/app/config` is fetched `no-store` on every page load, and it carried the whole per-language
+  catalogue: measured on competence, 410 KB in English and 745 KB in Bulgarian on every refresh, and twice around
+  sign-in. Three quarters of it (competency descriptions and scope anchors) are resolved on the server and never read
+  in the browser.
+  <br/>
+  **What changed.** `/app/config` carries `labelsBundle: { hash, url }`. `GET /app/labels/<hash>` (unprotected) answers
+  the catalogue whose SHA-256 the hash is `public, max-age=31536000, immutable` — honest, because the address is the
+  content — and any other hash with the current catalogue `no-store`. The shell fetches the URL with the browser's
+  default cache mode and assigns the tree to `configuration.labels`, so after the first load of a release the
+  catalogue costs no request at all. `getClientLabels( language )` (virtual) is the seam to leave out what the browser
+  never reads; `getLabelsBundle` / `findLabelsBundle` build and find the serialized, hashed catalogue.
+  <br/>
+  **Compatibility.** `configuration.labels`, `getLabel` and `x-text-label` behave as before. A configuration payload
+  that still carries `labels` (an application override, an older server behind a newer shell) is used as-is. An
+  application that spreads `super.processDataRequest( session, "config" )` carries `labelsBundle` through unchanged.
+* feat (web-server): compress responses — brotli (quality 4) or gzip by `Accept-Encoding` — through `compression`
+  1.8. Nothing was compressed; the largest assets compress four to seven times. A view that embeds a CSRF token is
+  never compressed (`response.locals.tiNoCompress`), since a compressed secret beside attacker-influenced bytes is the
+  BREACH shape.
+* feat (web-handlers): revalidate HTMX fragments instead of re-sending them. A fragment is a static template and was
+  served `no-store`, 5–59 KB on every screen switch; it is now `private, no-cache` with `Vary: HX-Request`, so a
+  repeat visit is a 304. Full pages (they carry the request's CSP nonce) and any view that embeds a CSRF token stay
+  `no-store`.
+* feat (web-server): fingerprint `/static` references. Every `src`/`href` pointing at `/static` in a served fragment
+  gains `?v=<first 12 hex of the file's SHA-256>` (`components/static-fingerprint.js`, revalidated against size and
+  mtime), resolved the way express.static resolves it so an application's override is the file hashed. A request
+  whose `v` matches is answered `immutable`; a bare or stale one keeps the configured `staticCache` policy. Before,
+  every page load cost one conditional request per script and stylesheet.
+* perf (web-server): serve `/static` and `/.well-known` before cookies and the session. Mounted after them, every
+  asset read the session from the store and — `rolling` — wrote its expiry back before its response could end, and
+  carried a `Set-Cookie`. The security headers still apply; so does the shutdown refusal, which moves up with them.
+* perf (session-store): write a session's expiry at most once a minute per instance. express-session awaits `touch`
+  before ending every response of a rolling session; every expiry now carries that minute as slack over the cookie's
+  `maxAge`, so skipping a touch inside it never lets the store expire a session its cookie still vouches for.
+* fix (web-handlers): `GET /me` is `no-store`; it answered the signed-in identity with no cache policy at all.
+* fix (static): the favicon is the same image at 16, 32 and 48 px — 7 KB instead of one 256 px PNG of 75 KB.
+* build (deps): add `compression` ^1.8.2.
+
+Measured on a real competence 3.50.0 server driven by Chromium, the same walk before (1.38.1) and after:
+
+| Moment | Before | After |
+|---|---|---|
+| First visit (login page, cold cache) | 1,482 KB | 351 KB |
+| Sign-in and application boot | 488 KB | 19 KB |
+| Every refresh (F5) | 484 KB | 16 KB |
+| Thirteen screen switches | 292 KB | 88 KB |
+| Store operations per refresh | 37 | 11 |
+
 ## Version 1.38.1
 
 * build (deps): update `@alpinejs/csp` from ^3.17.3 to ^3.17.4

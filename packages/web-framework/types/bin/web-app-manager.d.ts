@@ -1,5 +1,5 @@
 export = TiWebAppManager;
-import type { TiApplicationInfo, TiInfoSection, TiProfileInfo, TiSession } from "#definitions";
+import type { TiApplicationInfo, TiInfoSection, TiLabelsBundle, TiProfileInfo, TiSession } from "#definitions";
 /**
  * Gates the login-page authentication markup to the effective enabled methods. The login fragment delimits blocks
  * with HTML-comment markers: `<!--ti-auth-method:METHOD-->…<!--/ti-auth-method-->` around each method's control
@@ -96,6 +96,48 @@ declare class TiWebAppManager {
      * @public
      */
     clearStaticFileCache(): void;
+    /**
+     * Returns the label catalogue the browser receives for a language — by default, everything the loaded catalogue
+     * holds for it.
+     * <br/>
+     * NOTE: Override to leave out what the browser never reads. A catalogue is served whole and cached by the
+     * browser, so every group the client does not resolve is paid for on each release by each visitor: competence
+     * resolves competency descriptions and scope anchors on the server, which made three quarters of its catalogue
+     * dead weight. The result must not change for the life of the process — it is hashed once per language, and the
+     * hash is the URL it is cached under.
+     *
+     * @method
+     * @param {string} [language] The session's language; the configured one when absent.
+     * @returns {Object} The label tree, one string per leaf.
+     * @virtual
+     * @public
+     */
+    getClientLabels(language?: string): Object;
+    /**
+     * Returns the client label catalogue for a language as the browser downloads it: serialized once, and addressed
+     * by the hash of its bytes.
+     * <br/>
+     * The hash is how the browser knows whether it already holds the catalogue. `/app/config` hands out the URL, the
+     * URL is answered `immutable`, and the browser does not ask again until a release changes the catalogue — and
+     * with it the URL. The catalogue cannot change inside a process (core deep-freezes the labels at load), so the
+     * serialization is computed once per language and held.
+     *
+     * @method
+     * @param {string} [language] The session's language; the configured one when absent.
+     * @returns {TiLabelsBundle}
+     * @public
+     */
+    getLabelsBundle(language?: string): TiLabelsBundle;
+    /**
+     * Returns a catalogue this process has built, by its hash — whichever language it was built for. Content-addressed
+     * bytes are the same for everyone who asks for them, so the language of the session asking does not matter here.
+     *
+     * @method
+     * @param {string} hash
+     * @returns {TiLabelsBundle|null}
+     * @public
+     */
+    findLabelsBundle(hash: string): TiLabelsBundle | null;
     /**
      * Sets the effective enabled authentication methods used to gate login-page provider buttons. The web server
      * calls this at startup, after the auth manager has dropped any enabled-but-unconfigured OpenID providers.

@@ -18,14 +18,40 @@
 const exceptions = require( "@ti-engine/core/exceptions" );
 const tools = require( "@ti-engine/core/tools" );
 const localization = require( "@ti-engine/core/localization" );
+const crypto = require( "node:crypto" );
 const path = require( "node:path" );
 const fs = require( "node:fs" );
 const configRegistry = require( "#config-registry" );
 const configService = require( "#config-service" );
 const authorization = require( "#authorization" );
 const applicationInfo = require( "#application-info" );
+const staticFingerprint = require( "#static-fingerprint" );
 
-/** @import { TiApplicationInfo, TiInfoSection, TiProfileInfo, TiSession } from "#definitions" */
+/** @import { TiApplicationInfo, TiInfoSection, TiLabelsBundle, TiProfileInfo, TiSession } from "#definitions" */
+
+/**
+ * Where a label catalogue is served. The hash IS the address, which is what makes an `immutable` answer honest:
+ * `TiWebServer` registers the route and lists it as unprotected, since the sign-in page needs its labels first.
+ *
+ * @type {string}
+ */
+const LABELS_BUNDLE_ROUTE_PREFIX = "/app/labels/";
+
+/**
+ * Hex characters of the SHA-256 digest that name a catalogue: 64 bits, against the handful of catalogues one
+ * deployment ever serves.
+ *
+ * @type {number}
+ */
+const LABELS_BUNDLE_HASH_LENGTH = 16;
+
+/**
+ * How many languages' catalogues are kept in memory. A session's language comes from its identity provider's claims,
+ * so it is not a closed set; beyond this many, a catalogue is still built and served, just not held.
+ *
+ * @type {number}
+ */
+const MAX_HELD_LABELS_BUNDLES = 16;
 
 const RE_NONCE_ATTR = /\{ti-nonce-placeholder}/g;
 const RE_CSRF_ATTR = /\{ti-csrf-placeholder}/g;
@@ -135,6 +161,8 @@ class TiWebAppManager {
     #staticFileCacheEnabled;
     #enabledAuthMethods = [];
     #baseApplicationInfo = null;
+    #labelsBundlesByLanguage = new Map();
+    #labelsBundlesByHash = new Map();
 
     /**
      * @constructor
@@ -275,6 +303,69 @@ class TiWebAppManager {
      */
     clearStaticFileCache() {
         this.#staticFileCache = {};
+    }
+
+    /**
+     * Returns the label catalogue the browser receives for a language — by default, everything the loaded catalogue
+     * holds for it.
+     * <br/>
+     * NOTE: Override to leave out what the browser never reads. A catalogue is served whole and cached by the
+     * browser, so every group the client does not resolve is paid for on each release by each visitor: competence
+     * resolves competency descriptions and scope anchors on the server, which made three quarters of its catalogue
+     * dead weight. The result must not change for the life of the process — it is hashed once per language, and the
+     * hash is the URL it is cached under.
+     *
+     * @method
+     * @param {string} [language] The session's language; the configured one when absent.
+     * @returns {Object} The label tree, one string per leaf.
+     * @virtual
+     * @public
+     */
+    getClientLabels( language ) {
+        return localization.getAllLabels( language );
+    }
+
+    /**
+     * Returns the client label catalogue for a language as the browser downloads it: serialized once, and addressed
+     * by the hash of its bytes.
+     * <br/>
+     * The hash is how the browser knows whether it already holds the catalogue. `/app/config` hands out the URL, the
+     * URL is answered `immutable`, and the browser does not ask again until a release changes the catalogue — and
+     * with it the URL. The catalogue cannot change inside a process (core deep-freezes the labels at load), so the
+     * serialization is computed once per language and held.
+     *
+     * @method
+     * @param {string} [language] The session's language; the configured one when absent.
+     * @returns {TiLabelsBundle}
+     * @public
+     */
+    getLabelsBundle( language ) {
+        const key = ( typeof language === "string" ) ? language : "";
+        const held = this.#labelsBundlesByLanguage.get( key );
+        if ( held ) {
+            return held;
+        }
+        const body = JSON.stringify( this.getClientLabels( key || undefined ) || {} );
+        const hash = crypto.createHash( "sha256" ).update( body ).digest( "hex" ).slice( 0, LABELS_BUNDLE_HASH_LENGTH );
+        const bundle = Object.freeze( { hash: hash, url: LABELS_BUNDLE_ROUTE_PREFIX + hash, body: body } );
+        if ( this.#labelsBundlesByLanguage.size < MAX_HELD_LABELS_BUNDLES ) {
+            this.#labelsBundlesByLanguage.set( key, bundle );
+            this.#labelsBundlesByHash.set( hash, bundle );
+        }
+        return bundle;
+    }
+
+    /**
+     * Returns a catalogue this process has built, by its hash — whichever language it was built for. Content-addressed
+     * bytes are the same for everyone who asks for them, so the language of the session asking does not matter here.
+     *
+     * @method
+     * @param {string} hash
+     * @returns {TiLabelsBundle|null}
+     * @public
+     */
+    findLabelsBundle( hash ) {
+        return this.#labelsBundlesByHash.get( String( hash ) ) || null;
     }
 
     /**
@@ -424,8 +515,12 @@ class TiWebAppManager {
         }
         return new Promise( ( resolve, reject ) => {
             if ( view === "config" ) {
+                // The catalogue's address rather than the catalogue: this answer is `no-store` and fetched on every
+                // page load, and carrying the tree made every refresh re-send it (410 KB in English, 745 KB in
+                // Bulgarian, for competence). The browser fetches the URL itself and keeps the bytes it addresses.
+                const labelsBundle = this.getLabelsBundle( session?.language );
                 resolve( {
-                    labels: localization.getAllLabels( session?.language ),
+                    labelsBundle: { hash: labelsBundle.hash, url: labelsBundle.url },
                     auth: {
                         isAuthenticated: Boolean( session && session.user )
                     },
@@ -724,7 +819,9 @@ class TiWebAppManager {
             } ).then( ( fileData ) => {
                 return this.transformHtml( fileData, { ...options, title: fragment.title || options.title } );
             } ).then( ( fileData ) => {
-                resolve( fileData );
+                // After the application's own transform, so a reference it adds is fingerprinted too. A reference that
+                // carries its file's hash can be cached for good; a bare one costs a conditional request per page load.
+                resolve( staticFingerprint.fingerprintStaticReferences( fileData, staticContentPaths ) );
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
             } );

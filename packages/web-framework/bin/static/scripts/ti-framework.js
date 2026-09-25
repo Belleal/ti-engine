@@ -928,7 +928,13 @@ const configureApplication = () => {
 
             // Use application settings to configure the application at load-time:
             this.sendRequest( "/app/config" ).then( ( result ) => {
-                this.configuration = result?.data || {};
+                const configuration = result?.data || {};
+                return this._loadLabels( configuration ).then( ( labels ) => {
+                    configuration.labels = labels;
+                    return configuration;
+                } );
+            } ).then( ( configuration ) => {
+                this.configuration = configuration;
                 this._mergeComponentsConfig( this.configuration?.componentsConfig );
                 return ( this.configuration?.auth?.isAuthenticated ) ? this.sendRequest( "/me" ) : {};
             } ).then( ( result ) => {
@@ -943,6 +949,40 @@ const configureApplication = () => {
                 this.isInitialized = false;
                 const formatted = this.formatException( error );
                 this.notify( { message: this.getLabel( "error.application.init-failed" ) + " " + formatted.message, details: formatted.details } );
+            } );
+        },
+
+        /**
+         * Resolves the label catalogue a configuration points to.
+         * <br/>
+         * `/app/config` carries the catalogue's address, not the catalogue: `labelsBundle.url` ends in the hash of its
+         * bytes and is served `immutable`, so after the first load of a release the browser answers this from its own
+         * cache without a request. It is fetched with the browser's default cache mode on purpose - `sendRequest` asks
+         * for `no-store`, which would download the catalogue on every page load and undo the whole arrangement. A
+         * configuration that still carries `labels` itself (an application override, an older server) is used as-is.
+         *
+         * @method
+         * @param {Object} configuration The `/app/config` payload.
+         * @returns {Promise<Object>} The label tree.
+         * @private
+         */
+        _loadLabels( configuration ) {
+            if ( configuration && configuration.labels && typeof configuration.labels === "object" ) {
+                return Promise.resolve( configuration.labels );
+            }
+            const url = configuration && configuration.labelsBundle && configuration.labelsBundle.url;
+            if ( typeof url !== "string" || url.length === 0 ) {
+                return Promise.resolve( {} );
+            }
+            return fetch( url, {
+                method: "GET",
+                headers: { "Accept": "application/json" },
+                credentials: "same-origin"
+            } ).then( ( response ) => {
+                if ( !response.ok ) {
+                    return Promise.reject( { isSuccessful: false, message: response.statusText } );
+                }
+                return response.json();
             } );
         },
 

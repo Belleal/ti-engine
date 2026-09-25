@@ -21,12 +21,15 @@ const logger = require( "@ti-engine/core/logger" );
 const { randomBytes } = require( "node:crypto" );
 const path = require( "node:path" );
 const fs = require( "node:fs" );
+const zlib = require( "node:zlib" );
 const _ = require( "lodash" );
 const express = require( "express" );
 const helmet = require( "helmet" );
 const session = require( "express-session" );
 const cookieParser = require( "cookie-parser" );
+const compression = require( "compression" );
 const webHandlers = require( "#web-handlers" );
+const staticFingerprint = require( "#static-fingerprint" );
 const SessionStore = require( "#session-store" );
 const AuthManager = require( "#auth-manager" );
 const authMethod = require( "#auth-manager" ).authMethod;
@@ -137,6 +140,24 @@ const RE_STATIC_UNPROTECTED = /^\/static\/(?:[^/]+\/)*[^/]+\.[^/]+$/i;
  * @type {RegExp}
  */
 const RE_WELL_KNOWN_UNPROTECTED = /^\/\.well-known\/(?:[^/]+\/)*[^/]+\.[^/]+$/i;
+
+/**
+ * Default unprotected route matcher for a client label catalogue (`/app/labels/<hash>`, see
+ * {@link TiWebAppManager#getLabelsBundle}). The sign-in page resolves its labels before anyone is signed in. Exactly
+ * one segment of lower-case hex, so nothing else under `/app/` can ride on it.
+ *
+ * @type {RegExp}
+ */
+const RE_LABELS_BUNDLE_UNPROTECTED = /^\/app\/labels\/[0-9a-f]{16}$/;
+
+/**
+ * Brotli quality for responses compressed on the fly. The default of `compression` (4) is kept deliberately and stated
+ * here so it is not "improved": quality 11 costs tens of milliseconds of CPU on a 400 KB script, paid on every request
+ * that is not already cached — and on a container, CPU time is what is billed.
+ *
+ * @type {number}
+ */
+const BROTLI_QUALITY = 4;
 
 /**
  * A web server microservice based on the ti-engine.
@@ -302,7 +323,14 @@ class TiWebServer extends ServiceConsumer {
                     }
                 }
 
-                // Set up security and session middlewares first:
+                // Compress what the browser accepts to have compressed (brotli, else gzip). First, so it wraps every
+                // response below it - static files, fragments, data and errors alike. Nothing was compressed before:
+                // 1.2 MB of scripts and stylesheets went out as-is, and the label catalogue with them. A response that
+                // embeds a CSRF token opts out (`webAppHandler` sets the flag): a compressed secret next to
+                // attacker-influenced bytes is the BREACH shape, whether or not anything reflects input into it today.
+                this.#webServer.use( TiWebServer.createCompressionHandler() );
+
+                // Set up the security middlewares first:
                 this.#webServer.use( webHandlers.nonceGenerationHandler() );
                 // Helmet's built-in Content-Security-Policy is intentionally disabled here because a per-request,
                 // nonce-based CSP is enforced on the very next line by webHandlers.cspHeaderHandler() (see
@@ -312,6 +340,35 @@ class TiWebServer extends ServiceConsumer {
                 // codeql[js/insecure-helmet-configuration]
                 this.#webServer.use( helmet( { contentSecurityPolicy: false } ) );
                 this.#webServer.use( webHandlers.cspHeaderHandler() );
+                this.#webServer.use( webHandlers.onShutDownHandler( this ) );
+
+                // Static content is served BEFORE the session middleware, and after the security headers. Mounted after
+                // it, every stylesheet and script a browser fetched read the session from the store and - `rolling` -
+                // wrote its expiry back before the response could end: a refresh cost one store round trip per asset,
+                // and every asset carried a `Set-Cookie`. Nothing under `/static` or `/.well-known` depends on who is
+                // asking; both are unprotected routes.
+                this.#webServer.use( "/.well-known", express.static( path.join( this.#staticContentPaths[ 0 ], ".well-known" ), { dotfiles: "allow" } ) );
+
+                // Static content routes are registered in reverse order to ensure that custom assets can override the default ones and be served first:
+                const staticCachePolicy = TiWebServer.resolveStaticCachePolicy( this.serviceConfig.staticCache );
+                staticCachePolicy.warnings.forEach( ( warning ) => logger.log( warning, logger.logSeverity.WARNING ) );
+                _.forEachRight( this.#staticContentPaths, ( staticContentPath ) => {
+                    // `Cache-Control` is written per file rather than through express.static's `maxAge`/`immutable`
+                    // options, because the policy is not uniform across the tree (see resolveStaticCachePolicy). A
+                    // header set here wins: `send` emits its "headers" event BEFORE its own `Cache-Control` block,
+                    // which then skips a header that is already present. `ETag`/`Last-Modified` are still added by
+                    // `send`, so the revalidating default costs a conditional request answered with a 304, not a
+                    // re-download. A request whose `v` is the file's current fingerprint - which is how every
+                    // reference in a served fragment is written - names one version of the file and is kept for good.
+                    this.#webServer.use( "/static", express.static( staticContentPath, {
+                        setHeaders: ( response, filePath, stat ) => {
+                            const requested = ( response.req && response.req.query ) ? response.req.query.v : undefined;
+                            response.setHeader( "Cache-Control", TiWebServer.staticResponseCacheControl( staticContentPath, filePath, staticCachePolicy, requested, stat ) );
+                        }
+                    } ) );
+                } );
+
+                // Then the session, and everything that depends on it:
                 this.#webServer.use( express.json( { limit: "1mb" } ) );
                 this.#webServer.use( express.urlencoded( { extended: false, limit: "100kb" } ) );
                 this.#webServer.use( cookieParser() );
@@ -343,26 +400,7 @@ class TiWebServer extends ServiceConsumer {
                 this.#webServer.use( webHandlers.csrfProtectionHandler() );
 
                 // Set up the web server routes:
-                this.#webServer.use( webHandlers.onShutDownHandler( this ) );
                 this.#webServer.use( webHandlers.resourceProtectionHandler( this ) );
-                this.#webServer.use( "/.well-known", express.static( path.join( this.#staticContentPaths[ 0 ], ".well-known" ), { dotfiles: "allow" } ) );
-
-                // Static content routes are registered in reverse order to ensure that custom assets can override the default ones and be served first:
-                const staticCachePolicy = TiWebServer.resolveStaticCachePolicy( this.serviceConfig.staticCache );
-                staticCachePolicy.warnings.forEach( ( warning ) => logger.log( warning, logger.logSeverity.WARNING ) );
-                _.forEachRight( this.#staticContentPaths, ( staticContentPath ) => {
-                    // `Cache-Control` is written per file rather than through express.static's `maxAge`/`immutable`
-                    // options, because the policy is not uniform across the tree (see resolveStaticCachePolicy). A
-                    // header set here wins: `send` emits its "headers" event BEFORE its own `Cache-Control` block,
-                    // which then skips a header that is already present. `ETag`/`Last-Modified` are still added by
-                    // `send`, so the revalidating default costs a conditional request answered with a 304, not a
-                    // re-download.
-                    this.#webServer.use( "/static", express.static( staticContentPath, {
-                        setHeaders: ( response, filePath ) => {
-                            response.setHeader( "Cache-Control", TiWebServer.staticCacheControlFor( staticContentPath, filePath, staticCachePolicy ) );
-                        }
-                    } ) );
-                } );
 
                 // Re-derive the session's application state before any application route can consult it. Deliberately
                 // AFTER the static handlers: an asset request carries the same session cookie, and there is no reason
@@ -587,6 +625,7 @@ class TiWebServer extends ServiceConsumer {
      * - /app
      * - /app/enter
      * - /app/config
+     * - /app/labels/:hash
      * - /logout
      * - /login/:method
      * - /health
@@ -627,6 +666,8 @@ class TiWebServer extends ServiceConsumer {
         // one. Tokens are no longer minted on every anonymous page view, precisely so that such pages can be shared.
         this.#webServer.get( "/csrf-token", webHandlers.csrfTokenHandler() );
         this.#webServer.get( "/me", webHandlers.userInformationHandler() );
+        // The label catalogue, by the hash `/app/config` hands out. Two segments, so it never reaches `/app/:view`.
+        this.#webServer.get( "/app/labels/:hash", webHandlers.labelsBundleHandler( this ) );
         // NOTE: A callback is registered by its path, never by the configured value verbatim — that value is commonly
         // the absolute URL registered with the identity provider, which Express cannot parse as a route pattern.
         [ authMethod.OPENID_GOOGLE, authMethod.OPENID_AZURE ].forEach( ( method ) => {
@@ -680,6 +721,8 @@ class TiWebServer extends ServiceConsumer {
         this.#unprotectedRoutes.push( "/csrf-token" );
         this.#unprotectedRoutes.push( RE_STATIC_UNPROTECTED );
         this.#unprotectedRoutes.push( RE_WELL_KNOWN_UNPROTECTED );
+        // The sign-in page resolves its labels before anyone is signed in, like `/app/config` that points to them.
+        this.#unprotectedRoutes.push( RE_LABELS_BUNDLE_UNPROTECTED );
     }
 
     /**
@@ -911,6 +954,50 @@ class TiWebServer extends ServiceConsumer {
     }
 
     /**
+     * Builds the `Cache-Control` value for one `/static` response, given the fingerprint the request asked for.
+     * <br/>
+     * A request whose `v` is the file's current content fingerprint names exactly one version of it — the framework
+     * writes every `/static` reference in a served fragment that way (see `components/static-fingerprint.js`) — so the
+     * promise `immutable` makes is kept by construction, and the browser stops asking. Any other request (no `v`, a
+     * stale one after a deploy, a guessed one) gets {@link TiWebServer.staticCacheControlFor}: the configured policy
+     * for a stable filename, unchanged. Pure and static; exposed for unit testing — not part of the customization
+     * surface.
+     *
+     * @method
+     * @static
+     * @param {string} rootPath The directory this `/static` mount serves.
+     * @param {string} filePath The absolute path of the file being served.
+     * @param {Object} policy A policy as returned by {@link TiWebServer.resolveStaticCachePolicy}.
+     * @param {*} requestedFingerprint The request's `v` query value, if any.
+     * @param {import("node:fs").Stats} [stat] The file's stat, which express.static already holds.
+     * @returns {string}
+     * @public
+     */
+    static staticResponseCacheControl( rootPath, filePath, policy, requestedFingerprint, stat ) {
+        if ( staticFingerprint.isCurrentFingerprint( filePath, requestedFingerprint, stat ) === true ) {
+            return `public, max-age=${ TiWebServer.#IMMUTABLE_MAX_AGE }, immutable`;
+        }
+        return TiWebServer.staticCacheControlFor( rootPath, filePath, policy );
+    }
+
+    /**
+     * Creates the response-compression middleware the server mounts first: brotli or gzip, by what the browser
+     * accepts, for every compressible type — except a response flagged `response.locals.tiNoCompress`, which
+     * `webAppHandler` sets on a view that embeds a CSRF token. Static so a test mounts exactly what the server does.
+     *
+     * @method
+     * @static
+     * @returns {Function} Express middleware.
+     * @public
+     */
+    static createCompressionHandler() {
+        return compression( {
+            filter: ( request, response ) => ( response.locals && response.locals.tiNoCompress === true ) ? false : compression.filter( request, response ),
+            brotli: { params: { [ zlib.constants.BROTLI_PARAM_QUALITY ]: BROTLI_QUALITY } }
+        } );
+    }
+
+    /**
      * Normalizes an HTTP method to a lower-case Express routing verb, or returns null if it is not a supported,
      * registrable verb. Anything that is not a string is rejected outright rather than coerced — otherwise a value
      * whose `toString()` happens to yield a verb (`[ "get" ]`, `new String( "get" )`) would register a route and
@@ -1024,3 +1111,4 @@ module.exports = TiWebServer;
 // Exported for unit testing of the ReDoS-hardened matchers; not part of the customization surface.
 TiWebServer.RE_STATIC_UNPROTECTED = RE_STATIC_UNPROTECTED;
 TiWebServer.RE_WELL_KNOWN_UNPROTECTED = RE_WELL_KNOWN_UNPROTECTED;
+TiWebServer.RE_LABELS_BUNDLE_UNPROTECTED = RE_LABELS_BUNDLE_UNPROTECTED;

@@ -131,6 +131,17 @@ Everything under `/static` is served with a `Cache-Control` policy configured by
 
 Fonts are the default exception because a released `.woff2` is an artifact rather than something edited in place, and its filename already carries the family, weight and style. If that is not how a given deployment manages its fonts, clear the list.
 
+**Since 1.39.0 the framework content-addresses its own references.** Every `src` or `href` pointing at `/static/…` in a fragment the framework serves — the shell included — is written with `?v=<content hash>` of the file that would be served for it (an application's override, where one exists). A request whose `v` matches the file's current bytes is answered `public, max-age=31536000, immutable` whatever `staticCache` says; a bare URL, or one with a stale hash, gets the policy above. A reference the application writes into its own fragments is fingerprinted the same way; one built at run time in JavaScript is not, and keeps revalidating.
+
+## What the browser downloads
+
+Since 1.39.0:
+
+* **Responses are compressed** (brotli, else gzip), except a view that embeds a CSRF token.
+* **The label catalogue is not in `/app/config`.** The configuration carries `labelsBundle: { hash, url }`, and `GET /app/labels/<hash>` serves the catalogue `immutable` — the browser downloads it once per release and language. Override `getClientLabels( language )` in your `TiWebAppManager` to leave out what the browser never reads; the result must not change for the life of the process, since it is hashed once.
+* **Screen fragments requested by HTMX revalidate** (`private, no-cache`), so a repeat visit to a screen is a `304`. Full pages stay `no-store`.
+* **`/static` is served before the session middleware**, so an asset never reads or writes a session.
+
 ## Configure HTTPS for development
 
 Use the `mkcert` tool to create a certificate for development.
