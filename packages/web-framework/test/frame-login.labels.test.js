@@ -113,7 +113,11 @@ function tokenize( html ) {
 }
 
 /**
- * Returns the value of a double-quoted attribute on a tag, or `null` when the tag does not carry it.
+ * Returns the value of an attribute on a tag, in either quote style, or `null` when the tag does not carry it.
+ * <br/>
+ * Both quotes, because reading only double quotes let a literal `placeholder='…'` pass the sweep unnoticed. They are
+ * two alternatives rather than a backreference to the opening quote: neither can run past its own closing quote, so
+ * the match stays linear. The name is escaped, although every caller passes a constant.
  *
  * @method
  * @param {string} tag
@@ -122,8 +126,12 @@ function tokenize( html ) {
  * @private
  */
 function attributeOf( tag, name ) {
-    const match = new RegExp( `\\s${ name }="([^"]*)"` ).exec( tag );
-    return match ? match[ 1 ] : null;
+    const escaped = name.replace( /[.*+?^${}()|[\]\\]/g, "\\$&" );
+    const match = new RegExp( `\\s${ escaped }=(?:"([^"]*)"|'([^']*)')` ).exec( tag );
+    if ( !match ) {
+        return null;
+    }
+    return ( match[ 1 ] !== undefined ) ? match[ 1 ] : match[ 2 ];
 }
 
 /**
@@ -230,6 +238,12 @@ describe( "every string on the login screen goes through the label directive", (
 
         assert.deepEqual( audit.unlabelled, [ "Literal", "placeholder=\"Type\"" ] );
         assert.deepEqual( audit.withoutFallback, [ "k" ] );
+
+        // HTML takes either quote. A literal placeholder written in single quotes must be caught just the same, and a
+        // label written in single quotes must count as a label.
+        const quoted = auditLabels( "<input placeholder='Quoted'/><input x-text-label:placeholder='k2' placeholder='Labelled'/>" );
+        assert.deepEqual( quoted.unlabelled, [ "placeholder=\"Quoted\"" ] );
+        assert.deepEqual( quoted.keys, [ "k2" ] );
 
         // And on the real fragment, through both forms of the directive.
         const keys = auditLabels( fs.readFileSync( LOGIN_FILES[ 0 ], "utf8" ) ).keys;
