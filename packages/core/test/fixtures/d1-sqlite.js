@@ -212,8 +212,13 @@ function serveOverHttp( handler ) {
 }
 
 /**
- * competence's partition spec, as its Cloudflare design record derives it from every read and write its DataManager
- * makes: the realistic case — one to three levels deep, and two keys with two patterns each.
+ * competence's partition spec, copied from its `application/data-partitions.js` (Belleal/competence 3.52.0): the
+ * realistic case — one to three levels deep, one key with four patterns under literals and one with two of different
+ * depths.
+ * <br/>
+ * NOTE: A copy, so it goes stale when competence's spec changes. The first copy here was taken from a draft with two
+ * of the audit log's four buckets; competence seeds all four, and its own contract test found the draft's seed refused
+ * at the first start on D1.
  *
  * @type {Object<string, string[][]>}
  */
@@ -227,7 +232,9 @@ const competencePartitions = Object.freeze( {
     "ti:competence:data:active-competency-sets": [ [ "*" ] ],
     "ti:competence:data:results-snapshots": [ [ "*" ] ],
     "ti:competence:data:peer-review-assignments": [ [ "*", "*", "*" ] ],
-    "ti:competence:data:audit-log": [ [ "employees", "*", "*" ], [ "evaluations", "*", "*" ] ],
+    "ti:competence:data:audit-log": [
+        [ "employees", "*", "*" ], [ "cycles", "*", "*" ], [ "activeCompetencySets", "*", "*" ], [ "evaluations", "*", "*" ]
+    ],
     "ti:competence:data:research-consent": [ [ "texts", "*" ], [ "decisions", "*", "*", "*" ] ]
 } );
 

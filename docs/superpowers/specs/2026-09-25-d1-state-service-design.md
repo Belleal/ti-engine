@@ -63,7 +63,8 @@ depth at which one entity sits. competence's, for example:
     "ti:competence:data:employees":        [ [ "*" ] ],
     "ti:competence:data:evaluations":      [ [ "*", "*" ] ],             // employee → evaluation
     "ti:competence:data:calendars":        [ [ "*", "*", "*" ] ],        // cycle → manager → slot
-    "ti:competence:data:audit-log":        [ [ "employees", "*", "*" ], [ "evaluations", "*", "*" ] ],
+    "ti:competence:data:audit-log":        [ [ "employees", "*", "*" ], [ "cycles", "*", "*" ],
+                                             [ "activeCompetencySets", "*", "*" ], [ "evaluations", "*", "*" ] ],
     "ti:competence:data:research-consent": [ [ "texts", "*" ], [ "decisions", "*", "*", "*" ] ]
 }
 ```
@@ -278,3 +279,13 @@ each defect was reproduced before it was changed.
   wrong statement, each branch condition dropped, the bracket unescaped, and the token inherited again.
 - The protocol 29, partitioned documents 35, the differential suite 6, stores end to end 12; core 216 → 222 tests.
   ESLint 0 errors, 65 warnings (unchanged); declarations regenerated, `check:types` clean over 40 subpaths.
+
+**The fixture's audit log — 2026-09-25.** `competencePartitions` (`test/fixtures/d1-sqlite.js`) and the example in
+§3.1 gave competence's audit log two buckets, `employees` and `evaluations`; competence seeds four, adding `cycles`
+and `activeCompetencySets`. The copy came from a draft of competence's spec, and competence 3.52.0 found the gap with
+its own contract test: its very first seed was refused (`Nothing can be stored at ["cycles"]`). Here nothing failed,
+because the differential sequence seeded and wrote the same two buckets the copy named. The fixture now matches
+`application/data-partitions.js` in competence, and the sequence seeds all four and writes an entry to each. The
+random shape over the audit log now draws from four patterns under literals. Against the old fixture the updated
+suites fail 2 of 41 tests — the DataManager sequence with competence's own error, and the spec's assertion; against
+the new one all 41 pass.

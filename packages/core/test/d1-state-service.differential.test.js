@@ -262,7 +262,7 @@ describe( "Partitioned against single documents — what DataManager does", { sk
         const initialize = [
             // DataManager#initialize: every collection created if absent, two of them seeded.
             [ "set", KEY( "active-competency-sets" ), [], { SE: { baseline: { c0: [ "E1-1", "E1-2" ] } } }, 1 ],
-            [ "set", KEY( "audit-log" ), [], { employees: {}, evaluations: {} }, 1 ],
+            [ "set", KEY( "audit-log" ), [], { employees: {}, cycles: {}, activeCompetencySets: {}, evaluations: {} }, 1 ],
             [ "set", KEY( "calendars" ), [], {}, 1 ],
             [ "set", KEY( "cycles" ), [], {}, 1 ],
             [ "set", KEY( "employees" ), [], {}, 1 ],
@@ -332,8 +332,10 @@ describe( "Partitioned against single documents — what DataManager does", { sk
             [ "merge", KEY( "active-competency-sets" ), [], { SE: { baseline: { c1: [ "E1-1", "E1-2", "E1-3" ] } } } ],
             [ "get", KEY( "active-competency-sets" ), [ "SE", "baseline", "c1" ] ],
             [ "get", KEY( "active-competency-sets" ), [ "SE", "baseline", "c9" ] ],
-            // The audit log.
+            // The audit log: an entry lands in the bucket of its subject's type, all four of them.
             [ "merge", KEY( "audit-log" ), [], { employees: { e2: { a1: { action: "updated", at: 1 } } } } ],
+            [ "merge", KEY( "audit-log" ), [], { cycles: { c1: { a3: { action: "locked", at: 3 } } } } ],
+            [ "merge", KEY( "audit-log" ), [], { activeCompetencySets: { SE: { a4: { action: "edited", at: 4 } } } } ],
             [ "merge", KEY( "audit-log" ), [], { evaluations: { v1: { a2: { action: "submitted", at: 2 } } } } ],
             [ "get", KEY( "audit-log" ), [ "employees", "e2" ] ],
             [ "get", KEY( "audit-log" ), [ "evaluations", "v1" ] ],
@@ -576,7 +578,7 @@ describe( "Partitioned against single documents — seeded random sequences", { 
         "one level": KEY( "employees" ),
         "two levels, read by id": KEY( "evaluations" ),
         "three levels": KEY( "calendars" ),
-        "two patterns under literals": KEY( "audit-log" ),
+        "four patterns under literals": KEY( "audit-log" ),
         "two patterns of different depths": KEY( "research-consent" )
     };
     const SEEDS = [ 1, 2, 3, 4, 5, 6 ];
