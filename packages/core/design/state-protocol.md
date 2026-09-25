@@ -11,7 +11,7 @@ It exists because a container has no business holding a database credential. Whe
 - Every operation is a `POST` with a JSON body, except the health probe, which is a `GET` with none.
 - Request bodies are `application/json`. Responses are JSON; an empty body is a valid acknowledgement for an operation with nothing to return.
 - Each path answers exactly one method. A service must reject the wrong verb rather than guess.
-- `Authorization: Bearer <token>` is sent when `memoryCache.stateAuthToken` is configured, and omitted otherwise. The provider refuses to start if that token would travel as plain HTTP to anywhere but this machine, unless `memoryCache.stateAllowInsecureAuth` says the platform already protects the hop. The documented Cloudflare deployment sets no token at all — the Worker binding *is* the authentication — so it never meets this rule.
+- `Authorization: Bearer <token>` is sent when `memoryCache.stateAuthToken` is configured, and omitted otherwise. A store opened on its own `stateUrl` (`createCacheStore`) sends only the token given beside that address: the configured token, and the plain-HTTP exemption below, belong to the configured service. The provider refuses to start if that token would travel as plain HTTP to anywhere but this machine, unless `memoryCache.stateAllowInsecureAuth` says the platform already protects the hop. The documented Cloudflare deployment sets no token at all — the Worker binding *is* the authentication — so it never meets this rule.
 - **The service never redirects.** The provider sends `redirect: "manual"` and treats every 3xx as a failed call. A `307` or `308` preserves method and body, so following one would resend stored state, and the credentials with it, to a host no configuration ever named.
 - **An expired key is gone on read.** `values/get`, `hashes/get` and `keys/match` must not return anything whose deadline has passed. A service that recorded durations without applying them would satisfy every assertion about what the provider *sent* and still serve the value forever.
 - A request that times out or never connects is a **transport failure**: the provider announces `onConnectionDisrupted`, which takes the whole cache out of service, and starts probing for recovery.
@@ -42,11 +42,11 @@ A path the service does not recognise must answer `404`. The set of paths below 
 | `POST /v1/documents/get` | `{ key, path }` | `{ value: string \| null }` |
 | `POST /v1/documents/merge` | `{ key, path, value }` | `{ ok: true }` |
 
-`pattern` is a Redis-style key glob: `*` and `?`. `GET` is the health probe's method; every other path is `POST`.
+`pattern` is a Redis-style key glob, matched case-sensitively: `*` stands for any run of characters and `?` for any one, and every other character, `[` included, is itself. `GET` is the health probe's method; every other path is `POST`.
 
 `hash` on `keys/expire`, when present, names the hash the field belongs to — and `key` is then the field within it. That reads backwards; it is the established argument order of `CacheProvider#expireValue` and is preserved rather than quietly improved.
 
-`overrideMode` is `0` to write unconditionally, `1` to write only if the path is absent, `2` only if it is present. A skipped write is still a `200`.
+`overrideMode` is `0` to write unconditionally, `1` to write only if the path is absent, `2` only if it is present. A skipped write is still a `200`. The condition must be decided in the same atomic step as the write it conditions: with a read ahead of the write, another request's write can land between them, and the write then acts on an answer that is no longer true.
 
 `values/delete` reports whether it removed anything. The Redis backend's `deleteValue` resolves the raw command result instead, contradicting its own signature; nothing calls it, so this protocol follows the declared contract rather than that behaviour.
 
@@ -90,6 +90,8 @@ If a store cannot do this, the service in front of it must not answer this proto
 
 Non-normative, but it is the implementation this protocol was designed against. D1 is SQLite, so the merge maps onto `json_patch`, which implements RFC 7386 exactly.
 
+**core ships it** (1.17.0): `@ti-engine/core/state-service` exports `createD1StateService( database, { partitions, now } )`, which returns the Worker's handler — a `Request` in, a `Response` out — and `sweepExpired( database )` for a scheduled prune. Its schema is `components/cache/d1-state-schema.sql`, beside the module, for `wrangler d1 execute --file`. The module imports nothing else from core, so a Worker bundling it bundles only it. What follows is the reasoning; the module is the reference.
+
 ```sql
 CREATE TABLE documents ( key TEXT PRIMARY KEY, value TEXT NOT NULL );
 ```
@@ -109,11 +111,32 @@ The obvious alternative — `json_set( value, ?path, json_patch( coalesce( json_
 | `rec-1` | works | works |
 | `user.name` | works (quoted) | works |
 | `he said "hi"` | **`bad JSON path`** | works |
-| `a\b`, `$`, `[0]` | fragile | works |
+| `$`, `[0]` | works (quoted; 3.51.2) | works |
+| `a\b` | **addresses a different key** (3.51.2): the read misses, and `json_set` writes a new key beside it with nothing raised | works |
 
-Nesting the patch has no escaping surface at all, which is why it is the mapping recorded here. It is also what vindicates §4: because the provider sends segments rather than an expression, the handler has a structure to nest and never a string to quote.
+Nesting the patch has no escaping surface at all, which is why it is the mapping recorded here. Where a path expression cannot be avoided — reading or replacing a branch — the shipped service refuses a segment containing a double quote, a backslash or a control character with a 400, rather than depend on how a given SQLite version reads escapes inside a quoted label; a merge reaches any key. It is also what vindicates §4: because the provider sends segments rather than an expression, the handler has a structure to nest and never a string to quote.
 
 The remaining operations are ordinary rows — `values` and `hashes` tables with an `expires_at` column, filtered on read and swept on a schedule. None of them carries a guarantee beyond doing what it says.
+
+### Reading a branch
+
+A read addresses its branch with `value -> ?path`, not `json_extract( value, ?path )`. Both are one statement; they differ in what they answer. `json_extract` returns a string **unquoted**, and the provider parses whatever it is given, so a stored `"42"` came back as the number `42` and a stored `"null"` as absent. `->` answers JSON text for whatever is there and SQL NULL only where nothing is. For the same reason a set-if-absent tests `json_type( value, ?path )`, which is NULL only for an absent path, where `json_extract` is NULL for a stored `null` too. Measured against SQLite 3.51.2.
+
+That test sits in the WHERE clause of the write itself, per `overrideMode`'s rule in §2. A set-if-present is an `UPDATE … WHERE json_type( value, ?path ) IS NOT NULL`; a set-if-absent is an upsert whose `DO UPDATE … WHERE json_type( … ) IS NULL` holds the write back, which SQLite reports as no change, and that is what answers `skipped`.
+
+### Matching keys
+
+`keys/match` compares with `GLOB`, never `LIKE`. `LIKE` folds ASCII case, which the protocol does not, and no index on the key can serve a comparison that folds case: by `EXPLAIN QUERY PLAN`, the `LIKE` statement read every live row of the three tables and scanned every partition marker. `GLOB` reads the primary-key range a pattern's literal prefix names. Its `*` and `?` are the protocol's; a `[`, which opens a character class in `GLOB`, is sent as `[[]`.
+
+### Partitioned documents
+
+A document that is an application's **collection** cannot be one row: D1 caps a row at 2 MB, and every edit to one record would rewrite all of them. The service therefore takes a **partition spec** — for a named key, the depth at which one entity sits (`[ [ "*", "*" ] ]` for `{ employee: { evaluation: … } }`) — and keeps each entity as its own row. It is a service-side extension and invisible to the client: the provider sends the same `documents/get|set|merge`, and the service assembles or decomposes.
+
+The requirement of §5 carries over as one **batch**: a merge touching several entities becomes one `json_patch` upsert per entity, submitted together, which D1 runs as a transaction. Two merges into different entities no longer contend at all.
+
+A conditional set above the entity level is a batch too (delete the subtree, write its entities), so its condition cannot sit in one statement's WHERE clause. The batch's first statement decides it and leaves a row in `state_guards` only if it holds; every write after it runs only while that row exists, and the last statement removes it. Checked by a query ahead of the batch, two instances seeding the same collection at once lost the first one's writes to the second one's seed.
+
+What a caller can observe is recorded in `docs/superpowers/specs/2026-09-25-d1-state-service-design.md` (in the repository, not the package), which is the design of record: an empty object above the entity level leaves no row, so it reads back as `null`; a subtree comes back in path order, not insertion order; `*` in a path is a wildcard where the spec has one, answered from an index, and refused anywhere else; a partitioned key does not expire.
 
 ---
 
@@ -125,3 +148,5 @@ The remaining operations are ordinary rows — `values` and `hashes` tables with
 - `http-cache-integration.test.js` drives the whole path through `CommonMemoryCache`, and pins the recovery behaviour described in §1. The stub can sever a socket without answering, which is a genuine transport failure rather than an error status, so the suite can take the cache out of service, watch the guard refuse a second call *before* it reaches the provider, restore the service, and wait for the cache to come back with nothing having called it. Verified to fail when the probe is disabled.
 
 That test is the capability claim made checkable. The equivalent assurance for a real service is that its merge is one statement; there is no way to observe the difference from the outside until it is too late.
+
+The shipped D1 service is tested the same way the site tested its own: against real SQLite through `node:sqlite`, shaped as a D1 binding (`test/fixtures/d1-sqlite.js`, whose `batch()` is one transaction and which logs every statement it runs). That log is what makes §5 checkable here — a merge is asserted to be statements inside one batch with nothing read before it — and `d1-state-service.differential.test.js` holds partitioned documents to the single-document behaviour this protocol describes, over competence's own operation sequence and seeded random ones. The suites skip on a Node without `node:sqlite` (before 22.5).

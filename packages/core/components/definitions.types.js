@@ -97,6 +97,20 @@
  */
 
 /**
+ * The state-service settings an HTTP cache store may carry instead of the configured `memoryCache.state*` ones. Every
+ * field is optional; an absent one falls back to the configuration.
+ *
+ * @typedef {Object} TiHttpCacheSettings
+ * @property {string} [stateUrl] The state service's base URL.
+ * @property {string} [stateAuthToken] A bearer token for the service, if it wants one. With a `stateUrl` beside it,
+ * only this one is sent: the configured token belongs to the configured service.
+ * @property {number} [stateTimeout] Milliseconds before a request is abandoned.
+ * @property {number} [retryMaxInterval] Milliseconds between recovery probes.
+ * @property {boolean} [stateAllowInsecureAuth] Whether a token may travel over plain HTTP to a non-loopback host. Like
+ * the token, never inherited by a store that names its own `stateUrl`.
+ */
+
+/**
  * @typedef {Object} SettingsMessageExchange
  * @property {string} messageQueuePrefix
  * @property {string} messageStore

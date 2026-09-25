@@ -25,6 +25,8 @@ const exceptions = require( "#exceptions" );
 const path = require( "path" );
 const { cacheCapability } = require( "#cache-capability" );
 
+/** @import { TiHttpCacheSettings } from "#definitions" */
+
 /**
  * Determines whether a value is a class extending {@link CacheProvider}, without constructing it.
  * <br/>
@@ -136,13 +138,28 @@ class CommonMemoryCache extends ConnectionObserver {
     #provider = null;
     #isOperational = false;
     #connectionIdentifier = "system-cache";
+    /** @type {string[]|null} Null for the configured cache, which reads 'memoryCache.requiredCapabilities'. */
+    #requiredCapabilities = null;
 
     /**
      * @constructor
+     * @param {Object} [store] Given, this is an independent store rather than the configured singleton — which is what
+     * {@link createCacheStore} passes. Omitted, the configured cache is created once and returned ever after.
+     * @param {string} store.connectionIdentifier
+     * @param {CacheProvider} store.provider
+     * @param {string[]} [store.requiredCapabilities]
      * @return {CommonMemoryCache}
      */
-    constructor() {
+    constructor( store ) {
         super();
+
+        if ( store && store.provider ) {
+            this.#connectionIdentifier = store.connectionIdentifier;
+            this.#provider = store.provider;
+            this.#requiredCapabilities = Array.isArray( store.requiredCapabilities ) ? [ ...store.requiredCapabilities ] : [];
+            this.#provider.addConnectionObserver( this );
+            return this;
+        }
 
         if ( !CommonMemoryCache.#instance ) {
             this.#provider = createConfiguredProvider( this.#connectionIdentifier );
@@ -558,6 +575,21 @@ class CommonMemoryCache extends ConnectionObserver {
     }
 
     /**
+     * Used to fetch the value at a path of a JSON document — the addressed value or `null`, in the same shape from
+     * every backend. Prefer it to {@link CommonMemoryCache#getJSON}, whose answer is a list of matches from Redis and
+     * the bare value over HTTP (CA-178).
+     *
+     * @method
+     * @param {string} key
+     * @param {string|string[]} [path="$"] A dot-separated JSONPath string, or an array of literal key segments.
+     * @returns {Promise<*>}
+     * @public
+     */
+    getJSONValue( key, path = "$" ) {
+        return this.#guarded( () => this.#provider.getJSONValue( key, path ) );
+    }
+
+    /**
      * Used to update/edit an existing JSON variable.
      * <br/>
      * NOTE: Requires ReJSON module installed on server to work.
@@ -614,7 +646,7 @@ class CommonMemoryCache extends ConnectionObserver {
      * @throws {TiException.E_GEN_FEATURE_UNSUPPORTED} If any required capability is absent.
      */
     #verifyRequiredCapabilities() {
-        let required = config.getSetting( config.setting.MEMORY_CACHE_REQUIRED_CAPABILITIES, [] );
+        let required = ( this.#requiredCapabilities !== null ) ? this.#requiredCapabilities : config.getSetting( config.setting.MEMORY_CACHE_REQUIRED_CAPABILITIES, [] );
         if ( _.isEmpty( required ) === true ) {
             return;
         }
@@ -631,6 +663,49 @@ class CommonMemoryCache extends ConnectionObserver {
 
 const instance = new CommonMemoryCache();
 module.exports.instance = Object.freeze( instance );
+
+/**
+ * Opens an independent store: its own backend, connection observation and capability check, beside — never instead
+ * of — the configured cache.
+ * <br/>
+ * The configured cache is where the framework keeps sessions and the configuration store. An application whose own
+ * records belong somewhere else — competence keeps its organization in D1 behind a Worker while a Redis install keeps
+ * everything in Redis — opens a store for them here rather than following wherever the sessions went (CA-176).
+ * <br/>
+ * NOTE: The store is not connected yet: call {@link CommonMemoryCache#initialize} on it, and
+ * {@link CommonMemoryCache#shutDown} when done. Only the built-in HTTP backend takes settings of its own; "redis"
+ * opens a second connection with the configured Redis settings.
+ *
+ * @method
+ * @param {string} connectionIdentifier The identifier under which the store's connection is observed and logged.
+ * @param {Object} [options]
+ * @param {string} [options.provider="http"] "http" or "redis".
+ * @param {TiHttpCacheSettings} [options.settings] For "http": the service to reach, overriding the configured one. A
+ * store that names a `stateUrl` carries only the `stateAuthToken` given beside it, never the configured service's.
+ * @param {string[]} [options.requiredCapabilities] Capabilities the store must provide, checked when it initializes.
+ * @returns {CommonMemoryCache}
+ * @throws {TiException.E_GEN_INVALID_ARGUMENT_TYPE} If the provider is not a built-in one.
+ * @public
+ */
+function createCacheStore( connectionIdentifier, options = {} ) {
+    const name = ( options && typeof options.provider === "string" ) ? options.provider : "http";
+    if ( builtInProviders[ name ] === undefined ) {
+        throw exceptions.raise( exceptions.exceptionCode.E_GEN_INVALID_ARGUMENT_TYPE, {
+            details: `A cache store can use the 'http' or 'redis' backend, not '${ name }'.`
+        } );
+    }
+    const provider = ( name === "http" )
+        ? new HttpCacheProvider( connectionIdentifier, options.settings )
+        : new builtInProviders[ name ]( connectionIdentifier );
+    // Frozen like the configured instance: callers share a store the way they share that one.
+    return Object.freeze( new CommonMemoryCache( {
+        connectionIdentifier: connectionIdentifier,
+        provider: provider,
+        requiredCapabilities: options.requiredCapabilities
+    } ) );
+}
+
+module.exports.createCacheStore = createCacheStore;
 
 // Re-exported from the Redis backend, where these now live along with the rest of the Redis-specific decoding. They
 // stay on this module because it is the published entry point and removing them would break any consumer that reaches

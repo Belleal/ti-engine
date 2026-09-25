@@ -23,6 +23,7 @@ const tools = require( "#tools" );
 const { cacheCapability } = require( "#cache-capability" );
 
 /** @import ConnectionObserver from "#connection-observer" */
+/** @import { TiHttpCacheSettings } from "#definitions" */
 
 /**
  * The paths making up the state protocol, one per logical operation.
@@ -224,18 +225,30 @@ class HttpCacheProvider extends CacheProvider {
     /**
      * @constructor
      * @param {string} connectionIdentifier The identifier under which this backend's connection is observed.
+     * @param {TiHttpCacheSettings} [settings] Overrides for the configured `memoryCache.state*` settings. The
+     * configured cache takes none; a store opened with {@link createCacheStore} names its own service this way, so an
+     * application's records need not live wherever the framework's sessions do. Naming a `stateUrl` also means naming
+     * its credential: the configured token and plain-HTTP exemption stay with the configured service.
      */
-    constructor( connectionIdentifier ) {
+    constructor( connectionIdentifier, settings = {} ) {
         super();
 
+        const overrides = ( settings && typeof settings === "object" ) ? settings : {};
+        const setting = ( name, key, fallback ) => ( overrides[ name ] !== undefined ) ? overrides[ name ] : config.getSetting( key, fallback );
+        // The token, and the exemption that lets it travel over plain HTTP, belong to the service they were configured
+        // for. A store that names its own address takes both from its own settings or goes without: inherited, the
+        // configured service's bearer token was sent to whatever address the store named.
+        const ownAddress = overrides.stateUrl !== undefined;
+        const credential = ( name, key, fallback ) => ( ownAddress === true ) ? ( ( overrides[ name ] !== undefined ) ? overrides[ name ] : fallback ) : setting( name, key, fallback );
+
         this.#connectionIdentifier = connectionIdentifier;
-        this.#baseUrl = normalizeBaseUrl( config.getSetting( config.setting.MEMORY_CACHE_STATE_URL, "http://state.internal" ) );
-        this.#authToken = config.getSetting( config.setting.MEMORY_CACHE_STATE_AUTH_TOKEN, null );
-        this.#requestTimeout = validateDelay( config.getSetting( config.setting.MEMORY_CACHE_STATE_TIMEOUT, 5000 ), "memoryCache.stateTimeout" );
-        this.#probeInterval = validateDelay( config.getSetting( config.setting.MEMORY_CACHE_RETRY_MAX_INTERVAL, 5000 ), "memoryCache.retryMaxInterval" );
+        this.#baseUrl = normalizeBaseUrl( setting( "stateUrl", config.setting.MEMORY_CACHE_STATE_URL, "http://state.internal" ) );
+        this.#authToken = credential( "stateAuthToken", config.setting.MEMORY_CACHE_STATE_AUTH_TOKEN, null );
+        this.#requestTimeout = validateDelay( setting( "stateTimeout", config.setting.MEMORY_CACHE_STATE_TIMEOUT, 5000 ), "memoryCache.stateTimeout" );
+        this.#probeInterval = validateDelay( setting( "retryMaxInterval", config.setting.MEMORY_CACHE_RETRY_MAX_INTERVAL, 5000 ), "memoryCache.retryMaxInterval" );
 
         if ( this.#authToken ) {
-            verifyCredentialTransport( this.#baseUrl, tools.toBool( config.getSetting( config.setting.MEMORY_CACHE_STATE_ALLOW_INSECURE_AUTH, false ) ) );
+            verifyCredentialTransport( this.#baseUrl, tools.toBool( credential( "stateAllowInsecureAuth", config.setting.MEMORY_CACHE_STATE_ALLOW_INSECURE_AUTH, false ) ) );
         }
     }
 
@@ -564,6 +577,21 @@ class HttpCacheProvider extends CacheProvider {
         } ).then( ( body ) => {
             return _.isString( body.value ) ? tools.parseJSON( body.value ) : null;
         } );
+    }
+
+    /**
+     * Used to fetch the value at a path of a JSON document. The protocol already answers the value itself, so this is
+     * {@link HttpCacheProvider#getJSON} under the name whose shape both backends share.
+     *
+     * @method
+     * @param {string} key
+     * @param {string|string[]} [path="$"] A dot-separated JSONPath string, or an array of literal key segments.
+     * @returns {Promise<*>} The addressed value, or `null`.
+     * @override
+     * @public
+     */
+    getJSONValue( key, path = "$" ) {
+        return this.getJSON( key, path );
     }
 
     /**

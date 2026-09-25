@@ -282,6 +282,11 @@ declare class CacheProvider {
     setJSON(key: string, value: Object, path?: string | string[], overrideMode?: number): Promise<any>;
     /**
      * Used to fetch a JSON document, or a branch of one.
+     * <br/>
+     * NOTE: The two built-in backends answer this in different shapes, and a caller must not paper over it by
+     * unwrapping `result[ 0 ]`: Redis answers RedisJSON's **list of matches** (`[ value ]`, `[]` for a missing path),
+     * HTTP answers **the value itself**. The unwrap is right for Redis and truncates any stored array over HTTP — a
+     * competency baseline read back as its first code (CA-178). Use {@link CacheProvider#getJSONValue} for one shape.
      *
      * @method
      * @param {string} key
@@ -292,6 +297,26 @@ declare class CacheProvider {
      * @public
      */
     getJSON(key: string, path?: string | string[]): Promise<Object>;
+    /**
+     * Used to fetch the value at a path of a JSON document — the value itself, whatever the backend.
+     * <br/>
+     * The one shape both backends agree on: the addressed value, or `null` when the key or the path is absent.
+     * <br/>
+     * A wildcard is where they differ, because it is RedisJSON's feature and not the state protocol's. On Redis, a `*`
+     * anywhere in the path answers its first match — what every caller that took `result[ 0 ]` had. Over HTTP a
+     * segment is a literal key (`design/state-protocol.md`), so `*` names a key spelled `*`; the one exception is the
+     * D1 service's partitioned documents, which answer the first match for a `*` at an entity position and refuse one
+     * anywhere else with a 400. A caller that reads by wildcard is therefore portable only across those positions.
+     *
+     * @method
+     * @param {string} key
+     * @param {string|string[]} [path="$"] A dot-separated JSONPath string, or an array of literal key segments.
+     * @returns {Promise<*>} The addressed value, or `null`.
+     * @requires {TiCacheCapability.JSON_DOCUMENTS}
+     * @abstract
+     * @public
+     */
+    getJSONValue(key: string, path?: string | string[]): Promise<any>;
     /**
      * Used to merge a value into an existing JSON document at the given path.
      * <br/>
