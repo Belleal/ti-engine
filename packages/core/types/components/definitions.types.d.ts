@@ -43,7 +43,8 @@ export type TiHttpCacheSettings = {
      */
     stateUrl?: string;
     /**
-     * A bearer token for the service, if it wants one.
+     * A bearer token for the service, if it wants one. With a `stateUrl` beside it,
+     * only this one is sent: the configured token belongs to the configured service.
      */
     stateAuthToken?: string;
     /**
@@ -55,7 +56,8 @@ export type TiHttpCacheSettings = {
      */
     retryMaxInterval?: number;
     /**
-     * Whether a token may travel over plain HTTP to a non-loopback host.
+     * Whether a token may travel over plain HTTP to a non-loopback host. Like
+     * the token, never inherited by a store that names its own `stateUrl`.
      */
     stateAllowInsecureAuth?: boolean;
 };
@@ -323,10 +325,12 @@ export type Message = {
  *
  * @typedef {Object} TiHttpCacheSettings
  * @property {string} [stateUrl] The state service's base URL.
- * @property {string} [stateAuthToken] A bearer token for the service, if it wants one.
+ * @property {string} [stateAuthToken] A bearer token for the service, if it wants one. With a `stateUrl` beside it,
+ * only this one is sent: the configured token belongs to the configured service.
  * @property {number} [stateTimeout] Milliseconds before a request is abandoned.
  * @property {number} [retryMaxInterval] Milliseconds between recovery probes.
- * @property {boolean} [stateAllowInsecureAuth] Whether a token may travel over plain HTTP to a non-loopback host.
+ * @property {boolean} [stateAllowInsecureAuth] Whether a token may travel over plain HTTP to a non-loopback host. Like
+ * the token, never inherited by a store that names its own `stateUrl`.
  */
 /**
  * @typedef {Object} SettingsMessageExchange

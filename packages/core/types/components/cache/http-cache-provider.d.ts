@@ -26,7 +26,8 @@ declare class HttpCacheProvider extends CacheProvider {
      * @param {string} connectionIdentifier The identifier under which this backend's connection is observed.
      * @param {TiHttpCacheSettings} [settings] Overrides for the configured `memoryCache.state*` settings. The
      * configured cache takes none; a store opened with {@link createCacheStore} names its own service this way, so an
-     * application's records need not live wherever the framework's sessions do.
+     * application's records need not live wherever the framework's sessions do. Naming a `stateUrl` also means naming
+     * its credential: the configured token and plain-HTTP exemption stay with the configured service.
      */
     constructor(connectionIdentifier: string, settings?: TiHttpCacheSettings);
     /**

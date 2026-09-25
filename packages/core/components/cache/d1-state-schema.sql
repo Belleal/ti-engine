@@ -6,8 +6,9 @@
 -- Every statement is `IF NOT EXISTS`, so re-applying it after an upgrade adds what is new and touches nothing else.
 --
 -- Plain values, hash fields and whole documents each have a table, because `keys/match` enumerates live keys and a
--- union of three indexed scans reads better than one filtered one. `expires_at` is epoch milliseconds, NULL for never;
--- every read filters on it and `sweepExpired` removes the remains.
+-- union of three primary-key ranges reads better than one filtered scan: it matches with GLOB, so a pattern's literal
+-- prefix is a range. `expires_at` is epoch milliseconds, NULL for never; every read filters on it and `sweepExpired`
+-- removes the remains.
 
 CREATE TABLE IF NOT EXISTS state_values (
     key        TEXT PRIMARY KEY,
@@ -50,3 +51,11 @@ CREATE INDEX IF NOT EXISTS state_partitions_leaf ON state_partitions ( key, leaf
 -- Only the marker rows. `keys/match` lists a partitioned key by its marker, and without this index it read every entity
 -- row of every partitioned key to find them — 5,511 rows for eleven markers, measured; D1 bills rows read.
 CREATE INDEX IF NOT EXISTS state_partitions_markers ON state_partitions ( key ) WHERE path = '[]';
+
+-- A conditional set above a partitioned document's entity level is several statements in one batch. The first decides
+-- the condition and leaves its batch's row here only if it holds, every write after it runs only while that row exists,
+-- and the last removes it: empty between batches. Checked by a query ahead of the batch, the condition could be stale
+-- by the time the batch ran.
+CREATE TABLE IF NOT EXISTS state_guards (
+    token TEXT PRIMARY KEY
+);

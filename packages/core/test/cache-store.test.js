@@ -22,6 +22,9 @@ const path = require( "path" );
 
 process.env.TI_MEMORY_CACHE_PROVIDER = path.resolve( __dirname, "fixtures", "stub-cache-provider.js" );
 process.env.TI_MEMORY_CACHE_STATE_URL = "http://127.0.0.1:1";
+// The configured service's credential and its transport exemption, which no store naming another address may carry.
+process.env.TI_MEMORY_CACHE_STATE_AUTH_TOKEN = "configured-secret";
+process.env.TI_MEMORY_CACHE_STATE_ALLOW_INSECURE_AUTH = "true";
 // Long enough that no recovery probe fires during the run.
 process.env.TI_MEMORY_CACHE_RETRY_MAX_INTERVAL = "600000";
 
@@ -73,6 +76,33 @@ describe( "createCacheStore", () => {
         await assert.rejects( configured.initialize(), ( error ) => error.code === exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE );
         assert.equal( configured.isOperational, false );
         await configured.shutDown();
+    } );
+
+    it( "sends the configured token to the configured service only, never to an address a store names", async () => {
+        // A bearer token belongs to the service it was issued for. Inherited, the configured one went to whatever
+        // address a store named.
+        let mark = first.requestLog.length;
+        const anonymous = cache.createCacheStore( "own-address", { settings: { stateUrl: first.baseUrl } } );
+        await anonymous.initialize();
+        await anonymous.setValue( "k", "v" );
+        const unauthenticated = first.requestLog.slice( mark );
+        assert.ok( unauthenticated.length > 0 );
+        assert.deepEqual( unauthenticated.map( ( entry ) => entry.headers.authorization ).filter( Boolean ), [], "the configured token stayed home" );
+        await anonymous.shutDown();
+
+        mark = first.requestLog.length;
+        const authenticated = cache.createCacheStore( "own-credential", { settings: { stateUrl: first.baseUrl, stateAuthToken: "its-own" } } );
+        await authenticated.initialize();
+        await authenticated.setValue( "k", "v" );
+        assert.deepEqual( [ ...new Set( first.requestLog.slice( mark ).map( ( entry ) => entry.headers.authorization ) ) ], [ "Bearer its-own" ] );
+        await authenticated.shutDown();
+    } );
+
+    it( "takes the plain-HTTP exemption for a token from the store's own settings, not the configured service's", () => {
+        // The configured exemption vouches for the configured service's transport, and for no other.
+        const settings = { stateUrl: "http://state.example.com", stateAuthToken: "its-own" };
+        assert.throws( () => cache.createCacheStore( "exposed", { settings: settings } ), ( error ) => error.code === exceptions.exceptionCode.E_GEN_INVALID_ARGUMENT_TYPE );
+        assert.doesNotThrow( () => cache.createCacheStore( "vouched", { settings: { ...settings, stateAllowInsecureAuth: true } } ) );
     } );
 
     it( "keeps two stores' operational state apart", async () => {

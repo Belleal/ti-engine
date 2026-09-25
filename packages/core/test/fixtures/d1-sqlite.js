@@ -51,11 +51,16 @@ function isReader( sql ) {
  * transaction, rolled back whole when any statement in it fails — which is what makes a merge across several entities
  * atomic on D1. Every statement executed is logged with the batch it ran in, so a test can assert on what the service
  * sent, not only on what it stored.
+ * <br/>
+ * `interleave( predicate, write )` runs `write` — another request's — just before the next unit of work whose SQL the
+ * predicate picks: a statement run on its own, or a whole batch. D1 runs one transaction at a time, so those are the
+ * only points at which another request's write can land, and a test can put one exactly where a race would.
  *
  * @method
  * @param {Object} [options]
  * @param {boolean} [options.schema=true] Apply the shipped schema.
- * @returns {Object} The binding, plus `sqlite` (the raw database), `log`, `failNext( predicate )` and `rows( key )`.
+ * @returns {Object} The binding, plus `sqlite` (the raw database), `log`, `failNext( predicate )`,
+ * `interleave( predicate, write )` and `rows( key )`.
  * @public
  */
 function createD1Database( options = {} ) {
@@ -67,6 +72,17 @@ function createD1Database( options = {} ) {
     const log = [];
     let batches = 0;
     let failure = null;
+    let interleaved = null;
+
+    // Lands the other request's write first, if this unit of work is the one the test picked. Awaited before a batch
+    // begins, never inside one, which is the isolation D1 gives.
+    const landInterleaved = async ( sqls ) => {
+        if ( interleaved !== null && sqls.some( ( sql ) => interleaved.predicate( sql ) === true ) ) {
+            const write = interleaved.write;
+            interleaved = null;
+            await write();
+        }
+    };
 
     const execute = ( sql, params, mode, batch ) => {
         log.push( { sql: sql, params: params, mode: mode, batch: batch } );
@@ -91,19 +107,27 @@ function createD1Database( options = {} ) {
         params: params,
         bind: ( ...values ) => prepared( sql, values ),
         first: async ( column ) => {
+            await landInterleaved( [ sql ] );
             const row = execute( sql, params, "first", null );
             if ( column === undefined ) {
                 return row;
             }
             return ( row !== null && row[ column ] !== undefined ) ? row[ column ] : null;
         },
-        run: async () => execute( sql, params, "run", null ),
-        all: async () => execute( sql, params, "all", null )
+        run: async () => {
+            await landInterleaved( [ sql ] );
+            return execute( sql, params, "run", null );
+        },
+        all: async () => {
+            await landInterleaved( [ sql ] );
+            return execute( sql, params, "all", null );
+        }
     } );
 
     return {
         prepare: ( sql ) => prepared( sql, [] ),
         batch: async ( statements ) => {
+            await landInterleaved( statements.map( ( statement ) => statement.sql ) );
             const batch = ++batches;
             database.exec( "BEGIN" );
             try {
@@ -126,6 +150,9 @@ function createD1Database( options = {} ) {
         log: log,
         failNext: ( predicate ) => {
             failure = predicate;
+        },
+        interleave: ( predicate, write ) => {
+            interleaved = { predicate: predicate, write: write };
         },
         rows: ( key ) => database.prepare( "SELECT path, leaf, value FROM state_partitions WHERE key = ?1 ORDER BY path" ).all( key ).map( ( row ) => ( { ...row } ) )
     };

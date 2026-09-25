@@ -18,7 +18,7 @@
 const assert = require( "node:assert/strict" );
 const { beforeEach, describe, it } = require( "node:test" );
 const { createD1Database, callService, sqliteUnavailable } = require( "./fixtures/d1-sqlite.js" );
-const { createD1StateService, sweepExpired, globToLike, toSQLitePath, nestAtPath } = require( "@ti-engine/core/state-service" );
+const { createD1StateService, sweepExpired, toSQLiteGlob, toSQLitePath, nestAtPath } = require( "@ti-engine/core/state-service" );
 
 // The protocol as the D1 service answers it, against real SQLite with the shipped schema. The partitioned documents
 // have their own suite; everything here is the vocabulary the site's service already spoke.
@@ -149,15 +149,33 @@ describe( "The D1 state service — keys", { skip: sqliteUnavailable }, () => {
         assert.deepEqual( [ ...keys ].sort(), [ "app:document", "app:hash", "app:value" ] );
     } );
 
-    it( "reads % and _ in a pattern as the characters they are, and only * and ? as wildcards", async () => {
-        for ( const key of [ "a%b", "a_b", "axb" ] ) {
+    it( "matches case-sensitively, as Redis does, with only * and ? as wildcards", async () => {
+        for ( const key of [ "a%b", "a_b", "axb", "A_b", "a\\b", "a[x]b" ] ) {
             await callService( service, "/v1/values/set", { key: key, value: "v" } );
         }
         const match = async ( pattern ) => ( await callService( service, "/v1/keys/match", { pattern: pattern } ) ).body.keys.sort();
-        assert.deepEqual( await match( "a%b" ), [ "a%b" ] );
+        // SQLite's LIKE folds ASCII case: `a_b` matched `A_b`, and `a*` would have listed another application's keys.
         assert.deepEqual( await match( "a_b" ), [ "a_b" ] );
-        assert.deepEqual( await match( "a?b" ), [ "a%b", "a_b", "axb" ] );
-        assert.equal( globToLike( "a\\%_*?" ), "a\\\\\\%\\_%_" );
+        assert.deepEqual( await match( "A*" ), [ "A_b" ] );
+        assert.deepEqual( await match( "a%b" ), [ "a%b" ] );
+        assert.deepEqual( await match( "a?b" ), [ "a%b", "a\\b", "a_b", "axb" ] );
+        // A bracket is a character here, as in the protocol; GLOB would read `[x]` as a class and match `axb`.
+        assert.deepEqual( await match( "a[x]b" ), [ "a[x]b" ] );
+        assert.deepEqual( await match( "a\\b" ), [ "a\\b" ] );
+        assert.equal( toSQLiteGlob( "a[x]*?" ), "a[[]x]*?" );
+    } );
+
+    it( "reads a range of each table for a pattern with a literal prefix, not every key", async () => {
+        await callService( service, "/v1/values/set", { key: "app:value", value: "v" } );
+        database.log.length = 0;
+        await callService( service, "/v1/keys/match", { pattern: "app:*" } );
+        const statement = database.log[ 0 ];
+        const reads = database.sqlite.prepare( "EXPLAIN QUERY PLAN " + statement.sql ).all( ...statement.params )
+            .map( ( row ) => row.detail ).filter( ( detail ) => /^(SCAN|SEARCH) state_/.test( detail ) );
+        // With LIKE, no index on the key could serve a comparison that folds case: SQLite read every live row of the
+        // three tables through the expiry index, and scanned every marker.
+        assert.equal( reads.length, 4, reads.join( " | " ) );
+        assert.ok( reads.every( ( detail ) => /\((key|hash)>\? AND (key|hash)<\?\)/.test( detail ) ), reads.join( " | " ) );
     } );
 
     it( "expires a whole document", async () => {
@@ -215,6 +233,27 @@ describe( "The D1 state service — single documents", { skip: sqliteUnavailable
         assert.deepEqual( await set( "doc", [ "slot" ], "taken", 1 ), { ok: true, skipped: true } );
         assert.deepEqual( await set( "doc", [ "slot" ], 7, 2 ), { ok: true } );
         assert.deepEqual( JSON.parse( await get( "doc", [] ) ), { slot: 7 } );
+    } );
+
+    it( "decides a branch set-if-absent or -present in the statement that writes it", async () => {
+        // Another request's write, landing between a check and the write it decided: the set-if-absent overwrote a
+        // value stored in between, and the set-if-present brought back one deleted in between.
+        await set( "doc", [], { kept: 1 } );
+        database.interleave( ( sql ) => sql.includes( "json_set" ), () => set( "doc", [ "slot" ], "theirs" ) );
+        assert.deepEqual( await set( "doc", [ "slot" ], "mine", 1 ), { ok: true, skipped: true } );
+        assert.equal( await get( "doc", [ "slot" ] ), "\"theirs\"" );
+
+        database.interleave( ( sql ) => sql.includes( "json_set" ), () => callService( service, "/v1/documents/merge", { key: "doc", path: [], value: JSON.stringify( { slot: null } ) } ) );
+        assert.deepEqual( await set( "doc", [ "slot" ], "mine", 2 ), { ok: true, skipped: true } );
+        assert.equal( await get( "doc", [ "slot" ] ), null );
+
+        database.log.length = 0;
+        assert.deepEqual( await set( "doc", [ "slot" ], "mine", 1 ), { ok: true } );
+        assert.deepEqual( await set( "doc", [ "slot" ], "again", 2 ), { ok: true } );
+        assert.equal( database.log.length, 2, "one statement each, so there is no between" );
+        assert.deepEqual( await set( "absent", [ "slot" ], 1, 2 ), { ok: true, skipped: true } );
+        assert.deepEqual( JSON.parse( await get( "doc", [] ) ), { kept: 1, slot: "again" } );
+        assert.equal( await get( "absent", [] ), null, "a set-if-present creates no document" );
     } );
 
     it( "applies a merge as ONE statement, with no read before it", async () => {

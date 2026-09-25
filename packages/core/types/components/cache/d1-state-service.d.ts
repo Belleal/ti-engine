@@ -7,7 +7,7 @@ declare const _exports: {
     decomposePatch: typeof decomposePatch;
     nestAtPath: typeof nestAtPath;
     toSQLitePath: typeof toSQLitePath;
-    globToLike: typeof globToLike;
+    toSQLiteGlob: typeof toSQLiteGlob;
 };
 export = _exports;
 /**
@@ -42,16 +42,20 @@ declare function nestAtPath(segments: string[], value: any): any;
  */
 declare function toSQLitePath(segments: string[]): string;
 /**
- * Translates a Redis-style key glob into a SQL LIKE pattern: `*` and `?` become `%` and `_`, and the LIKE wildcards
- * and the escape character are escaped, so a literal `%` in a key pattern matches a literal `%`. Paired with
- * `ESCAPE '\'`.
+ * Translates a protocol key pattern into a SQLite GLOB pattern.
+ * <br/>
+ * The protocol's pattern has two wildcards, `*` and `?`, which GLOB spells the same; every other character is itself.
+ * The one GLOB reads differently is `[`, which opens a character class there, so it is written as the class holding
+ * only itself. GLOB rather than LIKE because LIKE folds ASCII case — `a_b` matched `A_b`, where Redis and the protocol
+ * match case-sensitively — and because no index on the key can serve a comparison that folds case: LIKE read every live
+ * row of the three tables and every marker, where GLOB reads the range a literal prefix names (`EXPLAIN QUERY PLAN`).
  *
  * @method
  * @param {string} pattern
  * @returns {string}
  * @public
  */
-declare function globToLike(pattern: string): string;
+declare function toSQLiteGlob(pattern: string): string;
 /**
  * Validates a partition spec and returns it as a map from key to entity patterns.
  * <br/>

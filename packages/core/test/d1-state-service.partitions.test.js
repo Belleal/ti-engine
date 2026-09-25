@@ -250,6 +250,36 @@ describe( "Partitioned documents — writes", { skip: sqliteUnavailable }, () =>
         assert.deepEqual( await get( CALENDARS, [] ), { c1: { m1: { s5: { at: 5 } } }, c2: { m2: { s2: { at: 2 } } } } );
     } );
 
+    it( "keeps the evaluation another instance stored while this one was seeding the same collection", async () => {
+        // Two instances starting at once, each seeding with set-if-absent: the other one's seed and first evaluation
+        // land after this one's seed has begun, and before it writes. Decided by a query ahead of the batch, the seed
+        // found no collection and then deleted the evaluation with the rest of the subtree.
+        database.interleave( ( sql ) => sql.includes( "DELETE FROM state_partitions" ), async () => {
+            await set( EVALUATIONS, [], {}, 1 );
+            await merge( EVALUATIONS, [], { e1: { v1: { status: "open" } } } );
+        } );
+        assert.deepEqual( ( await set( EVALUATIONS, [], {}, 1 ) ).body, { ok: true, skipped: true } );
+        assert.deepEqual( await get( EVALUATIONS, [ "e1", "v1" ] ), { status: "open" } );
+    } );
+
+    it( "decides a subtree set-if-absent or -present in the batch that writes it", async () => {
+        const before = ( write ) => database.interleave( ( sql ) => sql.includes( "DELETE FROM state_partitions" ), write );
+
+        before( () => set( PEER_REVIEWS, [ "c1", "e2", "m1" ], 1 ) );
+        assert.deepEqual( ( await set( PEER_REVIEWS, [ "c1" ], { e3: { m1: 1 } }, 1 ) ).body, { ok: true, skipped: true } );
+        assert.deepEqual( await get( PEER_REVIEWS, [ "c1" ] ), { e2: { m1: 1 } }, "a subtree written just before is not replaced" );
+
+        before( () => merge( PEER_REVIEWS, [], { c1: null } ) );
+        assert.deepEqual( ( await set( PEER_REVIEWS, [ "c1" ], { e3: { m1: 1 } }, 2 ) ).body, { ok: true, skipped: true } );
+        assert.equal( await get( PEER_REVIEWS, [ "c1" ] ), null, "a subtree deleted just before is not re-created" );
+
+        database.log.length = 0;
+        assert.deepEqual( ( await set( PEER_REVIEWS, [ "c2" ], { e1: { m1: 1 } }, 1 ) ).body, { ok: true } );
+        assert.deepEqual( [ ...new Set( database.log.map( ( entry ) => entry.batch ) ) ], [ database.log[ 0 ].batch ], "nothing is read ahead of the batch" );
+        assert.notEqual( database.log[ 0 ].batch, null );
+        assert.equal( database.sqlite.prepare( "SELECT COUNT(*) AS n FROM state_guards" ).get().n, 0, "the guard leaves nothing behind" );
+    } );
+
     it( "inserts, updates or upserts one entity by override mode", async () => {
         const marker = [ "c1", "r1", "m1" ];
         assert.deepEqual( ( await set( PEER_REVIEWS, marker, 1, 2 ) ).body, { ok: true, skipped: true } );

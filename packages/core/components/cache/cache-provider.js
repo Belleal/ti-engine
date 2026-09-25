@@ -399,8 +399,13 @@ class CacheProvider {
     /**
      * Used to fetch the value at a path of a JSON document — the value itself, whatever the backend.
      * <br/>
-     * The one shape both backends agree on: the addressed value, or `null` when the key or the path is absent. A path
-     * with a wildcard answers its first match, which is what every caller that took `result[ 0 ]` from Redis had.
+     * The one shape both backends agree on: the addressed value, or `null` when the key or the path is absent.
+     * <br/>
+     * A wildcard is where they differ, because it is RedisJSON's feature and not the state protocol's. On Redis, a `*`
+     * anywhere in the path answers its first match — what every caller that took `result[ 0 ]` had. Over HTTP a
+     * segment is a literal key (`design/state-protocol.md`), so `*` names a key spelled `*`; the one exception is the
+     * D1 service's partitioned documents, which answer the first match for a `*` at an entity position and refuse one
+     * anywhere else with a 400. A caller that reads by wildcard is therefore portable only across those positions.
      *
      * @method
      * @param {string} key

@@ -28,10 +28,10 @@
  * document is one row, which D1 caps at 2 MB (competence's evaluations reach it at roughly a hundred evaluations), and
  * every edit to one entity re-writes all of them. See `docs/superpowers/specs/2026-09-25-d1-state-service-design.md`.
  * <br/>
- * NOTE: Self-contained on purpose — no other core module, only the `Response`, `URL` and `TextEncoder` globals both
- * Workers and Node provide — so a Worker that bundles this pulls in nothing else from the package. `database` only has to look like a
- * D1 binding (`prepare().bind().first()/run()/all()` and `batch()`), which is what lets the test suite run it against
- * real SQLite through `node:sqlite`.
+ * NOTE: Self-contained on purpose — no other core module, only the `Response`, `URL`, `TextEncoder` and `crypto`
+ * globals both Workers and Node provide — so a Worker that bundles this pulls in nothing else from the package.
+ * `database` only has to look like a D1 binding (`prepare().bind().first()/run()/all()` and `batch()`), which is what
+ * lets the test suite run it against real SQLite through `node:sqlite`.
  *
  * @module d1-state-service
  */
@@ -62,6 +62,13 @@ const ROUTES = new Map( [
  * @type {TextEncoder}
  */
 const UTF8 = new TextEncoder();
+
+/**
+ * The condition a guarded statement runs under: its batch's guard row, bound as `?1`, exists (see `setPartitioned`).
+ *
+ * @type {string}
+ */
+const GUARD_HELD = "EXISTS ( SELECT 1 FROM state_guards WHERE token = ?1 )";
 
 /**
  * A request the service understood and refuses: answered with its status, never a 500.
@@ -132,29 +139,21 @@ function toSQLitePath( segments ) {
 }
 
 /**
- * Translates a Redis-style key glob into a SQL LIKE pattern: `*` and `?` become `%` and `_`, and the LIKE wildcards
- * and the escape character are escaped, so a literal `%` in a key pattern matches a literal `%`. Paired with
- * `ESCAPE '\'`.
+ * Translates a protocol key pattern into a SQLite GLOB pattern.
+ * <br/>
+ * The protocol's pattern has two wildcards, `*` and `?`, which GLOB spells the same; every other character is itself.
+ * The one GLOB reads differently is `[`, which opens a character class there, so it is written as the class holding
+ * only itself. GLOB rather than LIKE because LIKE folds ASCII case — `a_b` matched `A_b`, where Redis and the protocol
+ * match case-sensitively — and because no index on the key can serve a comparison that folds case: LIKE read every live
+ * row of the three tables and every marker, where GLOB reads the range a literal prefix names (`EXPLAIN QUERY PLAN`).
  *
  * @method
  * @param {string} pattern
  * @returns {string}
  * @public
  */
-function globToLike( pattern ) {
-    let translated = "";
-    for ( const character of String( pattern ) ) {
-        if ( character === "*" ) {
-            translated += "%";
-        } else if ( character === "?" ) {
-            translated += "_";
-        } else if ( character === "%" || character === "_" || character === "\\" ) {
-            translated += "\\" + character;
-        } else {
-            translated += character;
-        }
-    }
-    return translated;
+function toSQLiteGlob( pattern ) {
+    return String( pattern ).replace( /\[/g, "[[]" );
 }
 
 /**
@@ -533,6 +532,36 @@ function createD1StateService( database, options = {} ) {
             : database.prepare( "DELETE FROM state_partitions WHERE key = ?1 AND path >= ?2 AND path < ?3" ).bind( key, ...subtreeBounds( segments ) )
     };
 
+    // A conditional set above the entity level is several statements, so its condition cannot sit in one WHERE clause
+    // the way it does at and below that level. The batch's first statement decides it and leaves a guard row only if
+    // it holds; every write after runs only while that row exists, and the last statement removes it. Decided by a
+    // query ahead of the batch, the answer could be stale by the time the batch ran: a set-if-absent deleted a subtree
+    // written in between along with the rest, and a set-if-present re-created one deleted in between. D1 runs a batch
+    // as one transaction, and no other request's write lands inside one.
+    const guarded = {
+        open: ( token, key, segments, present ) => {
+            const found = ( segments.length === 0 )
+                ? "SELECT 1 FROM state_partitions WHERE key = ?2 AND path = '[]'"
+                : "SELECT 1 FROM state_partitions WHERE key = ?2 AND path >= ?3 AND path < ?4";
+            return database.prepare( `INSERT INTO state_guards ( token ) SELECT ?1 WHERE ${ ( present === true ) ? "" : "NOT " }EXISTS ( ${ found } )` )
+                .bind( token, key, ...( ( segments.length === 0 ) ? [] : subtreeBounds( segments ) ) );
+        },
+        // `SELECT … WHERE` in place of `VALUES`, which cannot carry a condition. The WHERE is also what lets SQLite
+        // tell the upsert's ON CONFLICT from a join's ON.
+        ensureMarker: ( token, key ) => database.prepare(
+            `INSERT INTO state_partitions ( key, path, leaf, value ) SELECT ?2, '[]', NULL, '{}' WHERE ${ GUARD_HELD }
+             ON CONFLICT ( key, path ) DO NOTHING`
+        ).bind( token, key ),
+        upsertEntity: ( token, key, segments, text ) => database.prepare(
+            `INSERT INTO state_partitions ( key, path, leaf, value ) SELECT ?2, ?3, ?4, json( ?5 ) WHERE ${ GUARD_HELD }
+             ON CONFLICT ( key, path ) DO UPDATE SET value = excluded.value`
+        ).bind( token, key, JSON.stringify( segments ), segments[ segments.length - 1 ], text ),
+        deleteSubtree: ( token, key, segments ) => ( segments.length === 0 )
+            ? database.prepare( `DELETE FROM state_partitions WHERE ${ GUARD_HELD } AND key = ?2 AND path <> '[]'` ).bind( token, key )
+            : database.prepare( `DELETE FROM state_partitions WHERE ${ GUARD_HELD } AND key = ?2 AND path >= ?3 AND path < ?4` ).bind( token, key, ...subtreeBounds( segments ) ),
+        close: ( token ) => database.prepare( "DELETE FROM state_guards WHERE token = ?1" ).bind( token )
+    };
+
     const readSubtree = async ( key, segments ) => {
         const result = ( segments.length === 0 )
             ? await database.prepare( "SELECT path, value FROM state_partitions WHERE key = ?1 AND path <> '[]' ORDER BY path" ).bind( key ).all()
@@ -541,11 +570,6 @@ function createD1StateService( database, options = {} ) {
     };
 
     const markerExists = async ( key ) => ( await database.prepare( "SELECT 1 AS present FROM state_partitions WHERE key = ?1 AND path = '[]'" ).bind( key ).first() ) !== null;
-
-    // Whether anything is stored under a path: one row at most, never the subtree.
-    const subtreeExists = async ( key, segments ) => ( segments.length === 0 )
-        ? markerExists( key )
-        : ( await database.prepare( "SELECT 1 AS present FROM state_partitions WHERE key = ?1 AND path >= ?2 AND path < ?3 LIMIT 1" ).bind( key, ...subtreeBounds( segments ) ).first() ) !== null;
 
     const assemble = ( rows, depth ) => {
         const root = Object.create( null );
@@ -625,18 +649,25 @@ function createD1StateService( database, options = {} ) {
 
         if ( relation.kind === "above" ) {
             const rows = decomposeValue( patterns, segments, parseDocument( text ) );
-            if ( overrideMode === 1 || overrideMode === 2 ) {
-                const exists = await subtreeExists( key, segments );
-                if ( ( overrideMode === 1 && exists === true ) || ( overrideMode === 2 && exists === false ) ) {
-                    return { ok: true, skipped: true };
-                }
+            if ( overrideMode !== 1 && overrideMode !== 2 ) {
+                await database.batch( [
+                    statements.ensureMarker( key ),
+                    statements.deleteSubtree( key, segments ),
+                    ...rows.map( ( row ) => statements.upsertEntity( key, row.segments, JSON.stringify( row.value ) ) )
+                ] );
+                return { ok: true };
             }
-            await database.batch( [
-                statements.ensureMarker( key ),
-                statements.deleteSubtree( key, segments ),
-                ...rows.map( ( row ) => statements.upsertEntity( key, row.segments, JSON.stringify( row.value ) ) )
+            // Something is under a path above the entity level when its range holds a row; at the root, when the
+            // marker exists, so an emptied collection still counts. The first statement says which it found.
+            const token = crypto.randomUUID();
+            const results = await database.batch( [
+                guarded.open( token, key, segments, overrideMode === 2 ),
+                guarded.ensureMarker( token, key ),
+                guarded.deleteSubtree( token, key, segments ),
+                ...rows.map( ( row ) => guarded.upsertEntity( token, key, row.segments, JSON.stringify( row.value ) ) ),
+                guarded.close( token )
             ] );
-            return { ok: true };
+            return ( changesOf( results[ 0 ] ) === 0 ) ? { ok: true, skipped: true } : { ok: true };
         }
 
         if ( relation.kind === "at" ) {
@@ -699,17 +730,17 @@ function createD1StateService( database, options = {} ) {
         },
 
         "/v1/keys/match": async ( payload ) => {
-            const like = globToLike( payload.pattern );
+            const glob = toSQLiteGlob( payload.pattern );
             const at = now();
             const result = await database.prepare(
-                `SELECT key FROM state_values WHERE key LIKE ?1 ESCAPE '\\' AND ( expires_at IS NULL OR expires_at > ?2 )
+                `SELECT key FROM state_values WHERE key GLOB ?1 AND ( expires_at IS NULL OR expires_at > ?2 )
                  UNION
-                 SELECT key FROM state_documents WHERE key LIKE ?1 ESCAPE '\\' AND ( expires_at IS NULL OR expires_at > ?2 )
+                 SELECT key FROM state_documents WHERE key GLOB ?1 AND ( expires_at IS NULL OR expires_at > ?2 )
                  UNION
-                 SELECT hash AS key FROM state_hash_fields WHERE hash LIKE ?1 ESCAPE '\\' AND ( expires_at IS NULL OR expires_at > ?2 )
+                 SELECT hash AS key FROM state_hash_fields WHERE hash GLOB ?1 AND ( expires_at IS NULL OR expires_at > ?2 )
                  UNION
-                 SELECT key FROM state_partitions WHERE path = '[]' AND key LIKE ?1 ESCAPE '\\'`
-            ).bind( like, at ).all();
+                 SELECT key FROM state_partitions WHERE path = '[]' AND key GLOB ?1`
+            ).bind( glob, at ).all();
             return json( { keys: ( ( result && result.results ) || [] ).map( ( row ) => row.key ) } );
         },
 
@@ -805,21 +836,24 @@ function createD1StateService( database, options = {} ) {
 
             // A branch. The one place a path expression is unavoidable: a set REPLACES what the path addresses, and a
             // merge-patch cannot express that - it would read a null the caller meant to store as "delete this key".
-            // Existence is `json_type`, which is SQL NULL only for an absent path: `json_extract` is NULL for a stored
-            // JSON null too, and would let a set-if-absent overwrite one.
+            // One statement, with the override condition in its WHERE clause: checked by a query first, a set-if-absent
+            // overwrote a value stored between the check and the write, and a set-if-present brought back one deleted
+            // there. Existence is `json_type`, which is SQL NULL only for an absent path: `json_extract` is NULL for a
+            // stored JSON null too, and would let a set-if-absent overwrite one.
             const path = toSQLitePath( segments );
-            const existing = await firstValue(
-                database.prepare( "SELECT json_type( value, ?2 ) AS addressed FROM state_documents WHERE key = ?1" ).bind( payload.key, path ),
-                "addressed"
-            );
-            if ( ( payload.overrideMode === 1 && existing !== null ) || ( payload.overrideMode === 2 && existing === null ) ) {
-                return json( { ok: true, skipped: true } );
+            if ( payload.overrideMode === 2 ) {
+                const result = await database.prepare(
+                    "UPDATE state_documents SET value = json_set( value, ?2, json( ?3 ) ) WHERE key = ?1 AND json_type( value, ?2 ) IS NOT NULL"
+                ).bind( payload.key, path, payload.value ).run();
+                return json( ( changesOf( result ) === 0 ) ? { ok: true, skipped: true } : { ok: true } );
             }
-            await database.prepare(
+            // An upsert whose DO UPDATE is held back by its WHERE reports no change, which is how a skip is told apart.
+            const absent = ( payload.overrideMode === 1 ) ? " WHERE json_type( state_documents.value, ?2 ) IS NULL" : "";
+            const result = await database.prepare(
                 `INSERT INTO state_documents ( key, value, expires_at ) VALUES ( ?1, json_set( '{}', ?2, json( ?3 ) ), NULL )
-                 ON CONFLICT ( key ) DO UPDATE SET value = json_set( state_documents.value, ?2, json( ?3 ) )`
+                 ON CONFLICT ( key ) DO UPDATE SET value = json_set( state_documents.value, ?2, json( ?3 ) )${ absent }`
             ).bind( payload.key, path, payload.value ).run();
-            return json( { ok: true } );
+            return json( ( payload.overrideMode === 1 && changesOf( result ) === 0 ) ? { ok: true, skipped: true } : { ok: true } );
         },
 
         "/v1/documents/get": async ( payload ) => {
@@ -918,5 +952,5 @@ module.exports = {
     decomposePatch: decomposePatch,
     nestAtPath: nestAtPath,
     toSQLitePath: toSQLitePath,
-    globToLike: globToLike
+    toSQLiteGlob: toSQLiteGlob
 };

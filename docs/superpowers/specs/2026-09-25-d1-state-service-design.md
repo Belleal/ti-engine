@@ -77,9 +77,9 @@ For a concrete path `S` and the pattern `p` that agrees with it on their common 
 
 | Case | Condition | Meaning |
 |---|---|---|
-| **above** | `|S| < |p|` | a subtree over entities — assembled from, or decomposed into, many rows |
-| **at** | `|S| = |p|` | one entity — one row |
-| **below** | `|S| > |p|` | inside one entity's JSON |
+| **above** | `\|S\| < \|p\|` | a subtree over entities — assembled from, or decomposed into, many rows |
+| **at** | `\|S\| = \|p\|` | one entity — one row |
+| **below** | `\|S\| > \|p\|` | inside one entity's JSON |
 | **outside** | no pattern agrees | nothing can be stored here: a write is refused (400), a read answers `null` |
 
 ### 3.3 Operations
@@ -91,7 +91,9 @@ For a concrete path `S` and the pattern `p` that agrees with it on their common 
   `result[ 0 ]`, since the ids it is used with are unique. Anywhere else — above the entity level, facing a literal,
   inside an entity — 400: the service would have to scan, and a `null` would claim there was nothing to find.
 - **`documents/set`** — *root*: the value is decomposed along the spec; `overrideMode` tests the key's existence (a
-  marker row). *above*: rows under `S` replaced by the decomposition; the mode tests whether any exist. *at*: one
+  marker row). *above*: rows under `S` replaced by the decomposition; the mode tests whether any exist. Both tests are
+  made by the batch's first statement, which leaves a guard row only if the test passes, and every write in the batch
+  requires that row (§4), so nothing can land between the test and the write. *at*: one
   row — insert-if-absent, update-if-present or upsert. *below*: one `json_set` inside the entity with the mode in its
   `WHERE` clause; only when it changes nothing does the service look for the entity, and an absent one is 400. An
   inner segment holding a double quote, a backslash or a control character is 400 too: SQLite cannot be relied on to
@@ -101,7 +103,8 @@ For a concrete path `S` and the pattern `p` that agrees with it on their common 
 - **`documents/merge`** — the patch is nested at `S` and decomposed: at an entity, `null` deletes the row and anything
   else is `json_patch`ed into it (a new row starts from `{}`, which is RFC 7386 against an absent target); above an
   entity, an object recurses and `null` deletes the subtree; anything else is refused. One batch.
-- **`keys/match`** includes partitioned keys (by their marker). **`keys/expire`** on a partitioned key is refused: an
+- **`keys/match`** includes partitioned keys (by their marker), and compares with `GLOB`, case-sensitively, as Redis
+  does. **`keys/expire`** on a partitioned key is refused: an
   application collection does not expire, and silently ignoring the call would be a lie.
 
 ### 3.4 What a caller can tell apart from a single document, stated
@@ -137,6 +140,9 @@ CREATE TABLE IF NOT EXISTS state_partitions (
 );
 CREATE INDEX IF NOT EXISTS state_partitions_leaf ON state_partitions ( key, leaf );
 CREATE INDEX IF NOT EXISTS state_partitions_markers ON state_partitions ( key ) WHERE path = '[]';
+CREATE TABLE IF NOT EXISTS state_guards (
+    token TEXT PRIMARY KEY  -- one conditional batch's verdict; empty between batches
+);
 ```
 
 alongside the site's three tables (`state_values`, `state_hash_fields`, `state_documents`), shipped as
@@ -153,6 +159,23 @@ visiting all 3,000, where the range seeks to them. D1 bills rows read.
 else: without it the lookup read every entity row of every partitioned key — 5,511 index entries for eleven markers in
 the measurement — and `keys/match` is what the configuration store's history view calls.
 
+A conditional set above the entity level cannot put its test in one statement's WHERE clause: it is a batch that
+deletes a subtree and writes the entities under it. The batch's first statement inserts a row into `state_guards`,
+under a random token, only if the test passes (`INSERT … SELECT ?token WHERE [NOT] EXISTS ( … )`). Every write after
+it carries `EXISTS ( SELECT 1 FROM state_guards WHERE token = ?1 )`, and an insert takes `SELECT … WHERE` in place of
+`VALUES` to carry that condition. The last statement deletes the row. The first statement's change count is the
+answer: 0 means skipped. The first version tested with a query and then sent the batch, so the answer could be stale
+by the time the batch ran. When two instances seeded one collection at once, the second one's seed deleted the
+evaluation the first had just stored. Two alternatives were rejected. Writing the marker last lets the root's test
+stay true until the batch's own writes, but only the root has a marker. A first statement that aborts the batch would
+work everywhere, but the service could then tell a skip from a failure only by D1's error text.
+
+`keys/match` compares with `GLOB`, not `LIKE`. `LIKE` folds ASCII case, where Redis does not, and so matched another
+key's capitalization. And no index on the key can serve a comparison that folds case: by `EXPLAIN QUERY PLAN`, the
+`LIKE` statement read every live row of the three tables through their expiry indexes and scanned every marker. The
+`GLOB` statement reads the primary-key range that a pattern's literal prefix names in each of the four. A `[` in a
+pattern is sent as `[[]`, since it opens a class in `GLOB` and is itself in the protocol.
+
 The leaf index is used only if the statement has **no `ORDER BY`**: with `ORDER BY path` and no table statistics,
 SQLite preferred the primary key (which delivers that order) and scanned the key. The matches are sorted afterwards
 by their UTF-8 bytes, which is SQLite's order — JavaScript's `<` compares UTF-16 code units and disagrees past the
@@ -168,6 +191,9 @@ Basic Multilingual Plane.
   the partitioned service, comparing every read, with only §3.4's empty objects normalized.
 - `createCacheStore`: two stores, two providers, independent operational state; the singleton untouched.
 - `getJSONValue`: both providers, the array case CA-178 was about.
+- Races, through a fixture hook that lands another request's write just before the unit of work a test picks — a
+  statement run on its own, or a whole batch. D1 runs one transaction at a time, so those are the only points at which
+  one can land.
 
 ## 6. Not done
 
@@ -175,8 +201,10 @@ Basic Multilingual Plane.
   evaluations returns every evaluation, as the single document did. Pushing DataManager's filters down is its own
   change, if collection sizes ever make it worth one.
 - **Migrating the site** to this module. It keeps its own handler until someone chooses to move it — and that handler
-  still reads a branch with `json_extract` and tests existence with it, the two statements §7 replaced. Nothing the
-  site stores today is a string read on its own at a branch, so neither has bitten it.
+  (anarandaris `Site/worker/src/state-handler.js` at d14fdf5) still reads a branch with `json_extract` and tests
+  existence with it, the two statements §7 replaced. Nothing the site stores today is a string read on its own at a
+  branch, so neither has bitten it. It also has the two defects the review below found here: a conditional branch set
+  checked by a query ahead of its write, and `keys/match` by `LIKE`, which folds case and reads every key.
 - **A write into an expired document** that has not been swept keeps the passed deadline, so the write is invisible;
   Redis would have started a fresh key. The one caller that expires a document is the message tracer, and the
   exchange is off wherever this service runs.
@@ -224,3 +252,29 @@ Basic Multilingual Plane.
   prefix on the raw id failed the hard-ids test.
 - Core 139 → 216 tests; ESLint 0 errors (64 → 65 warnings: the unused parameter on the new abstract method, as on
   every abstract method in that file); declarations regenerated, `check:types` clean over 40 subpaths.
+
+**Review, PR #164 — 2026-09-25.** CodeRabbit raised six findings. Each was checked against the code; all six held, and
+each defect was reproduced before it was changed.
+
+- A subtree set-if-absent/-present tested its condition with a query ahead of its batch; the branch set in a single
+  document did the same ahead of its `json_set`. A new fixture hook, `interleave( predicate, write )`, lands another
+  request's write just before the unit of work a test picks. The three race tests built on it failed against the old
+  code. Two instances seeding one collection at once lost the first one's evaluation. A subtree written or deleted
+  just before was replaced or re-created. A branch value stored just before was overwritten, and one deleted just
+  before came back. Now the branch set is one statement per mode and the subtree set is guarded (§4). The differential
+  suite drives 405 guarded subtree sets (205 went ahead, 200 were skipped) and still agrees with its reference
+  throughout.
+- `keys/match` moved from `LIKE` to `GLOB` (§4): `a_b` had matched `A_b`, and the plan read every live key.
+- A store that names its own `stateUrl` sent the configured service's bearer token there, and inherited its plain-HTTP
+  exemption. Both now come only from the store's own settings. Reproduced with the token configured: the stub behind
+  a store's own address received `Bearer configured-secret`.
+- The table in §3.2 escaped none of its pipes, which a table row splits on even inside a code span. Rendered with
+  markdown-it 15, each of the three rows came out as a lone backtick and an `S`, with the rest of the row lost.
+- `getJSONValue`'s documentation promised Redis's wildcard behaviour on every backend. It now states each case: Redis
+  resolves a wildcard anywhere, the D1 service only at an entity position of a partitioned document, and elsewhere
+  over HTTP a segment is a literal key.
+- Nine hand-made defects in the fixes each failed 1–11 tests: a guard condition dropped from the delete or from the
+  upsert, the verdict inverted, the root tested against its entities instead of its marker, the skip read from the
+  wrong statement, each branch condition dropped, the bracket unescaped, and the token inherited again.
+- The protocol 29, partitioned documents 35, the differential suite 6, stores end to end 12; core 216 → 222 tests.
+  ESLint 0 errors, 65 warnings (unchanged); declarations regenerated, `check:types` clean over 40 subpaths.

@@ -204,7 +204,17 @@ history and older PR bodies; it is no longer the working branch.
   - **`*.<id>` reads the `leaf` index — only without `ORDER BY`** in the statement; with it, SQLite preferred the
     primary key and scanned the key. Matches are sorted afterwards by UTF-8 bytes (`compareBinary`), SQLite's order.
     `keys/match` finds partitioned keys through `state_partitions_markers`, a partial index of the marker rows —
-    without it, every entity row of every key was read. Each of these has an `EXPLAIN QUERY PLAN` assertion.
+    without it, every entity row of every key was read — and compares with **`GLOB`, never `LIKE`**: `LIKE` folds
+    ASCII case (`a_b` matched `A_b`) and so can use no key index, reading every live row; `GLOB` reads the range a
+    literal prefix names. `toSQLiteGlob` sends a `[` as `[[]`, since the protocol has only `*` and `?`. Each of these
+    has an `EXPLAIN QUERY PLAN` assertion.
+  - **A conditional set decides its condition in the write, never in a read ahead of it.** A branch set is one
+    statement per mode, with `json_type` in its WHERE clause (for set-if-absent, an upsert's `DO UPDATE … WHERE`,
+    which reports no change when it holds the write back). A subtree set is a batch, so the batch's first statement
+    inserts a row in **`state_guards`** only if the condition holds, every write after it requires that row, and the
+    last statement deletes it. The table is empty between batches. Checked ahead instead, two instances seeding one
+    collection lost the first one's evaluation. Races are reproduced with the fixture's `interleave( predicate,
+    write )`, which lands another request's write just before a picked statement or batch, the only points D1 allows.
   - **An empty object has no row** (design record §3.4): `{}` written above the entity level reads back `null`, and
     set-if-absent there tests for rows. The one divergence from a single document, with key order the other: an
     assembled subtree is in path order, not insertion order. `*` is a wildcard on the entity path, so a key spelled
@@ -219,10 +229,13 @@ history and older PR bodies; it is no longer the working branch.
   application's records need not live wherever the sessions do (competence's `COMPETENCE_DATA_STORE`, CA-176) — and
   **`getJSONValue()`**, one answer shape from both backends (CA-178): `getJSON` still answers RedisJSON's match list
   from Redis and the bare value over HTTP, and the `result[ 0 ]` unwrap every caller wrote truncates a stored array
-  over HTTP. The suites run the service against real SQLite through `node:sqlite` shaped as a D1 binding
+  over HTTP. A wildcard is not portable: Redis resolves it anywhere, while over HTTP a segment is a literal key except
+  at an entity position of a D1 partitioned document. **A store that names its own `stateUrl` carries only the
+  `stateAuthToken` and `stateAllowInsecureAuth` given beside it**; inheriting them sent the configured service's
+  bearer token to the store's address. The suites run the service against real SQLite through `node:sqlite` shaped as a D1 binding
   (`test/fixtures/d1-sqlite.js`, whose `batch()` is a transaction); on Node < 22.5 they skip. The differential suite
   replays competence's DataManager sequence and 7,500 seeded random operations against a one-document-per-key
-  reference; eight hand-made service defects each failed 4–6 of its 6 tests.
+  reference; eight hand-made service defects each failed 4–6 of its 6 tests, and it drives 405 guarded subtree sets.
 
 **Exception families** (`utils/exceptions.js`) — the class is `TiException` (renamed from `Exception` in 1.4.0); `raise()` accepts an optional `httpCode`:
 - `E_GEN_*` 1000–1010 (general; incl. `E_GEN_NOT_IMPLEMENTED` 1010)
@@ -266,7 +279,7 @@ module.exports.service = function (serviceDefinition, serviceParams, serviceCall
 
 **Test commands**:
 ```bash
-npm test    # node --test — runs test/*.test.js: 216 tests / 52 suites across 18 files
+npm test    # node --test — runs test/*.test.js: 222 tests / 52 suites across 18 files
             # (the count includes the four test/fixtures/ modules: the default pattern runs them too)
             # (auditing-json-console, cache-capabilities, cache-get-values, cache-provider-selection,
             #  cache-store, d1-state-service, d1-state-service.partitions, d1-state-service.differential,
@@ -277,8 +290,8 @@ npm test    # node --test — runs test/*.test.js: 216 tests / 52 suites across 
             # test/fixtures/ holds StubCacheProvider (how the cache singleton is
             # driven without a live Redis), startStubStateServer (an in-memory
             # implementation of the state protocol, on node:http) and d1-sqlite
-            # (node:sqlite shaped as a D1 binding, plus competence's partition
-            # spec) - none is a test file
+            # (node:sqlite shaped as a D1 binding with an interleave hook for
+            # races, plus competence's partition spec) - none is a test file
 ```
 
 ---
@@ -799,7 +812,7 @@ Token: YouTrack → Profile → Account Security → New token (scope: YouTrack)
 2. **Extending the web UI**: subclass `TiWebAppManager`, add an HTML fragment + matching Alpine component; reuse framework CSS primitives; obey the Alpine CSP rules (no inline styles, no `?.`).
 3. **Config-management, from a consumer's side**: a consuming application registers a config document (schema + file default + semantic validators + optional composite editor) through `TiWebAppManager.registerConfigDocument` / `registerConfigEditor`. Those seams live here; the documents themselves live in the consumer. Changing either seam is a breaking change for every consumer, so treat the `exports` map and these signatures as API.
 4. **Testing**: Node.js built-in `node --test` (no external framework); each package's `test/` directory. `npm test`
-   at the root fans out across workspaces — **1219 tests today: core 216, web-framework 595, web-content 408, tester
+   at the root fans out across workspaces — **1225 tests today: core 222, web-framework 595, web-content 408, tester
    none** (it is a runnable service, not a unit-tested one). The three checks that gate a push are in
    `CLAUDE.md` → *Definition of done*: `npm test`, `npm run lint` (0 errors; ESLint's only rule here is
    `no-unused-vars` as a **warning**, so a clean lint is no evidence the house style was followed — read a sibling

@@ -680,7 +680,8 @@ module.exports.instance = Object.freeze( instance );
  * @param {string} connectionIdentifier The identifier under which the store's connection is observed and logged.
  * @param {Object} [options]
  * @param {string} [options.provider="http"] "http" or "redis".
- * @param {TiHttpCacheSettings} [options.settings] For "http": the service to reach, overriding the configured one.
+ * @param {TiHttpCacheSettings} [options.settings] For "http": the service to reach, overriding the configured one. A
+ * store that names a `stateUrl` carries only the `stateAuthToken` given beside it, never the configured service's.
  * @param {string[]} [options.requiredCapabilities] Capabilities the store must provide, checked when it initializes.
  * @returns {CommonMemoryCache}
  * @throws {TiException.E_GEN_INVALID_ARGUMENT_TYPE} If the provider is not a built-in one.
