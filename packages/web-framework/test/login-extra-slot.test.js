@@ -118,9 +118,12 @@ describe( "the login screen carries an application-extension slot", () => {
     it( "registers the component on the login fragment descriptor, or the placeholder is never replaced", () => {
         // `#replaceComponentPlaceholders` only resolves components a fragment declares; an undeclared placeholder is
         // left in the served HTML as an unknown element that renders nothing and reports nothing.
+        // Membership, not the whole list: the descriptor also declares the brand slot (CA-179).
         const descriptor = /this\.#fragments\[ 'login' \] = \{([\s\S]*?)\};/.exec( read( APP_MANAGER ) );
         assert.ok( descriptor, "no login fragment descriptor found" );
-        assert.match( descriptor[ 1 ], /components:\s*\[\s*"component-login-extra"\s*]/ );
+        const list = /components:\s*\[([^\]]*)]/.exec( descriptor[ 1 ] );
+        assert.ok( list, "the login fragment descriptor declares no components" );
+        assert.ok( list[ 1 ].split( "," ).map( ( entry ) => entry.trim() ).includes( "\"component-login-extra\"" ) );
     } );
 
     it( "ships the component, and ships it empty", () => {

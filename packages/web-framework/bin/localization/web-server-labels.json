@@ -6,9 +6,21 @@
           "en": "We couldn't sign you in. Check your credentials, or contact your administrator if your account is not set up for this application.",
           "bg": "Неуспешно влизане. Проверете данните си за достъп или се свържете с администратора, ако акаунтът ви не е настроен за това приложение."
         },
+        "no-sign-in-method": {
+          "en": "No sign-in method is configured. Please contact your administrator.",
+          "bg": "Няма настроен метод за вход. Свържете се с администратора си."
+        },
+        "or-continue-with": {
+          "en": "or continue with",
+          "bg": "или продължете с"
+        },
         "password": {
           "en": "Password",
           "bg": "Парола"
+        },
+        "password-placeholder": {
+          "en": "Enter your password",
+          "bg": "Въведете паролата си"
         },
         "sign-in": {
           "en": "Sign In",
@@ -22,9 +34,21 @@
           "en": "Sign In - Google",
           "bg": "Вход с Google"
         },
+        "sign-in-prompt": {
+          "en": "Sign in to continue",
+          "bg": "Влезте, за да продължите"
+        },
         "username": {
           "en": "Username",
           "bg": "Потребител"
+        },
+        "username-placeholder": {
+          "en": "Enter your username",
+          "bg": "Въведете потребителското си име"
+        },
+        "welcome": {
+          "en": "Welcome back",
+          "bg": "Добре дошли отново"
         }
       }
     },

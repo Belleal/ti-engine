@@ -28,7 +28,7 @@ the header block verbatim from an existing file in the same package.
 ti-engine/                         npm workspace root (v1.3.0; workspaces = packages/*)
 ├── packages/
 │   ├── core/          v1.17.0     Framework foundation (pluggable cache backend — Redis or HTTP, optional messaging, lifecycle, utils) + the D1 state service + shipped TypeScript declarations
-│   ├── web-framework/ v1.39.0     Express server + auth (incl. real local auth) + admin config-management + config drift + Profile/About + ti-charts + role gate + TI_WEB_* env overrides + /health + route seams
+│   ├── web-framework/ v1.40.0     Express server + auth (incl. real local auth) + admin config-management + config drift + Profile/About + ti-charts + role gate + TI_WEB_* env overrides + /health + route seams
 │   ├── web-content/   v0.4.0      Content-publishing engine — path-index routing, deny-by-default visibility, SEO documents, feeds, email capture (WIP)
 │   └── tester/        v1.3.5      Reference/example service implementation + the docker-build target
 ├── .github/workflows/             ci.yml (lint/test/build) · codeql-analysis.yml · npm-publish.yml · cla.yml
@@ -296,7 +296,7 @@ npm test    # node --test — runs test/*.test.js: 222 tests / 52 suites across 
 
 ---
 
-## Package: web-framework (v1.39.0)
+## Package: web-framework (v1.40.0)
 
 **Role**: Express.js web server + authentication layer + a reusable **admin config-management subsystem** for web-facing UIs + a CSP-safe **charting primitive library** (`ti-charts.js`) + the container-deployment surface (`TI_WEB_*` env overrides, `GET /health`) and the **route-registration seams** (1.17.0) a subclass uses to mount its own routes — what `web-content` is built on.
 
@@ -304,7 +304,7 @@ npm test    # node --test — runs test/*.test.js: 222 tests / 52 suites across 
 | File | Purpose |
 |------|---------|
 | `bin/web-server.js` | `TiWebServer` (extends ServiceConsumer); Express app, middleware stack — **compression first, then the security headers, then `/.well-known` and `/static`, and only then cookies and the session** (1.39.0); applies the `TI_WEB_*` overrides, mounts `GET /health` and `GET /app/labels/:hash`, hosts the `registerRoute` / `addUnprotectedRoute` seams (1.17.0) and the `/static` cache decision (`resolveStaticCachePolicy` / `staticCacheControlFor`, 1.19.0; `staticResponseCacheControl` for a fingerprinted request, 1.39.0) |
-| `bin/web-app-manager.js` | `TiWebAppManager` **abstract**; HTML fragment rendering, nonces, CSRF, the `registerConfigDocument` / `registerConfigEditor` API, the default `verifyAccess` that enforces a fragment's declared `roles` (1.13.0), login-page gating to the effective auth methods (1.14.0/1.15.0), the client label catalogue (`getClientLabels` — virtual, narrow it — and `getLabelsBundle` / `findLabelsBundle`, 1.39.0) and the fingerprinting of every `/static` reference in a served fragment (1.39.0) |
+| `bin/web-app-manager.js` | `TiWebAppManager` **abstract**; HTML fragment rendering, nonces, CSRF, the `registerConfigDocument` / `registerConfigEditor` API, the default `verifyAccess` that enforces a fragment's declared `roles` (1.13.0), login-page gating to the effective auth methods (1.14.0/1.15.0), the login screen's two application slots (`component-login-extra` below the card, 1.36.0; `component-login-brand` above it, 1.40.0), the client label catalogue (`getClientLabels` — virtual, narrow it — and `getLabelsBundle` / `findLabelsBundle`, 1.39.0) and the fingerprinting of every `/static` reference in a served fragment (1.39.0) |
 | `bin/web-server.json` | Server config (host, port, TLS, auth methods, `auth.admins`, `trustedOrigins`) — most fields overridable via `TI_WEB_*`. **`staticCache` defaults deliberately live on the class, not here**: the constructor's `_.merge` merges arrays by index, so a consumer's empty `immutablePaths` could otherwise never clear a default entry |
 | `bin/build/post-install.js` | `postinstall` step (refreshes bundled static libs) |
 | `components/auth-manager.js` | OpenID Connect (Azure/Google) + local auth; session token generation; `getOAuth2CallbackPath()` + the pure `toCallbackPath( callbackUrl )` (1.18.1) reduce a configured callback to its Express route path; the pure statics `resolveOpenIDIdentity( userInfo, claims )` (1.35.0 — the identity an OpenID sign-in puts on the session, read from **both** responses) and `isEmailReportedUnverified( userInfo, claims )` (1.30.0, second source added 1.35.0) |
@@ -323,11 +323,25 @@ npm test    # node --test — runs test/*.test.js: 222 tests / 52 suites across 
 | `bin/static/` | Frontend assets: HTMX, Alpine.js (CSP build), `safe-nonce`, framework CSS + themes, HTML fragments |
 | `bin/static/scripts/ti-charts.js` | CSP-safe SVG charting library (added 1.10.0); see *Charting primitives* below |
 | `design/admin-config-management.md` | Design doc + implementation log for the config-management feature |
-| `test/*.test.js` | `node --test` — **595 tests / 126 suites across 45 files**: the config subsystem + authorization + `ti-charts` (layout math + render structure) + the serving/deployment surface (`web-server-env-overrides`, `web-server.static-cache`, `web-server.route-seams`, `web-server.unprotected-routes`, `web-handlers.health`, `web-handlers.origin`, `web-app-manager.auth-visibility`) + the auth surface (`auth-manager`, `auth-manager.callback-path`, `auth-manager.email-verified`, **`auth-manager.openid-identity`**, `web-handlers.oauth-callback`, `web-handlers.session-*`) + **`web-handlers.csp-upgrade-insecure`** (which also pins that `cspHeaderHandler` and `httpRedirectHandler` agree about the scheme) + **`ti-framework.sidebar-overflow`** (which resolves the stylesheet's cascade rather than reading one block, because `.ti-sidebar` is declared twice and the later rule wins) + **`login-extra-slot`** (which asserts against the shipped files, because the defect it pins was what the package *contained*, and then drives `assembleHtmlView` to prove the slot actually resolves an application's component over the framework's empty default) |
+| `test/*.test.js` | `node --test` — **616 tests / 130 suites across 47 files**: the config subsystem + authorization + `ti-charts` (layout math + render structure) + the serving/deployment surface (`web-server-env-overrides`, `web-server.static-cache`, `web-server.route-seams`, `web-server.unprotected-routes`, `web-handlers.health`, `web-handlers.origin`, `web-app-manager.auth-visibility`) + the auth surface (`auth-manager`, `auth-manager.callback-path`, `auth-manager.email-verified`, **`auth-manager.openid-identity`**, `web-handlers.oauth-callback`, `web-handlers.session-*`) + **`web-handlers.csp-upgrade-insecure`** (which also pins that `cspHeaderHandler` and `httpRedirectHandler` agree about the scheme) + **`ti-framework.sidebar-overflow`** (which resolves the stylesheet's cascade rather than reading one block, because `.ti-sidebar` is declared twice and the later rule wins) + **`login-extra-slot`** (which asserts against the shipped files, because the defect it pins was what the package *contained*, and then drives `assembleHtmlView` to prove the slot actually resolves an application's component over the framework's empty default) + **`login-brand-slot`** (the same for the brand slot, plus the order brand → card → extension and a forked `frame-login.html` left untouched) + **`frame-login.labels`** (a sweep, not a list: every text run and user-visible attribute in the login fragment and both slot defaults must go through `x-text-label`, keep its English as the fallback, and name a key present here in en and bg — it walks the markup with a linear tag scanner, not an HTML regex, because the obvious pattern is polynomial) |
 
 **Public exports** (`package.json` `exports`) — **six**: `./config-management` (config-service), `./web-application` (web-app-manager), `./web-server`, `./authorization`, `./config-drift`, `./definitions`. The last three are easy to forget and a consumer does import them: competence reaches for `./authorization` and `./config-drift` directly. Anything not on this list fails with `ERR_PACKAGE_PATH_NOT_EXPORTED`, so **adding a module a consumer needs means adding its `exports` entry** — that is the API surface, and changing it is a breaking change for every consumer.
 
-**Since the skill's last sync (1.25.1 → 1.39.0):**
+**Since the skill's last sync (1.25.1 → 1.40.0):**
+- **The login screen has a brand slot, and every string on it is labelled** (1.40.0, CA-179). The brand block — the
+  "T" mark, "Welcome back", "Sign in to continue" — was written inline in `frame-login.html`, above the card, where
+  no application could reach it; the 1.36.0 extension slot renders *below* the card. It is now
+  `fragments/components/component-login-brand.html`, declared on the `login` descriptor
+  (`components: [ "component-login-brand", "component-login-extra" ]`) and resolved by the same reverse-order search,
+  so an application's copy **replaces** the default rather than stacking beside it. Unlike the extension slot the
+  default is not empty. The placeholder sits before the card in the DOM because DOM order is what a screen reader
+  announces. The greeting, its prompt, both input placeholders, "or continue with" and the no-method message were
+  literal English in a Bulgarian deployment; they are `interface.default.login.{welcome, sign-in-prompt,
+  username-placeholder, password-placeholder, or-continue-with, no-sign-in-method}` now, each keeping its English as
+  the element's own text (placeholders through `x-text-label:placeholder`). **An application loads its own catalogue,
+  not this one** — `TI_LOCALIZATION_LABELS_PATH` is normally its file alone — so a key it wants translated goes in its
+  own catalogue. An application that forked the whole `frame-login.html` keeps its copy untouched: a placeholder that
+  is absent is simply not spliced. README → *The login screen* lists both slots and every key.
 - **The browser is sent less, and nothing twice** (1.39.0, CA-174; design record
   `docs/superpowers/specs/2026-09-25-web-framework-delivery-design.md`). Measured on a real competence server before
   it: nothing was compressed, every refresh cost 484 KB (the whole label catalogue rode on `/app/config`, `no-store`),

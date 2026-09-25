@@ -192,9 +192,11 @@ class TiWebAppManager {
             title: "Login",
             path: "fragments/frame-login.html",
             // The login screen is rendered before sign-in, so an application has no fragment of its own in play and
-            // no other way to put anything on it. This component is the seam: shipped empty here, resolved through
-            // the same reverse-order static-path search as any other file, so an application's copy wins (CA-129).
-            components: [ "component-login-extra" ]
+            // no other way to put anything on it. These components are the seams, each resolved through the same
+            // reverse-order static-path search as any other file, so an application's copy wins: the brand block
+            // above the card, shipped with a generic default (CA-179), and the extension below it, shipped empty
+            // (CA-129).
+            components: [ "component-login-brand", "component-login-extra" ]
         };
         this.#fragments[ 'dashboard' ] = {
             title: "Dashboard",
