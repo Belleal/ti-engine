@@ -138,7 +138,8 @@ describe( "TiWebServer middleware order", () => {
         const helmetMount = at( "helmet( { contentSecurityPolicy: false } )" );
         const cspMount = at( "webHandlers.cspHeaderHandler()" );
         const cookies = at( "cookieParser()" );
-        const sessions = at( "this.#webServer.use( session( {" );
+        // Where the session is mounted, timed or not (CA-183), not where it is built.
+        const sessions = at( "this.#webServer.use( isServerTimingEnabled ? webHandlers.timedHandler( \"session\", sessionHandler ) : sessionHandler );" );
         assert.ok( helmetMount < wellKnown && cspMount < wellKnown, "an asset still carries every security header" );
         assert.ok( wellKnown < cookies && staticMount < cookies, "an asset request never parses cookies" );
         assert.ok( staticMount < sessions, "an asset request never reads or writes a session" );

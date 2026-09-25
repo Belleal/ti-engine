@@ -194,4 +194,17 @@ describe( "applyWebConfigEnvOverrides", () => {
 
     } );
 
+    describe( "TI_WEB_SERVER_TIMING", () => {
+
+        it( "turns Server-Timing on and off, as a bool", () => {
+            assert.equal( applyWebConfigEnvOverrides( { serverTiming: false }, { TI_WEB_SERVER_TIMING: "true" } ).serverTiming, true );
+            assert.equal( applyWebConfigEnvOverrides( { serverTiming: true }, { TI_WEB_SERVER_TIMING: "false" } ).serverTiming, false );
+        } );
+
+        it( "leaves the configured value untouched when the variable is absent", () => {
+            assert.equal( applyWebConfigEnvOverrides( { serverTiming: true }, {} ).serverTiming, true );
+        } );
+
+    } );
+
 } );

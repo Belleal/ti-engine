@@ -54,7 +54,11 @@ declare class TiWebAppManager {
      * @param {Object} fragment The fragment descriptor (`{ title, path, components }`). May also carry an optional
      * `roles` array (`Array<string|number>`): when present, the default {@link TiWebAppManager#verifyAccess} serves
      * the fragment only to sessions holding at least one of those roles; omit it (or leave empty) for a public screen.
+     * May also carry `immutable: true`: a promise that the fragment renders the same markup for every viewer and every
+     * request until the next deployment, as a user guide chapter does. Every `hx-get` reference to it then carries a
+     * content address, and the browser keeps it without asking again (see {@link #fragment-fingerprint}).
      * @throws {TiException.E_GEN_UNALLOWED_OVERRIDE} If a fragment with the same identifier already exists.
+     * @throws {TiException.E_GEN_FEATURE_UNSUPPORTED} If the fragment is declared `immutable` and has `roles`.
      * @public
      */
     addFragment(identifier: string, fragment: Object): void;
@@ -181,6 +185,10 @@ declare class TiWebAppManager {
      * @param {boolean} [options.isPartial] Optional flag to indicate whether the requested route is a partial load of a fragment.
      * @param {string} [options.view] Optional view name to load within this route.
      * @param {string} [options.nonce] Optional CSP nonce to inject into inline scripts/styles.
+     * @param {string} [options.version] The `v` the request carried: the content address of an immutable fragment.
+     * @param {() => void} [options.onAddressed] Called when the partial being rendered is an immutable fragment, `version`
+     * is its current address, and its markup is the markup that address was computed from - the one case where the
+     * response may be kept by the browser for good.
      * @returns {Promise<string>}
      * @public
      */
@@ -189,6 +197,8 @@ declare class TiWebAppManager {
         isPartial?: boolean;
         view?: string;
         nonce?: string;
+        version?: string;
+        onAddressed?: () => void;
     }): Promise<string>;
     /**
      * Used to process a request for a data resource.

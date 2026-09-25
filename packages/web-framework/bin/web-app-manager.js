@@ -16,6 +16,7 @@
 */
 
 const exceptions = require( "@ti-engine/core/exceptions" );
+const logger = require( "@ti-engine/core/logger" );
 const tools = require( "@ti-engine/core/tools" );
 const localization = require( "@ti-engine/core/localization" );
 const crypto = require( "node:crypto" );
@@ -26,6 +27,7 @@ const configService = require( "#config-service" );
 const authorization = require( "#authorization" );
 const applicationInfo = require( "#application-info" );
 const staticFingerprint = require( "#static-fingerprint" );
+const fragmentFingerprint = require( "#fragment-fingerprint" );
 
 /** @import { TiApplicationInfo, TiInfoSection, TiLabelsBundle, TiProfileInfo, TiSession } from "#definitions" */
 
@@ -163,6 +165,8 @@ class TiWebAppManager {
     #baseApplicationInfo = null;
     #labelsBundlesByLanguage = new Map();
     #labelsBundlesByHash = new Map();
+    #immutableAddressing = null;
+    #unaddressableReported = new Set();
 
     /**
      * @constructor
@@ -243,15 +247,28 @@ class TiWebAppManager {
      * @param {Object} fragment The fragment descriptor (`{ title, path, components }`). May also carry an optional
      * `roles` array (`Array<string|number>`): when present, the default {@link TiWebAppManager#verifyAccess} serves
      * the fragment only to sessions holding at least one of those roles; omit it (or leave empty) for a public screen.
+     * May also carry `immutable: true`: a promise that the fragment renders the same markup for every viewer and every
+     * request until the next deployment, as a user guide chapter does. Every `hx-get` reference to it then carries a
+     * content address, and the browser keeps it without asking again (see {@link #fragment-fingerprint}).
      * @throws {TiException.E_GEN_UNALLOWED_OVERRIDE} If a fragment with the same identifier already exists.
+     * @throws {TiException.E_GEN_FEATURE_UNSUPPORTED} If the fragment is declared `immutable` and has `roles`.
      * @public
      */
     addFragment( identifier, fragment ) {
-        if ( this.#fragments[ identifier ] === undefined ) {
-            this.#fragments[ identifier ] = fragment;
-        } else {
+        if ( this.#fragments[ identifier ] !== undefined ) {
             throw exceptions.raise( exceptions.exceptionCode.E_GEN_UNALLOWED_OVERRIDE, { identifier: identifier } );
         }
+        if ( fragment && fragment.immutable === true && Array.isArray( fragment.roles ) && fragment.roles.length > 0 ) {
+            // A browser's cache belongs to the browser, not to a session: a copy kept for good is served to whoever
+            // next uses it, and served without verifyAccess, because the request never leaves the browser.
+            throw exceptions.raise( exceptions.exceptionCode.E_GEN_FEATURE_UNSUPPORTED, {
+                identifier: identifier,
+                reason: "an immutable fragment is kept by the browser and cannot be restricted to roles"
+            } );
+        }
+        this.#fragments[ identifier ] = fragment;
+        // A new member moves every address: the version covers the whole set.
+        this.#immutableAddressing = null;
     }
 
     /**
@@ -447,6 +464,10 @@ class TiWebAppManager {
      * @param {boolean} [options.isPartial] Optional flag to indicate whether the requested route is a partial load of a fragment.
      * @param {string} [options.view] Optional view name to load within this route.
      * @param {string} [options.nonce] Optional CSP nonce to inject into inline scripts/styles.
+     * @param {string} [options.version] The `v` the request carried: the content address of an immutable fragment.
+     * @param {() => void} [options.onAddressed] Called when the partial being rendered is an immutable fragment, `version`
+     * is its current address, and its markup is the markup that address was computed from - the one case where the
+     * response may be kept by the browser for good.
      * @returns {Promise<string>}
      * @public
      */
@@ -816,10 +837,54 @@ class TiWebAppManager {
      * @returns {Promise<string>}
      */
     #getHtmlFragment( session, staticContentPaths, fragment, options = {} ) {
+        // What only this method reads stays out of what `transformHtml` sees: an application's override then renders
+        // an immutable fragment from exactly the options its address was computed with.
+        const { version, onAddressed, ...renderOptions } = options;
         return new Promise( ( resolve, reject ) => {
+            let markup;
             this.verifyAccess( session, fragment ).then( () => {
-                return this.#locateStaticFile( staticContentPaths, fragment.path );
-            } ).then( ( fileData ) => {
+                return this.#renderFragmentMarkup( staticContentPaths, fragment, renderOptions );
+            } ).then( ( rendered ) => {
+                markup = rendered;
+                return this.#resolveImmutableAddressing( staticContentPaths );
+            } ).then( ( addressing ) => {
+                if ( addressing === null ) {
+                    return resolve( markup );
+                }
+                if ( fragment.immutable === true && renderOptions.isPartial === true && typeof onAddressed === "function" ) {
+                    // The address is honest only for the markup it was computed from. A fragment whose output depends
+                    // on the request - a nonce, a CSRF token, anything an override adds - never matches, and so is
+                    // never kept for good, whatever it declared.
+                    if ( addressing.digests.get( renderOptions.view ) === fragmentFingerprint.digestOf( markup ) ) {
+                        if ( version === addressing.version ) {
+                            onAddressed();
+                        }
+                    } else {
+                        this.#reportUnaddressable( renderOptions.view );
+                    }
+                }
+                // Last, after the `/static` fingerprints, so the markup hashed above is exactly what is addressed here.
+                resolve( fragmentFingerprint.addressFragmentReferences( markup, addressing.identifiers, addressing.version ) );
+            } ).catch( ( error ) => {
+                reject( exceptions.raise( error ) );
+            } );
+        } );
+    }
+
+    /**
+     * Renders a fragment's markup: the file, its components, the application's `transformHtml`, and the `/static`
+     * fingerprints. Everything `#getHtmlFragment` sends except the addresses of immutable fragments, which are
+     * computed from this.
+     *
+     * @method
+     * @param {string[]} staticContentPaths
+     * @param {Object} fragment
+     * @param {Object} [options] As for `#getHtmlFragment`.
+     * @returns {Promise<string>}
+     */
+    #renderFragmentMarkup( staticContentPaths, fragment, options = {} ) {
+        return new Promise( ( resolve, reject ) => {
+            this.#locateStaticFile( staticContentPaths, fragment.path ).then( ( fileData ) => {
                 return this.#replaceComponentPlaceholders( fileData, staticContentPaths, fragment.components );
             } ).then( ( fileData ) => {
                 return this.transformHtml( fileData, { ...options, title: fragment.title || options.title } );
@@ -831,6 +896,58 @@ class TiWebAppManager {
                 reject( exceptions.raise( error ) );
             } );
         } );
+    }
+
+    /**
+     * The content address of the immutable fragments, computed once. Each member is rendered as a partial with no
+     * nonce and no CSRF token, and hashed, and the version is a hash over the set (see {@link #fragment-fingerprint}).
+     * <br/>
+     * Nothing is addressed while the fragment file cache is off, as it is in development. A file edited under a
+     * running process would change its markup without changing the version, and the browser would keep the stale
+     * copy it had cached for good. Nothing is addressed after a failure either: a fragment that cannot be rendered
+     * fails its own requests too, and every fragment keeps revalidating as before.
+     *
+     * @method
+     * @param {string[]} staticContentPaths
+     * @returns {Promise<{version: string, digests: Map<string, string>, identifiers: Set<string>}|null>}
+     */
+    #resolveImmutableAddressing( staticContentPaths ) {
+        if ( this.#immutableAddressing === null ) {
+            const identifiers = Object.keys( this.#fragments ).filter( ( identifier ) => this.#fragments[ identifier ] && this.#fragments[ identifier ].immutable === true );
+            if ( identifiers.length === 0 || this.#staticFileCacheEnabled !== true ) {
+                this.#immutableAddressing = Promise.resolve( null );
+            } else {
+                this.#immutableAddressing = Promise.all( identifiers.map( ( identifier ) => {
+                    return this.#renderFragmentMarkup( staticContentPaths, this.#fragments[ identifier ], {
+                        isPartial: true,
+                        view: identifier,
+                        nonce: "",
+                        csrfToken: ""
+                    } ).then( ( markup ) => [ identifier, fragmentFingerprint.digestOf( markup ) ] );
+                } ) ).then( ( entries ) => {
+                    const digests = new Map( entries );
+                    return { version: fragmentFingerprint.versionOf( digests ), digests: digests, identifiers: new Set( identifiers ) };
+                } ).catch( ( error ) => {
+                    logger.log( `The immutable fragments of '${ this.#webAppIdentifier }' could not be addressed; every fragment revalidates instead.`, logger.logSeverity.WARNING, error );
+                    return null;
+                } );
+            }
+        }
+        return this.#immutableAddressing;
+    }
+
+    /**
+     * Warns, once per fragment, that a fragment declared `immutable` renders differently from the markup its address
+     * was computed from, and so is served revalidating.
+     *
+     * @method
+     * @param {string} identifier
+     */
+    #reportUnaddressable( identifier ) {
+        if ( !this.#unaddressableReported.has( identifier ) ) {
+            this.#unaddressableReported.add( identifier );
+            logger.log( `Fragment '${ identifier }' is declared immutable, but its markup differs from request to request (a nonce, a CSRF token, or something transformHtml adds); it is served revalidating.`, logger.logSeverity.WARNING );
+        }
     }
 
     /**

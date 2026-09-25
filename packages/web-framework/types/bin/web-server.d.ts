@@ -155,6 +155,19 @@ declare class TiWebServer extends ServiceConsumer {
      */
     get webAppManager(): TiWebAppManager;
     /**
+     * Describes where this instance runs, such as the data centre a container platform placed it in. With
+     * `serverTiming` on, the description becomes the `desc` of every response's `app` metric, so the browser's timing
+     * view says where the time was spent. It is read once, at start, and nothing else reads it.
+     * <br/>
+     * NOTE: Override in a subclass that knows its placement. The default describes nothing.
+     *
+     * @method
+     * @returns {string|undefined}
+     * @virtual
+     * @public
+     */
+    describeInstance(): string | undefined;
+    /**
      * Starts the web server.
      *
      * @method

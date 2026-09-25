@@ -46,6 +46,7 @@
   "port": 3000,
   "publicPath": "bin/static",
   "requestTimeout": 180000,
+  "serverTiming": false,
   "tlsCertPath": "bin/tls/localhost+2.pem",
   "tlsKeyPath": "bin/tls/localhost+2-key.pem",
   "useTLS": true
