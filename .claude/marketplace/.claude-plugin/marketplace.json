@@ -1,0 +1,19 @@
+{
+  "$schema": "https://code.claude.com/schemas/marketplace.json",
+  "name": "cloudflare-reviewed",
+  "owner": {
+    "name": "Boris Kostadinov"
+  },
+  "description": "The Cloudflare plugin from cloudflare/skills, pinned to a commit reviewed for this repository. Move the sha only in a reviewed change.",
+  "plugins": [
+    {
+      "name": "cloudflare",
+      "description": "Cloudflare platform skills and the Cloudflare MCP server, as of cloudflare/skills@6dc7604 (reviewed 2026-09-25).",
+      "source": {
+        "source": "github",
+        "repo": "cloudflare/skills",
+        "sha": "6dc7604903127485e7e4cb26314651ebd4a4df19"
+      }
+    }
+  ]
+}

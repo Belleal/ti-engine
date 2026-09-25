@@ -1,9 +1,9 @@
 {
   "extraKnownMarketplaces": {
-    "cloudflare": {
+    "cloudflare-reviewed": {
       "source": {
-        "source": "github",
-        "repo": "cloudflare/skills"
+        "source": "directory",
+        "path": "./.claude/marketplace"
       }
     }
   },
@@ -12,6 +12,6 @@
     "security-guidance@claude-plugins-official": true,
     "skill-creator@claude-plugins-official": true,
     "superpowers@claude-plugins-official": true,
-    "cloudflare@cloudflare": true
+    "cloudflare@cloudflare-reviewed": true
   }
 }
