@@ -127,6 +127,24 @@ declare class AuthManager {
      */
     static toCallbackPath(callbackUrl: string): string | null;
     /**
+     * Reduces a configured list of e-mail domains — an array from the service configuration, or the comma-separated
+     * value of `TI_AZURE_AUTH_ALLOWED_DOMAINS` / `TI_GCLOUD_AUTH_ALLOWED_DOMAINS` — to the lower-case, de-duplicated
+     * list {@link AuthManager.isIdentityDomainAllowed} compares against. A leading `@` is removed, because
+     * `@example.com` is a common way to write a domain and would otherwise match no address at all. Pure and static;
+     * exposed for unit testing.
+     * <br/>
+     * **Only a blank entry is dropped.** An entry that does not look like a domain is kept, and simply matches no
+     * address: discarding it instead would turn a list made of nothing but mistakes into an empty list, and an empty
+     * list admits every domain — a typo would have widened access rather than narrowed it.
+     *
+     * @method
+     * @static
+     * @param {string|string[]} [value]
+     * @returns {string[]} The domains, or an empty list when none is configured.
+     * @public
+     */
+    static toDomainList(value?: string | string[]): string[];
+    /**
      * Whether an OpenID Connect sign-in carries an e-mail address the provider itself reports as unverified. Pure,
      * so the decision is testable without a provider.
      * <br/>
@@ -203,6 +221,38 @@ declare class AuthManager {
         name: (string | undefined);
         sources: Object;
     };
+    /**
+     * Whether an OpenID Connect identity may sign in through a provider restricted to the given e-mail domains. Pure,
+     * so the decision is testable without a provider.
+     * <br/>
+     * **Why a provider needs its own list.** A consumer maps the identity to an application principal by e-mail, and
+     * the admin allowlist matches the user ID, the username or the e-mail. With two providers enabled, the weaker one
+     * could claim an identity the stronger one owns: an organization's Entra tenant vouches for its own addresses,
+     * but anybody can register a consumer Google account under one of them, and Google reports it as verified once
+     * the mailbox has confirmed a code. So a Google sign-in arrived carrying the organization's address and was
+     * resolved to the organization's employee. Binding each provider to the domains it is trusted for closes that
+     * without dropping the provider — competence keeps Google as its fallback administrator sign-in.
+     * <br/>
+     * **Every e-mail-shaped identifier is checked, not only the e-mail.** The username is compared too whenever it
+     * holds an `@`: it can be an Entra UPN, which carries the domain when the directory supplies no e-mail, and it
+     * can fall back to a display name the account holder chooses — which the admin allowlist also matches. An
+     * identity is admitted only when every such identifier is in a listed domain, and refused when it carries none,
+     * since a domain that cannot be established is not in the list. An empty list restricts nothing.
+     * <br/>
+     * Domains are compared exactly, without regard to case: a subdomain is a different domain and has to be listed
+     * in its own right. The domain is whatever follows the last `@`.
+     *
+     * @method
+     * @static
+     * @param {{username: (string|undefined), email: (string|undefined)}} identity As {@link AuthManager.resolveOpenIDIdentity} returns it.
+     * @param {string[]} [allowedDomains] The provider's list; normalized here, so a caller may pass it as configured.
+     * @returns {boolean}
+     * @public
+     */
+    static isIdentityDomainAllowed(identity: {
+        username: (string | undefined);
+        email: (string | undefined);
+    }, allowedDomains?: string[]): boolean;
 }
 declare namespace AuthManager {
     export { authMethodEnum as authMethod };

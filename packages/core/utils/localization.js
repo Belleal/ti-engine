@@ -277,6 +277,23 @@ module.exports.getLabel = ( label, language, fallback = defaultEmptyLabel ) => {
     return _.get( labels, label + "." + ( ( language ) ? language : config.getSetting( config.setting.LOCALIZATION_LANGUAGE ) ), fallback );
 };
 
+/**
+ * Used to return the current system language: the one {@link getLabel} and {@link getAllLabels} use when they are
+ * given none — `TI_LOCALIZATION_LANGUAGE`, else `localization.language` in the settings file, else core's default.
+ * <br/>
+ * NOTE: A caller that only looks labels up should keep passing no language rather than store this, so a lookup
+ * follows the deployment. It exists for a caller that has to hold the language as a value: web-framework puts one on
+ * every session, and before this getter it could not ask, so it used a fixed "en" — a deployment set to Bulgarian
+ * then turned English the moment anybody signed in, while its login page, which asks with no language, did not.
+ *
+ * @method
+ * @returns {TiLocalizationLanguage}
+ * @public
+ */
+module.exports.getSystemLanguage = () => {
+    return config.getSetting( config.setting.LOCALIZATION_LANGUAGE );
+};
+
 const labelsCacheByLanguage = new Map();
 
 /**

@@ -124,6 +124,7 @@ class AuthManager {
             this.#authSettings.oauth2.google.clientSecret = process.env.TI_GCLOUD_AUTH_CLIENT_SECRET || this.#authSettings.oauth2.google.clientSecret;
             this.#authSettings.oauth2.google.callbackUrl = process.env.TI_GCLOUD_AUTH_CALLBACK_URL || this.#authSettings.oauth2.google.callbackUrl;
             this.#authSettings.oauth2.google.discoveryUrl = process.env.TI_GCLOUD_AUTH_DISCOVERY_URL || this.#authSettings.oauth2.google.discoveryUrl;
+            this.#authSettings.oauth2.google.allowedDomains = AuthManager.toDomainList( process.env.TI_GCLOUD_AUTH_ALLOWED_DOMAINS || this.#authSettings.oauth2.google.allowedDomains );
         }
         if ( this.isAuthEnabled( authMethodEnum.OPENID_AZURE ) ) {
             this.#authSettings.oauth2.azure = this.#authSettings.oauth2.azure || {};
@@ -131,6 +132,7 @@ class AuthManager {
             this.#authSettings.oauth2.azure.clientSecret = process.env.TI_AZURE_AUTH_CLIENT_SECRET || this.#authSettings.oauth2.azure.clientSecret;
             this.#authSettings.oauth2.azure.callbackUrl = process.env.TI_AZURE_AUTH_CALLBACK_URL || this.#authSettings.oauth2.azure.callbackUrl;
             this.#authSettings.oauth2.azure.discoveryUrl = process.env.TI_AZURE_AUTH_DISCOVERY_URL || this.#authSettings.oauth2.azure.discoveryUrl;
+            this.#authSettings.oauth2.azure.allowedDomains = AuthManager.toDomainList( process.env.TI_AZURE_AUTH_ALLOWED_DOMAINS || this.#authSettings.oauth2.azure.allowedDomains );
         }
     }
 
@@ -156,13 +158,13 @@ class AuthManager {
         if ( this.isAuthEnabled( authMethodEnum.OPENID_GOOGLE ) ) {
             promises.push( this.#initializeOpenIDClient( this.#authSettings.oauth2.google ).then( ( configuration ) => {
                 this.#clientConfigOAuth2Google = configuration;
-                logger.log( "Enabled OpenID Connect authentication with Google Cloud.", logger.logSeverity.NOTICE );
+                logger.log( `Enabled OpenID Connect authentication with Google Cloud, ${ this.#describeAllowedDomains( this.#authSettings.oauth2.google ) }.`, logger.logSeverity.NOTICE );
             } ) );
         }
         if ( this.isAuthEnabled( authMethodEnum.OPENID_AZURE ) ) {
             promises.push( this.#initializeOpenIDClient( this.#authSettings.oauth2.azure ).then( ( configuration ) => {
                 this.#clientConfigOAuth2Azure = configuration;
-                logger.log( "Enabled OpenID Connect authentication with Azure Cloud.", logger.logSeverity.NOTICE );
+                logger.log( `Enabled OpenID Connect authentication with Azure Cloud, ${ this.#describeAllowedDomains( this.#authSettings.oauth2.azure ) }.`, logger.logSeverity.NOTICE );
             } ) );
         }
 
@@ -267,9 +269,9 @@ class AuthManager {
                     } );
                 } );
             case authMethodEnum.OPENID_GOOGLE:
-                return this.#authorizeOpenID( currentUrl, oidc, this.#clientConfigOAuth2Google );
+                return this.#authorizeOpenID( authMethod, currentUrl, oidc, this.#authSettings.oauth2.google, this.#clientConfigOAuth2Google );
             case authMethodEnum.OPENID_AZURE:
-                return this.#authorizeOpenID( currentUrl, oidc, this.#clientConfigOAuth2Azure );
+                return this.#authorizeOpenID( authMethod, currentUrl, oidc, this.#authSettings.oauth2.azure, this.#clientConfigOAuth2Azure );
             default: {
                 throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNRECOGNIZED_AUTH_METHOD );
             }
@@ -340,6 +342,32 @@ class AuthManager {
         }
     }
 
+    /**
+     * Reduces a configured list of e-mail domains — an array from the service configuration, or the comma-separated
+     * value of `TI_AZURE_AUTH_ALLOWED_DOMAINS` / `TI_GCLOUD_AUTH_ALLOWED_DOMAINS` — to the lower-case, de-duplicated
+     * list {@link AuthManager.isIdentityDomainAllowed} compares against. A leading `@` is removed, because
+     * `@example.com` is a common way to write a domain and would otherwise match no address at all. Pure and static;
+     * exposed for unit testing.
+     * <br/>
+     * **Only a blank entry is dropped.** An entry that does not look like a domain is kept, and simply matches no
+     * address: discarding it instead would turn a list made of nothing but mistakes into an empty list, and an empty
+     * list admits every domain — a typo would have widened access rather than narrowed it.
+     *
+     * @method
+     * @static
+     * @param {string|string[]} [value]
+     * @returns {string[]} The domains, or an empty list when none is configured.
+     * @public
+     */
+    static toDomainList( value ) {
+        if ( value === undefined || value === null ) {
+            return [];
+        }
+        const entries = ( Array.isArray( value ) ? value : [ value ] ).flatMap( ( entry ) => String( entry ).split( "," ) );
+        const domains = entries.map( ( entry ) => entry.trim().toLowerCase().replace( /^@/, "" ).trim() ).filter( ( entry ) => entry !== "" );
+        return [ ...new Set( domains ) ];
+    }
+
     /* Private interface */
 
     /**
@@ -373,6 +401,20 @@ class AuthManager {
      */
     #isOpenIDConfigured( oauth2 ) {
         return !!( oauth2 && typeof oauth2.clientID === "string" && oauth2.clientID.trim() !== "" );
+    }
+
+    /**
+     * Describes which e-mail domains may sign in through a provider, for its start-up notice. The list named is the
+     * one in effect, after the environment variable has been applied: a stale shell export silently beats a correct
+     * `.env`, and this line is how an operator sees which of the two won.
+     *
+     * @method
+     * @param {SettingsOAuth2Client} oauth2
+     * @returns {string}
+     */
+    #describeAllowedDomains( oauth2 ) {
+        const allowed = AuthManager.toDomainList( oauth2 && oauth2.allowedDomains );
+        return ( allowed.length === 0 ) ? "for any e-mail domain" : `for the e-mail domains: ${ allowed.join( ", " ) }`;
     }
 
     /**
@@ -681,15 +723,71 @@ class AuthManager {
     }
 
     /**
+     * Whether an OpenID Connect identity may sign in through a provider restricted to the given e-mail domains. Pure,
+     * so the decision is testable without a provider.
+     * <br/>
+     * **Why a provider needs its own list.** A consumer maps the identity to an application principal by e-mail, and
+     * the admin allowlist matches the user ID, the username or the e-mail. With two providers enabled, the weaker one
+     * could claim an identity the stronger one owns: an organization's Entra tenant vouches for its own addresses,
+     * but anybody can register a consumer Google account under one of them, and Google reports it as verified once
+     * the mailbox has confirmed a code. So a Google sign-in arrived carrying the organization's address and was
+     * resolved to the organization's employee. Binding each provider to the domains it is trusted for closes that
+     * without dropping the provider — competence keeps Google as its fallback administrator sign-in.
+     * <br/>
+     * **Every e-mail-shaped identifier is checked, not only the e-mail.** The username is compared too whenever it
+     * holds an `@`: it can be an Entra UPN, which carries the domain when the directory supplies no e-mail, and it
+     * can fall back to a display name the account holder chooses — which the admin allowlist also matches. An
+     * identity is admitted only when every such identifier is in a listed domain, and refused when it carries none,
+     * since a domain that cannot be established is not in the list. An empty list restricts nothing.
+     * <br/>
+     * Domains are compared exactly, without regard to case: a subdomain is a different domain and has to be listed
+     * in its own right. The domain is whatever follows the last `@`.
+     *
+     * @method
+     * @static
+     * @param {{username: (string|undefined), email: (string|undefined)}} identity As {@link AuthManager.resolveOpenIDIdentity} returns it.
+     * @param {string[]} [allowedDomains] The provider's list; normalized here, so a caller may pass it as configured.
+     * @returns {boolean}
+     * @public
+     */
+    static isIdentityDomainAllowed( identity, allowedDomains ) {
+        const allowed = AuthManager.toDomainList( allowedDomains );
+        if ( allowed.length === 0 ) {
+            return true;
+        }
+        const domains = AuthManager.#identityDomains( identity );
+        return domains.length > 0 && domains.every( ( domain ) => allowed.includes( domain ) );
+    }
+
+    /**
+     * The lower-case domains of an identity's e-mail-shaped identifiers — its e-mail, and its username whenever that
+     * holds an `@` — each taken from after the last `@`.
+     *
+     * @method
+     * @static
+     * @param {{username: (string|undefined), email: (string|undefined)}} identity
+     * @returns {string[]}
+     */
+    static #identityDomains( identity ) {
+        const candidates = identity ? [ identity.email, identity.username ] : [];
+        const domains = candidates.filter( ( value ) => typeof value === "string" && value.includes( "@" ) ).map( ( value ) => {
+            return value.slice( value.lastIndexOf( "@" ) + 1 ).trim().toLowerCase();
+        } );
+        return [ ...new Set( domains ) ];
+    }
+
+    /**
      * Used to perform the actual OpenID Connect authorization.
      *
      * @method
+     * @param {TiAuthMethod} authMethod
      * @param {URL} currentUrl
      * @param {Object} oidc
+     * @param {SettingsOAuth2Client} oauth2
      * @param {openidClient.Configuration} clientConfig
      * @returns {Promise<User>}
      */
-    #authorizeOpenID( currentUrl, oidc, clientConfig ) {
+    #authorizeOpenID( authMethod, currentUrl, oidc, oauth2, clientConfig ) {
         return new Promise( ( resolve, reject ) => {
             openidClient.authorizationCodeGrant( clientConfig, currentUrl, {
                 pkceCodeVerifier: oidc.codeVerifier,
@@ -710,6 +808,15 @@ class AuthManager {
                     throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, { details: "The identity provider reports this e-mail address as unverified." }, exceptions.httpCode.C_401 );
                 }
                 const identity = AuthManager.resolveOpenIDIdentity( userInfo, claims );
+                const allowedDomains = oauth2 && oauth2.allowedDomains;
+                if ( !AuthManager.isIdentityDomainAllowed( identity, allowedDomains ) ) {
+                    // The domain is what an operator needs to act on — a missing list entry, or a provider used for an
+                    // account it is not trusted for — while the address itself is somebody's personal data.
+                    const domains = AuthManager.#identityDomains( identity );
+                    const carried = ( domains.length === 0 ) ? "no e-mail address" : `the e-mail domain '${ domains.join( "', '" ) }'`;
+                    logger.log( `Refusing an OpenID sign-in via '${ authMethod }' for subject '${ userInfo.sub }': it carries ${ carried }, and this provider admits only: ${ AuthManager.toDomainList( allowedDomains ).join( ", " ) }.`, logger.logSeverity.WARNING );
+                    throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, { details: "This account's e-mail domain may not sign in through this identity provider." }, exceptions.httpCode.C_401 );
+                }
                 // WHERE each identifier came from, never what it is. An operator setting TI_WEB_AUTH_ADMINS needs to
                 // know which claim their provider actually supplies — they already know their own address — so
                 // naming the claim answers the question the values were added to answer, and answers it better.

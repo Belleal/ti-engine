@@ -47,7 +47,8 @@ const applyWebConfigEnvOverrides = require( "#web-config-env" );
  * @property {SettingsAuth} auth
  * @property {SettingsCookies} cookies
  * @property {string} host
- * @property {TiLocalizationLanguage} language
+ * @property {TiLocalizationLanguage} [language] The language a session starts in when its user carries none. Unset, it is
+ *           the deployment's own — `TI_LOCALIZATION_LANGUAGE` as core resolved it — rather than a fixed default.
  * @property {number} port
  * @property {string} publicPath
  * @property {number} requestTimeout
@@ -90,6 +91,8 @@ const applyWebConfigEnvOverrides = require( "#web-config-env" );
  * @property {string} [clientSecret]
  * @property {string} [callbackUrl]
  * @property {string} [discoveryUrl]
+ * @property {string[]} [allowedDomains] The e-mail domains that may sign in through this provider (see
+ *           `TI_AZURE_AUTH_ALLOWED_DOMAINS` / `TI_GCLOUD_AUTH_ALLOWED_DOMAINS`). Empty or absent admits any domain.
  * @property {boolean} [isPublic]
  * @property {TiTokenEndpointAuthMethod} [tokenEndpointAuthMethod]
  */
@@ -178,6 +181,9 @@ class TiWebServer extends ServiceConsumer {
     #netServer;
     #serverUrl = "";
     #isShuttingDown = false;
+    // Where the instance is in starting up; see `start()`. No state means it was never started through `start()`, so
+    // there is nothing to wait for and the request gate lets everything through.
+    #startup = Object.freeze( { state: undefined, settled: Promise.resolve() } );
     #staticContentPaths = [];
     #allowedHosts = [];
     #unprotectedRoutes = [];
@@ -231,6 +237,20 @@ class TiWebServer extends ServiceConsumer {
      */
     get serviceConfig() {
         return super.serviceConfig;
+    }
+
+    /**
+     * Property returning where the instance is in starting up: `state` is `"starting"` from the moment
+     * {@link TiWebServer#start} is called until the whole `onStart` has finished, an application's own initialization
+     * included, then `"started"` or `"failed"`; `settled` resolves when it has finished either way. No `state` means the
+     * instance was not started through `start()`. The request gate ({@link webHandlers.startupGateHandler}) reads it.
+     *
+     * @property
+     * @returns {{state: ("starting"|"started"|"failed"|undefined), settled: Promise<void>}}
+     * @public
+     */
+    get startup() {
+        return this.#startup;
     }
 
     /**
@@ -291,6 +311,38 @@ class TiWebServer extends ServiceConsumer {
      */
     describeInstance() {
         return undefined;
+    }
+
+    /**
+     * Starts the instance, and holds every request but `/health` until it has finished starting.
+     * <br/>
+     * The server listens at the end of the framework's own {@link TiWebServer#onStart}, and an application extends
+     * that the documented way — `super.onStart().then( … )` — so without this, requests are served for as long as the
+     * application's own initialization takes, against state it has not built yet (CA-187). Here, the whole of
+     * `onStart` is known to have finished only when the instance's start resolves, so that is when requests are let
+     * through. An application therefore needs no change to be covered: whatever its `onStart` chains on is waited for.
+     *
+     * @method
+     * @returns {Promise}
+     * @override
+     * @public
+     */
+    start() {
+        let settle;
+        const settled = new Promise( ( resolve ) => {
+            settle = resolve;
+        } );
+        this.#startup = Object.freeze( { state: "starting", settled: settled } );
+        return super.start().then( () => {
+            this.#startup = Object.freeze( { state: "started", settled: settled } );
+            settle();
+        } ).catch( ( error ) => {
+            // A held request is refused rather than served: the instance exits on a failed start (start-instance), and
+            // until it does, nothing it would answer with can be trusted.
+            this.#startup = Object.freeze( { state: "failed", settled: settled } );
+            settle();
+            throw error;
+        } );
     }
 
     /**
@@ -389,6 +441,11 @@ class TiWebServer extends ServiceConsumer {
                         }
                     } ) );
                 } );
+
+                // Hold everything below until the instance has finished starting, an application's own initialization
+                // included (CA-187). After static content, which depends on nothing the application builds; before the
+                // session, so a held request neither reads nor touches it.
+                this.#webServer.use( webHandlers.startupGateHandler( this ) );
 
                 // Then the session, and everything that depends on it:
                 this.#webServer.use( express.json( { limit: "1mb" } ) );

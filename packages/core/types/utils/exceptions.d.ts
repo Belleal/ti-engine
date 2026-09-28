@@ -25,6 +25,7 @@ declare const exceptionCodeEnum: import("../components/definitions.types").TiEnu
     E_GEN_NOT_INITIALIZED: (string | number)[];
     E_GEN_UNALLOWED_OVERRIDE: (string | number)[];
     E_GEN_NOT_IMPLEMENTED: (string | number)[];
+    E_GEN_SERVICE_STARTING: (string | number)[];
     /** Security & Administration exceptions - codes under 2xxx */
     E_SEC_INVALID_AUTH_TOKEN: (string | number)[];
     E_SEC_INVALID_EXPIRED_SESSION: (string | number)[];
@@ -221,4 +222,14 @@ declare class TiException {
      * @public
      */
     asJSON(includeData?: boolean): Object;
+    /**
+     * Makes `JSON.stringify` write what {@link TiException#asJSON} returns. The fields are private, so without this an
+     * exception serialized as `{}` — and one nested in a log entry's data, where the logger does not convert it, lost
+     * its cause entirely (R2H8-1).
+     *
+     * @method
+     * @returns {Object}
+     * @public
+     */
+    toJSON(): Object;
 }

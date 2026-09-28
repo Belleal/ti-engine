@@ -25,12 +25,14 @@
       "azure": {
         "tokenEndpointAuthMethod": "client_secret_post",
         "callbackUrl": "/login/azure-callback",
+        "allowedDomains": [],
         "isPublic": false
       },
       "google": {
         "tokenEndpointAuthMethod": "client_secret_post",
         "callbackUrl": "/login/google-callback",
         "discoveryUrl": "https://accounts.google.com/.well-known/openid-configuration",
+        "allowedDomains": [],
         "isPublic": false
       }
     }
@@ -42,7 +44,6 @@
     "maxAge": 28800000
   },
   "host": "127.0.0.1",
-  "language": "en",
   "port": 3000,
   "publicPath": "bin/static",
   "requestTimeout": 180000,

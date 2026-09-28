@@ -31,6 +31,11 @@ export type SettingsOAuth2Client = {
     clientSecret?: string;
     callbackUrl?: string;
     discoveryUrl?: string;
+    /**
+     * The e-mail domains that may sign in through this provider (see
+     * `TI_AZURE_AUTH_ALLOWED_DOMAINS` / `TI_GCLOUD_AUTH_ALLOWED_DOMAINS`). Empty or absent admits any domain.
+     */
+    allowedDomains?: string[];
     isPublic?: boolean;
     tokenEndpointAuthMethod?: TiTokenEndpointAuthMethod;
 };
@@ -123,6 +128,20 @@ declare class TiWebServer extends ServiceConsumer {
      */
     get serviceConfig(): TiWebServiceConfiguration;
     /**
+     * Property returning where the instance is in starting up: `state` is `"starting"` from the moment
+     * {@link TiWebServer#start} is called until the whole `onStart` has finished, an application's own initialization
+     * included, then `"started"` or `"failed"`; `settled` resolves when it has finished either way. No `state` means the
+     * instance was not started through `start()`. The request gate ({@link webHandlers.startupGateHandler}) reads it.
+     *
+     * @property
+     * @returns {{state: ("starting"|"started"|"failed"|undefined), settled: Promise<void>}}
+     * @public
+     */
+    get startup(): {
+        state: ("starting" | "started" | "failed" | undefined);
+        settled: Promise<void>;
+    };
+    /**
      * Property returning if the web server is currently shutting down.
      *
      * @property
@@ -167,6 +186,21 @@ declare class TiWebServer extends ServiceConsumer {
      * @public
      */
     describeInstance(): string | undefined;
+    /**
+     * Starts the instance, and holds every request but `/health` until it has finished starting.
+     * <br/>
+     * The server listens at the end of the framework's own {@link TiWebServer#onStart}, and an application extends
+     * that the documented way — `super.onStart().then( … )` — so without this, requests are served for as long as the
+     * application's own initialization takes, against state it has not built yet (CA-187). Here, the whole of
+     * `onStart` is known to have finished only when the instance's start resolves, so that is when requests are let
+     * through. An application therefore needs no change to be covered: whatever its `onStart` chains on is waited for.
+     *
+     * @method
+     * @returns {Promise}
+     * @override
+     * @public
+     */
+    start(): Promise<any>;
     /**
      * Starts the web server.
      *

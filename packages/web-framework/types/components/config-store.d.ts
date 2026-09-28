@@ -12,6 +12,10 @@ export = ConfigStore;
  * moved on in the meantime. This component is storage-only — schema/semantic validation is a separate pipeline
  * that must run *before* {@link ConfigStore#saveChangeSet}.
  * <br/>
+ * The version check and the writes are separate round trips, so the writes of each document are serialized within
+ * the process (see {@link ConfigStore#saveChangeSet}); that covers a deployment of one instance, and nothing orders
+ * writes between instances.
+ * <br/>
  * NOTE: true cross-document atomicity is not provided (the cache exposes per-key commands only). All locks are
  * checked *before* any write, so the common conflict case is safe; a mid-write process failure can leave a
  * partially-applied change-set, detectable via the change-set record. Hardening (a Lua/MULTI write) is deferred.
@@ -45,6 +49,12 @@ declare class ConfigStore {
     /**
      * Commits an edit spanning one or more documents as a single change-set. All optimistic-lock checks run before
      * any write. Each edit: `{ configKey, value, expectedVersion }`.
+     * <br/>
+     * The check and the writes run with every document of the set held (see `#exclusively`). They
+     * are separate store round trips, and without that two admins saving one document at one version both read N,
+     * both passed the check and both wrote N + 1: one edit was silently lost, the history entry for N + 1 was
+     * overwritten with the other's content, and restoring "the lost edit" brought back the wrong one (CA-192). Now the
+     * second save reads N + 1 and is refused as a `version-conflict`, which is what the check was always for.
      *
      * @method
      * @param {Array<{configKey: string, value: Object, expectedVersion: number}>} edits

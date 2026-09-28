@@ -1,4 +1,5 @@
 export declare var onShutDownHandler: (instance: TiWebServer) => ExpressHandler;
+export declare var startupGateHandler: (instance: TiWebServer, holdLimit?: number) => ExpressHandler;
 export declare var resourceProtectionHandler: (instance: TiWebServer) => ExpressHandler;
 export declare var authenticationHandler: (instance: TiWebServer) => ExpressHandler;
 export declare var authorizedOAuth2CallbackHandler: (instance: TiWebServer, authMethod: TiAuthMethod) => ExpressHandler;

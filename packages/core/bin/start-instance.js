@@ -58,6 +58,7 @@ try {
 
 const tools = require( "#tools" );
 const logger = require( "#logger" );
+const exceptions = require( "#exceptions" );
 
 // Configure the current instance variables before requiring any platform modules and store the necessary ones in memory cache:
 process.env.TI_INSTANCE_ID = "ti-" + tools.getUUID();
@@ -121,11 +122,30 @@ process.on( "SIGBREAK", () => {
 
 // Configure the process general error handlers:
 
+/**
+ * Renders a rejection's reason as something a log line can carry.
+ * <br/>
+ * A {@link TiException} keeps everything in private fields, so it has no own properties to serialize: passed as it
+ * was, it was logged as `"reason":{}`, and the one line written as the process went down carried no cause at all
+ * (R2H8-1). Every exception the framework raises is one — a state-service timeout included.
+ *
+ * @method
+ * @param {*} reason
+ * @returns {*}
+ * @private
+ */
+const describeReason = ( reason ) => {
+    if ( exceptions.isException( reason ) ) {
+        return reason.asJSON();
+    }
+    return ( reason instanceof Error ) ? tools.errorToJSON( reason ) : reason;
+};
+
 process.on( "unhandledRejection", ( reason ) => {
     // Check if the fail-fast behavior has been forcefully disabled:
     const failFastDisabled = tools.toBool( process.env.TI_FAIL_FAST_ON_UNHANDLED_OFF || "" );
     logger.log( `Unhandled promise rejection identified! Make sure this isn't a software bug.`, logger.logSeverity.WARNING, {
-        reason: tools.errorToJSON && reason instanceof Error ? tools.errorToJSON( reason ) : reason
+        reason: describeReason( reason )
     } );
     if ( failFastDisabled !== true ) {
         setImmediate( () => process.exit( 1 ) );
@@ -135,7 +155,7 @@ process.on( "unhandledRejection", ( reason ) => {
 process.on( "multipleResolves", ( type, promise, reason ) => {
     logger.log( `Multiple promise resolves detected! Make sure this isn't a software bug.`, logger.logSeverity.WARNING, {
         type,
-        reason: tools.errorToJSON && reason instanceof Error ? tools.errorToJSON( reason ) : reason
+        reason: describeReason( reason )
     } );
 } );
 

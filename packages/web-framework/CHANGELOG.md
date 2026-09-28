@@ -2,6 +2,104 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.42.0
+
+Go-live fixes from competence's pre-launch review. Requires `@ti-engine/core` 1.18.0, now declared as `>=1.18.0`
+rather than `*`: a session's language comes from core's new `getSystemLanguage()`, and against an older core every
+sign-in would throw.
+
+* feat (auth-manager): bind each OpenID provider to the e-mail domains it may admit, with
+  `auth.oauth2.azure.allowedDomains` / `auth.oauth2.google.allowedDomains`, or `TI_AZURE_AUTH_ALLOWED_DOMAINS` /
+  `TI_GCLOUD_AUTH_ALLOWED_DOMAINS` (comma-separated), which replace them (CA-197).
+  <br/>
+  **What was wrong.** A consumer maps a signed-in identity to its own principal by e-mail, and the admin allowlist
+  matches user ID, username or e-mail. With two providers enabled, the weaker one could claim an identity the stronger
+  one owns: anybody can register a consumer Google account under an organization's address, and Google reports it as
+  verified once the mailbox has confirmed a code. Reproduced through the real `openid-client`: with Google meant for
+  `gmail.com` only, a verified `someone@is-bg.net` Google identity was admitted.
+  <br/>
+  **What changed.** `AuthManager.isIdentityDomainAllowed( identity, allowedDomains )` decides; `#authorizeOpenID`
+  refuses with `E_SEC_UNAUTHORIZED_ACCESS` (401) and logs the subject and the domain, never the address, at WARNING.
+  - Every e-mail-shaped identifier must be in a listed domain: the e-mail, and the username whenever it holds an `@`
+    (an Entra UPN, or a display name the account holder chose, which the admin allowlist also matches).
+  - An identity carrying no address is refused once a list is set; domains compare exactly, case aside, so a subdomain
+    or an Entra guest's `onmicrosoft.com` UPN is refused unless listed.
+  - `AuthManager.toDomainList` normalizes a list: lower-cased, de-duplicated, a leading `@` removed. Only blank entries
+    are dropped; a malformed one is kept and matches nothing, so a typo narrows access instead of emptying the list.
+  - An empty list, the default, admits any domain, as before. Each provider's start-up notice names the list in
+    effect after the environment is applied.
+
+  `test/helpers/fake-openid-provider.js` is an in-process provider behind `globalThis.fetch` — `openid-client` 6 is ES
+  modules, so its exports cannot be stubbed under `require()` — with a real RS256-signed ID token. 24 tests.
+* fix (web-handlers): a session starts in the deployment's language, not in English (CA-198).
+  <br/>
+  **What was wrong.** Both sign-in paths set `session.language = user.language || serviceConfig.language`, and
+  `web-server.json` shipped `"language": "en"`. No identity provider puts a language on the user, so a deployment set to
+  Bulgarian with `TI_LOCALIZATION_LANGUAGE` turned English the moment anybody signed in, while its login page, which
+  asks core with no language, stayed Bulgarian.
+  <br/>
+  **What changed.** The shipped `language` is gone. A session takes the user's language, else the service
+  configuration's when one is set, else `localization.getSystemLanguage()`. Sessions signed in before the upgrade keep
+  the language they were given until their next sign-in. 7 tests, one of which keeps `language` out of the shipped
+  configuration.
+* fix (web-server): hold every request but `/health` until the instance has finished starting (CA-187).
+  <br/>
+  **What was wrong.** The server listens as the last step of the framework's `onStart`, and an application extends
+  that as `super.onStart().then( … )`. Requests were therefore served while the application was still initializing.
+  competence builds its org chart there; a request in that window found no chart, `verifySession` failed and the
+  session was destroyed. The request that wakes a sleeping container lands in exactly that window, so the first person
+  of the day was signed out on their first click.
+  <br/>
+  **What changed.** `TiWebServer#start()` marks the instance `starting` until its whole start resolves, an
+  application's `onStart` chain included, and `webHandlers.startupGateHandler`, mounted after static content and
+  before the session, holds requests until then. An application needs no change. `/health` is never held.
+  - A request held for 30 s, or one that arrives after a failed start, is refused with `503`, `Retry-After: 5` and
+    the new core code `E_GEN_SERVICE_STARTING`.
+  - The default error handler answers a `503` on a navigation as text instead of redirecting it to `/`, which would
+    have sent it back into the held request.
+  - An instance started through `onStart()` directly, as tests do, is never held.
+
+  Reproduced with a real server (no broker, in-memory cache) whose application initialization waits on the test: a
+  request was answered before the initialization finished. 10 tests.
+* fix (web-handlers): log server errors, and stop sending their internals to the client (CA-215).
+  <br/>
+  **What was wrong.** Every request error was logged at DEBUG, which production filters out, so no server failure was
+  ever recorded. The payload carried `exception.asJSON()` with its data: for a raised `Error` that is the stack, and
+  body-parser's echoed `body`. Reproduced with the real body parser: a malformed JSON body, which needs no session,
+  came back as a `500` carrying the stack and the body.
+  <br/>
+  **What changed.**
+  - A 5xx is logged at ERROR with the exception, under its ID, method and path, without the query string. The client
+    gets the code, the localized message and that ID, which ties a report to the log line, but no data.
+  - A 503 is logged at WARNING. A 4xx stays at DEBUG and keeps its data, which is how a form learns what was wrong.
+  - An `Error` carrying a 4xx `status` (the `http-errors` convention every body parser follows) is raised as the
+    client's error: 400 `E_WEB_INVALID_REQUEST_BODY`, 413 or 415, with nothing it carried.
+
+  8 tests.
+* fix (config-store): serialize a document's saves, so a concurrent save is refused as a conflict, not lost (CA-192).
+  <br/>
+  **What was wrong.** `saveChangeSet` checked each `expectedVersion` and then wrote, in separate store round trips.
+  Two admins saving one document at version N both passed the check and both wrote N + 1. One edit was lost, the
+  history entry for N + 1 held the other admin's content, and restoring the lost edit brought back the wrong one.
+  <br/>
+  **What changed.** The check and the writes run with every document of the change-set held. Each key's writes are
+  queued behind the ones before them, so the second save reads N + 1 and is refused as a `version-conflict`.
+  - A change-set spanning two documents and a save of one of them run in the order they arrived.
+  - A save of an unrelated document is not held up.
+  - A failed save releases its keys, but only once every one of its writes has settled. Released at the first refused
+    write, the save left another write in flight, and that write landed on top of the next save's document or history
+    entry.
+  - `seedIfEmpty` takes the same lock.
+
+  This orders writes within one process, which covers a deployment of one instance. 9 tests.
+* fix (config-change-notifier): a subscriber that fails asynchronously is logged like one that throws, instead of
+  ending the process (CA-187). The notifier caught a subscriber's synchronous throw, but nothing awaited a promise a
+  subscriber returned, so its rejection was unhandled, and core exits on one. competence reloads its configuration
+  from such a subscriber, and a store that timed out right after an admin's save took the whole application down.
+  Reproduced: the runner reported the rejection as unhandled. 1 test.
+* build (deps): `@ti-engine/core` `>=1.18.0`.
+* test: 649 → 708 tests.
+
 ## Version 1.41.0
 
 * feat (web-app-manager): serve screens that never change under content addresses, so a revisit makes no request
