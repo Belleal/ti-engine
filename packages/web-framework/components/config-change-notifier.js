@@ -64,11 +64,17 @@ class ConfigChangeNotifier {
         const payload = Object.freeze( { ...event } );
         setImmediate( () => {
             for ( const listener of this.#emitter.listeners( CONFIG_CHANGED ) ) {
+                // A misbehaving subscriber must not break delivery to the others or crash the process — whether it
+                // throws, or returns a promise that rejects. Nothing awaits that promise, so its rejection used to be
+                // unhandled, and core ends the process on one: competence reloads its configuration from a subscriber,
+                // and a store timing out right after an admin's save took the whole application down (CA-187).
                 try {
-                    listener( payload );
+                    const result = listener( payload );
+                    if ( result && typeof result.then === "function" ) {
+                        result.then( undefined, ( error ) => ConfigChangeNotifier.#reportFailure( error ) );
+                    }
                 } catch ( error ) {
-                    // A misbehaving subscriber must not break delivery to the others or crash the process.
-                    logger.log( `Config-change subscriber threw: ${ error && error.message ? error.message : error }`, logger.logSeverity.WARNING );
+                    ConfigChangeNotifier.#reportFailure( error );
                 }
             }
         } );
@@ -97,6 +103,14 @@ class ConfigChangeNotifier {
      */
     subscriberCount() {
         return this.#emitter.listenerCount( CONFIG_CHANGED );
+    }
+
+    /**
+     * @method
+     * @param {*} error What a subscriber threw, or rejected with.
+     */
+    static #reportFailure( error ) {
+        logger.log( `Config-change subscriber failed: ${ error && error.message ? error.message : error }`, logger.logSeverity.WARNING );
     }
 
 }

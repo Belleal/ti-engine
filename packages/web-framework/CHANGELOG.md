@@ -89,8 +89,13 @@ sign-in would throw.
   - `seedIfEmpty` takes the same lock.
 
   This orders writes within one process, which covers a deployment of one instance. 6 tests.
+* fix (config-change-notifier): a subscriber that fails asynchronously is logged like one that throws, instead of
+  ending the process (CA-187). The notifier caught a subscriber's synchronous throw, but nothing awaited a promise a
+  subscriber returned, so its rejection was unhandled, and core exits on one. competence reloads its configuration
+  from such a subscriber, and a store that timed out right after an admin's save took the whole application down.
+  Reproduced: the runner reported the rejection as unhandled. 1 test.
 * build (deps): `@ti-engine/core` `>=1.18.0`.
-* test: 649 → 704 tests.
+* test: 649 → 705 tests.
 
 ## Version 1.41.0
 

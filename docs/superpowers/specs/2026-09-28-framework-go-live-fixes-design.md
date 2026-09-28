@@ -94,6 +94,9 @@ the session. `/health` is never held.
   - The default error handler answers a `503` on a navigation as text. Redirecting it to `/`, as other errors are,
     would send it back into the held request.
   - An instance started through `onStart()` directly, as tests do, has no start-up state and is never held.
+- **The config-change notifier catches a rejected subscriber, not only a throwing one.** competence's reload of its
+  configuration runs as a subscriber. When a store timed out right after an admin's save, the reload's rejection was
+  unhandled, because nothing awaited the promise, and core ended the process on it.
 
 ### 2.4 Failed requests (CA-215)
 
@@ -164,8 +167,9 @@ the session. `/health` is never held.
 | Failed requests | `web-handlers.default-error.test.js` | 8 | A real Express app behind `express.json()`: a malformed body came back as a 500 with the stack and the echoed body |
 | Rejection reason, serialization | core `start-instance.rejection-reason`, `exception-serialization` | 2 + 2 | `bin/start-instance.js` in a child process: the reason was `{}` in JSON mode and absent in console mode |
 | Concurrent saves | `config-store.concurrent-saves.test.js` | 6 | Two saves at one version both committed version 2 |
+| Async subscriber failure | `config-change-notifier.test.js` | 1 | A subscriber returning a rejected promise left the rejection unhandled |
 
-Totals: web-framework 649 → 704, core 222 → 233, web-content 408 (unchanged).
+Totals: web-framework 649 → 705, core 222 → 233, web-content 408 (unchanged).
 
 ## 6. Implementation log
 

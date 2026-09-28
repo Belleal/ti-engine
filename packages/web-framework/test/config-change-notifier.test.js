@@ -69,4 +69,31 @@ describe( "ConfigChangeNotifier", () => {
         assert.equal( good, 1, "a throwing subscriber must not block delivery to others" );
     } );
 
+    it( "catches a subscriber that fails asynchronously too, and logs it", async ( t ) => {
+        // A subscriber that returns a promise fails by rejecting it, and nothing here awaited it: the rejection was
+        // unhandled, and core ends the process on one. competence reloads its configuration from such a subscriber,
+        // so a store timing out right after an admin's save took the whole application down (CA-187).
+        const logger = require( "@ti-engine/core/logger" );
+        const unhandled = [];
+        const onUnhandled = ( reason ) => unhandled.push( reason );
+        process.on( "unhandledRejection", onUnhandled );
+        t.after( () => process.off( "unhandledRejection", onUnhandled ) );
+        const logged = [];
+        t.mock.method( logger, "log", ( message, severity ) => logged.push( { message: String( message ), severity: severity } ) );
+
+        const notifier = new ConfigChangeNotifier();
+        let good = 0;
+        notifier.subscribe( () => Promise.reject( new Error( "the state service timed out" ) ) );
+        notifier.subscribe( () => { good++; } );
+        notifier.publish( { changeSetID: "x", configKeys: [], adminID: "z", timestamp: "t" } );
+        await tick();
+        await tick();
+
+        assert.equal( good, 1 );
+        assert.equal( unhandled.length, 0, "the rejection was left unhandled" );
+        const report = logged.find( ( entry ) => entry.message.includes( "the state service timed out" ) );
+        assert.ok( report );
+        assert.equal( report.severity, logger.logSeverity.WARNING );
+    } );
+
 } );
