@@ -124,7 +124,11 @@ the session. `/health` is never held.
 
 - Queueing is synchronous, and a task waits only for tasks queued before it, so no two tasks can wait for each other.
   A multi-document change-set and a save of one of its documents simply run in arrival order.
-- A failed task releases its keys.
+- A failed task releases its keys, but only once every one of its writes has settled (`#allWritten`). Settled at the
+  first refused write, as `Promise.all` settles, a task released its documents with another write still in flight.
+  The next save then read the version that write was about to replace, passed its check, and was overwritten when
+  the write landed: the lost edit again, on the failure path. A remote store refuses one request while another is in
+  flight easily enough.
 - `seedIfEmpty` takes the same lock. Its read-absent-then-write is the same check-then-write.
 - **Deferred: a true compare-and-set in the store** (Redis `WATCH`/`MULTI` or Lua, or a conditional D1 write). The
   cache abstraction exposes per-key commands only, and the store's own documentation had already deferred a
@@ -166,10 +170,10 @@ the session. `/health` is never held.
 | Start-up gate | `web-server.startup-gate.test.js`, `web-handlers.startup-gate.test.js` | 2 + 8 | A real `TiWebServer` (no broker, in-memory cache) whose application initialization waits on the test: a request was answered before it finished |
 | Failed requests | `web-handlers.default-error.test.js` | 8 | A real Express app behind `express.json()`: a malformed body came back as a 500 with the stack and the echoed body |
 | Rejection reason, serialization | core `start-instance.rejection-reason`, `exception-serialization` | 2 + 2 | `bin/start-instance.js` in a child process: the reason was `{}` in JSON mode and absent in console mode |
-| Concurrent saves | `config-store.concurrent-saves.test.js` | 6 | Two saves at one version both committed version 2 |
+| Concurrent saves | `config-store.concurrent-saves.test.js` | 6 + 3 | Two saves at one version both committed version 2. Then, with one of a save's writes refused and another held in flight, the next save committed and the late write replaced its document or its history entry, and a seed's late write replaced a document an admin had just created |
 | Async subscriber failure | `config-change-notifier.test.js` | 1 | A subscriber returning a rejected promise left the rejection unhandled |
 
-Totals: web-framework 649 → 705, core 222 → 233, web-content 408 (unchanged).
+Totals: web-framework 649 → 708, core 222 → 233, web-content 408 (unchanged).
 
 ## 6. Implementation log
 
@@ -177,3 +181,10 @@ Totals: web-framework 649 → 705, core 222 → 233, web-content 408 (unchanged)
   - Gates: `npm test` green across the workspace; lint 0 errors, the same 65 pre-existing warnings in the same 10 files
     as `master`; `build:types` / `check:types` clean.
   - Versions and changelogs: core 1.18.0, web-framework 1.42.0.
+- **2026-09-28** — CodeRabbit's review of the PR raised two findings, and both held up.
+  - `#exclusively` released a task's documents at its first refused write, while another write could still be in
+    flight (§2.5). Reproduced in three tests, which failed 3 of 3 on the previous code: one for each call site, and
+    one where the late write is a history entry. Fixed with `#allWritten`.
+  - The start-up gate test asserted only "not 503" once the start had finished. That also accepts a 404 or a 500 from
+    further down the stack. An anonymous `GET /me` was measured to answer 303 to `/`, and both assertions now say so.
+  - web-framework 705 → 708 tests.

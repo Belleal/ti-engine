@@ -99,12 +99,16 @@ describe( "a request that arrives while the instance is still starting", () => {
         await started;
         const response = await held;
         assert.equal( answered, true );
-        assert.notEqual( response.status, 503 );
+        // Admitted and handled like any anonymous request, rather than merely not refused: a failure further down
+        // the stack would not be a 503 either.
+        assert.equal( response.status, 303 );
+        assert.equal( response.headers.get( "location" ), "/" );
     } );
 
     it( "is served at once after that", async () => {
         const response = await fetch( `${ server.serverUrl }/me`, { redirect: "manual" } );
-        assert.notEqual( response.status, 503 );
+        assert.equal( response.status, 303 );
+        assert.equal( response.headers.get( "location" ), "/" );
     } );
 
 } );

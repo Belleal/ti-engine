@@ -28,10 +28,10 @@
  * as two requests against a real store would.
  */
 
-const { describe, it, before, beforeEach } = require( "node:test" );
+const { describe, it, before, beforeEach, afterEach } = require( "node:test" );
 const assert = require( "node:assert/strict" );
 const exceptions = require( "@ti-engine/core/exceptions" );
-const { installInMemoryCache } = require( "./helpers/in-memory-cache" );
+const { InMemoryCache, installInMemoryCache } = require( "./helpers/in-memory-cache" );
 
 let store;
 let cacheStub;
@@ -45,7 +45,34 @@ beforeEach( () => {
     cacheStub.storage = {};
 } );
 
+afterEach( () => {
+    // Puts back the prototype's `setJSON` if a test replaced it (see `misbehaveWrites`).
+    delete cacheStub.setJSON;
+} );
+
 const save = ( configKey, value, expectedVersion, adminID ) => store.saveChangeSet( [ { configKey: configKey, value: value, expectedVersion: expectedVersion } ], { adminID: adminID } );
+
+// Refuses some writes at once and holds others until `release()`, the way a remote store fails one request while
+// another is still in flight. `decide( key, value )` answers "refuse", "hold" or nothing; a held write reaches the
+// store only when it is released.
+const misbehaveWrites = ( decide ) => {
+    const held = [];
+    const write = ( key, value ) => InMemoryCache.prototype.setJSON.call( cacheStub, key, value );
+    cacheStub.setJSON = ( key, value ) => {
+        const decision = decide( key, value );
+        if ( decision === "refuse" ) {
+            return Promise.reject( new Error( "write refused: " + key ) );
+        }
+        if ( decision === "hold" ) {
+            return new Promise( ( resolve ) => held.push( () => resolve( write( key, value ) ) ) );
+        }
+        return write( key, value );
+    };
+    return { release: () => held.splice( 0 ).forEach( ( land ) => land() ) };
+};
+
+// Every step of a save against the in-memory cache is a microtask, so once this resolves, whatever could run has run.
+const nothingLeftToRun = () => new Promise( ( resolve ) => setImmediate( resolve ) );
 
 describe( "ConfigStore — concurrent saves", () => {
 
@@ -128,6 +155,79 @@ describe( "ConfigStore — concurrent saves", () => {
         await assert.rejects( save( "labels", { owner: "stale" }, 7, "admin:alice" ) );
         const result = await save( "labels", { owner: "bob" }, 1, "admin:bob" );
         assert.equal( result.versions.labels, 2 );
+    } );
+
+} );
+
+/*
+ * A save whose writes fail part-way.
+ *
+ * A save's writes go out together, and its documents are held until the save settles. It used to settle at the first
+ * refused write, with another write still in flight: the next save of the document read the version that write was
+ * about to replace, passed its check, and was overwritten when the write landed. That is the edit CA-192 stopped
+ * losing, lost again on the failure path, and a remote store refuses one request while another is in flight easily
+ * enough: a timeout, a dropped connection.
+ */
+describe( "ConfigStore — a save whose writes fail part-way", () => {
+
+    it( "does not admit the next save while the failed one still has a document write in flight", async () => {
+        await store.seedIfEmpty( "labels", { owner: "seed" } );
+        const writes = misbehaveWrites( ( key, value ) => {
+            if ( key === "ti:config:hist:labels:2" && value.adminID === "admin:alice" ) return "refuse";
+            if ( key === "ti:config:cur:labels" && value.updatedBy === "admin:alice" ) return "hold";
+        } );
+
+        const outcomes = Promise.allSettled( [
+            save( "labels", { owner: "alice" }, 1, "admin:alice" ),
+            save( "labels", { owner: "bob" }, 1, "admin:bob" )
+        ] );
+        await nothingLeftToRun();
+        writes.release();
+        const [ alice, bob ] = await outcomes;
+
+        assert.equal( alice.status, "rejected" );
+        assert.equal( bob.status, "rejected", "Bob's save was committed while Alice's document write was in flight, and her write then replaced his" );
+        assert.equal( bob.reason.data.reason, "version-conflict" );
+    } );
+
+    it( "does not let the failed save's late history entry replace the next save's", async () => {
+        await store.seedIfEmpty( "labels", { owner: "seed" } );
+        const writes = misbehaveWrites( ( key, value ) => {
+            if ( key === "ti:config:cur:labels" && value.updatedBy === "admin:alice" ) return "refuse";
+            if ( key === "ti:config:hist:labels:2" && value.adminID === "admin:alice" ) return "hold";
+        } );
+
+        const outcomes = Promise.allSettled( [
+            save( "labels", { owner: "alice" }, 1, "admin:alice" ),
+            save( "labels", { owner: "bob" }, 1, "admin:bob" )
+        ] );
+        await nothingLeftToRun();
+        writes.release();
+        const [ alice, bob ] = await outcomes;
+
+        assert.equal( alice.status, "rejected" );
+        assert.equal( bob.status, "fulfilled" );
+        assert.equal( ( await store.getCurrent( "labels" ) ).value.owner, "bob" );
+        assert.equal( ( await store.getVersion( "labels", 2 ) ).snapshot.owner, "bob", "the history entry for the version Bob committed holds Alice's content" );
+    } );
+
+    it( "holds a document being seeded until both of its writes have settled", async () => {
+        const writes = misbehaveWrites( ( key, value ) => {
+            if ( key === "ti:config:hist:labels:1" && value.adminID === "system:seed" ) return "refuse";
+            if ( key === "ti:config:cur:labels" && value.updatedBy === "system:seed" ) return "hold";
+        } );
+
+        const outcomes = Promise.allSettled( [
+            store.seedIfEmpty( "labels", { owner: "seed" } ),
+            save( "labels", { owner: "alice" }, 0, "admin:alice" )
+        ] );
+        await nothingLeftToRun();
+        writes.release();
+        const [ seeded, alice ] = await outcomes;
+
+        assert.equal( seeded.status, "rejected" );
+        assert.equal( alice.status, "rejected", "Alice's save created the document while the seed's write was in flight, and the defaults then replaced it" );
+        assert.equal( alice.reason.data.reason, "version-conflict" );
     } );
 
 } );

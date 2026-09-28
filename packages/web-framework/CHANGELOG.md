@@ -85,17 +85,20 @@ sign-in would throw.
   **What changed.** The check and the writes run with every document of the change-set held. Each key's writes are
   queued behind the ones before them, so the second save reads N + 1 and is refused as a `version-conflict`.
   - A change-set spanning two documents and a save of one of them run in the order they arrived.
-  - A save of an unrelated document is not held up, and a failed save releases its keys.
+  - A save of an unrelated document is not held up.
+  - A failed save releases its keys, but only once every one of its writes has settled. Released at the first refused
+    write, the save left another write in flight, and that write landed on top of the next save's document or history
+    entry.
   - `seedIfEmpty` takes the same lock.
 
-  This orders writes within one process, which covers a deployment of one instance. 6 tests.
+  This orders writes within one process, which covers a deployment of one instance. 9 tests.
 * fix (config-change-notifier): a subscriber that fails asynchronously is logged like one that throws, instead of
   ending the process (CA-187). The notifier caught a subscriber's synchronous throw, but nothing awaited a promise a
   subscriber returned, so its rejection was unhandled, and core exits on one. competence reloads its configuration
   from such a subscriber, and a store that timed out right after an admin's save took the whole application down.
   Reproduced: the runner reported the rejection as unhandled. 1 test.
 * build (deps): `@ti-engine/core` `>=1.18.0`.
-* test: 649 → 705 tests.
+* test: 649 → 708 tests.
 
 ## Version 1.41.0
 
