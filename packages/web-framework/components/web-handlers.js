@@ -903,11 +903,38 @@ let logFailedRequest = ( request, exception, status ) => {
 };
 
 /**
+ * The part of a server error's data the client may see: its `details`, when that names a label the session's language
+ * has text for.
+ * <br/>
+ * A 5xx withholds its data, which for a raised `Error` holds the stack and whatever the body parser echoed (CA-215). A
+ * `details` label, though, is written for the user: the framework's own `formatException` shows it as the notification's
+ * second line. Withholding it too left the generic message where the application had explained itself, so a store
+ * outage read "The system cache required for proper engine operation is unavailable." (CA-287). A label is safe by
+ * construction, since its text is in the catalogue the client is served anyway. Anything else in `details` stays
+ * withheld, raw text above all, which can name records or internals. So does a label the session's language has no
+ * text for, which the client could only show as its key.
+ *
+ * @method
+ * @param {TiException} exception
+ * @param {TiLocalizationLanguage} [language]
+ * @returns {{details: string}|undefined}
+ * @private
+ */
+let visibleServerErrorData = ( exception, language ) => {
+    const details = exception.data && exception.data.details;
+    if ( typeof details !== "string" || typeof localization.getLabel( details, language, null ) !== "string" ) {
+        return undefined;
+    }
+    return { details: details };
+};
+
+/**
  * Handler to intercept any errors that have not been resolved by previous middleware. Should be the last in the sequence.
  * <br/>
- * A server error (5xx) reaches the client as its code, its localized message and its ID, and nothing else: its data
- * is the server's business — for a raised `Error` it holds the stack — and it is logged instead, under that ID (see
- * {@link logFailedRequest}). A client error keeps its data, which is how a form learns what was wrong with it.
+ * A server error (5xx) reaches the client as its code, its localized message and its ID: its data is the server's
+ * business — for a raised `Error` it holds the stack — and it is logged instead, under that ID (see
+ * {@link logFailedRequest}). The one exception is a `details` label (see {@link visibleServerErrorData}). A client error
+ * keeps its data, which is how a form learns what was wrong with it.
  *
  * @method
  * @returns {ExpressErrorHandler}
@@ -917,9 +944,16 @@ module.exports.defaultErrorHandler = () => {
     return ( error, request, response, next ) => {
         const exception = raiseForResponse( error );
         const isServerError = ( resolveHttpCode( exception ) >= exceptions.httpCode.C_500 );
+        const exceptionJSON = exception.asJSON( !isServerError );
+        if ( isServerError ) {
+            const visible = visibleServerErrorData( exception, request.session?.language );
+            if ( visible ) {
+                exceptionJSON.data = visible;
+            }
+        }
         const payload = {
             isSuccessful: false,
-            exception: exception.asJSON( !isServerError ),
+            exception: exceptionJSON,
             message: localization.getLabel( exception.label, request.session?.language )
         };
 
