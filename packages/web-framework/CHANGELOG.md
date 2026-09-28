@@ -2,6 +2,13 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.42.2
+
+* refactor (config-store): the lock that serializes a document's saves is core's `tools.KeyedLock` (1.19.0), and its
+  writes are awaited with core's `tools.whenAllSettled`. Both were private copies (`#exclusively`, `#allWritten`). The
+  behaviour is unchanged, and the 9 concurrent-save tests pass as they did.
+* build (deps): `@ti-engine/core` `>=1.19.0`, for `KeyedLock` and `whenAllSettled`.
+
 ## Version 1.42.1
 
 * fix (web-handlers): a server error keeps its `details` label, so the notification can still say what went wrong

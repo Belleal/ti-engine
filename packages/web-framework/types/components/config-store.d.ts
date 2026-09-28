@@ -50,7 +50,7 @@ declare class ConfigStore {
      * Commits an edit spanning one or more documents as a single change-set. All optimistic-lock checks run before
      * any write. Each edit: `{ configKey, value, expectedVersion }`.
      * <br/>
-     * The check and the writes run with every document of the set held (see `#exclusively`). They
+     * The check and the writes run with every document of the set held (core's `KeyedLock`). They
      * are separate store round trips, and without that two admins saving one document at one version both read N,
      * both passed the check and both wrote N + 1: one edit was silently lost, the history entry for N + 1 was
      * overwritten with the other's content, and restoring "the lost edit" brought back the wrong one (CA-192). Now the

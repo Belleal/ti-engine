@@ -27,8 +27,8 @@ the header block verbatim from an existing file in the same package.
 ```
 ti-engine/                         npm workspace root (v1.3.0; workspaces = packages/*)
 ├── packages/
-│   ├── core/          v1.18.0     Framework foundation (pluggable cache backend — Redis or HTTP, optional messaging, lifecycle, utils) + the D1 state service + shipped TypeScript declarations
-│   ├── web-framework/ v1.42.1     Express server + auth (incl. real local auth, per-provider allowed domains) + admin config-management + config drift + Profile/About + ti-charts + role gate + TI_WEB_* env overrides + /health + route seams + content-addressed immutable fragments + opt-in Server-Timing + start-up gate
+│   ├── core/          v1.19.0     Framework foundation (pluggable cache backend — Redis or HTTP, optional messaging, lifecycle, utils) + the D1 state service + shipped TypeScript declarations
+│   ├── web-framework/ v1.42.2     Express server + auth (incl. real local auth, per-provider allowed domains) + admin config-management + config drift + Profile/About + ti-charts + role gate + TI_WEB_* env overrides + /health + route seams + content-addressed immutable fragments + opt-in Server-Timing + start-up gate
 │   ├── web-content/   v0.4.0      Content-publishing engine — path-index routing, deny-by-default visibility, SEO documents, feeds, email capture (WIP)
 │   └── tester/        v1.3.5      Reference/example service implementation + the docker-build target
 ├── .github/workflows/             ci.yml (lint/test/build) · codeql-analysis.yml · npm-publish.yml · cla.yml
@@ -42,7 +42,7 @@ ti-engine/                         npm workspace root (v1.3.0; workspaces = pack
 
 Dependency direction: `core` is standalone → `web-framework` depends on `core` → **`web-content` depends on both**, and `tester` on `core` alone. Keep framework concerns in `core`/`web-framework` and application concerns in the consumer. Each package has its own independent semver version and `CHANGELOG.md`.
 
-Internal dependencies are declared `*` — **except `web-framework` → `@ti-engine/core`, which is `>=1.18.0`** (1.42.0). It calls `localization.getSystemLanguage()` on every sign-in, and against an older core that throws and refuses everyone; `*` also let a consumer's lockfile keep the old core when it installed the new web-framework. Raise that floor whenever web-framework starts relying on a newer core API. The root `package-lock.json` is gitignored and CI runs `npm install`, so a range change needs no lockfile commit — but `npm install` also runs web-framework's `postinstall`, which rewrites `bin/static/scripts/lib/alpinejs-csp.min.js` and `htmx.min.js` from the installed packages; restore them unless refreshing them is the point.
+Internal dependencies are declared `*` — **except `web-framework` → `@ti-engine/core`, which is `>=1.19.0`** (1.42.2; `>=1.18.0` from 1.42.0). It calls `localization.getSystemLanguage()` on every sign-in, and against an older core that throws and refuses everyone; its config store runs on `tools.KeyedLock` (1.19.0); `*` also let a consumer's lockfile keep the old core when it installed the new web-framework. Raise that floor whenever web-framework starts relying on a newer core API. The root `package-lock.json` is gitignored and CI runs `npm install`, so a range change needs no lockfile commit — but `npm install` also runs web-framework's `postinstall`, which rewrites `bin/static/scripts/lib/alpinejs-csp.min.js` and `htmx.min.js` from the installed packages; restore them unless refreshing them is the point.
 
 The out-of-repository consumer, `competence`, depends on `core` + `web-framework` by semver range from npm. A breaking change here therefore reaches it only when that range is bumped — which is *after* `npm-publish.yml` has published. That is the regression net this repository lost in CA-120: competence's 1060-test suite used to run in this workspace on every change.
 
@@ -85,7 +85,7 @@ history and older PR bodies; it is no longer the working branch.
 
 ---
 
-## Package: core (v1.18.0)
+## Package: core (v1.19.0)
 
 **Role**: Foundational framework. All other packages depend on it. Standalone (no intra-repo deps).
 
@@ -112,7 +112,7 @@ history and older PR bodies; it is no longer the working branch.
 | `components/exchange/default/default-message-exchange.js` | Redis (ioredis) implementation |
 | `components/exchange/message-dispatcher.js` / `message-sender.js` / `message-receiver.js` | Queue plumbing |
 | `components/exchange/message-tracer.js` | chainID / chainLevel tracking across hops |
-| `utils/tools.js` | `getUUID()`, `deepFreeze()`, `constantTimeEquals()`, `enum()` factory (enum value = **first element of its seed array**, not the key — see gotcha under competence enums) |
+| `utils/tools.js` | `getUUID()`, `deepFreeze()`, `constantTimeEquals()`, `enum()` factory (enum value = **first element of its seed array**, not the key — see gotcha under competence enums), `RetryPolicy`, `KeyedLock` (1.19.0): `exclusively( keys, task )` runs tasks that touch the same keys one at a time, in arrival order, for a read-check-write spanning several store round trips. A task must not settle before its writes have — `whenAllSettled( promises )` (1.19.0), never `Promise.all` — and must never ask for a key it already holds: it would wait for itself. In-process only |
 | `utils/exceptions.js` | `TiException` + standardized error codes (see below) |
 | `utils/logger.js` | Severity: DEBUG/INFO/NOTICE/WARNING/ERROR/CRITICAL/ALERT |
 | `utils/config.js` | Config enum + ENV overrides; frozen after init |
@@ -128,7 +128,10 @@ history and older PR bodies; it is no longer the working branch.
 
 **Public exports** (`package.json` `exports`): `.` (start-instance), `./tools`, `./cache`, `./exceptions`, `./logger`, `./localization`, `./service-instance`, `./service-consumer`, `./service-provider`, `./state-service` (1.17.0), `./definitions` (the shared typedefs).
 
-**Since the skill's last sync (1.9.0 → 1.18.0):**
+**Since the skill's last sync (1.9.0 → 1.19.0):**
+- **1.19.0 — `tools.KeyedLock` and `tools.whenAllSettled`**, the per-key lock and the write-settling helper that
+  web-framework's config store kept privately from 1.42.0 (CA-192). They moved here for competence's evaluations,
+  cycles and interview slots (CA-188 to CA-191). The config store runs on both from web-framework 1.42.2.
 - **1.18.0 — go-live fixes for competence** (design record `docs/superpowers/specs/2026-09-28-framework-go-live-fixes-design.md`):
   - `localization.getSystemLanguage()` returns the language a lookup with none uses (`TI_LOCALIZATION_LANGUAGE`, else
     `localization.language`, else `en`). It exists for a caller that must **hold** the language — web-framework puts
@@ -292,7 +295,7 @@ module.exports.service = function (serviceDefinition, serviceParams, serviceCall
 
 **Test commands**:
 ```bash
-npm test    # node --test — 233 tests / 56 suites: 22 test files, plus the five test/fixtures/
+npm test    # node --test — 244 tests / 58 suites: 24 test files, plus the five test/fixtures/
             # modules, which node's default pattern runs as files too (each counts as one test)
             # (auditing-json-console, cache-capabilities, cache-get-values, cache-provider-selection,
             #  cache-store, d1-state-service, d1-state-service.partitions, d1-state-service.differential,
@@ -301,7 +304,8 @@ npm test    # node --test — 233 tests / 56 suites: 22 test files, plus the fiv
             #  service-consumer-without-exchange, service-instance-health-check,
             #  service-provider-without-exchange, tools-proto-keys,
             #  exception-labels, exception-serialization, localization.system-language,
-            #  start-instance.rejection-reason — the last spawns bin/start-instance.js)
+            #  start-instance.rejection-reason — it spawns bin/start-instance.js — tools.keyed-lock
+            #  and tools.when-all-settled)
             # test/fixtures/ holds StubCacheProvider (how the cache singleton is
             # driven without a live Redis), startStubStateServer (an in-memory
             # implementation of the state protocol, on node:http) and d1-sqlite
@@ -312,7 +316,7 @@ npm test    # node --test — 233 tests / 56 suites: 22 test files, plus the fiv
 
 ---
 
-## Package: web-framework (v1.42.1)
+## Package: web-framework (v1.42.2)
 
 **Role**: Express.js web server + authentication layer + a reusable **admin config-management subsystem** for web-facing UIs + a CSP-safe **charting primitive library** (`ti-charts.js`) + the container-deployment surface (`TI_WEB_*` env overrides, `GET /health`) and the **route-registration seams** (1.17.0) a subclass uses to mount its own routes — what `web-content` is built on.
 
@@ -331,7 +335,7 @@ npm test    # node --test — 233 tests / 56 suites: 22 test files, plus the fiv
 | `components/web-handlers.js` | Middleware: CSP headers, CSRF validation, CSRF tokens minted on demand (`request.csrfToken()` on every request, `csrfTokenHandler` behind `GET /csrf-token`, eager only for a session that already exists — 1.38.0), auth verification, `healthHandler` (`GET /health`, 1.15.0), `originRefererValidationHandler` (reconstructed origin **or** a configured trusted origin, 1.16.0), the module-private `isSecureRequest( request )` (1.35.1 — the **one** scheme decision, shared by `getBaseUrl`, `cspHeaderHandler` and `httpRedirectHandler`), error formatting (`resolveHttpCode` derives 4xx from the exception family when no explicit `httpCode`: `E_WEB_*`/`E_APP_*`→422, `E_SEC_*`→403, not-found→404, already-exists→409, method/content→405/415; only internal/comm/unknown stay 500; since 1.42.0 `defaultErrorHandler` logs a 5xx at ERROR under the exception's ID — the client gets code, message and that ID but never `data`, which held the stack, except a `details` naming a label the session's language has text for (1.42.1, CA-287: it is written for the user, and `formatException` shows it under the message; raw text stays withheld) — a 503 at WARNING and answered to a navigation as text, and an `Error` carrying a 4xx `status` (the body parsers) is raised as the client's error instead of a 500), `startupGateHandler` (1.42.0, see `web-server.js`), the module-private `resolveSessionLanguage` (1.42.0 — the user's language, else the service config's, else `localization.getSystemLanguage()`; `web-server.json` no longer ships `language`), `labelsBundleHandler` (1.39.0), `serverTimingHandler` / `timedHandler` (1.41.0 — `app` and `session` metrics, appended to any existing header, the description folded to printable ASCII; added through `on-headers`, so a `Server-Timing` a handler passes to `writeHead( status, headers )` is kept rather than replacing them), and the HTML cache policy in `webAppHandler` — an HTMX fragment `private, no-cache` + `Vary: HX-Request`, a full page or a token-bearing view `no-store` (1.39.0), an addressed immutable fragment `private, max-age=31536000, immutable` (1.41.0) |
 | `components/web-config-env.js` | `applyWebConfigEnvOverrides( config, env = process.env )` (`#web-config-env`, 1.14.0+) — the pure `TI_WEB_*` override layer over the merged server config |
 | `components/user.js` | User object model |
-| `components/config-store.js` | Versioned, audited config store (Redis JSON) — current value, history, validated restore. A document's version check and writes are serialized in-process (`#exclusively`, 1.42.0), so a concurrent save at a stale version is refused as `version-conflict` instead of silently overwriting the other and its history entry (CA-192); `seedIfEmpty` takes the same lock. A task holds its documents until **every** one of its writes has settled (`#allWritten`), never just until the first failure: released at the first refused write, a write still in flight lands on top of the next save. Nothing orders writes **between** instances |
+| `components/config-store.js` | Versioned, audited config store (Redis JSON) — current value, history, validated restore. A document's version check and writes are serialized in-process (1.42.0; through core's `tools.KeyedLock` and `tools.whenAllSettled` since 1.42.2), so a concurrent save at a stale version is refused as `version-conflict` instead of silently overwriting the other and its history entry (CA-192); `seedIfEmpty` takes the same lock. A task holds its documents until **every** one of its writes has settled (`tools.whenAllSettled`; `#allWritten` before 1.42.2), never just until the first failure: released at the first refused write, a write still in flight lands on top of the next save. Nothing orders writes **between** instances |
 | `components/config-registry.js` | In-process registry of config documents, schemas, validators, editors |
 | `components/config-service.js` | Facade orchestrating registry + store + validation (exported as `config-management`); the `applyEdits` validator context exposes `getConfig` (the *pending* value, for cross-document checks) **and** `getStoredConfig( key )` (the *committed* value — 1.17.1, needed by a validator comparing its own document against its prior state) |
 | `components/config-change-notifier.js` | In-process `config:changed` pub/sub so live config reloads. A subscriber that throws **or returns a rejected promise** is logged at WARNING and never ends the process (the async half since 1.42.0, CA-187) |
@@ -344,7 +348,9 @@ npm test    # node --test — 233 tests / 56 suites: 22 test files, plus the fiv
 
 **Public exports** (`package.json` `exports`) — **six**: `./config-management` (config-service), `./web-application` (web-app-manager), `./web-server`, `./authorization`, `./config-drift`, `./definitions`. The last three are easy to forget and a consumer does import them: competence reaches for `./authorization` and `./config-drift` directly. Anything not on this list fails with `ERR_PACKAGE_PATH_NOT_EXPORTED`, so **adding a module a consumer needs means adding its `exports` entry** — that is the API surface, and changing it is a breaking change for every consumer.
 
-**Since the skill's last sync (1.25.1 → 1.42.1):**
+**Since the skill's last sync (1.25.1 → 1.42.2):**
+- **The config store's lock and write-settling are core's `tools.KeyedLock` and `tools.whenAllSettled`** (1.42.2,
+  core `>=1.19.0`), where they were private copies. No behaviour changed.
 - **A server error keeps its `details` label** (1.42.1, CA-287). 1.42.0 withheld a 5xx's whole `data`, and with it
   the label an application raises for the user, so competence's store-outage 503 read core's generic message for
   1004. Only a `details` that names a label with text in the session's language comes back; raw text never does.
