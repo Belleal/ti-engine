@@ -37,6 +37,10 @@ const SEED_ACTOR = "system:seed";
  * moved on in the meantime. This component is storage-only — schema/semantic validation is a separate pipeline
  * that must run *before* {@link ConfigStore#saveChangeSet}.
  * <br/>
+ * The version check and the writes are separate round trips, so the writes of each document are serialized within
+ * the process (see {@link ConfigStore#saveChangeSet}); that covers a deployment of one instance, and nothing orders
+ * writes between instances.
+ * <br/>
  * NOTE: true cross-document atomicity is not provided (the cache exposes per-key commands only). All locks are
  * checked *before* any write, so the common conflict case is safe; a mid-write process failure can leave a
  * partially-applied change-set, detectable via the change-set record. Hardening (a Lua/MULTI write) is deferred.
@@ -45,6 +49,9 @@ const SEED_ACTOR = "system:seed";
  * @public
  */
 class ConfigStore {
+
+    // The last write queued for each document key, which the next one waits for. See #exclusively.
+    #queued = new Map();
 
     /* Public interface */
 
@@ -72,7 +79,9 @@ class ConfigStore {
      * @public
      */
     seedIfEmpty( configKey, defaultValue ) {
-        return this.getCurrent( configKey ).then( ( current ) => {
+        // Under the same lock as a save: read "absent" then write version 1 is the same check-then-write, and a save
+        // creating the document in between would otherwise be replaced by the defaults.
+        return this.#exclusively( [ configKey ], () => this.getCurrent( configKey ).then( ( current ) => {
             if ( current ) return current;
             const timestamp = new Date().toISOString();
             const envelope = { value: defaultValue, version: 1, updatedAt: timestamp, updatedBy: SEED_ACTOR, changeSetID: null };
@@ -81,12 +90,18 @@ class ConfigStore {
                 this.#writeJSON( KEY_CURRENT + configKey, envelope ),
                 this.#writeJSON( KEY_HISTORY + configKey + ":1", historyEntry )
             ] ).then( () => envelope );
-        } );
+        } ) );
     }
 
     /**
      * Commits an edit spanning one or more documents as a single change-set. All optimistic-lock checks run before
      * any write. Each edit: `{ configKey, value, expectedVersion }`.
+     * <br/>
+     * The check and the writes run with every document of the set held (see `#exclusively`). They
+     * are separate store round trips, and without that two admins saving one document at one version both read N,
+     * both passed the check and both wrote N + 1: one edit was silently lost, the history entry for N + 1 was
+     * overwritten with the other's content, and restoring "the lost edit" brought back the wrong one (CA-192). Now the
+     * second save reads N + 1 and is refused as a `version-conflict`, which is what the check was always for.
      *
      * @method
      * @param {Array<{configKey: string, value: Object, expectedVersion: number}>} edits
@@ -106,7 +121,7 @@ class ConfigStore {
             return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { reason: "duplicate-configKey-in-changeset" } ) );
         }
 
-        return Promise.all( keys.map( ( key ) => this.getCurrent( key ) ) ).then( ( currents ) => {
+        return this.#exclusively( keys, () => Promise.all( keys.map( ( key ) => this.getCurrent( key ) ) ).then( ( currents ) => {
             // Lock check across the whole set first — no writes until every document is confirmed unchanged.
             const conflicts = [];
             edits.forEach( ( edit, i ) => {
@@ -140,7 +155,7 @@ class ConfigStore {
             writes.push( this.#writeJSON( KEY_CHANGESET + changeSetID, changeSetRecord ) );
 
             return Promise.all( writes ).then( () => ( { changeSetID: changeSetID, versions: versions } ) );
-        } );
+        } ) );
     }
 
     /**
@@ -224,6 +239,35 @@ class ConfigStore {
     }
 
     /* Private interface */
+
+    /**
+     * Runs a read-check-write task once every earlier task queued for any of the given document keys has settled, and
+     * holds those keys until it settles in turn.
+     * <br/>
+     * A task waits only for tasks queued before it, and queueing is synchronous, so no two tasks can wait for each
+     * other: a change-set holding two documents and a save of one of them simply run in the order they arrived. A
+     * failed task releases its keys like a successful one, so one refusal never stalls the saves behind it.
+     *
+     * @method
+     * @param {string[]} keys
+     * @param {function(): Promise<*>} task
+     * @returns {Promise<*>} The task's own outcome.
+     */
+    #exclusively( keys, task ) {
+        const held = [ ...new Set( keys ) ];
+        const earlier = held.map( ( key ) => this.#queued.get( key ) );
+        const run = Promise.all( earlier ).then( () => task() );
+        const settled = run.then( () => undefined, () => undefined );
+        held.forEach( ( key ) => this.#queued.set( key, settled ) );
+        settled.then( () => {
+            held.forEach( ( key ) => {
+                if ( this.#queued.get( key ) === settled ) {
+                    this.#queued.delete( key );
+                }
+            } );
+        } );
+        return run;
+    }
 
     /**
      * Reads a whole JSON document at the `$` root and unwraps RedisJSON's array result.

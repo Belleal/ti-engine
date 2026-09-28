@@ -29,6 +29,7 @@ const authorization = require( "#authorization" );
 
 /** @import { TiAuthMethod } from "#auth-manager" */
 /** @import TiWebServer from "#web-server" */
+/** @import User from "#user" */
 
 /** @typedef {import("express").Request} ExpressRequest */
 /** @typedef {import("express").Response} ExpressResponse */
@@ -65,7 +66,8 @@ const DEFAULT_HTTP_CODE_BY_EXCEPTION = {
     [ exceptions.exceptionCode.E_WEB_INVALID_REQUEST_CONTENT_TYPE ]: exceptions.httpCode.C_415,
     [ exceptions.exceptionCode.E_WEB_INVALID_REQUEST_CONTENT_LENGTH ]: exceptions.httpCode.C_413,
     [ exceptions.exceptionCode.E_APP_RESOURCE_NOT_FOUND ]: exceptions.httpCode.C_404,
-    [ exceptions.exceptionCode.E_APP_RESOURCE_ALREADY_EXISTS ]: exceptions.httpCode.C_409
+    [ exceptions.exceptionCode.E_APP_RESOURCE_ALREADY_EXISTS ]: exceptions.httpCode.C_409,
+    [ exceptions.exceptionCode.E_GEN_SERVICE_STARTING ]: exceptions.httpCode.C_503
 };
 
 /**
@@ -226,6 +228,24 @@ let getRequestOrigin = ( request ) => {
 };
 
 /**
+ * The language a new session starts in: the user's own, else the one the service configuration names, else the
+ * deployment's — what core resolved from `TI_LOCALIZATION_LANGUAGE`, its settings file or its default.
+ * <br/>
+ * The last step is CA-198. The service configuration used to default to "en", and no identity provider puts a
+ * language on the user, so every session was English: a deployment set to Bulgarian turned English the moment
+ * anybody signed in, while its login page, which asks core with no language, stayed Bulgarian.
+ *
+ * @method
+ * @param {User} user
+ * @param {TiWebServer} instance
+ * @returns {string}
+ * @private
+ */
+let resolveSessionLanguage = ( user, instance ) => {
+    return user.language || instance.serviceConfig.language || localization.getSystemLanguage();
+};
+
+/**
  * Used to regenerate the session and save it.
  *
  * @method
@@ -329,6 +349,72 @@ module.exports.onShutDownHandler = ( instance ) => {
 };
 
 /**
+ * How long a request that arrives while the instance is starting is held before it is refused, in milliseconds.
+ * Generous, because a held request costs nothing but a socket, while a refused one costs the visitor a retry.
+ *
+ * @type {number}
+ */
+const STARTUP_HOLD_LIMIT = 30000;
+
+/**
+ * What a refused request is told, in seconds, about when to try again.
+ *
+ * @type {number}
+ */
+const STARTUP_RETRY_AFTER = 5;
+
+/**
+ * Handler that holds every request received while the instance is still starting, and serves it once the instance
+ * has — its whole `onStart`, an application's own initialization included (see {@link TiWebServer#start}).
+ * <br/>
+ * The server listens as the last step of the framework's `onStart`, and an application extends that the documented
+ * way, `super.onStart().then( … )`, so requests used to be served for as long as the application's initialization
+ * took, against state it had not built yet. competence builds its org chart there: a request in that window found no
+ * chart, `verifySession` reported the signed-in user as unknown, and the framework destroyed the session. On a host
+ * that wakes a sleeping container on the next request, that window is exactly where the waking request lands, so the
+ * first person of the day was signed out on their first click (CA-187).
+ * <br/>
+ * `/health` is never held: it is the liveness probe, and a host that probed it while the instance starts would take
+ * a slow start for a hung process. Static content is not held either, because it is served before this handler.
+ * A request held past `holdLimit`, or one that arrives after start-up has failed, is refused with `503` and a
+ * `Retry-After` rather than served against state that is not there.
+ *
+ * @method
+ * @param {TiWebServer} instance
+ * @param {number} [holdLimit=30000] How long to hold a request, in milliseconds.
+ * @returns {ExpressHandler}
+ * @public
+ */
+module.exports.startupGateHandler = ( instance, holdLimit = STARTUP_HOLD_LIMIT ) => {
+    const admitOrRefuse = ( request, response, next ) => {
+        const state = instance.startup.state;
+        if ( state === "starting" || state === "failed" ) {
+            response.set( "Retry-After", String( STARTUP_RETRY_AFTER ) );
+            next( exceptions.raise( exceptions.exceptionCode.E_GEN_SERVICE_STARTING, { details: ( state === "failed" ) ? "The instance failed to start." : "The instance is still starting." }, exceptions.httpCode.C_503 ) );
+        } else {
+            next();
+        }
+    };
+
+    return ( request, response, next ) => {
+        if ( request.path === "/health" ) {
+            return next();
+        }
+        if ( instance.startup.state !== "starting" ) {
+            return admitOrRefuse( request, response, next );
+        }
+        let timer;
+        const limit = new Promise( ( resolve ) => {
+            timer = setTimeout( resolve, holdLimit );
+        } );
+        Promise.race( [ instance.startup.settled, limit ] ).then( () => {
+            clearTimeout( timer );
+            admitOrRefuse( request, response, next );
+        } );
+    };
+};
+
+/**
  * Handler that verifies if the requested resource requires authentication or is freely accessible.
  *
  * @method
@@ -394,7 +480,7 @@ module.exports.authenticationHandler = ( instance ) => {
             } ).then( ( user ) => {
                 return regenerateAndSaveSession( request, "/", ( session ) => {
                     session.user = user.asJSON();
-                    session.language = user.language || instance.serviceConfig.language;
+                    session.language = resolveSessionLanguage( user, instance );
 
                     return authorization.applyAdminRole( instance.augmentSession( session, request ), instance.serviceConfig?.auth?.admins );
                 } );
@@ -481,7 +567,7 @@ module.exports.authorizedOAuth2CallbackHandler = ( instance, authMethod ) => {
         instance.authorize( authMethod, new URL( request.originalUrl, getBaseUrl( request ) ), oidc ).then( ( user ) => {
             return regenerateAndSaveSession( request, "/", ( session ) => {
                 session.user = user.asJSON();
-                session.language = user.language || instance.serviceConfig.language;
+                session.language = resolveSessionLanguage( user, instance );
 
                 delete session.oidc;
 
@@ -765,7 +851,63 @@ module.exports.invalidRouteHandler = () => {
 };
 
 /**
+ * Raises what reached the error handler as a {@link TiException}, recognising an error the request itself caused.
+ * <br/>
+ * Express's body parsers report a malformed, oversized or unsupported body as a plain `Error` carrying a 4xx
+ * `status` — the `http-errors` convention — and body-parser attaches the raw body to it. Raised as it was, that
+ * became `E_GEN_JS_INTERNAL_ERROR`: a 500 whose data held the stack and the echoed body, for a request that needed no
+ * session at all (CA-215). It is the client's error, so it is raised as one: its own status, and nothing it carried.
+ *
+ * @method
+ * @param {*} error
+ * @returns {TiException}
+ * @private
+ */
+let raiseForResponse = ( error ) => {
+    const status = ( error instanceof Error ) ? ( error.status || error.statusCode ) : undefined;
+    if ( Number.isInteger( status ) && status >= 400 && status < 500 && exceptions.httpCode.contains( status ) ) {
+        const code = ( status === exceptions.httpCode.C_413 ) ? exceptions.exceptionCode.E_WEB_INVALID_REQUEST_CONTENT_LENGTH
+            : ( status === exceptions.httpCode.C_415 ) ? exceptions.exceptionCode.E_WEB_INVALID_REQUEST_CONTENT_ENCODING
+                : exceptions.exceptionCode.E_WEB_INVALID_REQUEST_BODY;
+        return exceptions.raise( code, null, status );
+    }
+    return exceptions.raise( error );
+};
+
+/**
+ * Records a failed request at the severity its status deserves.
+ * <br/>
+ * Every failure used to be logged at DEBUG, and a production deployment filters below INFO, so no request that failed
+ * on the server was ever recorded (CA-215). A server error is now logged at ERROR with the exception — the stack, and
+ * whatever detail the client is no longer shown — under the exception's ID, which the client does receive: that ID
+ * is the reference that ties a user's report to this line. A 503 is a condition rather than a defect (the instance
+ * starting, or shutting down), so it is a WARNING. A client error stays at DEBUG: it is the client's to fix, and at
+ * a higher level anyone could fill the log by sending bad requests. The path is logged without its query string,
+ * which can carry tokens.
+ *
+ * @method
+ * @param {ExpressRequest} request
+ * @param {TiException} exception
+ * @param {TiHttpCode} status
+ * @private
+ */
+let logFailedRequest = ( request, exception, status ) => {
+    const described = `'${ sanitizeExternalValue( request.method ) } ${ sanitizeExternalValue( request.path ) }'`;
+    if ( status === exceptions.httpCode.C_503 ) {
+        logger.log( `Request ${ described } answered ${ status }: ${ exception.description } (reference '${ exception.id }').`, logger.logSeverity.WARNING );
+    } else if ( status >= exceptions.httpCode.C_500 ) {
+        logger.log( `Request ${ described } failed with ${ status } (reference '${ exception.id }').`, logger.logSeverity.ERROR, exception );
+    } else {
+        logger.log( "Received request caused an exception.", logger.logSeverity.DEBUG, exception );
+    }
+};
+
+/**
  * Handler to intercept any errors that have not been resolved by previous middleware. Should be the last in the sequence.
+ * <br/>
+ * A server error (5xx) reaches the client as its code, its localized message and its ID, and nothing else: its data
+ * is the server's business — for a raised `Error` it holds the stack — and it is logged instead, under that ID (see
+ * {@link logFailedRequest}). A client error keeps its data, which is how a form learns what was wrong with it.
  *
  * @method
  * @returns {ExpressErrorHandler}
@@ -773,10 +915,11 @@ module.exports.invalidRouteHandler = () => {
  */
 module.exports.defaultErrorHandler = () => {
     return ( error, request, response, next ) => {
-        const exception = exceptions.raise( error );
+        const exception = raiseForResponse( error );
+        const isServerError = ( resolveHttpCode( exception ) >= exceptions.httpCode.C_500 );
         const payload = {
             isSuccessful: false,
-            exception: exception.asJSON(),
+            exception: exception.asJSON( !isServerError ),
             message: localization.getLabel( exception.label, request.session?.language )
         };
 
@@ -792,8 +935,8 @@ module.exports.defaultErrorHandler = () => {
                 response.status( exceptions.httpCode.C_404 ).send( payload );
             }
         } else {
-            logger.log( "Received request caused an exception.", logger.logSeverity.DEBUG, exception );
             const status = resolveHttpCode( exception );
+            logFailedRequest( request, exception, status );
 
             if ( isHtmxRequest( request ) ) {
                 response.set( {
@@ -804,6 +947,11 @@ module.exports.defaultErrorHandler = () => {
                     } )
                 } );
                 return response.status( status ).send( "" );
+                // A 503 means "try again shortly", not a failure to report on the sign-in page: redirecting a navigation
+                // to `/` would send it straight back into whatever is unavailable — while the instance starts, into the
+                // same held request. It is answered where it was asked, as text a browser shows as it is.
+            } else if ( status === exceptions.httpCode.C_503 && isAcceptingResponseType( request, "html" ) ) {
+                response.status( status ).type( "text/plain" ).send( payload.message );
                 // A 401 on an HTML request means "you are not signed in" whatever the method — the useful answer is the
                 // sign-in page carrying the reason, so local auth's POST presents exactly like the OAuth callback's GET.
             } else if ( isAcceptingResponseType( request, "html" ) && ( request.method === "GET" || status === exceptions.httpCode.C_401 ) ) {

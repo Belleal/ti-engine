@@ -27,8 +27,8 @@ the header block verbatim from an existing file in the same package.
 ```
 ti-engine/                         npm workspace root (v1.3.0; workspaces = packages/*)
 ├── packages/
-│   ├── core/          v1.17.0     Framework foundation (pluggable cache backend — Redis or HTTP, optional messaging, lifecycle, utils) + the D1 state service + shipped TypeScript declarations
-│   ├── web-framework/ v1.41.0     Express server + auth (incl. real local auth) + admin config-management + config drift + Profile/About + ti-charts + role gate + TI_WEB_* env overrides + /health + route seams + content-addressed immutable fragments + opt-in Server-Timing
+│   ├── core/          v1.18.0     Framework foundation (pluggable cache backend — Redis or HTTP, optional messaging, lifecycle, utils) + the D1 state service + shipped TypeScript declarations
+│   ├── web-framework/ v1.42.0     Express server + auth (incl. real local auth, per-provider allowed domains) + admin config-management + config drift + Profile/About + ti-charts + role gate + TI_WEB_* env overrides + /health + route seams + content-addressed immutable fragments + opt-in Server-Timing + start-up gate
 │   ├── web-content/   v0.4.0      Content-publishing engine — path-index routing, deny-by-default visibility, SEO documents, feeds, email capture (WIP)
 │   └── tester/        v1.3.5      Reference/example service implementation + the docker-build target
 ├── .github/workflows/             ci.yml (lint/test/build) · codeql-analysis.yml · npm-publish.yml · cla.yml
@@ -41,6 +41,8 @@ ti-engine/                         npm workspace root (v1.3.0; workspaces = pack
 ```
 
 Dependency direction: `core` is standalone → `web-framework` depends on `core` → **`web-content` depends on both**, and `tester` on `core` alone. Keep framework concerns in `core`/`web-framework` and application concerns in the consumer. Each package has its own independent semver version and `CHANGELOG.md`.
+
+Internal dependencies are declared `*` — **except `web-framework` → `@ti-engine/core`, which is `>=1.18.0`** (1.42.0). It calls `localization.getSystemLanguage()` on every sign-in, and against an older core that throws and refuses everyone; `*` also let a consumer's lockfile keep the old core when it installed the new web-framework. Raise that floor whenever web-framework starts relying on a newer core API. The root `package-lock.json` is gitignored and CI runs `npm install`, so a range change needs no lockfile commit — but `npm install` also runs web-framework's `postinstall`, which rewrites `bin/static/scripts/lib/alpinejs-csp.min.js` and `htmx.min.js` from the installed packages; restore them unless refreshing them is the point.
 
 The out-of-repository consumer, `competence`, depends on `core` + `web-framework` by semver range from npm. A breaking change here therefore reaches it only when that range is bumped — which is *after* `npm-publish.yml` has published. That is the regression net this repository lost in CA-120: competence's 1060-test suite used to run in this workspace on every change.
 
@@ -83,7 +85,7 @@ history and older PR bodies; it is no longer the working branch.
 
 ---
 
-## Package: core (v1.17.0)
+## Package: core (v1.18.0)
 
 **Role**: Foundational framework. All other packages depend on it. Standalone (no intra-repo deps).
 
@@ -126,7 +128,18 @@ history and older PR bodies; it is no longer the working branch.
 
 **Public exports** (`package.json` `exports`): `.` (start-instance), `./tools`, `./cache`, `./exceptions`, `./logger`, `./localization`, `./service-instance`, `./service-consumer`, `./service-provider`, `./state-service` (1.17.0), `./definitions` (the shared typedefs).
 
-**Since the skill's last sync (1.9.0 → 1.17.0):**
+**Since the skill's last sync (1.9.0 → 1.18.0):**
+- **1.18.0 — go-live fixes for competence** (design record `docs/superpowers/specs/2026-09-28-framework-go-live-fixes-design.md`):
+  - `localization.getSystemLanguage()` returns the language a lookup with none uses (`TI_LOCALIZATION_LANGUAGE`, else
+    `localization.language`, else `en`). It exists for a caller that must **hold** the language — web-framework puts
+    it on every session — since the setting lives in `config`, which core does not export (CA-198).
+  - The system labels ship in **Bulgarian** as well as English: every exception code has a `bg` message, and 5006
+    (`E_APP_RESOURCE_ALREADY_EXISTS`) got the English one it never had. `test/exception-labels.test.js` keeps the code
+    table and the catalogue in step — **a new exception code needs a message in both languages or the suite fails**.
+  - `E_GEN_SERVICE_STARTING` (1011) — the instance is still starting; web-framework's start-up gate answers `503` with it.
+  - `TiException#toJSON()` returns `asJSON()`: the fields are private, so `JSON.stringify` wrote `{}` (CA-215).
+  - `start-instance` logs an unhandled rejection's / multiple resolve's reason through `asJSON()`. It used to convert
+    only a plain `Error`, so the one line written as a container went down carried `"reason":{}` (CA-215).
 - **TypeScript declarations ship with the package** (1.9.0, fixed in 1.9.1), generated from the JSDoc by
   `.github/scripts/build-types.js` into `types/`. They are **committed**, and `npm run check:types` fails on stale
   output — so regenerate rather than hand-edit. The gate type-checks a generated consumer with `skipLibCheck: false`
@@ -238,7 +251,7 @@ history and older PR bodies; it is no longer the working branch.
   reference; eight hand-made service defects each failed 4–6 of its 6 tests, and it drives 405 guarded subtree sets.
 
 **Exception families** (`utils/exceptions.js`) — the class is `TiException` (renamed from `Exception` in 1.4.0); `raise()` accepts an optional `httpCode`:
-- `E_GEN_*` 1000–1010 (general; incl. `E_GEN_NOT_IMPLEMENTED` 1010)
+- `E_GEN_*` 1000–1011 (general; incl. `E_GEN_NOT_IMPLEMENTED` 1010, `E_GEN_SERVICE_STARTING` 1011 → HTTP `503`)
 - `E_SEC_*` 2000–2004 (security)
 - `E_COM_*` 3000–3010 (communication/messaging)
 - `E_WEB_*` 4000–4009 (web request validation)
@@ -279,43 +292,46 @@ module.exports.service = function (serviceDefinition, serviceParams, serviceCall
 
 **Test commands**:
 ```bash
-npm test    # node --test — runs test/*.test.js: 222 tests / 52 suites across 18 files
-            # (the count includes the four test/fixtures/ modules: the default pattern runs them too)
+npm test    # node --test — 233 tests / 56 suites: 22 test files, plus the five test/fixtures/
+            # modules, which node's default pattern runs as files too (each counts as one test)
             # (auditing-json-console, cache-capabilities, cache-get-values, cache-provider-selection,
             #  cache-store, d1-state-service, d1-state-service.partitions, d1-state-service.differential,
             #  http-cache-provider, http-cache-integration, http-cache-config,
             #  localization, message-hash, security-hash-key-warning,
             #  service-consumer-without-exchange, service-instance-health-check,
-            #  service-provider-without-exchange, tools-proto-keys)
+            #  service-provider-without-exchange, tools-proto-keys,
+            #  exception-labels, exception-serialization, localization.system-language,
+            #  start-instance.rejection-reason — the last spawns bin/start-instance.js)
             # test/fixtures/ holds StubCacheProvider (how the cache singleton is
             # driven without a live Redis), startStubStateServer (an in-memory
             # implementation of the state protocol, on node:http) and d1-sqlite
             # (node:sqlite shaped as a D1 binding with an interleave hook for
-            # races, plus competence's partition spec) - none is a test file
+            # races, plus competence's partition spec) and RejectingService (a
+            # start that leaves a TiException rejection unhandled) - none is a test file
 ```
 
 ---
 
-## Package: web-framework (v1.41.0)
+## Package: web-framework (v1.42.0)
 
 **Role**: Express.js web server + authentication layer + a reusable **admin config-management subsystem** for web-facing UIs + a CSP-safe **charting primitive library** (`ti-charts.js`) + the container-deployment surface (`TI_WEB_*` env overrides, `GET /health`) and the **route-registration seams** (1.17.0) a subclass uses to mount its own routes — what `web-content` is built on.
 
 **Key files**:
 | File | Purpose |
 |------|---------|
-| `bin/web-server.js` | `TiWebServer` (extends ServiceConsumer); Express app, middleware stack — **compression first, then the security headers, then `/.well-known` and `/static`, and only then cookies and the session** (1.39.0), with the opt-in `Server-Timing` handler ahead of all of it and the session wrapped in `timedHandler( "session", … )` when `serverTiming` is on (1.41.0); `describeInstance()` (virtual, default `undefined`) supplies the `app` metric's description (1.41.0); applies the `TI_WEB_*` overrides, mounts `GET /health` and `GET /app/labels/:hash`, hosts the `registerRoute` / `addUnprotectedRoute` seams (1.17.0) and the `/static` cache decision (`resolveStaticCachePolicy` / `staticCacheControlFor`, 1.19.0; `staticResponseCacheControl` for a fingerprinted request, 1.39.0) |
+| `bin/web-server.js` | `TiWebServer` (extends ServiceConsumer); Express app, middleware stack — **compression first, then the security headers, then `/.well-known` and `/static`, and only then cookies and the session** (1.39.0), with the opt-in `Server-Timing` handler ahead of all of it and the session wrapped in `timedHandler( "session", … )` when `serverTiming` is on (1.41.0); `describeInstance()` (virtual, default `undefined`) supplies the `app` metric's description (1.41.0); applies the `TI_WEB_*` overrides, mounts `GET /health` and `GET /app/labels/:hash`, hosts the `registerRoute` / `addUnprotectedRoute` seams (1.17.0) and the `/static` cache decision (`resolveStaticCachePolicy` / `staticCacheControlFor`, 1.19.0; `staticResponseCacheControl` for a fingerprinted request, 1.39.0); `start()` (1.42.0) marks the instance `starting` until its **whole** start resolves — an application's `super.onStart().then( … )` chain included — the `startup` getter reports `{ state, settled }`, and `startupGateHandler`, mounted after static content and before the session, holds every request but `/health` until then (CA-187). An instance started through `onStart()` directly has no state and is never held |
 | `bin/web-app-manager.js` | `TiWebAppManager` **abstract**; HTML fragment rendering, nonces, CSRF, the `registerConfigDocument` / `registerConfigEditor` API, the default `verifyAccess` that enforces a fragment's declared `roles` (1.13.0), login-page gating to the effective auth methods (1.14.0/1.15.0), the login screen's two application slots (`component-login-extra` below the card, 1.36.0; `component-login-brand` above it, 1.40.0), the client label catalogue (`getClientLabels` — virtual, narrow it — and `getLabelsBundle` / `findLabelsBundle`, 1.39.0) and the fingerprinting of every `/static` reference in a served fragment (1.39.0), and **immutable fragments** (1.41.0): `addFragment( id, { …, immutable: true } )` — refused with `E_GEN_FEATURE_UNSUPPORTED` alongside `roles` — puts one set-wide `?v=<version>` on every `hx-get` naming a member (a `true` push/replace URL on the same tag becomes the plain path), computed lazily by rendering each member as a partial with no nonce and no token; `assembleHtmlView` takes `version` + `onAddressed` and calls the latter only when `v` is current **and** the markup rendered for this request hashes to the recorded one; nothing is addressed while `TI_WEB_APP_STATIC_CACHE_DISABLED=true` |
 | `bin/web-server.json` | Server config (host, port, TLS, auth methods, `auth.admins`, `trustedOrigins`, `serverTiming`) — most fields overridable via `TI_WEB_*`. **`staticCache` defaults deliberately live on the class, not here**: the constructor's `_.merge` merges arrays by index, so a consumer's empty `immutablePaths` could otherwise never clear a default entry |
 | `bin/build/post-install.js` | `postinstall` step (refreshes bundled static libs) |
-| `components/auth-manager.js` | OpenID Connect (Azure/Google) + local auth; session token generation; `getOAuth2CallbackPath()` + the pure `toCallbackPath( callbackUrl )` (1.18.1) reduce a configured callback to its Express route path; the pure statics `resolveOpenIDIdentity( userInfo, claims )` (1.35.0 — the identity an OpenID sign-in puts on the session, read from **both** responses) and `isEmailReportedUnverified( userInfo, claims )` (1.30.0, second source added 1.35.0) |
+| `components/auth-manager.js` | OpenID Connect (Azure/Google) + local auth; session token generation; `getOAuth2CallbackPath()` + the pure `toCallbackPath( callbackUrl )` (1.18.1) reduce a configured callback to its Express route path; the pure statics `resolveOpenIDIdentity( userInfo, claims )` (1.35.0 — the identity an OpenID sign-in puts on the session, read from **both** responses) and `isEmailReportedUnverified( userInfo, claims )` (1.30.0, second source added 1.35.0); `isIdentityDomainAllowed( identity, allowedDomains )` + `toDomainList( value )` (1.42.0) — `auth.oauth2.<provider>.allowedDomains`, enforced in `#authorizeOpenID`: every e-mail-shaped identifier (the e-mail, and the username when it holds an `@`) must be in a listed domain, exact match, and a malformed entry is kept so it narrows rather than empties the list |
 | `components/authorization.js` | Role checks/guards — `requireRole`, `hasRole`, and the pure `isAccessAllowed(requiredRoles, userRoles)` (1.13.0) backing the fragment gate; backs admin gating |
 | `components/session-store.js` | Express session storage; `touch` writes a session's expiry at most once a minute per instance, and every expiry carries that minute as slack over the cookie's `maxAge` so the store never expires a session first (1.39.0) |
 | `components/fragment-fingerprint.js` | `#fragment-fingerprint` (1.41.0) — `digestOf`, `versionOf` (one hash over every member's identifier + digest: chapters link to each other, so per-fragment hashes would form a cycle or leave a cached chapter linking to a stale copy of the next) and `addressFragmentReferences( html, identifiers, version )`, which tokenizes start tags with quoted values read whole and skips comments and `<script>`/`<style>` text |
 | `components/static-fingerprint.js` | `#static-fingerprint` (1.39.0) — content hashes of `/static` files (revalidated against size + mtime, so an edited file gets a new URL at once), the reverse-order resolution express.static uses (an application's override is the file hashed), and `fingerprintStaticReferences( html, staticContentPaths )` |
-| `components/web-handlers.js` | Middleware: CSP headers, CSRF validation, CSRF tokens minted on demand (`request.csrfToken()` on every request, `csrfTokenHandler` behind `GET /csrf-token`, eager only for a session that already exists — 1.38.0), auth verification, `healthHandler` (`GET /health`, 1.15.0), `originRefererValidationHandler` (reconstructed origin **or** a configured trusted origin, 1.16.0), the module-private `isSecureRequest( request )` (1.35.1 — the **one** scheme decision, shared by `getBaseUrl`, `cspHeaderHandler` and `httpRedirectHandler`), error formatting (`resolveHttpCode` derives 4xx from the exception family when no explicit `httpCode`: `E_WEB_*`/`E_APP_*`→422, `E_SEC_*`→403, not-found→404, already-exists→409, method/content→405/415; only internal/comm/unknown stay 500), `labelsBundleHandler` (1.39.0), `serverTimingHandler` / `timedHandler` (1.41.0 — `app` and `session` metrics, appended to any existing header, the description folded to printable ASCII; added through `on-headers`, so a `Server-Timing` a handler passes to `writeHead( status, headers )` is kept rather than replacing them), and the HTML cache policy in `webAppHandler` — an HTMX fragment `private, no-cache` + `Vary: HX-Request`, a full page or a token-bearing view `no-store` (1.39.0), an addressed immutable fragment `private, max-age=31536000, immutable` (1.41.0) |
+| `components/web-handlers.js` | Middleware: CSP headers, CSRF validation, CSRF tokens minted on demand (`request.csrfToken()` on every request, `csrfTokenHandler` behind `GET /csrf-token`, eager only for a session that already exists — 1.38.0), auth verification, `healthHandler` (`GET /health`, 1.15.0), `originRefererValidationHandler` (reconstructed origin **or** a configured trusted origin, 1.16.0), the module-private `isSecureRequest( request )` (1.35.1 — the **one** scheme decision, shared by `getBaseUrl`, `cspHeaderHandler` and `httpRedirectHandler`), error formatting (`resolveHttpCode` derives 4xx from the exception family when no explicit `httpCode`: `E_WEB_*`/`E_APP_*`→422, `E_SEC_*`→403, not-found→404, already-exists→409, method/content→405/415; only internal/comm/unknown stay 500; since 1.42.0 `defaultErrorHandler` logs a 5xx at ERROR under the exception's ID — the client gets code, message and that ID but never `data`, which held the stack — a 503 at WARNING and answered to a navigation as text, and an `Error` carrying a 4xx `status` (the body parsers) is raised as the client's error instead of a 500), `startupGateHandler` (1.42.0, see `web-server.js`), the module-private `resolveSessionLanguage` (1.42.0 — the user's language, else the service config's, else `localization.getSystemLanguage()`; `web-server.json` no longer ships `language`), `labelsBundleHandler` (1.39.0), `serverTimingHandler` / `timedHandler` (1.41.0 — `app` and `session` metrics, appended to any existing header, the description folded to printable ASCII; added through `on-headers`, so a `Server-Timing` a handler passes to `writeHead( status, headers )` is kept rather than replacing them), and the HTML cache policy in `webAppHandler` — an HTMX fragment `private, no-cache` + `Vary: HX-Request`, a full page or a token-bearing view `no-store` (1.39.0), an addressed immutable fragment `private, max-age=31536000, immutable` (1.41.0) |
 | `components/web-config-env.js` | `applyWebConfigEnvOverrides( config, env = process.env )` (`#web-config-env`, 1.14.0+) — the pure `TI_WEB_*` override layer over the merged server config |
 | `components/user.js` | User object model |
-| `components/config-store.js` | Versioned, audited config store (Redis JSON) — current value, history, validated restore |
+| `components/config-store.js` | Versioned, audited config store (Redis JSON) — current value, history, validated restore. A document's version check and writes are serialized in-process (`#exclusively`, 1.42.0), so a concurrent save at a stale version is refused as `version-conflict` instead of silently overwriting the other and its history entry (CA-192); `seedIfEmpty` takes the same lock. Nothing orders writes **between** instances |
 | `components/config-registry.js` | In-process registry of config documents, schemas, validators, editors |
 | `components/config-service.js` | Facade orchestrating registry + store + validation (exported as `config-management`); the `applyEdits` validator context exposes `getConfig` (the *pending* value, for cross-document checks) **and** `getStoredConfig( key )` (the *committed* value — 1.17.1, needed by a validator comparing its own document against its prior state) |
 | `components/config-change-notifier.js` | In-process `config:changed` pub/sub so live config reloads |
@@ -324,11 +340,19 @@ npm test    # node --test — runs test/*.test.js: 222 tests / 52 suites across 
 | `bin/static/` | Frontend assets: HTMX, Alpine.js (CSP build), `safe-nonce`, framework CSS + themes, HTML fragments |
 | `bin/static/scripts/ti-charts.js` | CSP-safe SVG charting library (added 1.10.0); see *Charting primitives* below |
 | `design/admin-config-management.md` | Design doc + implementation log for the config-management feature |
-| `test/*.test.js` | `node --test` — **649 tests / 140 suites across 50 files**: the config subsystem + authorization + `ti-charts` (layout math + render structure) + the serving/deployment surface (`web-server-env-overrides`, `web-server.static-cache`, `web-server.route-seams`, `web-server.unprotected-routes`, `web-handlers.health`, `web-handlers.origin`, `web-app-manager.auth-visibility`) + the auth surface (`auth-manager`, `auth-manager.callback-path`, `auth-manager.email-verified`, **`auth-manager.openid-identity`**, `web-handlers.oauth-callback`, `web-handlers.session-*`) + **`web-handlers.csp-upgrade-insecure`** (which also pins that `cspHeaderHandler` and `httpRedirectHandler` agree about the scheme) + **`ti-framework.sidebar-overflow`** (which resolves the stylesheet's cascade rather than reading one block, because `.ti-sidebar` is declared twice and the later rule wins) + **`login-extra-slot`** (which asserts against the shipped files, because the defect it pins was what the package *contained*, and then drives `assembleHtmlView` to prove the slot actually resolves an application's component over the framework's empty default) + **`login-brand-slot`** (the same for the brand slot, plus the order brand → card → extension and a forked `frame-login.html` left untouched) + **`fragment-fingerprint`** / **`web-app-manager.immutable-fragments`** (the rewrite alone, then the real manager and handler over temporary fragments: a current `v` is kept, a stale one revalidates, a nonce-bearing fragment declared immutable never qualifies, the version moves only with a member) + **`web-handlers.server-timing`** (a store with a known delay holds the `session` metric to it) + **`frame-login.labels`** (a sweep, not a list: every text run and user-visible attribute in the login fragment and both slot defaults must go through `x-text-label`, keep its English as the fallback, and name a key present here in en and bg — it walks the markup with a linear tag scanner, not an HTML regex, because the obvious pattern is polynomial) |
+| `test/*.test.js` | `node --test` — **704 tests / 155 suites across 56 files**: the config subsystem + authorization + `ti-charts` (layout math + render structure) + the serving/deployment surface (`web-server-env-overrides`, `web-server.static-cache`, `web-server.route-seams`, `web-server.unprotected-routes`, `web-handlers.health`, `web-handlers.origin`, `web-app-manager.auth-visibility`) + the auth surface (`auth-manager`, `auth-manager.callback-path`, `auth-manager.email-verified`, **`auth-manager.openid-identity`**, `web-handlers.oauth-callback`, `web-handlers.session-*`) + **`web-handlers.csp-upgrade-insecure`** (which also pins that `cspHeaderHandler` and `httpRedirectHandler` agree about the scheme) + **`ti-framework.sidebar-overflow`** (which resolves the stylesheet's cascade rather than reading one block, because `.ti-sidebar` is declared twice and the later rule wins) + **`login-extra-slot`** (which asserts against the shipped files, because the defect it pins was what the package *contained*, and then drives `assembleHtmlView` to prove the slot actually resolves an application's component over the framework's empty default) + **`login-brand-slot`** (the same for the brand slot, plus the order brand → card → extension and a forked `frame-login.html` left untouched) + **`fragment-fingerprint`** / **`web-app-manager.immutable-fragments`** (the rewrite alone, then the real manager and handler over temporary fragments: a current `v` is kept, a stale one revalidates, a nonce-bearing fragment declared immutable never qualifies, the version moves only with a member) + **`web-handlers.server-timing`** (a store with a known delay holds the `session` metric to it) + **`frame-login.labels`** (a sweep, not a list: every text run and user-visible attribute in the login fragment and both slot defaults must go through `x-text-label`, keep its English as the fallback, and name a key present here in en and bg — it walks the markup with a linear tag scanner, not an HTML regex, because the obvious pattern is polynomial) + the 1.42.0 go-live suites, each its own reproduction: **`auth-manager.allowed-domains`** (through the real `openid-client` against `helpers/fake-openid-provider.js` — an in-process provider behind `globalThis.fetch`, since `openid-client` 6 is ES modules and cannot be stubbed under `require()` — with a real RS256-signed ID token), `web-handlers.session-language`, **`web-server.startup-gate`** (a real `TiWebServer` with no broker and an in-memory cache) + `web-handlers.startup-gate`, **`web-handlers.default-error`** (a real Express app behind `express.json()`), `config-store.concurrent-saves` |
 
 **Public exports** (`package.json` `exports`) — **six**: `./config-management` (config-service), `./web-application` (web-app-manager), `./web-server`, `./authorization`, `./config-drift`, `./definitions`. The last three are easy to forget and a consumer does import them: competence reaches for `./authorization` and `./config-drift` directly. Anything not on this list fails with `ERR_PACKAGE_PATH_NOT_EXPORTED`, so **adding a module a consumer needs means adding its `exports` entry** — that is the API surface, and changing it is a breaking change for every consumer.
 
-**Since the skill's last sync (1.25.1 → 1.41.0):**
+**Since the skill's last sync (1.25.1 → 1.42.0):**
+- **Go-live fixes for competence** (1.42.0; design record `docs/superpowers/specs/2026-09-28-framework-go-live-fixes-design.md`;
+  needs core 1.18.0, declared `>=1.18.0`). Five items from competence's pre-launch review, each reproduced first:
+  per-provider **allowed domains** (CA-197 — a consumer Google account registered on an organization's address was
+  admitted as that employee); a session starts in the **deployment's language** (CA-198 — the shipped `"language":
+  "en"` turned a Bulgarian deployment English at sign-in); the **start-up gate** (CA-187 — the request that woke a
+  sleeping container reached `verifySession` before the application had built its state, and was signed out);
+  **failed requests** logged at ERROR and sent without internals (CA-215 — a malformed JSON body came back as a 500
+  with the stack and the echoed body); **concurrent config saves** serialized (CA-192). See the rows above.
 - **A screen that never changes is asked for once per release, and every response can say where its time went**
   (1.41.0, CA-183; design record `docs/superpowers/specs/2026-09-26-web-framework-screen-latency-design.md`). On
   competence's Cloudflare deployment a revisited guide chapter took 583-818 ms for a `304` that cost 4-7 ms in the
@@ -655,6 +679,7 @@ npm test    # node --test — runs test/*.test.js: 222 tests / 52 suites across 
 - `TI_WEB_AUTH_ADMINS` — admin allowlist; replaces `auth.admins`, matched **case-insensitively** against the session user's user ID, username **or** e-mail (1.18.0). Which of the three an entry should hold depends on the provider, and they are not interchangeable: on **Entra** `username` is the UPN and `email` is the directory's `mail` attribute, routinely two different addresses (1.35.0). The `DEBUG` provenance line names the claim each one came from — that is what it is for. An empty or absent allowlist means **nobody** is an administrator (1.32.0), and the role is reconciled in both directions on every request (1.29.0 + 1.32.0), so removing an entry takes effect on the next request rather than at the end of the session
 - `TI_WEB_STATIC_MAX_AGE` / `TI_WEB_STATIC_IMMUTABLE` / `TI_WEB_STATIC_IMMUTABLE_PATHS` — the `/static` `Cache-Control` policy (1.19.0)
 - `TI_WEB_SERVER_TIMING` — `Server-Timing` on every response (`serverTiming`, default `false`; 1.41.0)
+- `TI_AZURE_AUTH_ALLOWED_DOMAINS` / `TI_GCLOUD_AUTH_ALLOWED_DOMAINS` — **read by `AuthManager`'s constructor, not `applyWebConfigEnvOverrides`**, beside each provider's `CLIENT_ID` / `CLIENT_SECRET` / `CALLBACK_URL` / `DISCOVERY_URL`: comma-separated, replaces `auth.oauth2.<provider>.allowedDomains`; empty means any domain (1.42.0). The provider's start-up NOTICE names the list in effect
 - `TI_WEB_SESSION_IDLE_TIMEOUT` — the rolling session idle window, in whole **minutes** (1.27.0). A non-integer or non-positive value is ignored, leaving the config value standing — the same posture as `TI_WEB_STATIC_MAX_AGE`
 - `TI_WEB_APP_STATIC_CACHE_DISABLED` — **unrelated to the three above**: turns off the app manager's *in-process* memoization of read fragment/static file contents (`#locateStaticFile`), not any HTTP cache header
 

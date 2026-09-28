@@ -35,6 +35,16 @@ class InMemoryCache {
         return true;
     }
 
+    // The instance lifecycle: `ServiceInstance#onStart` initializes the cache and `#stop` shuts it down, so a test
+    // that starts a real server needs both.
+    initialize() {
+        return Promise.resolve();
+    }
+
+    shutDown() {
+        return Promise.resolve();
+    }
+
     setJSON( key, value /*, path = "$", overrideMode = 0 */ ) {
         this.storage[ key ] = clone( value );
         return Promise.resolve();

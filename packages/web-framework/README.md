@@ -28,7 +28,7 @@ The web server configuration (host, port, TLS, cookies, etc.) is normally provid
 * `TI_WEB_STATIC_IMMUTABLE_PATHS` (comma-separated) **replaces** `staticCache.immutablePaths`. An explicitly empty value means *no long-lived paths*.
 * `TI_WEB_SERVER_TIMING` (`true`/`false`) overrides `serverTiming`: whether every response says, in a `Server-Timing` header, where its time went in the process. Off by default. See [Timing a response](#timing-a-response).
 
-OpenID Connect providers are configured with their own variables — `TI_AZURE_AUTH_CLIENT_ID` / `TI_AZURE_AUTH_CLIENT_SECRET` / `TI_AZURE_AUTH_CALLBACK_URL` / `TI_AZURE_AUTH_DISCOVERY_URL`, and the `TI_GCLOUD_AUTH_*` equivalents. A callback URL may be given either as the full absolute URL registered with the provider (`https://your-host/login/azure-callback`) or as a path (`/login/azure-callback`): the server always listens on the path, while the `redirect_uri` sent to the provider is the absolute value verbatim if one was configured, and otherwise assembled from the request's forwarded protocol/host.
+OpenID Connect providers are configured with their own variables — `TI_AZURE_AUTH_CLIENT_ID` / `TI_AZURE_AUTH_CLIENT_SECRET` / `TI_AZURE_AUTH_CALLBACK_URL` / `TI_AZURE_AUTH_DISCOVERY_URL` / `TI_AZURE_AUTH_ALLOWED_DOMAINS`, and the `TI_GCLOUD_AUTH_*` equivalents. `…_ALLOWED_DOMAINS` (comma-separated) **replaces** the provider's `allowedDomains`: see [Which domains may sign in through which provider](#which-domains-may-sign-in-through-which-provider). A callback URL may be given either as the full absolute URL registered with the provider (`https://your-host/login/azure-callback`) or as a path (`/login/azure-callback`): the server always listens on the path, while the `redirect_uri` sent to the provider is the absolute value verbatim if one was configured, and otherwise assembled from the request's forwarded protocol/host.
 
 ## Authentication and authorization
 
@@ -54,6 +54,35 @@ Each resolved value also carries its provenance (`claims.preferred_username`, `u
 The UPN is offered as the `username`, **never** as the `email`. It is e-mail-shaped and usually routable, but it is a sign-in name rather than a mailbox, and `email` is what a consuming application resolves its own directory by — widening that would change which principal an identity maps to. The admin allowlist matches user ID, username **or** e-mail, so listing a UPN there works either way.
 
 An address the provider reports as unverified (`email_verified: false`, in **either** source) is refused. An absent claim is not a rejection: Google emits the claim, Entra does not emit it at all, and treating "absent" as "unverified" would refuse every sign-in on an Azure deployment.
+
+### Which domains may sign in through which provider
+
+Each OpenID provider takes a list of the e-mail domains it may admit — `auth.oauth2.azure.allowedDomains` and `auth.oauth2.google.allowedDomains`, or `TI_AZURE_AUTH_ALLOWED_DOMAINS` / `TI_GCLOUD_AUTH_ALLOWED_DOMAINS` (comma-separated), which replace them. An empty list, the default, admits any domain.
+
+```jsonc
+"oauth2": {
+  "azure":  { "allowedDomains": [ "example.org" ] },   // the organization's own tenant
+  "google": { "allowedDomains": [ "gmail.com" ] }      // a fallback sign-in for personal accounts only
+}
+```
+
+This is what makes two providers safe to enable together. An application maps a signed-in identity to its own principal by e-mail, and the admin allowlist matches user ID, username or e-mail — so without a list, the weaker provider can claim an identity the stronger one owns. Anybody can register a consumer Google account under an organization's address, and Google reports it as verified once the mailbox has confirmed a code; the sign-in then arrives carrying the organization's address. With Entra bound to `example.org` and Google to `gmail.com`, an `@example.org` address can arrive only through the organization's tenant.
+
+The rules:
+
+* **Every e-mail-shaped identifier is checked** — the e-mail, and the username whenever it holds an `@` (an Entra UPN, or a display name the account holder chose). All of them must be in a listed domain.
+* **An identity carrying no address is refused** once a list is set: a domain that cannot be established is not on the list.
+* **Domains are compared exactly**, without regard to case. A subdomain is a different domain and is listed in its own right; an Entra guest, whose UPN ends in the tenant's `onmicrosoft.com` domain, is refused unless that domain is listed. A leading `@` in an entry is ignored.
+* **A malformed entry narrows access, never widens it**: it is kept, and simply matches no address.
+
+A refused sign-in is logged at `WARNING` with the subject and the domain it carried — never the address — and the start-up notice for each provider names the list in effect after the environment has been applied.
+
+### The language a session starts in
+
+A new session takes the user's own language, else the service configuration's `language` when one is set, else the
+deployment's: `TI_LOCALIZATION_LANGUAGE` as core resolved it (`localization.getSystemLanguage()`). The shipped
+configuration sets none. It used to set `"en"`, and since no identity provider puts a language on the user, a
+deployment configured for another language turned English at sign-in while its login page did not.
 
 ## Local (username/password) authentication
 
@@ -213,6 +242,34 @@ placed the instance. It is read once, at start, reduced to printable ASCII, and 
 
 It is off by default: response timings are a small disclosure of how the server works, and a deployment chooses to
 make it.
+
+## While the instance starts
+
+`TiWebServer#start()` holds every request but `/health` until the instance has finished starting — its whole
+`onStart`, an application's own initialization included. The server has to listen before an application's
+`super.onStart().then( … )` continues, so without the hold a request was served against state the application had
+not built yet: competence's org chart, for one, where the request that woke a sleeping container found no chart and
+signed its user out. An application needs no change; whatever its `onStart` chains on is waited for.
+
+* Static content is served before the hold, and `/health` is never held — it is the liveness probe.
+* A request held for 30 seconds, or one that arrives after a failed start, is answered `503` with `Retry-After: 5`
+  (`E_GEN_SERVICE_STARTING`). A navigation gets that as text rather than the redirect to `/` other errors get.
+* `TiWebServer#startup` says where the instance is: `{ state: "starting" | "started" | "failed", settled }`. An
+  instance started through `onStart()` directly, as a test might, has no state and is never held.
+
+## When a request fails
+
+`webHandlers.defaultErrorHandler` answers every error nothing else handled.
+
+* **A server error** (5xx) reaches the client as its exception code, its localized message and its ID, and nothing
+  else. Its data is the server's business — for a raised `Error` it holds the stack — and it is logged at `ERROR`
+  instead, with the method, the path (never the query string) and that ID, which ties a user's report to the line.
+* **A `503`** is logged at `WARNING`: the instance starting or shutting down is a condition, not a defect.
+* **A client error** (4xx) keeps its data, which is how a form learns what was wrong with it, and is logged at `DEBUG`
+  so that nobody can fill the log by sending bad requests.
+* **An `Error` carrying a 4xx `status`**, the `http-errors` convention the body parsers follow, is the client's error:
+  a malformed JSON body is a `400` (`E_WEB_INVALID_REQUEST_BODY`), an oversized one a `413`, an unsupported encoding a
+  `415` — none of it echoing the body back.
 
 ## Configure HTTPS for development
 
