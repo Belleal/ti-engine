@@ -165,4 +165,40 @@ describe( "defaultErrorHandler", () => {
 
     } );
 
+    describe( "a server error that explains itself to the user", () => {
+
+        // Any entry of the loaded catalogue will do; an application's own details labels sit in its catalogue the same way.
+        const CATALOGUE_LABEL = "system.exceptions.1004";
+        const raising = ( code, data, httpCode ) => ( request, response, next ) => next( exceptions.raise( code, data, httpCode ) );
+        const inLanguage = ( language, route ) => ( request, response, next ) => {
+            request.session = { language: language };
+            return route( request, response, next );
+        };
+
+        it( "keeps a details label on a 503, and nothing else of its data", async () => {
+            const { status, text } = await serve( raising( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE, { details: CATALOGUE_LABEL, internal: "INTERNAL-DETAIL" }, exceptions.httpCode.C_503 ), JSON_POST );
+            assert.equal( status, 503 );
+            assert.deepEqual( JSON.parse( text ).exception.data, { details: CATALOGUE_LABEL }, "the notification lost the explanation the application wrote for the user" );
+            assert.doesNotMatch( text, /INTERNAL-DETAIL/ );
+        } );
+
+        it( "keeps a details label on a 500", async () => {
+            const { status, text } = await serve( raising( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: CATALOGUE_LABEL }, exceptions.httpCode.C_500 ), JSON_POST );
+            assert.equal( status, 500 );
+            assert.deepEqual( JSON.parse( text ).exception.data, { details: CATALOGUE_LABEL } );
+        } );
+
+        it( "withholds details that are not a label: raw text can name records and internals", async () => {
+            const { text } = await serve( raising( exceptions.exceptionCode.E_APP_SERVICE_ERROR, { details: "Refusing to write employee 'EMP-SECRET' under the identity 'x'." }, exceptions.httpCode.C_500 ), JSON_POST );
+            assert.equal( JSON.parse( text ).exception.data, undefined );
+            assert.doesNotMatch( text, /EMP-SECRET/ );
+        } );
+
+        it( "withholds a label the session's language has no text for, which the client could only show as its key", async () => {
+            const { text } = await serve( inLanguage( "xx", raising( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE, { details: CATALOGUE_LABEL }, exceptions.httpCode.C_503 ) ), JSON_POST );
+            assert.equal( JSON.parse( text ).exception.data, undefined );
+        } );
+
+    } );
+
 } );

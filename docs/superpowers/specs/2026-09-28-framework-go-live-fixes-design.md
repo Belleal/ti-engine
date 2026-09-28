@@ -103,6 +103,11 @@ the session. `/health` is never held.
 - **A 5xx** is logged at ERROR with the exception, the method and the path, without the query string, which can carry
   tokens.
   - The client gets the code, the localized message and the exception's ID, but no data.
+  - **Except a `details` label, from 1.42.1 (CA-287).** A `details` that names a label the session's language has
+    text for is kept, and nothing else of the data. The label is written for the user: `formatException` shows it
+    under the message. Withholding it left competence's store-outage 503 reading core's generic message for 1004.
+    Raw text in `details` is still withheld, since it can name records. So is a label with no text in the session's
+    language, which the client could only show as its key.
   - The ID is the correlation ID: it is in the response and in the log line. **Rejected: minting a separate one.**
     The exception already carries a UUID that appears in its JSON.
 - **A 503** is logged at WARNING: it is a condition, not a defect.
@@ -181,6 +186,10 @@ Totals: web-framework 649 → 708, core 222 → 233, web-content 408 (unchanged)
   - Gates: `npm test` green across the workspace; lint 0 errors, the same 65 pre-existing warnings in the same 10 files
     as `master`; `build:types` / `check:types` clean.
   - Versions and changelogs: core 1.18.0, web-framework 1.42.0.
+- **2026-09-28** — web-framework 1.42.1 (CA-287), found while competence adopted 1.42.0. A 5xx withheld its
+  `details` label along with the rest of its data, so the notification lost the explanation competence raises for
+  an unavailable store and for a consent answer it cannot store. Four tests in `web-handlers.default-error`; the two
+  that keep a label failed on 1.42.0. web-framework 708 → 712.
 - **2026-09-28** — CodeRabbit's review of the PR raised two findings, and both held up.
   - `#exclusively` released a task's documents at its first refused write, while another write could still be in
     flight (§2.5). Reproduced in three tests, which failed 3 of 3 on the previous code: one for each call site, and

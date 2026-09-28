@@ -2,6 +2,23 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.42.1
+
+* fix (web-handlers): a server error keeps its `details` label, so the notification can still say what went wrong
+  (CA-287).
+  <br/>
+  **What was wrong.** 1.42.0 sends a 5xx without its data, to keep the stack and any echoed request body away from the
+  client (CA-215). A `details` label went with them, and that label is written for the user: `formatException` shows
+  it as the notification's second line. competence's store-outage 503 then read only core's message for 1004, "The
+  system cache required for proper engine operation is unavailable.", instead of the explanation it raises.
+  <br/>
+  **What changed.** A 5xx keeps `data.details` when it names a label the session's language has text for, and nothing
+  else of its data. Raw text stays withheld, because it can name records or internals. So does a label with no text
+  in the session's language, which the client could only show as its key.
+
+  4 tests, of which the two that keep a label failed before the fix.
+* test: 708 → 712 tests.
+
 ## Version 1.42.0
 
 Go-live fixes from competence's pre-launch review. Requires `@ti-engine/core` 1.18.0, now declared as `>=1.18.0`

@@ -261,9 +261,12 @@ signed its user out. An application needs no change; whatever its `onStart` chai
 
 `webHandlers.defaultErrorHandler` answers every error nothing else handled.
 
-* **A server error** (5xx) reaches the client as its exception code, its localized message and its ID, and nothing
-  else. Its data is the server's business — for a raised `Error` it holds the stack — and it is logged at `ERROR`
-  instead, with the method, the path (never the query string) and that ID, which ties a user's report to the line.
+* **A server error** (5xx) reaches the client as its exception code, its localized message and its ID. Its data is
+  the server's business — for a raised `Error` it holds the stack — and it is logged at `ERROR` instead, with the
+  method, the path (never the query string) and that ID, which ties a user's report to the line.
+  * **The one exception is a `details` label** (1.42.1). A `data.details` that names a label the session's
+    language has text for is kept, because it is written for the user, and the notification shows it under the
+    message. Raw text in `details` is withheld like the rest.
 * **A `503`** is logged at `WARNING`: the instance starting or shutting down is a condition, not a defect.
 * **A client error** (4xx) keeps its data, which is how a form learns what was wrong with it, and is logged at `DEBUG`
   so that nobody can fill the log by sending bad requests.
