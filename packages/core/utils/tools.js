@@ -663,3 +663,68 @@ class RetryPolicy {
 }
 
 module.exports.RetryPolicy = RetryPolicy;
+
+/**
+ * Used to run tasks that touch the same keys one at a time, in the order they arrived: an in-process lock for a
+ * read-check-write that takes more than one round trip to a store.
+ * <br/>
+ * Without one, two requests that read a document, check it and write it back interleave: both read version N, both
+ * pass the check, and the second write erases the first. A task queued for a key waits until every task queued before
+ * it for that key has settled. A task may hold several keys, a change spanning two documents, and then waits for the
+ * earlier tasks on all of them. Queueing is synchronous, so a task only ever waits for tasks queued before it, and no
+ * two tasks can wait for each other. A task that fails releases its keys like one that succeeds, so one refusal never
+ * stalls the tasks behind it.
+ * <br/>
+ * NOTE: A key is held until the task's promise settles, and no longer. A task must therefore not settle before every
+ * write it started has: over parallel writes, that means `Promise.allSettled`, not `Promise.all`, which settles at the
+ * first failure while the other writes are still in flight. A task must also never ask for a key it already holds:
+ * it would wait for itself, and every later task on that key would wait with it. The lock orders tasks within one
+ * process, and nothing here orders writes between instances.
+ *
+ * @class KeyedLock
+ * @public
+ */
+class KeyedLock {
+
+    // The last task queued for each key, which the next task on that key waits for. An entry is removed once that
+    // task settles with nothing queued behind it, so the map holds only the keys still in use.
+    #queued = new Map();
+
+    /* Public interface */
+
+    /**
+     * Used to run a task once every task queued before it for any of the given keys has settled, holding those keys
+     * until it settles in turn.
+     *
+     * @method
+     * @param {string|Array<string>} keys The key or keys the task needs held. A key named twice is held once.
+     * @param {function(): (Promise<*>|*)} task Started when its turn comes. A synchronous throw counts as a rejection.
+     * @returns {Promise<*>} The task's own outcome: its value, or its rejection.
+     * @throws {TypeError} When no key is given, a key is not a non-empty string, or the task is not a function.
+     * @public
+     */
+    exclusively( keys, task ) {
+        const held = [ ...new Set( [].concat( keys ) ) ];
+        if ( held.length === 0 || held.some( ( key ) => typeof key !== "string" || key.length === 0 ) ) {
+            throw new TypeError( "keys must be a non-empty string or a non-empty array of non-empty strings" );
+        }
+        if ( typeof task !== "function" ) {
+            throw new TypeError( "task must be a function" );
+        }
+        const earlier = held.map( ( key ) => this.#queued.get( key ) );
+        const run = Promise.all( earlier ).then( () => task() );
+        const settled = run.then( () => undefined, () => undefined );
+        held.forEach( ( key ) => this.#queued.set( key, settled ) );
+        settled.then( () => {
+            held.forEach( ( key ) => {
+                if ( this.#queued.get( key ) === settled ) {
+                    this.#queued.delete( key );
+                }
+            } );
+        } );
+        return run;
+    }
+
+}
+
+module.exports.KeyedLock = KeyedLock;

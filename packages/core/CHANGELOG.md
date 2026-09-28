@@ -2,6 +2,21 @@
 
 This document contains the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.19.0
+
+* feat(tools): `tools.KeyedLock` runs tasks that touch the same keys one at a time, in the order they arrived (CA-188,
+  CA-192). `exclusively( keys, task )` holds the keys until the task settles.
+  - A task that needs several keys waits for the earlier tasks on all of them.
+  - Queueing is synchronous, so two tasks never wait for each other.
+  - A failed task releases its keys like one that succeeds.
+
+  It is for a read-check-write that takes more than one round trip to a store, where two requests otherwise both read
+  version N and the second write erases the first. It is the lock web-framework's config store kept as a private
+  method from 1.42.0, moved here because competence needs the same one for its evaluations, cycles and interview slots.
+  8 tests. Three of them fail against a lock that does not wait, and one hangs against a lock that makes a key named
+  twice wait for itself.
+* test: 233 → 241.
+
 ## Version 1.18.0
 
 * feat(localization): report the current system language with `getSystemLanguage()`: the one `getLabel` and
