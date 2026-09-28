@@ -2,6 +2,31 @@
 
 This document contains the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.18.0
+
+* feat(localization): report the current system language with `getSystemLanguage()`: the one `getLabel` and
+  `getAllLabels` use when given none (`TI_LOCALIZATION_LANGUAGE`, else `localization.language`, else the default)
+  (CA-198). The setting lives in the `config` module, which core does not export, so a caller that had to hold the
+  language as a value could not ask for it. web-framework puts one on every session, and fell back to a fixed "en"
+  instead, which turned a Bulgarian deployment English at sign-in. 2 tests.
+* fix(localization): a Bulgarian message for every exception code, and an English one for
+  `E_APP_RESOURCE_ALREADY_EXISTS` (5006), which had none in any language (CA-198). An exception reaches a person as
+  `getLabel( exception.label, <session language> )`. In a Bulgarian deployment every error read
+  `!!! label not found !!!`, and so did every 409 in any language. `test/exception-labels.test.js` checks that every
+  code has a message in each shipped language, and that no message exists for a code that does not. 4 tests.
+* feat(exceptions): `E_GEN_SERVICE_STARTING` (1011): the instance is still starting and cannot serve the request yet
+  (CA-187). web-framework's start-up gate refuses with it, as a `503`, a request it has held too long.
+* fix(exceptions): a `TiException` serializes as `asJSON()` through `JSON.stringify` (`toJSON()`), not as `{}`
+  (CA-215). Its fields are private, so an exception nested anywhere in a log entry's data lost its content in a JSON log
+  line. 2 tests.
+* fix(start-instance): log what an unhandled rejection or a multiple resolve was, not `"reason":{}` (CA-215). The
+  handlers converted a plain `Error` only, and every exception the framework raises is a `TiException` — a
+  state-service timeout included — so the one line written as the container went down carried no cause. Reproduced by
+  running `bin/start-instance.js` in a child process with a service that leaves a `TiException` rejection unhandled:
+  in JSON mode the reason was `{}`, and in console mode it was missing entirely. It is now the exception's `asJSON()`
+  in both. 2 tests.
+* test: 222 → 233.
+
 ## Version 1.17.0
 
 * feat(state-service): ship the service side of the state protocol, `@ti-engine/core/state-service` (CA-177). `createD1StateService( database, { partitions, now } )` returns the handler a Worker puts in front of a Cloudflare container — a `Request` in, a `Response` out — answering the twelve paths of `design/state-protocol.md` from D1 with fixed statements, and `sweepExpired( database )` prunes what has expired. The schema ships beside it as `components/cache/d1-state-schema.sql`, every statement `IF NOT EXISTS`. Until now the only implementation lived in the Boris Khan site's repository, and competence is moving to the same arrangement (CA-175). The module imports nothing else from core — only `Request`, `Response`, `URL`, `TextEncoder` and `crypto`, which Workers and Node both provide — so a Worker bundling it bundles only it. It lives in core rather than in a new package for a concrete reason: npm trusted publishing cannot create a package, and `npm-publish-plan.js` refuses the whole run while any workspace package has never been published, so a new package would block every other release until someone published it by hand.

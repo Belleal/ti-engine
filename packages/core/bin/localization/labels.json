@@ -2,121 +2,168 @@
   "system": {
     "exceptions": {
       "0": {
-        "en": "Unidentified error encountered or unrecognized exception code provided."
+        "en": "Unidentified error encountered or unrecognized exception code provided.",
+        "bg": "Възникна неидентифицирана грешка или е подаден неразпознат код на изключение."
       },
       "1000": {
-        "en": "Error thrown by internal JS source."
+        "en": "Error thrown by internal JS source.",
+        "bg": "Грешка, възникнала във вътрешен JavaScript код."
       },
       "1001": {
-        "en": "Attempt to construct an abstract class detected."
+        "en": "Attempt to construct an abstract class detected.",
+        "bg": "Засечен е опит за създаване на обект от абстрактен клас."
       },
       "1002": {
-        "en": "Attempt to call an abstract method detected."
+        "en": "Attempt to call an abstract method detected.",
+        "bg": "Засечен е опит за извикване на абстрактен метод."
       },
       "1003": {
-        "en": "Invalid or no service domain name provided at microservice startup."
+        "en": "Invalid or no service domain name provided at microservice startup.",
+        "bg": "При стартирането на микроуслугата е подадено невалидно име на домейна на услугата или не е подадено такова."
       },
       "1004": {
-        "en": "The system cache required for proper engine operation is unavailable."
+        "en": "The system cache required for proper engine operation is unavailable.",
+        "bg": "Системният кеш, необходим за нормалната работа на платформата, е недостъпен."
       },
       "1005": {
-        "en": "The provided service handler is not a proper function."
+        "en": "The provided service handler is not a proper function.",
+        "bg": "Подаденият обработчик на услугата не е валидна функция."
       },
       "1006": {
-        "en": "The requested feature is not supported by current configuration or version."
+        "en": "The requested feature is not supported by current configuration or version.",
+        "bg": "Заявената функционалност не се поддържа от текущата конфигурация или версия."
       },
       "1007": {
-        "en": "The provided argument is not of the expected type."
+        "en": "The provided argument is not of the expected type.",
+        "bg": "Подаденият аргумент не е от очаквания тип."
       },
       "1008": {
-        "en": "The invoked framework component is not initialized."
+        "en": "The invoked framework component is not initialized.",
+        "bg": "Извиканият компонент на платформата не е инициализиран."
       },
       "1009": {
-        "en": "Attempt to override a protected or private method or property detected."
+        "en": "Attempt to override a protected or private method or property detected.",
+        "bg": "Засечен е опит за предефиниране на защитен или частен метод или свойство."
       },
       "1010": {
-        "en": "The requested functionality is not yet implemented."
+        "en": "The requested functionality is not yet implemented.",
+        "bg": "Заявената функционалност все още не е реализирана."
+      },
+      "1011": {
+        "en": "The service is still starting and cannot handle this request yet. Try again in a few seconds.",
+        "bg": "Услугата все още се стартира и не може да обработи тази заявка. Опитайте отново след няколко секунди."
       },
       "2000": {
-        "en": "Invalid authorization token provided."
+        "en": "Invalid authorization token provided.",
+        "bg": "Подаден е невалиден токен за оторизация."
       },
       "2001": {
-        "en": "Invalid or expired session encountered."
+        "en": "Invalid or expired session encountered.",
+        "bg": "Сесията е невалидна или е изтекла."
       },
       "2002": {
-        "en": "Attempt for unauthorized access detected."
+        "en": "Attempt for unauthorized access detected.",
+        "bg": "Засечен е опит за неоторизиран достъп."
       },
       "2003": {
-        "en": "The system detected tampering with the message received via message exchange."
+        "en": "The system detected tampering with the message received via message exchange.",
+        "bg": "Системата засече подправяне на съобщение, получено чрез обмена на съобщения."
       },
       "2004": {
-        "en": "The requested authentication method is not recognized or supported."
+        "en": "The requested authentication method is not recognized or supported.",
+        "bg": "Заявеният метод за удостоверяване не е разпознат или не се поддържа."
       },
       "3000": {
-        "en": "General error during cross-application communication."
+        "en": "General error during cross-application communication.",
+        "bg": "Обща грешка при комуникацията между приложения."
       },
       "3001": {
-        "en": "The message sender instance is currently unavailable."
+        "en": "The message sender instance is currently unavailable.",
+        "bg": "Инстанцията, която изпраща съобщения, в момента е недостъпна."
       },
       "3002": {
-        "en": "The execution of a service could not complete within the allowed timeout."
+        "en": "The execution of a service could not complete within the allowed timeout.",
+        "bg": "Изпълнението на услугата не завърши в рамките на позволеното време."
       },
       "3003": {
-        "en": "The specified service is not found in the service registry."
+        "en": "The specified service is not found in the service registry.",
+        "bg": "Посочената услуга не е намерена в регистъра на услугите."
       },
       "3004": {
-        "en": "The specified service is not found in the service definition interface."
+        "en": "The specified service is not found in the service definition interface.",
+        "bg": "Посочената услуга не е намерена в интерфейса с дефиниции на услугите."
       },
       "3005": {
-        "en": "No handler found in the interface for the specified service or service version."
+        "en": "No handler found in the interface for the specified service or service version.",
+        "bg": "В интерфейса няма обработчик за посочената услуга или версия на услугата."
       },
       "3006": {
-        "en": "The message receiver instance is currently unavailable."
+        "en": "The message receiver instance is currently unavailable.",
+        "bg": "Инстанцията, която получава съобщения, в момента е недостъпна."
       },
       "3007": {
-        "en": "The message exchange is irrevocably broken and cannot be used any longer."
+        "en": "The message exchange is irrevocably broken and cannot be used any longer.",
+        "bg": "Обменът на съобщения е необратимо повреден и не може да се използва повече."
       },
       "3008": {
-        "en": "The execution of a service reported a failure. This might be a business logic error or a system error."
+        "en": "The execution of a service reported a failure. This might be a business logic error or a system error.",
+        "bg": "Изпълнението на услугата завърши с грешка. Това може да е грешка в бизнес логиката или системна грешка."
       },
       "3010": {
-        "en": "Connection retry attempts exceeded the configured limit."
+        "en": "Connection retry attempts exceeded the configured limit.",
+        "bg": "Опитите за повторно свързване надхвърлиха зададения лимит."
       },
       "4000": {
-        "en": "The request method is not recognized or not supported."
+        "en": "The request method is not recognized or not supported.",
+        "bg": "Методът на заявката не е разпознат или не се поддържа."
       },
       "4001": {
-        "en": "The request URI is not recognized or not supported."
+        "en": "The request URI is not recognized or not supported.",
+        "bg": "Адресът (URI) на заявката не е разпознат или не се поддържа."
       },
       "4002": {
-        "en": "The request body is not recognized or not supported."
+        "en": "The request body is not recognized or not supported.",
+        "bg": "Съдържанието на заявката не е разпознато или не се поддържа."
       },
       "4003": {
-        "en": "The request query is not recognized or not supported."
+        "en": "The request query is not recognized or not supported.",
+        "bg": "Параметрите в адреса на заявката не са разпознати или не се поддържат."
       },
       "4004": {
-        "en": "The request headers are not recognized or not supported."
+        "en": "The request headers are not recognized or not supported.",
+        "bg": "Заглавките на заявката не са разпознати или не се поддържат."
       },
       "4005": {
-        "en": "The request parameters are not recognized or not supported."
+        "en": "The request parameters are not recognized or not supported.",
+        "bg": "Параметрите на заявката не са разпознати или не се поддържат."
       },
       "4006": {
-        "en": "The request format is not recognized or not supported."
+        "en": "The request format is not recognized or not supported.",
+        "bg": "Форматът на заявката не е разпознат или не се поддържа."
       },
       "4007": {
-        "en": "The request content type is not recognized or not supported."
+        "en": "The request content type is not recognized or not supported.",
+        "bg": "Типът на съдържанието на заявката не е разпознат или не се поддържа."
       },
       "4008": {
-        "en": "The request content length is not recognized or not supported."
+        "en": "The request content length is not recognized or not supported.",
+        "bg": "Дължината на съдържанието на заявката не е разпозната или не се поддържа."
       },
       "4009": {
-        "en": "The request content encoding is not recognized or not supported."
+        "en": "The request content encoding is not recognized or not supported.",
+        "bg": "Кодирането на съдържанието на заявката не е разпознато или не се поддържа."
       },
       "5004": {
-        "en": "The requested resource cannot be found. See details for more information."
+        "en": "The requested resource cannot be found. See details for more information.",
+        "bg": "Заявеният ресурс не може да бъде намерен. Вижте подробностите за повече информация."
       },
       "5005": {
-        "en": "The application service encountered an error. See details for more information."
+        "en": "The application service encountered an error. See details for more information.",
+        "bg": "Услугата на приложението срещна грешка. Вижте подробностите за повече информация."
+      },
+      "5006": {
+        "en": "The resource cannot be created because it already exists. See details for more information.",
+        "bg": "Ресурсът не може да бъде създаден, защото вече съществува. Вижте подробностите за повече информация."
       }
     }
   }

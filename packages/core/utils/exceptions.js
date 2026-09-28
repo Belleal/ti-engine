@@ -39,6 +39,7 @@ const exceptionCodeEnum = tools.enum( {
     E_GEN_NOT_INITIALIZED: [ 1008, "not initialized", "The invoked framework component is not initialized." ],
     E_GEN_UNALLOWED_OVERRIDE: [ 1009, "unallowed override", "Attempt to override a protected or private method or property detected." ],
     E_GEN_NOT_IMPLEMENTED: [ 1010, "not implemented", "The requested functionality is not yet implemented." ],
+    E_GEN_SERVICE_STARTING: [ 1011, "service starting", "The service is still starting and cannot handle this request yet. Try again in a few seconds." ],
     /** Security & Administration exceptions - codes under 2xxx */
     E_SEC_INVALID_AUTH_TOKEN: [ 2000, "invalid auth token", "Invalid authorization token provided." ],
     E_SEC_INVALID_EXPIRED_SESSION: [ 2001, "invalid or expired session", "Invalid or expired session encountered." ],
@@ -299,6 +300,19 @@ class TiException {
             json.data = this.#data;
         }
         return json;
+    }
+
+    /**
+     * Makes `JSON.stringify` write what {@link TiException#asJSON} returns. The fields are private, so without this an
+     * exception serialized as `{}` — and one nested in a log entry's data, where the logger does not convert it, lost
+     * its cause entirely (R2H8-1).
+     *
+     * @method
+     * @returns {Object}
+     * @public
+     */
+    toJSON() {
+        return this.asJSON();
     }
 }
 
