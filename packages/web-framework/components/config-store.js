@@ -86,7 +86,8 @@ class ConfigStore {
             const timestamp = new Date().toISOString();
             const envelope = { value: defaultValue, version: 1, updatedAt: timestamp, updatedBy: SEED_ACTOR, changeSetID: null };
             const historyEntry = { version: 1, timestamp: timestamp, adminID: SEED_ACTOR, note: "seed from defaults", changeSetID: null, snapshot: defaultValue };
-            return this.#allWritten( [
+            // Settled, not merely started: the lock releases the document when this task settles (CA-192).
+            return tools.whenAllSettled( [
                 this.#writeJSON( KEY_CURRENT + configKey, envelope ),
                 this.#writeJSON( KEY_HISTORY + configKey + ":1", historyEntry )
             ] ).then( () => envelope );
@@ -154,7 +155,8 @@ class ConfigStore {
             };
             writes.push( this.#writeJSON( KEY_CHANGESET + changeSetID, changeSetRecord ) );
 
-            return this.#allWritten( writes ).then( () => ( { changeSetID: changeSetID, versions: versions } ) );
+            // Settled, not merely started: the lock releases the documents when this task settles (CA-192).
+            return tools.whenAllSettled( writes ).then( () => ( { changeSetID: changeSetID, versions: versions } ) );
         } ) );
     }
 
@@ -239,27 +241,6 @@ class ConfigStore {
     }
 
     /* Private interface */
-
-    /**
-     * Settles once every write has settled: resolves if they all succeeded, and otherwise rejects with the first failure.
-     * <br/>
-     * A task's documents stay held until it settles (core's `KeyedLock`), and `Promise.all` settled it at the first
-     * refused write while another was still in flight. The next save of the document then read the version that write
-     * was about to replace, passed its check, and was overwritten when the write landed: the edit CA-192 stopped
-     * losing, lost again on the failure path.
-     *
-     * @method
-     * @param {Array<Promise>} writes
-     * @returns {Promise<void>}
-     */
-    #allWritten( writes ) {
-        return Promise.allSettled( writes ).then( ( outcomes ) => {
-            const failure = outcomes.find( ( outcome ) => outcome.status === "rejected" );
-            if ( failure ) {
-                throw failure.reason;
-            }
-        } );
-    }
 
     /**
      * Reads a whole JSON document at the `$` root and unwraps RedisJSON's array result.

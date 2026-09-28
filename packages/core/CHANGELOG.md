@@ -15,7 +15,13 @@ This document contains the list of changes made to the framework. The format is 
   method from 1.42.0, moved here because competence needs the same one for its evaluations, cycles and interview slots.
   8 tests. Three of them fail against a lock that does not wait, and one hangs against a lock that makes a key named
   twice wait for itself.
-* test: 233 → 241.
+* feat(tools): `tools.whenAllSettled( promises )` waits until every promise has settled, then resolves with all of the
+  values or rejects with the first failure in the order given. It is what a `KeyedLock` task waits on when it writes in
+  parallel. `Promise.all` rejects at the first failure while the other writes are still in flight, the lock then
+  releases the keys, and the next task reads a document that one of those writes is about to replace. That was the
+  config store's lesson in review (CA-192), kept there as a private `#allWritten` until now. competence's interview
+  bookings write a slot and an evaluation together. 3 tests, and 2 of them fail when the helper is `Promise.all`.
+* test: 233 → 244.
 
 ## Version 1.18.0
 

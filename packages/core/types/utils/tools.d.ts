@@ -15,6 +15,7 @@ export declare var parseJSON: (value: string) => Object | string;
 export declare var decomposeJSON: (input: Object) => string | null;
 export declare var constantTimeEquals: (a: any, b: any) => boolean;
 export { RetryPolicy };
+export declare var whenAllSettled: (promises: Array<Promise<any> | any>) => Promise<Array<any>>;
 export { KeyedLock };
 import type { TiEnum, TiEnumOf } from "#definitions";
 /**
@@ -81,7 +82,7 @@ declare class RetryPolicy {
  * stalls the tasks behind it.
  * <br/>
  * NOTE: A key is held until the task's promise settles, and no longer. A task must therefore not settle before every
- * write it started has: over parallel writes, that means `Promise.allSettled`, not `Promise.all`, which settles at the
+ * write it started has: over parallel writes, that means {@link whenAllSettled}, not `Promise.all`, which settles at the
  * first failure while the other writes are still in flight. A task must also never ask for a key it already holds:
  * it would wait for itself, and every later task on that key would wait with it. The lock orders tasks within one
  * process, and nothing here orders writes between instances.

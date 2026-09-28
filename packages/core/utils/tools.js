@@ -665,6 +665,29 @@ class RetryPolicy {
 module.exports.RetryPolicy = RetryPolicy;
 
 /**
+ * Used to wait until every promise has settled, then resolve with all of their values or reject with the first failure.
+ * <br/>
+ * `Promise.all` rejects at the first failure while the others are still pending. Inside a {@link KeyedLock} task that
+ * releases the task's keys with writes still in flight, and the next task reads a document that one of them is about to
+ * replace: the lost edit the lock exists to prevent (CA-192). This waits for every promise, then reports the first
+ * failure in the order the promises were given.
+ *
+ * @method
+ * @param {Array<Promise<*>|*>} promises
+ * @returns {Promise<Array<*>>} Every value, in the order given.
+ * @public
+ */
+module.exports.whenAllSettled = ( promises ) => {
+    return Promise.allSettled( promises ).then( ( outcomes ) => {
+        const failure = outcomes.find( ( outcome ) => outcome.status === "rejected" );
+        if ( failure ) {
+            throw failure.reason;
+        }
+        return outcomes.map( ( outcome ) => outcome.value );
+    } );
+};
+
+/**
  * Used to run tasks that touch the same keys one at a time, in the order they arrived: an in-process lock for a
  * read-check-write that takes more than one round trip to a store.
  * <br/>
@@ -676,7 +699,7 @@ module.exports.RetryPolicy = RetryPolicy;
  * stalls the tasks behind it.
  * <br/>
  * NOTE: A key is held until the task's promise settles, and no longer. A task must therefore not settle before every
- * write it started has: over parallel writes, that means `Promise.allSettled`, not `Promise.all`, which settles at the
+ * write it started has: over parallel writes, that means {@link whenAllSettled}, not `Promise.all`, which settles at the
  * first failure while the other writes are still in flight. A task must also never ask for a key it already holds:
  * it would wait for itself, and every later task on that key would wait with it. The lock orders tasks within one
  * process, and nothing here orders writes between instances.

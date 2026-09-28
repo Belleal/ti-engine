@@ -4,10 +4,10 @@ This document will contain the list of changes made to the framework. The format
 
 ## Version 1.42.2
 
-* refactor (config-store): the lock that serializes a document's saves is core's `tools.KeyedLock` (1.19.0), where it
-  was a private copy. The behaviour is unchanged, and the 9 concurrent-save tests pass as they did. `#allWritten` stays
-  here: holding a document until every write has settled is this store's rule for its own writes, not the lock's.
-* build (deps): `@ti-engine/core` `>=1.19.0`, for `KeyedLock`.
+* refactor (config-store): the lock that serializes a document's saves is core's `tools.KeyedLock` (1.19.0), and its
+  writes are awaited with core's `tools.whenAllSettled`. Both were private copies (`#exclusively`, `#allWritten`). The
+  behaviour is unchanged, and the 9 concurrent-save tests pass as they did.
+* build (deps): `@ti-engine/core` `>=1.19.0`, for `KeyedLock` and `whenAllSettled`.
 
 ## Version 1.42.1
 
