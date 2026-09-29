@@ -199,6 +199,20 @@ describe( "ConfigService — applyDefaults", () => {
         );
     } );
 
+    it( "refuses a document registered driftTracked: false, and writes nothing (CA-207)", async () => {
+        // Such a document holds the deployment's own data and its default is a sample. A consumer's drift panel hides
+        // it, but the page is not what decides: a request naming it, alone or beside a tracked document, replaced it.
+        registry.register( "customer-data", { schema: POOL, defaultValue: { SAMPLE: [] }, metadata: { label: "org", driftTracked: false } } );
+        await store.seedIfEmpty( "customer-data", { OWN: [ "A" ] } );
+
+        await assert.rejects(
+            () => service.applyDefaults( [ "pool", "customer-data" ], { adminID: "admin:1" } ),
+            ( err ) => err.data != null && err.data.reason === "not-drift-tracked" && err.data.configKeys.join() === "customer-data"
+        );
+        assert.deepEqual( ( await store.getCurrent( "customer-data" ) ).value, { OWN: [ "A" ] }, "the deployment's own data was replaced by the sample" );
+        assert.equal( await store.getCurrent( "pool" ), null, "a refused apply wrote the other document" );
+    } );
+
     it( "rejects empty input or a missing adminID", async () => {
         await assert.rejects( () => service.applyDefaults( [], { adminID: "admin:1" } ) );
         await assert.rejects( () => service.applyDefaults( [ "pool" ], {} ) );
