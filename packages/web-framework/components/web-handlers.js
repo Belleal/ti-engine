@@ -300,6 +300,23 @@ let isHtmxRequest = ( request ) => {
 };
 
 /**
+ * Used to serialize a value as JSON that can travel in an HTTP header: every character outside printable ASCII is
+ * written as its `\uXXXX` escape. The result is still JSON, so the client's `JSON.parse` gives back the original text.
+ * <br/>
+ * Node refuses a header value with any character above U+00FF, and a localized message is written in whatever script
+ * its language uses. On a Bulgarian session `HX-Trigger` made the error handler itself throw `ERR_INVALID_CHAR`, Express
+ * answered with a bare 500, and the user was shown nothing at all (CA-295).
+ *
+ * @method
+ * @param {*} value
+ * @returns {string}
+ * @private
+ */
+let toHeaderJSON = ( value ) => {
+    return JSON.stringify( value ).replace( /[\u007f-￿]/g, ( character ) => "\\u" + character.charCodeAt( 0 ).toString( 16 ).padStart( 4, "0" ) );
+};
+
+/**
  * Used to determine if the request accepts the specified response type.
  *
  * @method
@@ -976,7 +993,7 @@ module.exports.defaultErrorHandler = () => {
                 response.set( {
                     "HX-Reswap": "none",
                     "HX-Retarget": "#ti-notifications",
-                    "HX-Trigger": JSON.stringify( {
+                    "HX-Trigger": toHeaderJSON( {
                         "ti:error": payload
                     } )
                 } );

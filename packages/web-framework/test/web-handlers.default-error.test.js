@@ -36,6 +36,7 @@ const { describe, it, beforeEach, afterEach } = require( "node:test" );
 const assert = require( "node:assert/strict" );
 const express = require( "express" );
 const exceptions = require( "@ti-engine/core/exceptions" );
+const localization = require( "@ti-engine/core/localization" );
 const logger = require( "@ti-engine/core/logger" );
 const webHandlers = require( "#web-handlers" );
 
@@ -197,6 +198,54 @@ describe( "defaultErrorHandler", () => {
         it( "withholds a label the session's language has no text for, which the client could only show as its key", async () => {
             const { text } = await serve( inLanguage( "xx", raising( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE, { details: CATALOGUE_LABEL }, exceptions.httpCode.C_503 ) ), JSON_POST );
             assert.equal( JSON.parse( text ).exception.data, undefined );
+        } );
+
+    } );
+
+    describe( "an HTMX request on a session whose language is written outside Latin-1", () => {
+
+        // Node refuses a header value with any character above U+00FF, and the notification travels in a header. On a
+        // Bulgarian session the error handler itself threw ERR_INVALID_CHAR, Express's final handler answered with a bare
+        // HTML 500, and the screen the user clicked simply did not change (CA-295).
+        const HTMX = { method: "GET", headers: { "HX-Request": "true", accept: "text/html" } };
+        const inBulgarian = ( code, httpCode ) => ( request, response, next ) => {
+            request.session = { language: "bg" };
+            next( exceptions.raise( code, null, httpCode ) );
+        };
+        const notificationOf = ( headers ) => {
+            const trigger = headers.get( "hx-trigger" );
+            assert.ok( trigger, "no HX-Trigger: the user is shown nothing" );
+            return JSON.parse( trigger )[ "ti:error" ];
+        };
+
+        it( "answers with the refusal's own status, not the error handler's crash", async () => {
+            const { status, headers } = await serve( inBulgarian( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, exceptions.httpCode.C_403 ), HTMX );
+            assert.equal( status, 403 );
+            assert.ok( headers.get( "hx-trigger" ), "no HX-Trigger: the user is shown nothing" );
+        } );
+
+        it( "delivers the message in the session's language, exactly as written", async () => {
+            const { headers } = await serve( inBulgarian( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE, exceptions.httpCode.C_503 ), HTMX );
+            assert.equal( notificationOf( headers ).message, localization.getLabel( "system.exceptions.1004", "bg" ) );
+            assert.match( notificationOf( headers ).message, /[Ѐ-ӿ]/, "the fixture must carry Cyrillic, or it proves nothing" );
+        } );
+
+        it( "puts only ASCII on the wire, so no language can break the header again", async () => {
+            const { headers } = await serve( inBulgarian( exceptions.exceptionCode.E_GEN_SERVICE_STARTING, exceptions.httpCode.C_503 ), HTMX );
+            assert.match( headers.get( "hx-trigger" ), /^[\x20-\x7E]*$/ );
+        } );
+
+        it( "gives back a client error's own data unchanged, a character outside the Basic Multilingual Plane included", async () => {
+            // A client error keeps its data in the notification, and data can hold any text. A surrogate pair is escaped
+            // one half at a time, which JSON reads back as the one character.
+            const refuse = ( request, response, next ) => {
+                request.session = { language: "bg" };
+                next( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { details: "Невалидно име 😀" }, exceptions.httpCode.C_422 ) );
+            };
+            const { status, headers } = await serve( refuse, HTMX );
+            assert.equal( status, 422 );
+            assert.match( headers.get( "hx-trigger" ), /^[\x20-\x7E]*$/ );
+            assert.equal( notificationOf( headers ).exception.data.details, "Невалидно име 😀" );
         } );
 
     } );

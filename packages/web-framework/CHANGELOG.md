@@ -2,6 +2,28 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.42.3
+
+* fix (web-handlers): an HTMX error on a session whose language is written outside Latin-1 notifies the user again,
+  instead of crashing the error handler (CA-295).
+  <br/>
+  **What was wrong.** For an HTMX request, `defaultErrorHandler` sends the notification in the `HX-Trigger` header, and
+  the payload carries the message in the session's language. Node refuses a header value with any character above
+  U+00FF. On a Bulgarian session, which every session on a Bulgarian deployment has been since 1.42.0 (CA-198), setting
+  the header threw `ERR_INVALID_CHAR` inside the error handler. Express's final handler then answered with a bare HTML
+  500, which the client's fallback does not read, so a screen that failed to load showed nothing at all: a
+  role-gated screen (403), a store outage or a slow start (503), and any other error on an HTMX request. The refusal
+  itself was still logged at its own status; the header error went to stderr as an unstructured stack.
+  <br/>
+  **What changed.** The header's JSON writes every character outside printable ASCII as its `\uXXXX` escape. It is still
+  JSON, so htmx's `JSON.parse` gives back the original text. Measured in Chromium with the bundled htmx on a Bulgarian
+  503: before, the response was 500 and no notification fired; after, 503 with the Bulgarian message intact.
+
+  4 tests on a real Express application, all of which failed before the fix: the refusal's own status, the message
+  exactly as written in Bulgarian, an ASCII-only header, and a client error's data carrying a character outside the
+  Basic Multilingual Plane.
+* test: 712 → 716 tests.
+
 ## Version 1.42.2
 
 * refactor (config-store): the lock that serializes a document's saves is core's `tools.KeyedLock` (1.19.0), and its
