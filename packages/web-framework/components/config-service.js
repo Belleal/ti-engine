@@ -439,9 +439,10 @@ class ConfigService {
         }
         // A document registered `driftTracked: false` holds the deployment's own data, and its file default is a sample:
         // applying it is never a drift reconciliation, it replaces that data. A consumer's drift panel hides such a
-        // document, but competence's still preselected one at version 1 - which is where importing an organization tree
-        // before the first start leaves it - so the first release that drifted anything else wiped the operator's tree.
-        // The endpoint refuses it rather than trusting the page to choose (CA-207).
+        // document, but competence's still preselected one at version 1, the default its first start seeded. An image
+        // that shipped one organization's own tree as that default left it there, and the first release that drifted
+        // anything else replaced the tree with the sample. The endpoint refuses the document at any version rather
+        // than trusting the page to choose (CA-207).
         const untracked = keys.filter( ( key ) => ( this.#registry.metadataFor( key ) || {} ).driftTracked === false );
         if ( untracked.length > 0 ) {
             return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { reason: "not-drift-tracked", configKeys: untracked } ) );
