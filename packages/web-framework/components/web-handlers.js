@@ -106,6 +106,15 @@ const resolveHttpCode = ( exception ) => {
 const LOG_VALUE_MAX_LENGTH = 100;
 
 /**
+ * Longest account of a failure to put in one log line: an error's own message or `details`, which ends with the cause
+ * and runs past a hostname — the state service's "could not be reached for '/v1/hashes/set': connect ECONNREFUSED …"
+ * lost its cause at {@link LOG_VALUE_MAX_LENGTH}. Still bounded, because such an account can quote a response body.
+ *
+ * @type {number}
+ */
+const LOG_ACCOUNT_MAX_LENGTH = 300;
+
+/**
  * Renders a value that came from outside safe to interpolate into a log message or echo in an error payload.
  * <br/>
  * The console appender writes one line per entry, so a newline inside an interpolated value ends that line and
@@ -120,14 +129,15 @@ const LOG_VALUE_MAX_LENGTH = 100;
  *
  * @method
  * @param {*} value
+ * @param {number} [maxLength=LOG_VALUE_MAX_LENGTH]
  * @returns {string}
  * @private
  */
-const sanitizeExternalValue = ( value ) => {
+const sanitizeExternalValue = ( value, maxLength = LOG_VALUE_MAX_LENGTH ) => {
     const escaped = String( value ?? "" ).replace( /[^\x20-\x7E]/g, ( character ) => {
         return "\\u" + character.charCodeAt( 0 ).toString( 16 ).padStart( 4, "0" );
     } );
-    return ( escaped.length > LOG_VALUE_MAX_LENGTH ) ? escaped.slice( 0, LOG_VALUE_MAX_LENGTH ) + "..." : escaped;
+    return ( escaped.length > maxLength ) ? escaped.slice( 0, maxLength ) + "..." : escaped;
 };
 
 /**
@@ -524,6 +534,49 @@ module.exports.authenticationHandler = ( instance ) => {
 };
 
 /**
+ * Logs an OpenID sign-in that passed the callback's own checks and then failed: the provider refused the code
+ * exchange, `openid-client` could not build the request, or the session store did not answer.
+ * <br/>
+ * The callback passes every such failure on as a 401, so the error handler files it as the client's and logs it at
+ * DEBUG only — CA-215 keeps a 4xx there on purpose. None of them is the visitor's to fix, though: each is the
+ * deployment's configuration, the provider or the store. A production Worker holding the wrong client secret sent
+ * every Google sign-in to `?error=1000`, and below a production log level nothing said why (CA-315).
+ * <br/>
+ * A refusal — the security family — is left alone: an unverified e-mail, a domain outside the provider's list and the
+ * application's own `augmentSession` each log where they are decided, and say more there than this line could. What
+ * is logged is the provider's own `error` and `error_description`, or else the error's own account — its `details`,
+ * or its message: never the code, the state, the verifier or the nonce, and every value escaped and capped.
+ *
+ * @method
+ * @param {TiAuthMethod} authMethod
+ * @param {TiException} exception
+ * @private
+ */
+let logUncompletedSignIn = ( authMethod, exception ) => {
+    if ( exception.code >= 2000 && exception.code < 3000 ) {
+        return;
+    }
+    const data = exception.data || {};
+    let reason;
+    if ( typeof data.error === "string" && data.error !== "" ) {
+        reason = `the provider answered '${ sanitizeExternalValue( data.error ) }'`;
+        if ( data.error_description ) {
+            reason += ` (${ sanitizeExternalValue( data.error_description ) })`;
+        }
+        reason += ".";
+        // The one answer that is always the deployment's: the provider does not accept the client it was shown.
+        if ( data.error === "invalid_client" ) {
+            reason += " Check the client ID and secret this deployment holds for it.";
+        }
+    } else {
+        // A raised TiException keeps its account in `details` and has no `message`: the state service's "could not be
+        // reached for '/v1/hashes/set': …" is there, and its generic description says only that a cache is unavailable.
+        reason = `it could not be completed (${ sanitizeExternalValue( data.details || data.message || exception.description, LOG_ACCOUNT_MAX_LENGTH ) }).`;
+    }
+    logger.log( `Refusing an OpenID sign-in via '${ authMethod }': ${ reason } Reference '${ exception.id }'.`, logger.logSeverity.WARNING );
+};
+
+/**
  * Used to handle the callback from an OpenID Connect provider.
  * <br/>
  * A callback that cannot be completed is refused through the normal error path — `next( … )` with an explicit
@@ -535,7 +588,7 @@ module.exports.authenticationHandler = ( instance ) => {
  * The three reasons are distinguished in the log rather than in the response, because the visitor has no use for
  * the difference and an attacker probing the endpoint should not be handed it. Nothing secret is logged — never
  * the authorization code, the state values, the PKCE verifier or the nonce — only the facts that identify which
- * case this is.
+ * case this is. A sign-in that passes all three and fails afterwards is logged too, by {@link logUncompletedSignIn}.
  *
  * @method
  * @param {TiWebServer} instance
@@ -593,7 +646,9 @@ module.exports.authorizedOAuth2CallbackHandler = ( instance, authMethod ) => {
         } ).then( ( redirectTo ) => {
             response.redirect( exceptions.httpCode.C_303, convertUriToString( redirectTo ) );
         } ).catch( ( error ) => {
-            next( exceptions.raise( error, null, exceptions.httpCode.C_401 ) );
+            const exception = exceptions.raise( error, null, exceptions.httpCode.C_401 );
+            logUncompletedSignIn( authMethod, exception );
+            next( exception );
         } );
     };
 };

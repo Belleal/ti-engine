@@ -202,6 +202,110 @@ describe( "authorizedOAuth2CallbackHandler — a callback that cannot be complet
 
 } );
 
+describe( "authorizedOAuth2CallbackHandler — a sign-in that fails once the callback has been checked", () => {
+
+    // What `openid-client` throws when the token endpoint answers with an OAuth error: a plain Error carrying the
+    // provider's `error` and `error_description`. The auth manager raises it as-is, so it arrives here as
+    // E_GEN_JS_INTERNAL_ERROR — the `?error=1000` a visitor lands on.
+    function providerError( error, description ) {
+        const failure = new Error( "server responded with an error in the response body" );
+        failure.name = "ResponseBodyError";
+        failure.code = "OAUTH_RESPONSE_BODY_ERROR";
+        failure.error = error;
+        failure.error_description = description;
+        failure.status = 401;
+        return exceptions.raise( failure );
+    }
+
+    function failureFrom( instance, session = {} ) {
+        const request = mockRequest( { query: { code: CODE, state: STATE }, oidc: { codeVerifier: VERIFIER, state: STATE, nonce: NONCE } } );
+        Object.assign( request.session, session );
+        return new Promise( ( resolve ) => {
+            webHandlers.authorizedOAuth2CallbackHandler( instance, "openid-google" )( request, strictResponse(), resolve );
+        } );
+    }
+
+    it( "logs the provider's refusal of the code exchange at WARNING, not only the error handler's DEBUG", async () => {
+        // A production Worker holding the wrong client secret: Google answered `invalid_client` on every sign-in,
+        // the visitor landed on `?error=1000`, and the only line naming why was the error handler's DEBUG — below a
+        // production log level, so nothing at all (CA-315).
+        const error = await failureFrom( { authorize: () => Promise.reject( providerError( "invalid_client", "The provided client secret is invalid." ) ) } );
+
+        assert.equal( error.code, exceptions.exceptionCode.E_GEN_JS_INTERNAL_ERROR, "what the visitor sees is unchanged" );
+        assert.equal( error.httpCode, exceptions.httpCode.C_401 );
+        assert.equal( logged.length, 1 );
+        assert.equal( logged[ 0 ].severity, logger.logSeverity.WARNING );
+        assert.match( logged[ 0 ].message, /openid-google/ );
+        assert.match( logged[ 0 ].message, /invalid_client/ );
+        assert.match( logged[ 0 ].message, /The provided client secret is invalid\./ );
+        assert.match( logged[ 0 ].message, /client ID and secret/, "invalid_client is a deployment's configuration, so the line says where to look" );
+        assert.ok( logged[ 0 ].message.includes( error.id ), "the reference ties the line to the failed request" );
+    } );
+
+    it( "logs a failure that never reached the provider, by its own message", async () => {
+        // No secret at all: `openid-client` refuses to build the token request, and says so.
+        const error = await failureFrom( { authorize: () => Promise.reject( exceptions.raise( new TypeError( "\"metadata.client_secret\" must be a string" ) ) ) } );
+
+        assert.equal( error.code, exceptions.exceptionCode.E_GEN_JS_INTERNAL_ERROR );
+        assert.equal( logged.length, 1 );
+        assert.equal( logged[ 0 ].severity, logger.logSeverity.WARNING );
+        assert.match( logged[ 0 ].message, /metadata\.client_secret/ );
+    } );
+
+    it( "logs a session store that fails while the signed-in session is being written, by what it says went wrong", async () => {
+        // The shape core's HTTP cache provider rejects with: the account is in `details`, and the description only
+        // says that a cache is unavailable, which is true of every such failure.
+        const unreachable = exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE, {
+            details: "The state service at 'http://11.0.0.1' could not be reached for '/v1/hashes/del': connect ECONNREFUSED 11.0.0.1:80"
+        } );
+        const error = await failureFrom( { authorize: () => Promise.resolve( { asJSON: () => ( {} ) } ) }, {
+            regenerate: ( callback ) => callback( unreachable )
+        } );
+
+        assert.equal( error.httpCode, exceptions.httpCode.C_401 );
+        assert.equal( logged.length, 1 );
+        assert.equal( logged[ 0 ].severity, logger.logSeverity.WARNING );
+        assert.match( logged[ 0 ].message, /could not be reached for '\/v1\/hashes\/del'/ );
+        assert.match( logged[ 0 ].message, /ECONNREFUSED/, "the cause is the end of the account, so a cap sized for an OAuth error code cut it off" );
+    } );
+
+    it( "still bounds an error's own account, which can quote a response body", async () => {
+        await failureFrom( { authorize: () => Promise.reject( exceptions.raise( new Error( "B".repeat( 5000 ) ) ) ) } );
+
+        assert.equal( logged.length, 1 );
+        assert.ok( logged[ 0 ].message.length < 600 );
+    } );
+
+    it( "adds nothing to a refusal, which is logged where it is decided", async () => {
+        // The unverified e-mail, a domain outside the provider's list and the application's augmentSession each log
+        // their own WARNING, saying more than this line could; a second line would only repeat it.
+        const refusal = exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, { details: "refused" }, exceptions.httpCode.C_401 );
+        const error = await failureFrom( { authorize: () => Promise.reject( refusal ) } );
+
+        assert.equal( error.code, exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS );
+        assert.equal( logged.length, 0 );
+    } );
+
+    it( "cannot be made to forge a log line, or to flood it, through the provider's description", async () => {
+        const forged = "bad\n2026-09-30, 12:00:00 (UTC): ti-competence - NOTICE - Sign-in succeeded for admin" + "A".repeat( 5000 );
+        await failureFrom( { authorize: () => Promise.reject( providerError( "invalid_grant", forged ) ) } );
+
+        assert.equal( logged.length, 1 );
+        assert.ok( !logged[ 0 ].message.includes( "\n" ) );
+        assert.ok( logged[ 0 ].message.length < 600, "one field must not be able to flood the log" );
+    } );
+
+    it( "never writes the authorization code, state, verifier or nonce to the log", async () => {
+        await failureFrom( { authorize: () => Promise.reject( providerError( "invalid_grant", "Bad Request" ) ) } );
+
+        assert.equal( logged.length, 1 );
+        for ( const secret of SECRETS ) {
+            assert.ok( !logged[ 0 ].message.includes( secret ), `a log line leaked a secret: ${ logged[ 0 ].message }` );
+        }
+    } );
+
+} );
+
 describe( "authorizedOAuth2CallbackHandler — how a refusal reaches the visitor", () => {
 
     function mockErrorResponse() {
