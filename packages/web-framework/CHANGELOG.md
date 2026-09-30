@@ -9,10 +9,15 @@ This document will contain the list of changes made to the framework. The format
   <br/>
   **What was wrong.** Such a document holds the deployment's own data and its file default is a sample, so applying it
   replaces that data rather than reconciling drift. Only the consumer's page kept it out of an apply: competence's
-  drift panel hid it but still preselected it while it stood at version 1, which is where importing an organization
-  tree before the first start leaves it, and the first release that drifted anything else replaced the operator's
-  tree with the shipped sample. The page is fixed in competence; the endpoint no longer depends on it. A consumer that
-  wants the sample back saves it like any other edit.
+  drift panel hid it but still preselected it while it stood at version 1, the default the first start seeded. An
+  image that shipped one organization's own tree as that default left it there, and the first release that drifted
+  anything else replaced the tree with the shipped sample. The page is fixed in competence; the endpoint no longer
+  depends on it, and refuses the document at any version. A consumer that wants the sample back saves it like any
+  other edit.
+
+  *Corrected after release:* this entry first said that importing an organization tree before the first start
+  leaves it at version 1. It does not: competence's `import:config` writes on top of the seed, so an imported tree
+  is at version 2.
 
   One test: a request naming an untracked document beside a tracked one is refused, and neither is written. It fails
   without the check.
