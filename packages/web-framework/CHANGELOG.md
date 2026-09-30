@@ -2,6 +2,41 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.42.5
+
+* fix (web-handlers): **an OpenID sign-in that fails after the callback's checks is logged at WARNING**, naming the
+  provider's own answer (CA-315).
+  <br/>
+  **What was wrong.** `authorizedOAuth2CallbackHandler` passes every failure of `authorize()` or of the session write
+  on as a `401`. That includes the provider refusing the code exchange, `openid-client` unable to build it, and the
+  session store failing. `defaultErrorHandler` therefore filed each one as the client's and logged it at DEBUG only,
+  as CA-215 keeps every 4xx. None of them is the visitor's to fix: each is the deployment's configuration, the
+  provider or the store. A production Worker holding the wrong Google client secret sent every Google sign-in to
+  `?error=1000`, and below a production log level (`TI_AUDITING_LOG_MIN_LEVEL=200`) nothing said why. The handler's
+  three refusals of its own were already logged at WARNING (1.33.0); this fourth case never had a line. It is not a
+  regression: before 1.42.0 every failed request logged at DEBUG.
+  <br/>
+  **What changed.** The handler logs one WARNING when a sign-in fails after its checks, with the method and the
+  exception's reference:
+  - for a code exchange the provider refused, the provider's `error` and `error_description`, and for
+    `invalid_client` a pointer to the client ID and secret;
+  - otherwise the error's own account: a TiException's `details` (where core's HTTP cache provider says which state
+    call failed and why) or an `Error`'s message, capped at 300 characters rather than the 100 a provider's value
+    gets, which cut the cause off the end of the state service's account.
+
+  A refusal (the security family) is left alone: an unverified e-mail, a domain outside the provider's list and the
+  application's `augmentSession` each log where they are decided. Nothing sensitive is logged. The code, the state,
+  the verifier and the nonce never appear, and the provider's text is escaped and capped like any external value.
+  The visitor sees exactly what they saw before.
+  <br/>
+  **Evidence.** The real `AuthManager` and this handler were run against Google's token endpoint with a production
+  client ID. A missing secret now logs `it could not be completed ("metadata.client_secret" must be a string)`. A
+  wrong one logs `the provider answered 'invalid_client' (The provided client secret is invalid.). Check the client
+  ID and secret this deployment holds for it.` Both still land on `?error=1000`. Seven new tests in
+  `web-handlers.oauth-callback`, and five deliberate breaks each fail one to three of them: refusals no longer
+  skipped, the provider's text unescaped, the line at DEBUG, the `invalid_client` pointer dropped, the account capped
+  at 100.
+
 ## Version 1.42.4
 
 * fix (config-service): `applyDefaults` refuses a document registered `driftTracked: false`, with reason
