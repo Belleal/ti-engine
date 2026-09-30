@@ -420,7 +420,8 @@ class ConfigService {
      * @param {string} meta.adminID
      * @param {string} [meta.note]
      * @returns {Promise<{ok: true, changeSetID: string, versions: Object}|{ok: false, errors: Object}>}
-     * @throws {TiException.E_WEB_INVALID_REQUEST_PARAMETERS} On bad input, an unknown key, or a key with no default.
+     * @throws {TiException.E_WEB_INVALID_REQUEST_PARAMETERS} On bad input, an unknown key, a key with no default, or a key
+     *         registered `driftTracked: false`.
      * @public
      */
     applyDefaults( configKeys, meta ) {
@@ -435,6 +436,15 @@ class ConfigService {
         const withoutDefault = keys.filter( ( key ) => this.#registry.getDefault( key ) === undefined );
         if ( withoutDefault.length > 0 ) {
             return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { reason: "no-default", configKeys: withoutDefault } ) );
+        }
+        // A document registered `driftTracked: false` holds the deployment's own data, and its file default is a sample:
+        // applying it is never a drift reconciliation, it replaces that data. A consumer's drift panel hides such a
+        // document, but competence's still preselected one at version 1 - which is where importing an organization tree
+        // before the first start leaves it - so the first release that drifted anything else wiped the operator's tree.
+        // The endpoint refuses it rather than trusting the page to choose (CA-207).
+        const untracked = keys.filter( ( key ) => ( this.#registry.metadataFor( key ) || {} ).driftTracked === false );
+        if ( untracked.length > 0 ) {
+            return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_PARAMETERS, { reason: "not-drift-tracked", configKeys: untracked } ) );
         }
 
         return Promise.all( keys.map( ( key ) => this.#store.getCurrent( key ) ) ).then( ( currents ) => {

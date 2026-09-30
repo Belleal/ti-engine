@@ -262,7 +262,8 @@ declare class ConfigService {
      * @param {string} meta.adminID
      * @param {string} [meta.note]
      * @returns {Promise<{ok: true, changeSetID: string, versions: Object}|{ok: false, errors: Object}>}
-     * @throws {TiException.E_WEB_INVALID_REQUEST_PARAMETERS} On bad input, an unknown key, or a key with no default.
+     * @throws {TiException.E_WEB_INVALID_REQUEST_PARAMETERS} On bad input, an unknown key, a key with no default, or a key
+     *         registered `driftTracked: false`.
      * @public
      */
     applyDefaults(configKeys: string[], meta: {
