@@ -2,6 +2,27 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.43.1
+
+* fix (ti-framework): **`tiToolbox.formatDate` writes dates in the page's language, not the browser's** (CA-333).
+  <br/>
+  **What was wrong.** It called `toLocaleDateString()` with no locale, so the browser chose. A Bulgarian interface
+  opened in an en-US browser wrote "7/1/2026", "11/30/2026" and "12/31/2026" between Bulgarian words (measured in
+  Chromium on competence's dashboard), and two people reading the same screen saw the same date in two orders.
+  <br/>
+  **What changed.**
+  - The locale is the document's `<html lang>`. A page that declares none keeps the browser's.
+  - The month is written as a word: "1 Jul 2026" in `en-GB`, "Jul 1, 2026" in `en`, "1.07.2026 г." in `bg`. No reader can
+    take 07/08 for the 8th of July or for the 7th of August.
+  - A `lang` that is not a well-formed language tag (`en_GB`) makes Intl throw; the date is then written the way it was
+    before, rather than not at all.
+* test: `ti-framework.format-date.test.js` (5) runs the real script in the sandbox, whose default locale is en-US, which
+  is the case that went wrong. Against the 1.43.0 script 3 of the 5 fail. The other two pin behaviour that must not
+  change: the fallback for a malformed tag, and the placeholder.
+* test: `ti-framework.document-title.test.js` fires a watcher only when the value it watches has changed, and with
+  the new value, as Alpine does. It fired every watcher on every change, so a title recomputed from the wrong source
+  could pass. Raised by CodeRabbit on Belleal/ti-engine#175.
+
 ## Version 1.43.0
 
 * feat (ti-framework): **avatars take their colours from the theme** (CA-326).

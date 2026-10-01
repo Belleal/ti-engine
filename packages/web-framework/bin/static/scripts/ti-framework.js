@@ -153,7 +153,13 @@ const configureToolbox = () => {
         },
 
         /**
-         * Used to format a system string date value into a display string.
+         * Used to format a system string date value into a display string, in the page's own language.
+         * <br/>
+         * The locale is the document's `<html lang>`, never the browser's. Up to 1.43.0 this called
+         * `toLocaleDateString()` with no locale, so the browser chose: a Bulgarian interface opened in an en-US browser
+         * wrote "7/1/2026" between Bulgarian words, and two people reading the same screen saw the same date in two
+         * orders. The month is written as a word ("1 Jul 2026", "1.07.2026 г."), so no reader can take 07/08 for the
+         * 8th of July or for the 7th of August. A page that declares no language keeps the browser's (CA-333).
          *
          * @method
          * @param {string} value
@@ -167,7 +173,16 @@ const configureToolbox = () => {
                 ? `${ value }T00:00:00`
                 : value;
             const date = new Date( normalized );
-            return this.isValidDate( date ) ? date.toLocaleDateString() : placeholder;
+            if ( !this.isValidDate( date ) ) {
+                return placeholder;
+            }
+            try {
+                return date.toLocaleDateString( document.documentElement.lang || undefined, { day: "numeric", month: "short", year: "numeric" } );
+            } catch {
+                // A `lang` that is not a well-formed language tag makes Intl throw a RangeError. The date still shows,
+                // written the way it was before.
+                return date.toLocaleDateString();
+            }
         },
 
         /**

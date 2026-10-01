@@ -48,15 +48,23 @@ function topbarOnPage( applicationName ) {
 
     const watchers = [];
     const topbar = components.tiComponentTopbar();
-    topbar.$watch = ( getter, callback ) => watchers.push( callback );
+    topbar.$watch = ( getter, callback ) => watchers.push( { getter, callback, value: getter() } );
     topbar.init();
 
     return {
         tiApplication: stores.tiApplication,
         document: sandbox.document,
+        // Fires a watcher only when what it watches has changed, and with the new value, as Alpine does. Firing every
+        // watcher on every change let a title that is recomputed from the wrong source pass anyway.
         navigate: ( change ) => {
             Object.assign( stores.tiApplication, change );
-            watchers.forEach( ( callback ) => callback() );
+            watchers.forEach( ( watcher ) => {
+                const value = watcher.getter();
+                if ( value !== watcher.value ) {
+                    watcher.value = value;
+                    watcher.callback( value );
+                }
+            } );
         }
     };
 }
