@@ -2,6 +2,35 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.43.0
+
+* feat (ti-framework): **avatars take their colours from the theme** (CA-326).
+  <br/>
+  **What was wrong.** `tiToolbox.generateAvatarStyle` drew each avatar as a gradient of three hues at 62–70% saturation,
+  set inline per person. No theme could tone that down, so under a muted brand palette (competence's Vellum and Claret)
+  the avatars stayed bright green, magenta and blue.
+  <br/>
+  **What changed.**
+  - The style is now `var( --avatar-tone-<n>, <the same gradient> )`. A theme that defines `--avatar-tone-1` to
+    `--avatar-tone-7` gets one of its own tones per person: the same tone for the same person everywhere, and
+    different tones spread over the people in a list.
+  - A theme that defines none gets exactly the gradient it had before, so nothing changes for an application that
+    does not opt in.
+  - The tone is `djb2( seed + "A" ) % 7 + 1`, the same hash as before. Over 300 people the seven tones take 31 to 54
+    each, where chance gives 42.9.
+  - Seven is prime: djb2 multiplies by 33, which is 1 mod 8, so a count of 8 would follow only the sum of the
+    characters, and every anagram would share a colour.
+* feat (ti-framework): **the browser tab names the application after the screen** (CA-326).
+  <br/>
+  **What was wrong.** The topbar replaces `document.title` with the screen's name on every navigation. An
+  application's own `<title>` therefore never showed, and every tab read as a bare screen name ("Dashboard"), whatever
+  application it belonged to.
+  <br/>
+  **What changed.** A page that declares `<meta name="application-name" content="…">` gets "Dashboard · Competence@Work".
+  The topbar reads the meta once, when it starts. A page without it keeps the bare screen name, as before.
+* test: `ti-framework.avatar-style.test.js` (3) and `ti-framework.document-title.test.js` (3) run the real script in the
+  sandbox. Against the 1.42.5 script, 5 of the 6 fail; the sixth pins the unchanged title on a page without the meta.
+
 ## Version 1.42.5
 
 * fix (web-handlers): **an OpenID sign-in that fails after the callback's checks is logged at WARNING**, naming the
