@@ -2,6 +2,51 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.44.0
+
+* feat (ti-framework): **the shell shows that it is working while a request is outstanding** (CA-345).
+  <br/>
+  **What was wrong.** A click on a sidebar entry asks for the screen through HTMX, and the screen then asks for its data
+  through `sendRequest`. Until the first answer arrived nothing on the page changed: the old screen stayed up and the
+  cursor stayed a pointer. On a warm server the wait is too short to notice. A container scaled to zero holds the first
+  request for a second or two while it starts, and on competence's staging that read as a frozen application.
+  <br/>
+  **What changed.**
+  - `tiApplication.busy`. Every `sendRequest` call and every HTMX request is counted from send to settle. `busy`
+    turns on once one has been outstanding for 400 ms and off when the last one settles, so an ordinary click shows
+    nothing. It is mirrored as `ti-busy` on `<html>`.
+  - An HTMX request is counted out on its XHR's own `loadend`, which fires once whether the request loaded, failed,
+    was aborted or timed out (measured in Chromium on HTMX 2.0.10 and 2.0.11). `htmx:afterRequest` is not reliable for
+    this. HTMX dispatches it on the element that made the request, and, when the answer has replaced that element, on
+    the nearest ancestor still in the document. When there is none, no listener on the document hears it, and the
+    shell would stay busy for good.
+  - While busy, every element shows the `progress` cursor: the application is working and still takes input. It is
+    set with `!important`, because the element under the pointer is nearly always the button just clicked, and
+    buttons set a cursor of their own.
+  - `fragments/components/component-busy-indicator.html`, a new component. It draws an hourglass that fades in and is
+    turned over while busy, and holds a `role="status"` region that says "Working…" to a screen reader. The region
+    is always rendered; only the line inside it comes and goes, because a live region announces text added to it.
+    Under `prefers-reduced-motion` the hourglass appears but does not turn.
+  - The framework's topbar carries the placeholder, and the `application-main` fragment declares the component after
+    the topbar, since placeholders are filled in that order. **An application with a topbar of its own places
+    `<ti-component-busy-indicator-placeholder>` where it wants the hourglass.** Without it the cursor still changes.
+  - `.ti-icon.hourglass`, the glyph the empty grade chip already draws, joins the icon set. `.ti-sr-only` is a general
+    visually-hidden utility.
+  - The label is `interface.busy-indicator.status`, in English and Bulgarian. An application that does not carry it
+    in its own catalogue gets the fragment's English.
+  <br/>
+  **Rejected.** HTMX's own `hx-indicator`. It covers only HTMX requests, so a save through `sendRequest` would show
+  nothing. It appears at once, so every click would flicker. And it needs an attribute on every trigger.
+* test: `ti-framework.busy-indicator.test.js` (19) drives the real script in the sandbox with a hand-moved clock and a
+  `fetch` that answers on cue. It covers:
+  - the delay, overlapping requests, failures, and a GET aborted when the same GET is sent again;
+  - an HTMX request ended by its XHR, and one whose `loadend` fires twice;
+  - the stale-delay case: a request after an answered one still gets the full delay;
+  - the component in the real `assembleHtmlView`, the status region, the label, and the stylesheet's rules.
+  
+  19 deliberate breakages of the change were each caught. The sandbox now provides the host's timers and a `classList`
+  on `<html>`, without which `sendRequest`, which now starts a timer, failed the three existing `labels-bundle` tests.
+
 ## Version 1.43.1
 
 * fix (ti-framework): **`tiToolbox.formatDate` writes dates in the page's language, not the browser's** (CA-333).

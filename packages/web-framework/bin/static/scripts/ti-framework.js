@@ -704,6 +704,36 @@ const configureComponentTopbar = () => {
 };
 
 /**
+ * Returns a configuration object for the busy indicator component "component-busy-indicator.html" (CA-345).
+ * <br/>
+ * The hourglass is drawn by the stylesheet, off `ti-busy` on `<html>`. What the component adds is the status line a
+ * screen reader announces. The line is written only while the shell is busy, because a live region announces text
+ * added to it, not text that was there all along.
+ *
+ * @method
+ * @returns {Object}
+ * @public
+ */
+const configureComponentBusyIndicator = () => {
+    /**
+     * @typedef {Object} TiBusyIndicator
+     */
+    return {
+
+        /**
+         * Whether the shell is waiting on a request it has been waiting on long enough to say so.
+         *
+         * @type {boolean}
+         * @public
+         */
+        get busy() {
+            return Alpine.store( "tiApplication" ).busy === true;
+        }
+
+    };
+};
+
+/**
  * Returns a configuration object for the notification component "component-notification-bar.html".
  *
  * @method
@@ -862,6 +892,24 @@ const configureApplication = () => {
     const STORAGE_KEY_THEME = "ti-theme";
     const DEFAULT_THEME = "daylight";
 
+    /**
+     * How long a request may be outstanding before the shell shows that it is waiting on it (CA-345). A request that
+     * answers inside it shows nothing, so neither the cursor nor the hourglass flickers on every click. A container
+     * scaled to zero takes a second or two to answer the first request after it wakes, which is the wait this is for.
+     *
+     * @constant
+     * @type {number}
+     * @private
+     */
+    const BUSY_DELAY_MS = 400;
+
+    /**
+     * Requests counted by `_beginRequest` and not yet settled, and the timer that turns the busy state on once the
+     * oldest of them has waited {@link BUSY_DELAY_MS}. Kept out of the store so that neither is reactive.
+     */
+    let pendingRequests = 0;
+    let busyTimer = null;
+
     const tiToolbox = Alpine.store( "tiToolbox" );
 
     /**
@@ -945,6 +993,7 @@ const configureApplication = () => {
         requestControllers: new Map(),
         collapsed: false,
         theme: DEFAULT_THEME,
+        busy: false,
 
         /**
          * Used to initialize the web application.
@@ -1074,6 +1123,7 @@ const configureApplication = () => {
                     options.body = JSON.stringify( data );
                 }
 
+                this._beginRequest();
                 fetch( url, options ).then( ( response ) => {
                     const contentType = ( response.headers.get( "content-type" ) || "" ).toLowerCase();
                     if ( contentType.includes( "application/json" ) ) {
@@ -1094,8 +1144,63 @@ const configureApplication = () => {
                     reject( error );
                 } ).finally( () => {
                     cleanup();
+                    this._endRequest();
                 } );
             } );
+        },
+
+        /**
+         * Counts a request the user is waiting on, from the moment it is sent (CA-345). `busy` turns on once a request
+         * has been outstanding for {@link BUSY_DELAY_MS}, and stays on until the last outstanding one settles. Pair
+         * every call with exactly one {@link _endRequest}: an unpaired begin leaves the shell busy for good.
+         *
+         * @method
+         * @private
+         */
+        _beginRequest() {
+            pendingRequests += 1;
+            if ( busyTimer === null && !this.busy ) {
+                busyTimer = setTimeout( () => {
+                    busyTimer = null;
+                    if ( pendingRequests > 0 ) {
+                        this._setBusy( true );
+                    }
+                }, BUSY_DELAY_MS );
+            }
+        },
+
+        /**
+         * Settles a request counted by {@link _beginRequest}. The last one to settle ends the busy state, and cancels
+         * a delay still running, so a request that answers in time never shows at all.
+         *
+         * @method
+         * @private
+         */
+        _endRequest() {
+            pendingRequests = Math.max( 0, pendingRequests - 1 );
+            if ( pendingRequests === 0 ) {
+                if ( busyTimer !== null ) {
+                    clearTimeout( busyTimer );
+                    busyTimer = null;
+                }
+                this._setBusy( false );
+            }
+        },
+
+        /**
+         * Sets the busy state, and mirrors it as `ti-busy` on `<html>`. The stylesheet keys the progress cursor and the
+         * hourglass off that class: the cursor has to change over every element, the button just clicked above all,
+         * and no binding inside a component reaches that far.
+         *
+         * @method
+         * @param {boolean} busy
+         * @private
+         */
+        _setBusy( busy ) {
+            if ( this.busy !== busy ) {
+                this.busy = busy;
+                document.documentElement.classList.toggle( "ti-busy", busy );
+            }
         },
 
         /**
@@ -1437,6 +1542,26 @@ document.addEventListener( "htmx:afterSwap", ( event ) => {
             tiApplication.setCurrentScreen( match[ 1 ] );
         }
     }
+} );
+
+/**
+ * Counts every HTMX request as one the user is waiting on, for the shell's busy state (CA-345). Screens are swapped in
+ * through HTMX, so this is the request behind most clicks; `sendRequest` counts the rest.
+ * <br/>
+ * The end is the XHR's own `loadend`, which fires exactly once per request whether it loaded, failed, was aborted or
+ * timed out (measured in Chromium on HTMX 2.0.10, the copy committed here, and on 2.0.11, the version the postinstall
+ * step refreshes it to). `htmx:afterRequest` is dispatched on the element that made the request: when the answer has
+ * replaced that element, HTMX dispatches it again on the nearest ancestor still in the document, and when none is left
+ * no listener on the document hears it, which would leave the shell busy for good.
+ */
+document.addEventListener( "htmx:beforeSend", ( event ) => {
+    const xhr = event.detail && event.detail.xhr;
+    const tiApplication = Alpine.store( "tiApplication" );
+    if ( !xhr || typeof xhr.addEventListener !== "function" || !tiApplication ) {
+        return;
+    }
+    tiApplication._beginRequest();
+    xhr.addEventListener( "loadend", () => tiApplication._endRequest(), { once: true } );
 } );
 
 document.addEventListener( "htmx:responseError", ( event ) => {
@@ -1823,6 +1948,7 @@ document.addEventListener( "alpine:init", () => {
     } ) );
     Alpine.data( "tiComponentSidebarNav", configureSidebarNav );
     Alpine.data( "tiComponentTopbar", configureComponentTopbar );
+    Alpine.data( "tiComponentBusyIndicator", configureComponentBusyIndicator );
     Alpine.data( "tiComponentSidebarFlyout", configureComponentSidebarFlyout );
     Alpine.data( "tiComponentNotificationBar", configureComponentNotificationBar );
     Alpine.data( "tiComponentTooltip", configureComponentTooltip );

@@ -190,7 +190,9 @@ class TiWebAppManager {
         this.#fragments[ 'application-main' ] = {
             title: "Application",
             path: "fragments/frame-application.html",
-            components: [ "component-topbar", "component-sidebar", "component-notification-bar", "component-sidebar-flyout" ]
+            // Placeholders are filled in this order, each in the page as it stands, so the busy indicator comes after
+            // the topbar that carries its placeholder (CA-345).
+            components: [ "component-topbar", "component-busy-indicator", "component-sidebar", "component-notification-bar", "component-sidebar-flyout" ]
         };
         this.#fragments[ 'login' ] = {
             title: "Login",

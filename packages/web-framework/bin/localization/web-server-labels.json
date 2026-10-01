@@ -52,6 +52,12 @@
         }
       }
     },
+    "busy-indicator": {
+      "status": {
+        "en": "Working…",
+        "bg": "Обработва се…"
+      }
+    },
     "topbar": {
       "profile": {
         "en": "My Profile",
