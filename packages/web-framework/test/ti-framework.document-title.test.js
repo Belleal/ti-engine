@@ -28,7 +28,7 @@ const assert = require( "node:assert/strict" );
 
 const { loadTiFramework } = require( "./helpers/ti-framework-sandbox.js" );
 
-const LABELS = { interface: { topbar: { dashboard: "Dashboard", profile: "Your profile" } } };
+const LABELS = { interface: { topbar: { dashboard: "Dashboard", profile: "Your profile", about: "About Competence@Work" } } };
 
 /**
  * A topbar on a page that declares the given application name (or none), started on the dashboard, with Alpine's
@@ -77,6 +77,12 @@ describe( "the topbar's document title — the screen, then the application's na
     it( "keeps the bare screen name on a page that declares no application name, or an empty one", () => {
         assert.equal( topbarOnPage().document.title, "Dashboard" );
         assert.equal( topbarOnPage( "   " ).document.title, "Dashboard" );
+    } );
+
+    it( "names the application once on a screen whose own title already names it", () => {
+        const page = topbarOnPage( "Competence@Work" );
+        page.navigate( { currentScreen: "about" } );
+        assert.equal( page.document.title, "About Competence@Work", "not \"About Competence@Work · Competence@Work\"" );
     } );
 
     it( "leaves the title alone on a screen with no name of its own", () => {

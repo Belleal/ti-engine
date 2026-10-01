@@ -27,9 +27,12 @@ This document will contain the list of changes made to the framework. The format
   application it belonged to.
   <br/>
   **What changed.** A page that declares `<meta name="application-name" content="…">` gets "Dashboard · Competence@Work".
-  The topbar reads the meta once, when it starts. A page without it keeps the bare screen name, as before.
-* test: `ti-framework.avatar-style.test.js` (3) and `ti-framework.document-title.test.js` (3) run the real script in the
-  sandbox. Against the 1.42.5 script, 5 of the 6 fail; the sixth pins the unchanged title on a page without the meta.
+  The topbar reads the meta once, when it starts. A screen whose own title already contains the name keeps it once:
+  "About Competence@Work", not "About Competence@Work · Competence@Work". A page without the meta keeps the bare screen
+  name, as before.
+* test: `ti-framework.avatar-style.test.js` (3) and `ti-framework.document-title.test.js` (4) run the real script in the
+  sandbox. Against the 1.42.5 script, 5 of the 7 fail. The other two pin behaviour that must not change: the bare title on
+  a page without the meta, and a title that already names the application.
 
 ## Version 1.42.5
 

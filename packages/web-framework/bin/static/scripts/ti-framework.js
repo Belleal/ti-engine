@@ -665,7 +665,8 @@ const configureComponentTopbar = () => {
                 const title = override || ( screen ? tiApplication.getLabel( `interface.topbar.${ screen }`, "" ) : "" );
                 this.screenTitle = title;
                 if ( title ) {
-                    document.title = applicationName ? `${ title } · ${ applicationName }` : title;
+                    // A screen whose own title already names the application ("About Competence@Work") keeps it once.
+                    document.title = ( applicationName && !title.includes( applicationName ) ) ? `${ title } · ${ applicationName }` : title;
                 }
             };
 
