@@ -51,6 +51,13 @@ const defaultSidebarFlyoutConfig = {
 };
 
 /**
+ * How many avatar tones a theme may define, as `--avatar-tone-1` up to this number. See `generateAvatarStyle`.
+ *
+ * @type {number}
+ */
+const AVATAR_TONE_COUNT = 7;
+
+/**
  * Returns a configuration object for the toolbox.
  *
  * @method
@@ -332,13 +339,21 @@ const configureToolbox = () => {
         },
 
         /**
-         * Deterministically maps a seed value (e.g. employeeID) to an HSL color string.
-         * The result is stable across sessions and consistent for the same seed.
+         * Used to give a person's avatar its background, the same for that person on every screen and in every session,
+         * and different from the people listed around them.
+         * <br/>
+         * A theme that defines `--avatar-tone-1` to `--avatar-tone-7` gets one of its own seven tones per person. One
+         * that defines none keeps the three-hue gradient every avatar had before, as the fallback of the same value.
+         * The gradient's saturated hues were set inline, so no theme could tone them down. That is why the tones are
+         * the theme's to define and the choice of tone is the framework's (1.43.0, CA-326).
+         * <br/>
+         * Seven, because a prime spreads this hash evenly. djb2 multiplies by 33, which is 1 mod 8, so a count of 8 would
+         * depend only on the sum of the characters and give every anagram one colour.
          *
          * @method
          * @param {string|number} id
          * @param {string} name
-         * @returns {Object} HSL color string
+         * @returns {Object} The `--avatar-bg` custom property for an `x-bind:style`.
          * @public
          */
         generateAvatarStyle( id, name ) {
@@ -350,11 +365,14 @@ const configureToolbox = () => {
                 }
                 return Math.abs( h );
             };
-            const h0 = djb2( seed + "A" ) % 360;
+            const first = djb2( seed + "A" );
+            const h0 = first % 360;
             const h1 = djb2( seed + "B" ) % 360;
             const h2 = djb2( seed + "C" ) % 360;
+            const gradient = `linear-gradient( 135deg, hsl( ${ h0 }, 70%, 48% ) 0%, hsl( ${ h1 }, 62%, 54% ) 50%, hsl( ${ h2 }, 65%, 44% ) 100% )`;
+            const tone = ( first % AVATAR_TONE_COUNT ) + 1;
             return {
-                "--avatar-bg": `linear-gradient( 135deg, hsl( ${ h0 }, 70%, 48% ) 0%, hsl( ${ h1 }, 62%, 54% ) 50%, hsl( ${ h2 }, 65%, 44% ) 100% )`
+                "--avatar-bg": `var( --avatar-tone-${ tone }, ${ gradient } )`
             };
         }
 
@@ -635,6 +653,11 @@ const configureComponentTopbar = () => {
 
         init() {
             const tiApplication = Alpine.store( "tiApplication" );
+            // The application's name, from its <meta name="application-name">, follows the screen's in the browser
+            // tab. Without it every tab read as a bare screen name ("Dashboard"), so a row of tabs never said which
+            // application they belonged to. An application that declares no name keeps the bare screen name (CA-326).
+            const applicationMeta = document.querySelector( "meta[name=\"application-name\"]" );
+            const applicationName = applicationMeta ? String( applicationMeta.getAttribute( "content" ) || "" ).trim() : "";
 
             const updateTitle = () => {
                 const screen = ( tiApplication && tiApplication.currentScreen ) || "";
@@ -642,7 +665,8 @@ const configureComponentTopbar = () => {
                 const title = override || ( screen ? tiApplication.getLabel( `interface.topbar.${ screen }`, "" ) : "" );
                 this.screenTitle = title;
                 if ( title ) {
-                    document.title = title;
+                    // A screen whose own title already names the application ("About Competence@Work") keeps it once.
+                    document.title = ( applicationName && !title.includes( applicationName ) ) ? `${ title } · ${ applicationName }` : title;
                 }
             };
 
