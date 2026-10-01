@@ -51,10 +51,40 @@ const createStorage = () => {
 };
 
 /**
- * Loads `ti-framework.js` and returns the Alpine registrations it produced.
+ * Minimal stand-in for an element's `classList`, enough for the classes the shell sets on `<html>`.
  *
  * @method
- * @returns {{stores: Object, components: Object, directives: Object, sandbox: Object}}
+ * @returns {Object}
+ * @private
+ */
+const createClassList = () => {
+    const classes = new Set();
+    return {
+        add: ( name ) => {
+            classes.add( name );
+        },
+        remove: ( name ) => {
+            classes.delete( name );
+        },
+        toggle: ( name, force ) => {
+            const on = ( force === undefined ) ? !classes.has( name ) : Boolean( force );
+            if ( on ) {
+                classes.add( name );
+            } else {
+                classes.delete( name );
+            }
+            return on;
+        },
+        contains: ( name ) => classes.has( name )
+    };
+};
+
+/**
+ * Loads `ti-framework.js` and returns the Alpine registrations it produced, and the listeners it put on the document
+ * (the HTMX hooks among them), by event type.
+ *
+ * @method
+ * @returns {{stores: Object, components: Object, directives: Object, sandbox: Object, documentListeners: Map<string, Function[]>}}
  * @public
  */
 const loadTiFramework = () => {
@@ -82,7 +112,7 @@ const loadTiFramework = () => {
     const documentStub = {
         cookie: "",
         title: "",
-        documentElement: { clientWidth: 1280, clientHeight: 800, dataset: {} },
+        documentElement: { clientWidth: 1280, clientHeight: 800, dataset: {}, classList: createClassList() },
         addEventListener: ( type, handler ) => {
             documentListeners.set( type, ( documentListeners.get( type ) || [] ).concat( handler ) );
         },
@@ -95,7 +125,10 @@ const loadTiFramework = () => {
         console: console,
         Alpine: Alpine,
         document: documentStub,
-        localStorage: createStorage()
+        localStorage: createStorage(),
+        // The host's timers; a test that needs to drive time replaces them on the returned sandbox.
+        setTimeout: setTimeout,
+        clearTimeout: clearTimeout
     };
     // The script reads globals both bare and off `window`, so the sandbox is its own `window`:
     sandbox.window = sandbox;
@@ -113,7 +146,7 @@ const loadTiFramework = () => {
 
     ( documentListeners.get( "alpine:init" ) || [] ).forEach( ( handler ) => handler() );
 
-    return { stores: stores, components: components, directives: directives, sandbox: sandbox };
+    return { stores: stores, components: components, directives: directives, sandbox: sandbox, documentListeners: documentListeners };
 };
 
 module.exports = { loadTiFramework: loadTiFramework, SCRIPT_PATH: SCRIPT_PATH };

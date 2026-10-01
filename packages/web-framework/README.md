@@ -144,6 +144,30 @@ Use the brand slot to name the application and say what it is for. Use the extra
 
 Every string on the screen goes through `x-text-label` under `interface.default.login.*`: `welcome`, `sign-in-prompt`, `username`, `username-placeholder`, `password`, `password-placeholder`, `sign-in`, `or-continue-with`, `sign-in-google`, `sign-in-azure`, `no-sign-in-method` and `error-sign-in-failed`. An application normally points `TI_LOCALIZATION_LABELS_PATH` at its own catalogue alone, so the framework's translations never reach it. It adds the keys it wants translated to its own catalogue, and a key it leaves out renders the English text written in the fragment.
 
+## The busy indicator
+
+While a request the user is waiting on has been outstanding for 400 ms, the shell says so: every element shows the
+`progress` cursor, and an hourglass in the topbar fades in and turns over until the last outstanding request settles.
+Both `sendRequest` calls and HTMX requests count, so a screen and the data it asks for read as one wait. A request that
+answers inside the delay shows nothing. The indicator exists for the slow first request to a server that has to wake
+first, such as a container scaled to zero.
+
+The state is `$store.tiApplication.busy`, mirrored as `ti-busy` on `<html>`, so a stylesheet can key anything else off
+it. The hourglass is a component:
+
+| Slot | Where | Framework default |
+|---|---|---|
+| `fragments/components/component-busy-indicator.html` | wherever its placeholder is; the framework's topbar carries one | the hourglass, and a `role="status"` region that says "Working…" to a screen reader |
+
+**An application that ships its own `component-topbar.html` places the placeholder itself**, as a
+`<ti-component-busy-indicator-placeholder></ti-component-busy-indicator-placeholder>` element where it wants the
+hourglass. Without one the cursor still changes, and nothing else shows. Never write that tag inside an HTML comment
+ahead of the real one: placeholders are found by a text search, and the first occurrence is the one replaced.
+
+The status line is `interface.busy-indicator.status`. As with the login screen, an application that does not carry the
+key in its own catalogue gets the English written in the fragment. Under `prefers-reduced-motion` the hourglass appears
+but does not turn.
+
 ## Static asset caching
 
 Everything under `/static` is served with a `Cache-Control` policy configured by the `staticCache` block:

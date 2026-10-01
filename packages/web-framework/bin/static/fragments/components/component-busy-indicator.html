@@ -1,0 +1,17 @@
+<!-- Busy indicator (CA-345): an hourglass, turning, while a request the user is waiting on has been outstanding past
+     the shell's delay. In practice that is the first click after a container scaled to zero, which takes a second or
+     two to answer while it wakes, and looked like a frozen page.
+
+     The stylesheet draws and turns the hourglass off `ti-busy` on the html element, the same class that sets the
+     progress cursor. The status region is always rendered and never hidden: a screen reader announces the line written
+     into it when the shell turns busy, and a region outside the accessibility tree announces nothing.
+
+     The framework's topbar carries the placeholder. An application with a topbar of its own places a
+     ti-component-busy-indicator-placeholder element where it wants the hourglass; a copy of this file at the same path
+     in its static directory replaces this one. -->
+<span class="ti-busy-indicator" role="status" x-data="tiComponentBusyIndicator">
+    <span class="ti-icon md hourglass ti-busy-indicator-glyph" aria-hidden="true"></span>
+    <template x-if="busy">
+        <span class="ti-sr-only" x-text-label="interface.busy-indicator.status">Working…</span>
+    </template>
+</span>
