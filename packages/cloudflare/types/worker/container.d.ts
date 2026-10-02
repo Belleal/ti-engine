@@ -8,6 +8,8 @@ declare const _exports: {
     allowedHosts: typeof allowedHosts;
     sleepAfter: typeof sleepAfter;
     createBroker: typeof createBroker;
+    containerSetup: typeof containerSetup;
+    outboundByHost: typeof outboundByHost;
 };
 export = _exports;
 /**
@@ -124,3 +126,124 @@ declare function createBroker(options: {
     url: string;
     contentType?: string;
 }): Broker;
+export type EnvironmentOptions = {
+    /**
+     * The application's own setting prefixes, besides the framework's `TI`.
+     */
+    prefixes?: string[];
+    /**
+     * The bindings the container always receives, with their defaults.
+     */
+    defaults?: Record<string, string>;
+    /**
+     * The application's own fixed values.
+     */
+    settings?: Record<string, string>;
+};
+export type ContainerFields = {
+    /**
+     * {@link CONTAINER_PORT}.
+     */
+    defaultPort: number;
+    /**
+     * Always `false`: everything not listed is denied.
+     */
+    enableInternet: boolean;
+    /**
+     * Whether HTTPS meets the allowlist, intercepted and re-signed.
+     */
+    interceptHttps: boolean;
+    /**
+     * The hosts the container may reach.
+     */
+    allowedHosts: string[];
+    /**
+     * The container's environment.
+     */
+    envVars: Record<string, string>;
+    /**
+     * How long the container stays awake without a request.
+     */
+    sleepAfter: string;
+};
+/**
+ * The fields of a container class, from one description: what the container runs as, what it may reach, what it is
+ * told, and how long it stays awake. The description is checked here, when the Worker's module loads, so a malformed
+ * one fails the deploy rather than the container's start. The function returned builds the fields from the Worker's
+ * bindings as each container starts:
+ *
+ * ```js
+ * const setup = containerSetup( { egress: "brokered", environment: { prefixes: [ "APP" ] }, sleepAfter: "2m" } );
+ *
+ * export class ApplicationContainer extends Container {
+ *     constructor( ctx, env, options ) {
+ *         super( ctx, env, options );
+ *         Object.assign( this, setup( env ) );
+ *     }
+ * }
+ * ```
+ *
+ * The way out is one choice, because it is three settings that must agree. Both start from `enableInternet = false`,
+ * which denies everything not listed:
+ * - `brokered`, unless stated: the allowlist is the state address alone, and HTTPS is not intercepted. The container
+ *   reaches nothing a handler of the Worker's does not answer ({@link createBroker}).
+ * - `intercepted`: HTTPS is intercepted, and the allowlist is the state address and the identity providers of the
+ *   sign-in methods the environment enables ({@link allowedHosts}). The environment carries the CA Node must trust
+ *   ({@link INTERCEPTED_HTTPS_SETTINGS}), under the application's own settings.
+ * <br/>
+ * The class stays the application's own, under the name its `wrangler.jsonc` gives it, because
+ * `@cloudflare/containers` keeps a class's outbound handlers under that name ({@link outboundByHost}).
+ *
+ * @method
+ * @param {Object} options
+ * @param {"brokered"|"intercepted"} [options.egress] The way out: `brokered` unless stated.
+ * @param {EnvironmentOptions} [options.environment] What {@link containerEnvironment} builds the environment from.
+ * @param {string|{setting: string, fallback: string}} options.sleepAfter How long the container stays awake without a
+ * request: a duration such as `2m`, or the binding it is read from, with the duration used when that binding's value
+ * is one the library could not use. It decides the bill more than traffic does, so it is stated, never defaulted.
+ * @returns {(env: Object) => ContainerFields} Builds new fields each time.
+ * @throws {TypeError} If an option is malformed.
+ * @public
+ */
+declare function containerSetup(options: {
+    egress?: "brokered" | "intercepted";
+    environment?: EnvironmentOptions;
+    sleepAfter: string | {
+        setting: string;
+        fallback: string;
+    };
+}): (env: Object) => ContainerFields;
+/**
+ * The Worker's answers at the state address, for a container class's `outboundByHost`: each broker's call on its own
+ * path, and the state service for everything else. The state service is built over the database binding the first
+ * time it is needed, and again only for another binding.
+ *
+ * ```js
+ * ApplicationContainer.outboundByHost = outboundByHost( {
+ *     state: ( database ) => createD1StateService( database ),
+ *     brokers: [ siteverify ]
+ * } );
+ * ```
+ *
+ * Set it on the class the Worker exports. `@cloudflare/containers` keeps these handlers under the name of the class
+ * they are set on, and looks them up by the name of the class a container runs as. Set on a parent class, they would
+ * never be found: the container would never reach its state, and the application would exit at boot.
+ * <br/>
+ * The state service is passed in, not required here. It is `@ti-engine/core`'s, and the Worker should run the same
+ * release of it as the container's client, which is the application's to choose.
+ *
+ * @method
+ * @param {Object} options
+ * @param {(database: *) => (request: Request) => Promise<Response>} options.state Builds the state service over the
+ * database binding, such as `( database ) => createD1StateService( database )`.
+ * @param {string} [options.database] The database binding's name: `DB` unless stated.
+ * @param {Broker[]} [options.brokers] The calls the Worker makes for the container, each on a path of its own.
+ * @returns {Object<string, (request: Request, env: Object) => Promise<Response>>} Keyed by {@link STATE_ADDRESS} alone.
+ * @throws {TypeError} If an option is malformed.
+ * @public
+ */
+declare function outboundByHost(options: {
+    state: (database: any) => (request: Request) => Promise<Response>;
+    database?: string;
+    brokers?: Broker[];
+}): Record<string, (request: Request, env: Object) => Promise<Response>>;

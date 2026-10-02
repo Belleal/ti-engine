@@ -10,34 +10,50 @@ so that every application decides it the same way:
   and nothing a client claimed.
 - **The container's environment and egress.** What the container starts with, and what it may reach: the settings
   every ti-engine application on Cloudflare runs with, the Worker's bindings it receives, and the calls it makes out.
+- **The Worker, assembled.** The order every request is decided in, the answers at the state address, and the
+  scheduled sweep. An application writes only what is its own: an edge cache, timing, headers.
 
-> **Status: work in progress (0.x).** Steps 1 and 2 of four are done. The design record, including what comes next, is
+> **Status: work in progress (0.x).** Steps 1 to 3 of four are done. The design record, including what comes next, is
 > [`docs/superpowers/specs/2026-10-02-cloudflare-edge-package-design.md`](https://github.com/Belleal/ti-engine/blob/master/docs/superpowers/specs/2026-10-02-cloudflare-edge-package-design.md).
 
 ## Usage
 
+A whole Worker, in front of a container whose state lives in D1:
+
 ```js
-import { getContainer } from "@cloudflare/containers";
-import { createProbeFilter, probeResponse } from "@ti-engine/cloudflare/probes";
-import { forContainer } from "@ti-engine/cloudflare/forwarding";
+import { Container, getContainer } from "@cloudflare/containers";
+import { createD1StateService, sweepExpired } from "@ti-engine/core/state-service";
+import { containerSetup, outboundByHost } from "@ti-engine/cloudflare/container";
+import { createWorker } from "@ti-engine/cloudflare/worker";
 
-// Built once, when the module loads, so a malformed option fails the deploy rather than a request.
-const isProbe = createProbeFilter( { except: { wordpress: [ "/wp-content/uploads/" ] } } );
+// The runtime finds this among the Worker's exports by name, and routes the container's outbound traffic through it.
+// Without it the container never starts.
+export { ContainerProxy } from "@cloudflare/containers";
 
-export default {
-    async fetch( request, env ) {
-        const url = new URL( request.url );
-        // First, before anything else: a probe passed on would wake the container to say "not found".
-        if ( isProbe( url.pathname, url.search ) === true ) {
-            return probeResponse();
-        }
-        return getContainer( env.CONTAINER ).fetch( forContainer( request ) );
+// Built once, when the module loads, so a malformed option fails the deploy rather than the container's start.
+const setup = containerSetup( { egress: "brokered", environment: { prefixes: [ "APP" ] }, sleepAfter: "2m" } );
+
+// The class keeps the name `wrangler.jsonc` gives it.
+export class ApplicationContainer extends Container {
+    constructor( ctx, env, options ) {
+        super( ctx, env, options );
+        Object.assign( this, setup( env ) );
     }
-};
+}
+
+ApplicationContainer.outboundByHost = outboundByHost( { state: ( database ) => createD1StateService( database ) } );
+
+export default createWorker( { getContainer, sweep: sweepExpired } );
 ```
 
-Every module is CommonJS and requires nothing. Each uses only globals that Workers and Node both provide. wrangler's
-bundler and Node's ESM loader both import them by name, so a Worker bundles the one module it uses and nothing else.
+Every module is CommonJS, and each uses only globals that Workers and Node both provide. `probes`, `forwarding` and
+`container` require nothing; `worker` requires those three and nothing outside this package. wrangler's bundler and
+Node's ESM loader both import them by name, so a Worker bundles only what it uses.
+
+`@cloudflare/containers` and `@ti-engine/core` stay the application's, and it passes in what the Worker needs from
+them: `getContainer`, the state service and the sweep. The library's ES module entry resolves only through a bundler,
+so a module that imported it could not be loaded by Node, in tests included. The state service should be the same
+release of core as the container's client, which is the application's to choose.
 
 ## Scanner probes
 
@@ -99,32 +115,29 @@ given is not modified, so a Worker can still use it as a cache key.
 `@ti-engine/cloudflare/container` is for the container class the Worker defines. It covers what the container starts
 with and what it may reach.
 
+`containerSetup( options )` takes one description of the container, checks it, and returns the function that builds
+the class's fields from the Worker's bindings as each container starts: `defaultPort`, `enableInternet`,
+`interceptHttps`, `allowedHosts`, `envVars` and `sleepAfter`.
+
 ```js
-import { Container } from "@cloudflare/containers";
-import {
-    STATE_ADDRESS, CONTAINER_PORT, containerEnvironment, allowedHosts, INTERCEPTED_HTTPS_SETTINGS, sleepAfter
-} from "@ti-engine/cloudflare/container";
-
-export class ApplicationContainer extends Container {
-
-    defaultPort = CONTAINER_PORT;
-    enableInternet = false;
-    interceptHttps = true;
-
-    constructor( ctx, env, options ) {
-        super( ctx, env, options );
-        // Every TI_* setting on the Worker, every APP_* setting, and a sign-in method when none is set.
-        this.envVars = containerEnvironment( env, {
-            prefixes: [ "APP" ],
-            defaults: { TI_WEB_AUTH_METHODS: "openid-azure" },
-            settings: INTERCEPTED_HTTPS_SETTINGS
-        } );
-        this.allowedHosts = allowedHosts( this.envVars );
-        this.sleepAfter = sleepAfter( env.APP_CONTAINER_SLEEP_AFTER, "10m" );
-    }
-
-}
+// A container that signs people in itself, with OpenID: every TI_* and APP_* setting on the Worker, a sign-in method
+// when none is set, and a sleep timer read from a setting, ten minutes when it is not one the library can use.
+const setup = containerSetup( {
+    egress: "intercepted",
+    environment: { prefixes: [ "APP" ], defaults: { TI_WEB_AUTH_METHODS: "openid-azure" } },
+    sleepAfter: { setting: "APP_CONTAINER_SLEEP_AFTER", fallback: "10m" }
+} );
 ```
+
+- `egress` is the way out, below: `brokered` unless stated, or `intercepted`. It is one choice because it is three
+  settings that must agree: `interceptHttps`, the allowlist, and the CA setting in the environment.
+- `environment` is what `containerEnvironment` builds the environment from: the application's `prefixes`, `defaults`
+  and `settings`.
+- `sleepAfter` is a duration such as `2m`, or `{ setting, fallback }` to read it from a binding. It decides the bill
+  more than traffic does, so it is stated, never defaulted.
+
+The pieces it is built from are exported too, for a class that needs them on their own: `containerEnvironment`,
+`allowedHosts`, `sleepAfter` and `INTERCEPTED_HTTPS_SETTINGS`.
 
 ### What it starts with
 
@@ -163,16 +176,18 @@ accepts, would cold-start every request.
 
 Both ways out start from `enableInternet = false`, which denies everything not listed:
 
-- **Intercepted HTTPS**, for a container that makes HTTPS calls itself, such as an OpenID sign-in.
-  - The class sets `interceptHttps = true`.
-  - The environment carries `INTERCEPTED_HTTPS_SETTINGS`, so Node trusts the CA Cloudflare re-signs that traffic
-    with.
-  - `allowedHosts( environment )` lists the state address and the server-side hosts of each enabled sign-in method
-    (`IDENTITY_PROVIDER_HOSTS`), plus the host of a discovery URL pointed elsewhere when it is a plain host name.
-    `@cloudflare/containers` reads `*` in an allowed host as a glob, so a discovery URL at `*.example.com` adds
-    nothing, rather than every subdomain.
-- **Brokered by the Worker**, for a container that should reach nothing but the state address.
-  `createBroker( { path, url, contentType } )` is one call the Worker makes on the container's behalf:
+- **Intercepted HTTPS** (`egress: "intercepted"`), for a container that makes HTTPS calls itself, such as an OpenID
+  sign-in. `containerSetup` sets three things together:
+  - `interceptHttps = true`;
+  - `INTERCEPTED_HTTPS_SETTINGS` in the environment, under the application's own settings, so Node trusts the CA
+    Cloudflare re-signs that traffic with;
+  - the allowlist from `allowedHosts( environment )`: the state address and the server-side hosts of each enabled
+    sign-in method (`IDENTITY_PROVIDER_HOSTS`), plus the host of a discovery URL pointed elsewhere when it is a plain
+    host name. `@cloudflare/containers` reads `*` in an allowed host as a glob, so a discovery URL at
+    `*.example.com` adds nothing, rather than every subdomain.
+- **Brokered by the Worker** (`egress: "brokered"`, unless stated), for a container that should reach nothing but the
+  state address. Its allowlist is that address alone. `createBroker( { path, url, contentType } )` is one call the
+  Worker makes on the container's behalf:
   - the container sends it over plain HTTP to `broker.address`, at the state address;
   - the Worker's handler for that address checks `broker.matches( request )` and returns `broker.forward( request )`.
 
@@ -187,14 +202,69 @@ const siteverify = createBroker( {
     contentType: "application/x-www-form-urlencoded"
 } );
 
-ApplicationContainer.outboundByHost = {
-    [ STATE_ADDRESS ]: ( request, env ) => siteverify.matches( request )
-        ? siteverify.forward( request )
-        : createD1StateService( env.DB )( request )
-};
+ApplicationContainer.outboundByHost = outboundByHost( {
+    brokers: [ siteverify ],
+    state: ( database ) => createD1StateService( database )
+} );
 ```
 
 A broker's path cannot be under `/v1/`, where the state protocol is, so the two can share the address.
+
+### The answers at the state address
+
+`outboundByHost( { state, database, brokers } )` is the container class's `outboundByHost`: each broker's call on its
+own path, and the state service for everything else.
+
+- `state( database )` builds the state service over the database binding, such as
+  `( database ) => createD1StateService( database )`. It is built the first time it is needed, and again only for
+  another binding.
+- `database` is the binding's name: `DB` unless stated.
+- `brokers` are the calls the Worker makes for the container, no two on the same path.
+
+Set it on the class the Worker exports, under the name `wrangler.jsonc` gives it. `@cloudflare/containers` keeps a
+class's outbound handlers under the name of the class they are set on, and looks them up by the name of the class a
+container runs as. Set on a parent class, they would never be found: the container would never reach its state.
+
+## The Worker
+
+`@ti-engine/cloudflare/worker` assembles the Worker's handlers. `createWorker( options )` returns its `fetch` and,
+with a `sweep`, its `scheduled`, for the module's default export. Every request is decided in this order:
+
+1. A scanner's probe is answered `404` there and then, for any method. Neither the application's hook nor the
+   container sees it, so it never wakes the container or holds it awake.
+2. The application's `edge` hook, when it has one, gets the request as the Worker received it, `origin`, and a
+   context of `env`, `ctx` and the parsed `url`. Calling `origin()` sends the request to the container. The hook may
+   answer without calling it, as an edge cache does on a hit, or call it once and work on the answer, as timing does.
+3. The container gets the request as `forContainer` gives it: told the visitor's address and scheme as Cloudflare saw
+   them, and nothing a client claimed.
+
+Every response then passes through the application's `finish`, a probe's answer included: the place for headers that
+belong on every response. A WebSocket upgrade passes through untouched, since it cannot be rebuilt.
+
+```js
+export default createWorker( {
+    getContainer,
+    probes: { except: { wordpress: [ "/wp-content/uploads/" ] } },
+    edge: ( request, origin, { ctx } ) => cachedAtTheEdge( request, origin, caches.default, ctx ),
+    finish: ( response, { url } ) => withOwnHeaders( response, url ),
+    sweep: sweepExpired
+} );
+```
+
+| Option | What it is |
+| --- | --- |
+| `getContainer` | `@cloudflare/containers`' `getContainer`. Required |
+| `binding` | The container's Durable Object binding: `CONTAINER` unless stated |
+| `probes` | What `createProbeFilter` takes: the application's `except` and `disable` |
+| `edge` | `( request, origin, context )`, the application's step before the container |
+| `finish` | `( response, context )`, applied to every response |
+| `sweep` | `( database )`, run on the Worker's schedule, such as core's `sweepExpired` |
+| `database` | The binding the sweep is given: `DB` unless stated |
+
+An unknown option, or one that is not what it should be, throws a `TypeError` when the module loads.
+
+The Worker module must still export `ContainerProxy` itself, as the usage above does. The runtime looks for it among
+the module's own exports, so no package can export it on the module's behalf.
 
 This package knows nothing of the applications that use it. No application's prefix, path, setting or host is in it:
 each application states its own through these options.

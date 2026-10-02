@@ -4,10 +4,10 @@
 | --- | --- |
 | **Date** | 2026-10-02 |
 | **Packages** | `packages/cloudflare` (new) |
-| **Status** | Steps 1 and 2 implemented in cloudflare 0.1.0 and 0.2.0 (see §8). Steps 3–4 proposed, each waiting on its own go-ahead |
-| **Version targets** | cloudflare `0.1.0` (first release), `0.2.0` (step 2) |
+| **Status** | Steps 1 to 3 implemented in cloudflare 0.1.0, 0.2.0 and 0.3.0 (see §8). Step 4 proposed, waiting on its own go-ahead |
+| **Version targets** | cloudflare `0.1.0` (first release), `0.2.0` (step 2), `0.3.0` (step 3) |
 | **Author** | Boris Kostadinov (with Claude) |
-| **Tracking** | YouTrack [`CA-359`](https://belleal.youtrack.cloud/issue/CA-359), step 1, and [`CA-362`](https://belleal.youtrack.cloud/issue/CA-362), step 2 (under `CA-11`) |
+| **Tracking** | YouTrack [`CA-359`](https://belleal.youtrack.cloud/issue/CA-359), step 1, [`CA-362`](https://belleal.youtrack.cloud/issue/CA-362), step 2, and [`CA-366`](https://belleal.youtrack.cloud/issue/CA-366), step 3 (under `CA-11`) |
 
 ---
 
@@ -126,6 +126,33 @@ Only some of each Worker is truly per application:
     application's prefix where the framework's belongs and tied the two the wrong way. So the framework's `TI_*` became
     the default, and `prefixes` became the application's own. The step-1 modules' comments and tests were made neutral
     in the same release.
+15. (Step 3) **The container class stays the application's own.** `@cloudflare/containers` keeps a class's outbound
+    handlers in a map keyed by the class's name (`static set outboundByHost`, `this.name`). Its proxy looks them up by
+    the name of the class a container runs as (`ctx.props.className`, from `this.constructor.name`). So handlers set on
+    a class the package built would never be found for the application's subclass: the container would never reach its
+    state, and the application would exit at boot, first in production. Registering from the constructor would lean on
+    the proxy running in the same isolate as the Durable Object, which nothing promises; registering when the module
+    loads, on the class the module exports, does not. So the package gives the class its fields (`containerSetup`) and
+    its handlers (`outboundByHost`), and the class itself is the application's, named as its `wrangler.jsonc` names it.
+16. (Step 3) **`@cloudflare/containers` and core are passed in, not required.** §3 planned the library as a peer
+    dependency here. That would make `worker.js` import it, and the library's ES module entry uses extensionless
+    specifiers that only a bundler resolves. Such a module could not be loaded by Node, neither by this package's tests
+    nor by an application's. The Worker needs one function from the library, `getContainer`, and the application passes
+    it in, with core's state service and sweep. Every module still loads in Node, and the applications' versions of
+    both stay theirs: the state service should be the same core release as the container's client.
+17. (Step 3) **One order, two hooks.** Every request goes probe, then the application's `edge` hook, then the container.
+    `edge` gets the request as received, still a cache key, and `origin`, which sends it to the container with the
+    forwarding cleaned. It may answer without the container, as the site's cache does on a hit, or wrap the answer, as
+    competence's timing does. `finish` is applied to every response, a probe's answer included: the site's own headers
+    go on every response, whatever produced it. A WebSocket upgrade is returned untouched, because it cannot be rebuilt.
+18. (Step 3) **The way out is one choice.** `containerSetup`'s `egress` is `brokered` or `intercepted`, because the mode
+    is three settings that must agree: `interceptHttps`, the allowlist, and the CA setting. Getting one of them wrong is
+    silent until deployed: an intercepted class without the CA fails every sign-in on its certificate. `brokered`, the
+    way out that reaches least, applies unless another is stated. The sleep timer is the opposite: it decides the bill
+    more than traffic does, so it is stated, never defaulted.
+19. (Step 3) **Options are checked when the module loads.** `containerSetup`, `outboundByHost` and `createWorker` are
+    called at the top of the Worker's module, so a malformed option fails the deploy, as the probe filter's and a
+    broker's already do, rather than the container's start or a request.
 
 ## 3. The steps
 
@@ -142,9 +169,13 @@ Each step is a minor release here and then an adoption change in each applicatio
 
    They come from competence's `containerEnvironment`, `allowedHosts` and `containerSleepAfter`, and from the site's
    `siteverify` broker, generalised.
-3. **Worker assembly.** One function builds the Worker's `fetch` from the pieces above.
-   - The application supplies its hooks: the site's edge cache, competence's timing.
-   - `@cloudflare/containers` becomes a peer dependency here, not before.
+3. **Worker assembly.** Done in 0.3.0 (§8):
+   - `createWorker`, which builds the Worker's `fetch` and `scheduled` from the pieces above, with the application's
+     hooks: the site's edge cache and headers, competence's timing;
+   - `containerSetup` and `outboundByHost`, for the class that stays the application's (decision 15).
+
+   `@cloudflare/containers` did not become a peer dependency after all: the application passes in `getContainer`
+   (decision 16).
 4. **The template.** What a new application copies: `wrangler.jsonc`, the Dockerfile, the D1 migration scripts, and
    a guard test that holds its URLs clear of its filter.
 
@@ -194,6 +225,39 @@ What each application changes:
   - It keeps its exports, the partition fingerprint and the Server-Timing helpers, so `worker.mjs` and its tests do
     not change.
 
+**Step 3.** Neither application changes behaviour, measured before adoption. Each application's Worker module was
+bundled as wrangler bundles it, with a stand-in SDK, before and after an adoption written against this release:
+
+- **The site**, over:
+  - 15,555 sets of bindings: identical class fields;
+  - its outbound handler: identical answers from the state service and `siteverify`, on identical databases;
+  - 13,272 requests: identical answers, container calls and edge-cache lookups. These cover every probe and served
+    path of its guard test, and the private paths, in three methods, with and without a cookie, on both hostnames,
+    against seven kinds of container answer, each sent twice to reach the cache;
+  - the scheduled sweep: identical.
+
+  What the edge cache stores differs in one way: a stored response no longer carries the site's own headers, because
+  `finish` now puts them on every response on its way out, a hit included. What it serves is identical.
+- **competence**, over:
+  - 3,600 sets of bindings: identical class fields, with staging's and production's committed vars among them;
+  - its outbound handler: identical answers from the state service;
+  - 722 requests: identical answers and container calls, with timing on and off, with and without a colo, against
+    three kinds of container answer, and the Durable Object's own timing;
+  - the scheduled sweep: identical.
+
+What each application changes:
+
+- **The site.**
+  - `router.js` keeps its edge cache as `cachedAtTheEdge` and builds the Worker with `createWorker`: its probe
+    exception, the cache as `edge`, and `withSiteHeaders` as `finish`.
+  - `SiteContainer` takes its fields from `containerSetup`: `brokered`, its five defaults and its settings, `2m`.
+  - Its `outboundByHost` is `outboundByHost( { brokers: [ siteverify ], state } )`.
+- **competence.**
+  - `worker.mjs` builds the Worker with `createWorker`, its timing as `edge`.
+  - `CompetenceContainer` takes its fields from `containerSetup`: `intercepted`, its prefix, default and settings, and
+    its sleep timer from `COMPETENCE_CONTAINER_SLEEP_AFTER`. It keeps its own `fetch`, for the Durable Object's timing.
+  - Its `outboundByHost` is `outboundByHost( { state } )`, the state service built with its partitions.
+
 ## 5. Rejected
 
 - **A pattern each application copies.** That is the arrangement this replaces, and it drifted within a day.
@@ -204,6 +268,13 @@ What each application changes:
   untested, set per zone and absent on `workers.dev`, and no guard test could reach them. The site's `CLAUDE.md`
   keeps its cache decision out of a dashboard Cache Rule for the same reason (its rule 9): such a rule "lives outside
   the repository, changes without a commit".
+- (Step 3) **A container class built by the package.** It would have saved each application five lines, and
+  `@cloudflare/containers` would never have found its outbound handlers (decision 15).
+- (Step 3) **The library as a peer dependency, imported by the package.** It would have made `worker.js` loadable only
+  through a bundler (decision 16).
+- (Step 3) **The edge cache in the package.** What may be stored at the edge is the application's own decision, and
+  the site's rule 9 keeps it in the site's repository, reviewed and tested there. The package gives it its place in the
+  order, `edge`, and nothing more.
 - **Matching a parameter's value, or its name in any case.** `?author=` enumerates users because WordPress, in PHP,
   reads exactly that name. A value is the application's data, and `?q=author` is a search.
 
@@ -226,7 +297,7 @@ finishes the job.
 
 ## 7. Not done
 
-- **Steps 3–4**, as §3 describes. Neither is started.
+- **Step 4**, as §3 describes. Not started.
 - **Counting probes.** Workers logs already record each 404 with its path, and that has been enough to read every
   sweep so far.
 - **Rate limiting.** A probe already costs the container nothing. Rate limits are a zone feature, and nothing here
@@ -303,3 +374,38 @@ finishes the job.
   - workerd's URL parser gives the same hosts as Node's.
 - `check:types` gained consumer checks for the container module: the environment is `Record<string, string>`, a
   broker is callable, and a setting that is not a string is a type error.
+
+**cloudflare 0.3.0 — 2026-10-02 (CA-366).**
+
+- `worker/worker.js`, exported as `@ti-engine/cloudflare/worker`: `createWorker( { getContainer, binding, probes, edge,
+  finish, sweep, database } )`. It requires `probes.js` and `forwarding.js`, and nothing outside the package.
+- `worker/container.js` gained `containerSetup( { egress, environment, sleepAfter } )` and
+  `outboundByHost( { state, database, brokers } )`.
+- Tests: 53 new, 143 in all, in 17 suites across 4 files. They cover:
+  - the order: a probe never reaches the hook or the container, and the hook sits before the container;
+  - the forwarding the container gets;
+  - `finish` on every response, a probe's included, and never on an upgrade;
+  - the binding and database names;
+  - both ways out and the CA's place under the application's settings;
+  - the sleep timer, fixed and read from a binding;
+  - brokers before the state service, built once per binding;
+  - every refusal.
+- Forty-three plausible defects were each made by hand, and the suite caught every one. Among them:
+  - a probe passed to the hook;
+  - the forwarding not cleaned;
+  - the hook skipped;
+  - `finish` skipped for a probe, or applied to an upgrade;
+  - the sweep awaited rather than waited on;
+  - the CA over the application's settings, left out when intercepted, or added when brokered;
+  - the brokered allowlist taken from the environment;
+  - the state service rebuilt for every request;
+  - a broker answered after the state service;
+  - each validation removed in turn.
+- In workerd (miniflare 5 from wrangler 4.144.0), the module bundled as wrangler bundles it:
+  - a probe was answered `404` and finished, for `GET` and `POST`;
+  - an exempt path reached the container, its forged forwarding headers replaced;
+  - `containerSetup` and `outboundByHost` gave the same fields and answers as in Node.
+- `check:types` gained consumer checks for both modules: the fields, the answers at the state address and the Worker
+  are typed. An egress mode there is not, a missing sleep timer, and a hook that does not answer with a response are
+  type errors.
+- Each application's adoption was measured before release (§4, step 3).
