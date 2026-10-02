@@ -4,10 +4,10 @@
 | --- | --- |
 | **Date** | 2026-10-02 |
 | **Packages** | `packages/cloudflare` (new) |
-| **Status** | Step 1 implemented in cloudflare 0.1.0 (see §8). Steps 2–4 proposed, each waiting on its own go-ahead |
-| **Version targets** | cloudflare `0.1.0` (first release) |
+| **Status** | Steps 1 and 2 implemented in cloudflare 0.1.0 and 0.2.0 (see §8). Steps 3–4 proposed, each waiting on its own go-ahead |
+| **Version targets** | cloudflare `0.1.0` (first release), `0.2.0` (step 2) |
 | **Author** | Boris Kostadinov (with Claude) |
-| **Tracking** | YouTrack [`CA-359`](https://belleal.youtrack.cloud/issue/CA-359) (under `CA-11`) |
+| **Tracking** | YouTrack [`CA-359`](https://belleal.youtrack.cloud/issue/CA-359), step 1, and [`CA-362`](https://belleal.youtrack.cloud/issue/CA-362), step 2 (under `CA-11`) |
 
 ---
 
@@ -80,26 +80,63 @@ Only some of each Worker is truly per application:
    test pins the list, so a change is made on purpose. Each application's own guard test then catches a swallowed URL
    when its range is bumped.
 
+Step 2 added these:
+
+9. **Each application keeps its way out.** The package offers both ways the two applications reach beyond the state
+   address, and changes neither application's.
+   - **Intercepted HTTPS** is competence's: `interceptHttps`, an allowlist from the enabled sign-in methods, and the
+     CA Node must trust. It is how competence's staging and production are set up to sign people in.
+   - **Brokered by the Worker** is the site's, for `siteverify`.
+
+   The site's §7 records that a container without the internet resolves no public hostname, which is why it brokers.
+   competence's design record still calls the intercepted mode unproven; its live sign-ins are the test. Which mode an
+   application uses is the container class's choice, and step 3's to make simpler.
+10. **One environment builder, in four layers.** The pattern pass-through, the named defaults, the platform, then the
+    application's settings. That covers both applications as they are:
+    - competence passes every `TI_*`/`COMPETENCE_*` binding;
+    - the site lists five, each always present, with an empty or `false` default.
+
+    No variable overrides the platform. An application's own settings, which are code and reviewed, override
+    everything.
+11. **A default replaces a binding that is absent, blank or not a string.** That is competence's rule for
+    `TI_WEB_AUTH_METHODS`. The site's `env.X || ""` differs only for a binding that is whitespace or not a string, and
+    the site has neither: its one committed variable and its secrets are strings.
+12. **The sleep timer passes exactly what the library parses above zero.** A test holds it against
+    `@cloudflare/containers`' own `parseTimeExpression`. competence's rule also refused a leading zero (`007m`), which
+    the library accepts; no configuration uses one. The library is a dev dependency for that test and nothing else.
+    It becomes a peer dependency in step 3, when the package builds the class.
+13. **A broker is one operation, never a proxy.**
+    - It answers one path, takes POST only and forwards to one HTTPS URL.
+    - Of the container's headers, it passes on only the content type, or a fixed one: the site's `siteverify` is sent
+      as `application/x-www-form-urlencoded`, exactly as before.
+    - The body goes on unread.
+    - An unreachable URL is a `502`.
+    - A path under `/v1/` is refused, so a broker can never shadow the state protocol at the address they share.
+
 ## 3. The steps
 
 Each step is a minor release here and then an adoption change in each application. Each waits on its own go-ahead.
 
 1. **Probes and forwarding.** `@ti-engine/cloudflare/probes` and `@ti-engine/cloudflare/forwarding`. Done in 0.1.0
    (§8).
-2. **Container environment and egress.** These come from competence's `containerEnvironment`, `allowedHosts` and
-   `containerSleepAfter`, and the site's `siteverify` broker, generalised.
-   - An application names its variables and its brokered calls.
-   - The package keeps the rules that make them safe: no secret reaches a render context; the allowlist is
-     default-deny; a brokered call answers only `POST`.
+2. **Container environment and egress.** `@ti-engine/cloudflare/container`. Done in 0.2.0 (§8):
+   - `PLATFORM_SETTINGS`, `STATE_ADDRESS` and `CONTAINER_PORT`;
+   - `containerEnvironment`;
+   - `allowedHosts`, `IDENTITY_PROVIDER_HOSTS` and `INTERCEPTED_HTTPS_SETTINGS`;
+   - `sleepAfter`;
+   - `createBroker`.
+
+   They come from competence's `containerEnvironment`, `allowedHosts` and `containerSleepAfter`, and from the site's
+   `siteverify` broker, generalised.
 3. **Worker assembly.** One function builds the Worker's `fetch` from the pieces above.
    - The application supplies its hooks: the site's edge cache, competence's timing.
    - `@cloudflare/containers` becomes a peer dependency here, not before.
 4. **The template.** What a new application copies: `wrangler.jsonc`, the Dockerfile, the D1 migration scripts, and
    a guard test that holds its URLs clear of its filter.
 
-## 4. Adoption, step 1
+## 4. Adoption
 
-Neither application changes behaviour. Measured before adoption, against each application's current filter, over
+**Step 1.** Neither application changes behaviour. Measured before adoption, against each application's current filter, over
 1,113,160 URLs: every literal path in the three test suites, the site's URL inventory, redirects and published files,
 competence's static files, and every combination of the rules' fragments three segments deep under eight queries. The
 result was 0 differences: the site's configuration against `Site/worker/src/router.js`, the defaults against
@@ -116,6 +153,26 @@ competence's `container-settings.js`.
     `forContainer`, so `worker.mjs` and its tests do not change.
   - Its guard tests still run: every static file, every path the front end requests, and every query parameter it
     sends.
+
+**Step 2.** Again, neither application changes behaviour. The evidence is the real container classes, bundled as
+wrangler bundles them, with a stand-in SDK, before and after each switch. Built from the same bindings, each must give
+the same:
+- `envVars`, `allowedHosts` and `sleepAfter`;
+- `enableInternet`, `interceptHttps` and `defaultPort`;
+- answers from its outbound handler.
+
+- **The site.**
+  - `SiteContainer` takes `STATE_ADDRESS` and `CONTAINER_PORT` from the package.
+  - It builds `envVars` with `containerEnvironment`: its five variables as `defaults`, and the `siteverify` address
+    as a setting.
+  - It brokers `siteverify` with `createBroker`, so `siteverify.js` goes.
+  - Its allowlist stays the state address alone, and `sleepAfter` stays `2m`.
+- **competence.**
+  - `container-settings.js` builds its environment with `containerEnvironment`: its pattern, its `openid-azure`
+    default, and `COMPETENCE_DATA_STORE` with `INTERCEPTED_HTTPS_SETTINGS` as settings.
+  - Its hosts come from `allowedHosts`, and its sleep timer from `sleepAfter`.
+  - It keeps its exports, the partition fingerprint and the Server-Timing helpers, so `worker.mjs` and its tests do
+    not change.
 
 ## 5. Rejected
 
@@ -149,7 +206,7 @@ finishes the job.
 
 ## 7. Not done
 
-- **Steps 2–4**, as §3 describes. None is started.
+- **Steps 3–4**, as §3 describes. Neither is started.
 - **Counting probes.** Workers logs already record each 404 with its path, and that has been enough to read every
   sweep so far.
 - **Rate limiting.** A probe already costs the container nothing. Rate limits are a zone feature, and nothing here
@@ -181,3 +238,35 @@ finishes the job.
 - `check:types` gained a consumer check for the filter's return type. TypeScript had emitted the Closure-style
   `function( string, string= ): boolean` as a bare `Function`, which resolves and accepts any call. The check failed
   on it (TS2322) before the JSDoc was rewritten.
+
+**cloudflare 0.2.0 — 2026-10-02 (CA-362).**
+
+- `worker/container.js`, exported as `@ti-engine/cloudflare/container`:
+  - `STATE_ADDRESS`, `CONTAINER_PORT` and `PLATFORM_SETTINGS`, the nine settings both applications carried;
+  - `containerEnvironment( env, { passThrough, defaults, settings } )`;
+  - `IDENTITY_PROVIDER_HOSTS`, `allowedHosts( environment )` and `INTERCEPTED_HTTPS_SETTINGS`;
+  - `sleepAfter( value, fallback )`;
+  - `createBroker( { path, url, contentType } )`.
+- `@cloudflare/containers` ^0.3.7 is a dev dependency, for the test that holds `sleepAfter` against its parser.
+- Tests: 44 new, 83 in all, in 12 suites across 3 files. They cover:
+  - the platform, pinned;
+  - each layer of the environment and its order;
+  - both applications' bindings;
+  - the hosts for every method and discovery URL;
+  - the sleep timer against the library;
+  - the broker's forwarding, refusals and failures;
+  - every malformed option.
+- Twelve plausible defects were each made by hand, and the suite caught every one:
+  - the platform put over the application's settings;
+  - defaults by truthiness;
+  - a non-string passed through;
+  - a global pattern accepted;
+  - sign-in methods left untrimmed;
+  - a zero sleep timer accepted, or one left untrimmed;
+  - every header forwarded;
+  - any method forwarded;
+  - a broker under `/v1/`;
+  - plain HTTP as a broker's target;
+  - the container's content type over the broker's.
+- `check:types` gained consumer checks for the container module: the environment is `Record<string, string>`, a
+  broker is callable, and a setting that is not a string is a type error.
