@@ -216,13 +216,16 @@ describe( "container — the hosts it may reach", () => {
     } );
 
     it( "adds a discovery document's host for an enabled method, once, and ignores one that is not a URL", () => {
-        const hosts = hostsFor( { TI_WEB_AUTH_METHODS: "openid-azure", TI_AZURE_AUTH_DISCOVERY_URL: "https://login.microsoftonline.us/tenant/v2.0/.well-known/openid-configuration" } );
-        assert.ok( hosts.includes( "login.microsoftonline.us" ) );
-        assert.ok( hostsFor( { TI_WEB_AUTH_METHODS: "openid-google", TI_GCLOUD_AUTH_DISCOVERY_URL: "https://accounts.example.com/.well-known/openid-configuration" } ).includes( "accounts.example.com" ) );
-        assert.equal( hostsFor( { TI_WEB_AUTH_METHODS: "local", TI_AZURE_AUTH_DISCOVERY_URL: "https://login.microsoftonline.us/x" } ).includes( "login.microsoftonline.us" ), false, "only for an enabled method" );
-        assert.doesNotThrow( () => allowedHosts( { TI_WEB_AUTH_METHODS: "openid-azure", TI_AZURE_AUTH_DISCOVERY_URL: "not a url" } ) );
-        const same = allowedHosts( { TI_WEB_AUTH_METHODS: "openid-azure", TI_AZURE_AUTH_DISCOVERY_URL: "https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration" } );
-        assert.equal( same.length, new Set( same ).size, "each host once" );
+        // Whole lists compared, not membership: an extra host is as wrong as a missing one.
+        const azure = [ STATE_ADDRESS, ...IDENTITY_PROVIDER_HOSTS[ "openid-azure" ] ];
+        assert.deepEqual( hostsFor( { TI_WEB_AUTH_METHODS: "openid-azure", TI_AZURE_AUTH_DISCOVERY_URL: "https://login.microsoftonline.us/tenant/v2.0/.well-known/openid-configuration" } ),
+            [ ...azure, "login.microsoftonline.us" ].sort() );
+        assert.deepEqual( hostsFor( { TI_WEB_AUTH_METHODS: "openid-google", TI_GCLOUD_AUTH_DISCOVERY_URL: "https://accounts.example.com/.well-known/openid-configuration" } ),
+            [ STATE_ADDRESS, ...IDENTITY_PROVIDER_HOSTS[ "openid-google" ], "accounts.example.com" ].sort() );
+        assert.deepEqual( hostsFor( { TI_WEB_AUTH_METHODS: "local", TI_AZURE_AUTH_DISCOVERY_URL: "https://login.microsoftonline.us/x" } ), [ STATE_ADDRESS ], "only for an enabled method" );
+        assert.deepEqual( hostsFor( { TI_WEB_AUTH_METHODS: "openid-azure", TI_AZURE_AUTH_DISCOVERY_URL: "not a url" } ), azure.sort(), "a URL that is not one adds nothing" );
+        assert.deepEqual( hostsFor( { TI_WEB_AUTH_METHODS: "openid-azure", TI_AZURE_AUTH_DISCOVERY_URL: "https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration" } ),
+            azure.sort(), "each host once" );
     } );
 
     it( "names the hosts as frozen lists, and the setting intercepted HTTPS needs", () => {
