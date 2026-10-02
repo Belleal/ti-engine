@@ -197,18 +197,46 @@ describe( "worker — the order a request is decided in", () => {
     it( "names the hook when the edge hook answers with something other than a response", async () => {
         // A hook with a branch that returns nothing answers undefined. Read as a response, that failed on `.status`,
         // with a message that named neither the hook nor the cause.
-        for ( const answer of [ undefined, null, "kept at the edge", 404 ] ) {
+        for ( const answer of [ undefined, null, "kept at the edge", 404, {}, [], { body: "kept at the edge" } ] ) {
             const worker = createWorker( { getContainer: containerStub().getContainer, edge: () => answer } );
             await assert.rejects( worker.fetch( new Request( "https://app.example.com/" ), ENV, contextStub() ), { name: "TypeError", message: /'edge'/ }, String( answer ) );
         }
     } );
 
     it( "names the hook when finish answers with something other than a response", async () => {
-        for ( const answer of [ undefined, null, "finished" ] ) {
+        for ( const answer of [ undefined, null, "finished", {}, [], { status: 200, headers: new Headers() } ] ) {
             const worker = createWorker( { getContainer: containerStub().getContainer, finish: () => answer } );
             await assert.rejects( worker.fetch( new Request( "https://app.example.com/" ), ENV, contextStub() ), { name: "TypeError", message: /'finish'/ }, String( answer ) );
             await assert.rejects( worker.fetch( new Request( "https://app.example.com/wp-login.php" ), ENV, contextStub() ), { name: "TypeError", message: /'finish'/ }, `a probe's, ${ String( answer ) }` );
         }
+    } );
+
+    it( "takes from the hooks any Response, a subclass's included", async () => {
+        class TimedResponse extends Response {}
+        const worker = createWorker( {
+            getContainer: containerStub().getContainer,
+            edge: async ( request, origin ) => new TimedResponse( ( await origin() ).body ),
+            finish: ( response ) => new TimedResponse( response.body, { status: 203 } )
+        } );
+        const response = await worker.fetch( new Request( "https://app.example.com/" ), ENV, contextStub() );
+        assert.equal( response.status, 203 );
+        assert.equal( await response.text(), "from the container" );
+    } );
+
+    it( "takes from the edge hook a WebSocket upgrade as origin gave it, and does not finish it", async () => {
+        // Node cannot make a 101 response, so this is the shape the Workers runtime gives one.
+        const upgrade = { status: 101, webSocket: {}, headers: new Headers() };
+        let finished = 0;
+        const worker = createWorker( {
+            getContainer: containerStub( () => upgrade ).getContainer,
+            edge: ( request, origin ) => origin(),
+            finish: ( response ) => {
+                finished++;
+                return response;
+            }
+        } );
+        assert.equal( await worker.fetch( new Request( "https://app.example.com/socket" ), ENV, contextStub() ), upgrade );
+        assert.equal( finished, 0 );
     } );
 
     it( "fits the probe rules to the application, as the probe filter does", async () => {

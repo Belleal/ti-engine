@@ -159,7 +159,9 @@ Only some of each Worker is truly per application:
 21. (Step 4) **The template is tested where it lives.** Its guard tests are part of this package's suite, and they run
     against the template itself. A release that renames an option, changes a default or comes with a new schema in
     core fails here, before anyone copies it. The package's own test checks what the guard tests cannot: that every
-    file the README names is published, and that the template names no application.
+    file the README names is published, and that the README carries the `.gitignore` line. No test checks that the
+    template names no application: it would have to name them, which is the coupling decision 14 rules out. Review
+    keeps the template's names neutral (decision 20).
 22. (Step 4) **The guard tests load the Worker as it is, with one import replaced.** Node cannot load
     `@cloudflare/containers` (decision 16), so a module hook (`module.register`) replaces that one import with a
     stand-in. The stand-in keeps a class's outbound handlers under the class's name, as the library does (decision 15).
@@ -465,11 +467,15 @@ finishes the job.
 - `template/`, published with the package: `wrangler.jsonc`, `Dockerfile`, `.dockerignore`, `worker/index.mjs`,
   `test/cloudflare.test.mjs` and a README. Its `.gitignore` is in the repository only: npm leaves every `.gitignore`
   out of a package (measured with `npm pack`), so the README carries the line.
-- `worker/worker.js`: a hook that answers with something other than an object fails the request with a `TypeError`
-  that names `edge` or `finish`. CodeRabbit found this in review of #183.
+- `worker/worker.js`: a hook that answers with something other than a `Response` fails the request with a
+  `TypeError` that names `edge` or `finish`, a plain object or an array included. From `edge`, a WebSocket upgrade
+  passes as `origin` gave it, since Node, where an application tests its hooks, cannot make a `101` response.
+  CodeRabbit found the gap in review of #183, and the plain object in review of #184. Measured in workerd (miniflare
+  from wrangler 4.144.0): a container's answer, a cache hit and a real `101` upgrade pass, and `{}` fails naming
+  `edge`.
 - `eslint.config.mjs` parses `**/*.mjs` as modules; the template's Worker and tests could not be parsed before.
-- Tests first: 19 new, 162 in the package in 21 suites across 6 files, and 1610 in the workspace, all passing. They are
-  13 guard tests run against the template itself, 4 on what the package publishes, and 2 on the hooks' answers. Each
+- Tests first: 21 new, 164 in the package in 21 suites across 6 files, and 1612 in the workspace, all passing. They are
+  13 guard tests run against the template itself, 4 on what the package publishes, and 4 on the hooks' answers. Each
   failed before the code it covers.
 - 24 defects were made by hand in the template, and the guard tests caught each one. Among them:
   - `ContainerProxy` not exported;

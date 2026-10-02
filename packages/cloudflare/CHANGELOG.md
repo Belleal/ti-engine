@@ -33,9 +33,10 @@ several of its traps in production first, and a third would have copied one of t
   * the schema the installed core ships, last applied.
 
   They run in this package's suite against the template itself.
-* fix(worker): a hook that answers with something other than a response fails the request with a `TypeError` that names
-  it, `edge` or `finish`. A hook with a branch that returns nothing used to fail on `.status`, naming neither the hook
-  nor the cause. Found by CodeRabbit in review of 0.3.0.
+* fix(worker): a hook that answers with something other than a `Response` fails the request with a `TypeError` that
+  names it, `edge` or `finish`. A hook with a branch that returns nothing used to fail on `.status`, and a plain object
+  failed later, in the runtime, neither naming the hook. From `edge`, a WebSocket upgrade passes as `origin` gave it.
+  Found by CodeRabbit in review of 0.3.0 and 0.4.0.
 
 ## Version 0.3.0
 

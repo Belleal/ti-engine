@@ -91,18 +91,38 @@ function isUpgrade( response ) {
 }
 
 /**
- * Takes what one of the application's hooks answered, when it can be a response. A hook with a branch that returns
- * nothing answers `undefined`, and read as a response it failed on `.status`, naming neither the hook nor the cause.
+ * @param {*} value
+ * @returns {string} What the value is, for a message.
+ * @private
+ */
+function kindOf( value ) {
+    if ( value === null ) {
+        return "null";
+    }
+    if ( Array.isArray( value ) === true ) {
+        return "an array";
+    }
+    return ( typeof value === "object" ) ? "an object that is not one" : typeof value;
+}
+
+/**
+ * Takes what one of the application's hooks answered, when it is a response. A hook with a branch that returns nothing
+ * answers `undefined`, and read as a response it failed on `.status`; an object that is not a response failed later
+ * still, in the runtime. Neither named the hook.
+ * <br/>
+ * From `edge`, a WebSocket upgrade passes as `origin` gave it: the Workers runtime makes it a Response, but Node, where
+ * an application tests its hooks, cannot make a `101` one.
  *
- * @param {string} hook The hook's option name.
+ * @param {string} hook The hook's option name, `edge` or `finish`.
  * @param {*} answer
  * @returns {Response}
- * @throws {TypeError} If the answer is not an object.
+ * @throws {TypeError} If the answer is not a response.
  * @private
  */
 function answerOf( hook, answer ) {
-    if ( answer === null || typeof answer !== "object" ) {
-        throw new TypeError( `createWorker: '${ hook }' must answer with a Response, not ${ answer === null ? "null" : typeof answer }.` );
+    const isUpgradeFromEdge = hook === "edge" && answer !== null && typeof answer === "object" && Array.isArray( answer ) === false && isUpgrade( answer ) === true;
+    if ( ( answer instanceof Response ) === false && isUpgradeFromEdge === false ) {
+        throw new TypeError( `createWorker: '${ hook }' must answer with a Response, not ${ kindOf( answer ) }.` );
     }
     return answer;
 }

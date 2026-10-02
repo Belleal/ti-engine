@@ -266,8 +266,8 @@ export default createWorker( {
 | `database` | The binding the sweep is given: `DB` unless stated |
 
 An unknown option, or one that is not what it should be, throws a `TypeError` when the module loads. A hook that
-answers with something other than a response, such as a branch that returns nothing, fails the request with a
-`TypeError` that names the hook.
+answers with something other than a `Response`, such as a branch that returns nothing or a plain object, fails the
+request with a `TypeError` that names the hook. From `edge`, a WebSocket upgrade passes as `origin` gave it.
 
 The Worker module must still export `ContainerProxy` itself, as the usage above does. The runtime looks for it among
 the module's own exports, so no package can export it on the module's behalf.
