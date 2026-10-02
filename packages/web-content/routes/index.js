@@ -42,6 +42,7 @@ const feeds = require( "#feeds" );
 const { contentHandler, viewerFromRequest, decodePath } = require( "#content-routes" );
 const { renderStateDocument } = require( "#page" );
 const { mountMediaRoutes } = require( "#media" );
+const { publicTurnstile } = require( "#capture-turnstile" );
 const logger = require( "@ti-engine/core/logger" );
 
 // The site behaviour script ships with the package. It is read once at mount rather than per request, and served
@@ -82,7 +83,9 @@ function handlerOptions( opts ) {
         assets: opts.assets,
         taxonomy: opts.taxonomy,
         auth: opts.auth,
-        turnstile: opts.turnstile
+        // The challenge's public half alone (CA-352). These options also reach the 404 handler, which copies them into
+        // the context it renders with, and a site may configure the key and the secret as one object.
+        turnstile: publicTurnstile( opts.turnstile )
     };
 }
 

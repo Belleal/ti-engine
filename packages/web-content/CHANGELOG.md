@@ -119,13 +119,14 @@ Content-Security-Policy can admit its frame.
       with the form.
     - Cloudflare's script follows the form once per page, with the response's nonce. Under `strict-dynamic` a tag without
       one is dropped, and the renderer reports that through `reportProblem`.
-  - **`mountContentRoutes` takes `turnstile`, and the content route copies only the public half into the render
-    context.** A site can configure the key and the secret as one object, and a context that any template can print
-    never sees the secret.
-  - **Evidence.** `test/capture-turnstile.test.js` adds 23 tests:
-    - With the routes, the renderer and the content route reverted to 0.4.0, 10 of them fail: every one about the
-      endpoint, the form or the context.
+  - **`mountContentRoutes` and `mountHomeRoute` take `turnstile`, and copy only the public half into every render
+    context they build, the 404 page's included.** A site can configure the key and the secret as one object, and a
+    context that any template can print never sees the secret. The 404 handler copies its options into its context,
+    so the secret is stripped where those options are built (found by CodeRabbit).
+  - **Evidence.** `test/capture-turnstile.test.js` adds 24 tests:
+    - With the routes, the renderer and the content route reverted to 0.4.0, 11 of them fail: every one about the
+      endpoint, the form or a render context.
     - The two about unchanged behaviour (nothing configured stores as before, and draws nothing) pass on both.
     - The other 11 test the new module itself.
 
-    Web-content goes from 408 to 431 tests.
+    Web-content goes from 408 to 432 tests.

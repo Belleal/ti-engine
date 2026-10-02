@@ -24,8 +24,8 @@ mountContentRoutes( server, { /* … */ turnstile } );         // draws the widg
 mountCaptureRoutes( server, { store, repository, turnstile } ); // verifies each submission's token
 ```
 
-- **The secret never reaches a page.** It is safe to hand both functions the same object: the content route copies only
-  `siteKey` and `theme` into the render context.
+- **The secret never reaches a page.** It is safe to hand both functions the same object: the content routes copy only
+  `siteKey` and `theme` into a render context, the 404 page's included.
 - **What the form gets.** The widget is drawn inside the form, so its token is submitted with it. Cloudflare's script is
   loaded once per page, with the response's CSP nonce.
 - **The policy must admit the widget's frame.** That needs web-framework 1.45.0 or later, with

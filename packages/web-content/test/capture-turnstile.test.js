@@ -309,4 +309,44 @@ describe( "turnstile — the content route hands a page the public half alone", 
         assert.equal( body.includes( SECRET ), false );
     } );
 
+    it( "keeps the secret out of the 404 page's context too, through both mount functions", () => {
+        // The mount functions build the 404 handler's options as well, and it copies them into the context it renders
+        // with (found by CodeRabbit). Nothing on a 404 page prints the challenge, so its HTML cannot show the leak: what
+        // is checked is the context the renderer is handed. `#routes` takes the renderer when it loads, so it is
+        // reloaded against a spy, and dropped again afterwards.
+        const page = require( "#page" );
+        const routesModule = require.resolve( "#routes" );
+        const original = page.renderStateDocument;
+        const seen = [];
+        page.renderStateDocument = ( state, context ) => {
+            seen.push( context.turnstile );
+            return original( state, context );
+        };
+        delete require.cache[ routesModule ];
+        try {
+            const { mountContentRoutes, mountHomeRoute } = require( "#routes" );
+            const routes = {};
+            const server = {
+                registerRoute( method, path, ...handlers ) {
+                    routes[ method + " " + String( path ) ] = handlers[ handlers.length - 1 ];
+                    return this;
+                }
+            };
+            const options = { repository: contentRepository, serveSiteScript: false, turnstile: { siteKey: SITE_KEY, secret: SECRET } };
+            mountContentRoutes( server, options );
+            mountHomeRoute( server, options );
+
+            const unknown = fakeResponse();
+            routes[ "get *splat" ]( { path: "/nowhere/" }, unknown );
+            // No record claims "/", so the home route answers with the same 404 document.
+            routes[ "get /" ]( { path: "/", session: {} }, fakeResponse(), () => assert.fail( "the home route answers the 404 itself" ) );
+
+            assert.deepEqual( seen, [ { siteKey: SITE_KEY, theme: "auto" }, { siteKey: SITE_KEY, theme: "auto" } ] );
+            assert.equal( String( unknown.body ).includes( SECRET ), false );
+        } finally {
+            page.renderStateDocument = original;
+            delete require.cache[ routesModule ];
+        }
+    } );
+
 } );
