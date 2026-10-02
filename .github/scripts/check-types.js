@@ -18,9 +18,9 @@
  *      surfaces people actually use. Checking the declarations alone cannot catch a missing `types`
  *      condition in an exports map, or a type that resolves but exposes nothing usable.
  *
- * Step 2 is deliberately run per package rather than over all three at once. A parse error anywhere
+ * Step 2 is deliberately run per package rather than over all of them at once. A parse error anywhere
  * in a program suppresses the whole semantic pass, so one malformed file in one package would
- * silently hide every unresolved-name error in the other two — which is exactly how a 251-error
+ * silently hide every unresolved-name error in the others — which is exactly how a 251-error
  * surface once measured as 7.
  */
 
@@ -29,7 +29,7 @@ const path = require( "node:path" );
 const { runNode, runTsc } = require( "./tsc-runner" );
 
 const REPOSITORY_ROOT = path.resolve( __dirname, "..", ".." );
-const PACKAGES = [ "core", "web-framework", "web-content" ];
+const PACKAGES = [ "core", "web-framework", "web-content", "cloudflare" ];
 const WORK_DIRECTORY = path.join( REPOSITORY_ROOT, ".types-check" );
 
 // Nothing is pinned here on purpose. An earlier version set `types` and `typeRoots`, which put
@@ -167,7 +167,18 @@ function writeConsumer() {
         "",
         "// @ts-expect-error — a member that does not exist must still be an error, or the mapped",
         "// enum type has collapsed to something that accepts anything.",
-        "void exceptions.exceptionCode.NOT_A_REAL_MEMBER;"
+        "void exceptions.exceptionCode.NOT_A_REAL_MEMBER;",
+        "",
+        "// The probe filter is a function a Worker calls on every request. Its return type was once",
+        "// emitted as bare `Function`, which resolves and can be called with anything at all.",
+        "import * as probes from \"@ti-engine/cloudflare/probes\";",
+        "import * as forwarding from \"@ti-engine/cloudflare/forwarding\";",
+        "const isProbe: ( pathname: string, search?: string ) => boolean = probes.createProbeFilter( { except: { wordpress: [ \"/wp-content/uploads/\" ] } } );",
+        "const answered: Response = probes.probeResponse();",
+        "const forwarded: Request = forwarding.forContainer( new Request( \"https://app.example/\" ) );",
+        "void isProbe; void answered; void forwarded;",
+        "// @ts-expect-error — the filter takes the path as a string.",
+        "void isProbe( 42 );"
     );
     fs.writeFileSync( path.join( WORK_DIRECTORY, "consumer.ts" ), lines.join( "\n" ) + "\n" );
     return count;

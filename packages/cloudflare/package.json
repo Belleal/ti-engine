@@ -1,0 +1,64 @@
+{
+  "name": "@ti-engine/cloudflare",
+  "version": "0.1.0",
+  "description": "The Cloudflare edge of a ti-engine application: what the Worker in front of its container answers itself and what it tells the container. Scanner probes answered at the Worker, and forwarding headers made true. NOTICE: This is a work in progress and the full architecture, design, and functionality are not yet available!",
+  "keywords": [
+    "cloudflare",
+    "cloudflare-workers",
+    "cloudflare-containers",
+    "edge",
+    "security",
+    "ti-engine",
+    "web-framework"
+  ],
+  "author": "Boris Kostadinov <kostadinov.boris@gmail.com>",
+  "license": "Apache-2.0",
+  "type": "commonjs",
+  "exports": {
+    "./probes": {
+      "types": "./types/worker/probes.d.ts",
+      "default": "./worker/probes.js"
+    },
+    "./forwarding": {
+      "types": "./types/worker/forwarding.d.ts",
+      "default": "./worker/forwarding.js"
+    }
+  },
+  "imports": {
+    "#probes": {
+      "types": "./types/worker/probes.d.ts",
+      "default": "./worker/probes.js"
+    },
+    "#forwarding": {
+      "types": "./types/worker/forwarding.d.ts",
+      "default": "./worker/forwarding.js"
+    }
+  },
+  "files": [
+    "worker/",
+    "types/",
+    "package.json",
+    "README.md",
+    "CHANGELOG.md",
+    "NOTICE"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Belleal/ti-engine.git",
+    "directory": "packages/cloudflare"
+  },
+  "bugs": {
+    "url": "https://github.com/Belleal/ti-engine/issues"
+  },
+  "homepage": "https://github.com/Belleal/ti-engine/tree/master/packages/cloudflare#readme",
+  "engines": {
+    "node": ">=20.12.0"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "build:types": "tsc -p tsconfig.types.json"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2"
+  }
+}

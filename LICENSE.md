@@ -10,6 +10,7 @@ individual source files carry a header identifying it.
 | [`@ti-engine/web-framework`](packages/web-framework) | Apache License 2.0 | `Apache-2.0` |
 | [`@ti-engine/web-content`](packages/web-content) | Apache License 2.0 | `Apache-2.0` |
 | [`@ti-engine/tester`](packages/tester) | Apache License 2.0 | `Apache-2.0` |
+| [`@ti-engine/cloudflare`](packages/cloudflare) | Apache License 2.0 | `Apache-2.0` |
 
 That means every package here can be freely embedded in other projects, open or closed source, with attribution
 and without an obligation to release the combined work's source.

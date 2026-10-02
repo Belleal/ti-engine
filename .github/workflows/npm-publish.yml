@@ -148,7 +148,7 @@ jobs:
         # Run from the package directory rather than `--workspace=<name>` from the root: the tarball
         # is byte-identical either way, and this keeps workspace resolution out of a step whose
         # credential is minted for one specific package name. `--access public` is a no-op for these
-        # four — a scoped package only defaults to restricted on its first ever publish — but it is
+        # packages — a scoped package only defaults to restricted on its first ever publish — but it is
         # what makes a new package public rather than private by accident.
         # No --provenance flag: publishing through OIDC from a public repository attaches a
         # provenance attestation on its own.

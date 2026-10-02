@@ -30,7 +30,7 @@ const { readSection } = require( "./changelog-section.js" );
  *
  * @type {string[]}
  */
-const PUBLISHABLE_PACKAGES = [ "core", "web-framework", "web-content", "tester" ];
+const PUBLISHABLE_PACKAGES = [ "core", "web-framework", "web-content", "tester", "cloudflare" ];
 
 const REGISTRY_URL = process.env.NPM_REGISTRY_URL || "https://registry.npmjs.org";
 const REPOSITORY_ROOT = path.resolve( __dirname, "..", ".." );

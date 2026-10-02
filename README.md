@@ -31,7 +31,7 @@ For more information and getting started guide, please read the documentation of
 
 ## Releasing to npm
 
-`core`, `web-framework`, `web-content` and `tester` are published automatically by the
+`core`, `web-framework`, `web-content`, `tester` and `cloudflare` are published automatically by the
 [`npm-publish.yml`](.github/workflows/npm-publish.yml) workflow on every push to `master`, which in normal use means
 every merged pull request. It can also be run by hand from the Actions tab (`workflow_dispatch`), which is the retry
 path if a run fails part-way. Releasing a package is therefore just the two edits it always was:
