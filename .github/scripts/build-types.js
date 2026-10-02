@@ -23,7 +23,7 @@ const path = require( "node:path" );
 const { runTsc } = require( "./tsc-runner" );
 
 const REPOSITORY_ROOT = path.resolve( __dirname, "..", ".." );
-const PACKAGES = [ "core", "web-framework", "web-content" ];
+const PACKAGES = [ "core", "web-framework", "web-content", "cloudflare" ];
 const REFERENCE = "/// <reference types=\"node\" />";
 
 // `NodeJS.<something>` as a type, or a `node:` builtin named in an import type.

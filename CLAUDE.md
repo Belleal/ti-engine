@@ -196,8 +196,9 @@ What made the difference on the bugs solved so far, in order of how often it mat
 ## This repository
 
 - Default branch **`master`**; work lands on a topic branch opened against it.
-- Four packages — `core`, `web-framework`, `web-content`, `tester` — each with its **own** version and
-  `CHANGELOG.md`. Dependency direction: `core` → `web-framework` → `web-content`; `tester` → `core`.
+- Five packages — `core`, `web-framework`, `web-content`, `tester`, `cloudflare` — each with its **own** version and
+  `CHANGELOG.md`. Dependency direction: `core` → `web-framework` → `web-content`; `tester` → `core`; `cloudflare`
+  depends on nothing (it runs in the Worker in front of an application's container, not in the container).
 - **Merging to `master` publishes to npm.** A version bump plus its changelog section is the entire release ritual;
   `npm-publish.yml` compares declared versions against the registry, so a merge that bumps nothing publishes
   nothing.

@@ -1,6 +1,6 @@
 ---
 name: ti-engine
-description: "Use whenever working in the ti-engine monorepo (core / web-framework / web-content / tester) or the web-content publishing engine — architecture, package layout, conventions (CommonJS, #alias imports, Alpine CSP, deepFreeze, frozen singletons), authentication and session handling (OpenID Connect with Entra/Google, the admin allowlist, CSP and the request scheme), web-content's content model and visibility rules, deployment, node --test testing, versioning/changelog, npm publishing, and the YouTrack (CA) delivery process. Orient before answering about or editing ti-engine code. Sign-in and configuration questions usually cross into Belleal/competence, which has its own skill — load both."
+description: "Use whenever working in the ti-engine monorepo (core / web-framework / web-content / tester / cloudflare) or the web-content publishing engine — architecture, package layout, conventions (CommonJS, #alias imports, Alpine CSP, deepFreeze, frozen singletons), authentication and session handling (OpenID Connect with Entra/Google, the admin allowlist, CSP and the request scheme), web-content's content model and visibility rules, deployment, node --test testing, versioning/changelog, npm publishing, and the YouTrack (CA) delivery process. Orient before answering about or editing ti-engine code. Sign-in and configuration questions usually cross into Belleal/competence, which has its own skill — load both."
 ---
 
 # ti-engine Developer Skill
@@ -30,6 +30,7 @@ ti-engine/                         npm workspace root (v1.3.0; workspaces = pack
 │   ├── core/          v1.19.0     Framework foundation (pluggable cache backend — Redis or HTTP, optional messaging, lifecycle, utils) + the D1 state service + shipped TypeScript declarations
 │   ├── web-framework/ v1.45.1     Express server + auth (incl. real local auth, per-provider allowed domains) + admin config-management + config drift + Profile/About + ti-charts + role gate + TI_WEB_* env overrides + /health + route seams + content-addressed immutable fragments + opt-in Server-Timing + start-up gate + busy indicator + CSP source additions + no overscroll bounce
 │   ├── web-content/   v0.5.1      Content-publishing engine — path-index routing, deny-by-default visibility, SEO documents, feeds, email capture with an optional Turnstile check (WIP)
+│   ├── cloudflare/    v0.1.0      The Cloudflare edge — the Worker in front of an application's container: scanner probes answered there, forwarding headers made true (WIP)
 │   └── tester/        v1.3.5      Reference/example service implementation + the docker-build target
 ├── .github/workflows/             ci.yml (lint/test/build) · codeql-analysis.yml · npm-publish.yml · cla.yml
 ├── CLAUDE.md                      The working agreement — process, read at session start (see below)
@@ -40,13 +41,13 @@ ti-engine/                         npm workspace root (v1.3.0; workspaces = pack
 └── eslint.config.mjs              Flat ESLint config (commonjs, browser+node globals; the @eslint/eslintrc shim was dropped)
 ```
 
-Dependency direction: `core` is standalone → `web-framework` depends on `core` → **`web-content` depends on both**, and `tester` on `core` alone. Keep framework concerns in `core`/`web-framework` and application concerns in the consumer. Each package has its own independent semver version and `CHANGELOG.md`.
+Dependency direction: `core` is standalone → `web-framework` depends on `core` → **`web-content` depends on both**, and `tester` on `core` alone. **`cloudflare` depends on nothing**: it runs in the Worker in front of an application's container, not in the container. Keep framework concerns in `core`/`web-framework` and application concerns in the consumer. Each package has its own independent semver version and `CHANGELOG.md`.
 
 Internal dependencies are declared `*` — **except `web-framework` → `@ti-engine/core`, which is `>=1.19.0`** (1.42.2; `>=1.18.0` from 1.42.0). It calls `localization.getSystemLanguage()` on every sign-in, and against an older core that throws and refuses everyone; its config store runs on `tools.KeyedLock` (1.19.0); `*` also let a consumer's lockfile keep the old core when it installed the new web-framework. Raise that floor whenever web-framework starts relying on a newer core API. The root `package-lock.json` is gitignored and CI runs `npm install`, so a range change needs no lockfile commit — but `npm install` also runs web-framework's `postinstall`, which rewrites `bin/static/scripts/lib/alpinejs-csp.min.js` and `htmx.min.js` from the installed packages; restore them unless refreshing them is the point.
 
 The out-of-repository consumer, `competence`, depends on `core` + `web-framework` by semver range from npm. A breaking change here therefore reaches it only when that range is bumped — which is *after* `npm-publish.yml` has published. That is the regression net this repository lost in CA-120: competence's 1060-test suite used to run in this workspace on every change.
 
-Node: the workspace root requires **`>=20.19.0`**; `core` and `web-content` require `>=20.12` (core because of native `process.loadEnvFile`, adopted in core 1.7.0); `web-framework` declares `>=20`. Develop on ≥20.19 to satisfy all of them.
+Node: the workspace root requires **`>=20.19.0`**; `core`, `web-content` and `cloudflare` require `>=20.12` (core because of native `process.loadEnvFile`, adopted in core 1.7.0); `web-framework` declares `>=20`. Develop on ≥20.19 to satisfy all of them.
 
 Branches: `master` is the release branch and the PR target. Work lands on a topic branch (`feat/...`, `fix/...`)
 opened against it. A long-lived `current` integration branch was used historically and appears throughout the git
@@ -837,6 +838,39 @@ npm test    # node --test — 244 tests / 58 suites: 24 test files, plus the fiv
 
 ---
 
+## Package: cloudflare (v0.1.0 — WIP)
+
+**Role**: What the Worker in front of a ti-engine application's container decides, kept in one place (CA-359). The
+Boris Khan site and competence each carried their own copy, and the copies drifted within a day. Step 1 of four is
+probes and forwarding. The rest are container environment and egress, Worker assembly, and an application template,
+each waiting on its own go-ahead. The design record and plan are in
+`docs/superpowers/specs/2026-10-02-cloudflare-edge-package-design.md`.
+
+**Key files**:
+| File | Purpose |
+|------|---------|
+| `worker/probes.js` | `createProbeFilter( { except, disable } )` → `isProbe( pathname, search )`, plus `probeResponse()` (a plain 404) and `PROBE_RULES`. The seven named rules, in order: `encoded-separators` (on the path as sent), `server-files`, `wordpress`, `graphql`, `seo-sitemaps`, `dot-paths` (on the decoded path), `user-enumeration` (query parameter names `rest_route`/`author`, case-sensitive, never values). A path that does not decode is always a probe |
+| `worker/forwarding.js` | `forContainer( request )`: drops all 20 `FORWARDING_CLAIMS`, sets `X-Forwarded-For` from `CF-Connecting-IP` (none without it) and `X-Forwarded-Proto` from the URL; never modifies the request it is given |
+| `test/*.test.js` | `node --test`: **39 tests / 7 suites across 2 files**, covering the union of both applications' probe and served lists, the site's configuration, every refusal, and the claims |
+
+**Conventions & gotchas (this package)**:
+- **It runs in the Workers runtime.** A module requires nothing, not even a sibling, and uses only globals both Workers
+  and Node provide. CommonJS with `module.exports = { name: name }`, which wrangler's bundler and Node's ESM loader both
+  import by name (measured). Never add a Node API or a dependency to a `worker/` module.
+- **An exception belongs to one rule.** `except: { wordpress: [ "/wp-content/uploads/" ] }` (the site's) still treats a
+  `.php` file, a dotfile or an encoded separator under that prefix as a probe. Prefixes are compared with the decoded
+  path, ignoring case. They must be rooted, decoded and without a query, or they are refused.
+- **A configuration it cannot honour is refused, not ignored.** That covers an unknown option, an unknown rule, or a
+  bad prefix. The `TypeError` fires when the Worker's module loads, so it fails the deploy instead of 404-ing the
+  application's own URLs at the edge.
+- **A rule change is a behaviour change for every consumer.** Call it out in the changelog. `PROBE_RULES` is pinned by
+  a test. Each application keeps a guard test that runs every URL it serves through its configured filter.
+- **Adoption is per application, after a release is on npm.** Until each adoption lands, the site
+  (`Site/worker/src/router.js`) and competence (`deploy/cloudflare/container-settings.js`) still run their own copies.
+  Before adoption, 0.1.0 was measured against both over 1,113,160 URLs, with no difference.
+
+---
+
 ## Versioning & Changelog Conventions
 
 - Each package has its own independent semver version and `CHANGELOG.md`.
@@ -850,6 +884,7 @@ npm test    # node --test — 244 tests / 58 suites: 24 test files, plus the fiv
   * build(deps): updated dep from vA to vB
   ```
 - Bumping a version means updating that package's `package.json` version **and** its `CHANGELOG.md`.
+- **`cloudflare` is pre-1.0 too**, and for it a probe rule added or widened counts as a behaviour change for every consumer: it is called out in the changelog whatever the bump.
 - **`web-content` is pre-1.0**, so breaking changes land inside `0.x` — marked `!` on the commit and called out as **BREAKING** in the changelog body (e.g. the 0.2.0 path-decoding change) rather than forcing a major bump. Note that `web-framework` did the same for the 1.19.0 `/static` cache default: a `fix(web-server)!` inside a minor bump, because the framework is the one deciding the default.
 - **A version bump is the whole release ritual.** Bumping a package's `version` plus its `## Version X.Y.Z` changelog section is what `npm-publish.yml` acts on when the change lands on `master`. There is no container pipeline here any more — `cd.yml` left with competence (CA-120).
 
@@ -896,12 +931,19 @@ acted on). What follows is only what is specific to *this* repository's gates.
 
 ### Publishing to npm — automatic on merge into `master`
 
-`core`, `web-framework`, `web-content` and `tester` are published by `.github/workflows/npm-publish.yml` on every push to `master`, which in normal use means every merged pull request. **A version bump plus its changelog section is the entire release ritual** — there is nothing to tag or trigger by hand. Every package in this repository is publishable; the one that was deliberately excluded, the `competence` application, has moved to `Belleal/competence` and ships as a container image from its own `cd.yml` there.
+`core`, `web-framework`, `web-content`, `tester` and `cloudflare` are published by `.github/workflows/npm-publish.yml` on every push to `master`, which in normal use means every merged pull request. **A version bump plus its changelog section is the entire release ritual** — there is nothing to tag or trigger by hand. Every package in this repository is publishable; the one that was deliberately excluded, the `competence` application, has moved to `Belleal/competence` and ships as a container image from its own `cd.yml` there.
 
 - **The plan comes from the registry and the tags, not from the diff.** Each package's declared version is compared against npm; a merge that bumps nothing publishes nothing and skips even the test job. A cancelled run, a hand-published version, or two bumps landing at once all leave the registry right where a diff of the merge commit would be wrong.
 - **A release is the version on npm *and* its `<package>-v<version>` tag plus GitHub release.** Only the npm half is irreversible, so a version that published but never got tagged stays in the plan until it has one — a re-run finishes it rather than skipping it forever. `workflow_dispatch` is therefore a safe retry.
 - **A version bump with no matching `## Version X.Y.Z` section fails the run before anything is published.** The release notes are built from that section; the plan job is the last point at which failing is free.
-- **Authentication is npm trusted publishing (OIDC)** — no `NPM_TOKEN`, and provenance is attached automatically. Each package has a trusted publisher on npmjs.com keyed to the **workflow filename**, so renaming `npm-publish.yml` breaks publishing until those entries are updated. A brand-new package must be published by hand once before a trusted publisher can be added for it.
+- **Authentication is npm trusted publishing (OIDC)** — no `NPM_TOKEN`, and provenance is attached automatically. Each package has a trusted publisher on npmjs.com keyed to the **workflow filename**, so renaming `npm-publish.yml` breaks publishing until those entries are updated. A brand-new package must be published by hand once before a trusted publisher can be added for it — **and before its pull request merges**. The planner refuses the whole run while any package in `PUBLISHABLE_PACKAGES` has never been published, so merging first blocks every other release until the hand publish, followed by a `workflow_dispatch` re-run. The order:
+
+  1. `npm publish --access public` from the package directory on the PR branch;
+  2. its trusted publisher on npmjs.com;
+  3. merge. The workflow then only tags the version and writes the release.
+
+  A hand-published version carries no provenance attestation. The first package to need this was `cloudflare`
+  (0.1.0).
 - **Provenance validates `repository.url`.** A package whose manifest lacks a `repository` block fails to publish with a `422` (this is what caught `tester` 1.3.3). A new package needs `repository` (with `directory`), `bugs` and `homepage` matching the others.
 - Actions in every workflow are **pinned to commit SHAs** with the version as a trailing comment; Dependabot's `github-actions` ecosystem keeps them current.
 - Dependabot scans from the workspace root only — with npm workspaces that already reaches every `packages/*/package.json` — and its **version updates target `current`**, so bumps arrive through the normal release pull request. Security updates always target the default branch regardless.
@@ -949,8 +991,8 @@ Token: YouTrack → Profile → Account Security → New token (scope: YouTrack)
 2. **Extending the web UI**: subclass `TiWebAppManager`, add an HTML fragment + matching Alpine component; reuse framework CSS primitives; obey the Alpine CSP rules (no inline styles, no `?.`).
 3. **Config-management, from a consumer's side**: a consuming application registers a config document (schema + file default + semantic validators + optional composite editor) through `TiWebAppManager.registerConfigDocument` / `registerConfigEditor`. Those seams live here; the documents themselves live in the consumer. Changing either seam is a breaking change for every consumer, so treat the `exports` map and these signatures as API.
 4. **Testing**: Node.js built-in `node --test` (no external framework); each package's `test/` directory. `npm test`
-   at the root fans out across workspaces — **1448 tests today: core 244, web-framework 771, web-content 433, tester
-   none** (it is a runnable service, not a unit-tested one). The three checks that gate a push are in
+   at the root fans out across workspaces — **1487 tests today: core 244, web-framework 771, web-content 433,
+   cloudflare 39, tester none** (it is a runnable service, not a unit-tested one). The three checks that gate a push are in
    `CLAUDE.md` → *Definition of done*: `npm test`, `npm run lint` (0 errors; ESLint's only rule here is
    `no-unused-vars` as a **warning**, so a clean lint is no evidence the house style was followed — read a sibling
    file in `core` instead), and `npm run build:types && npm run check:types`.
@@ -958,4 +1000,14 @@ Token: YouTrack → Profile → Account Security → New token (scope: YouTrack)
 6. **Design-first**: for non-trivial work, start from / update the relevant design record — package `design/*.md` or repo-root `docs/superpowers/specs/` (see Conventions) — and land small checkpointed commits. Never commit `.run/*.run.xml` (live creds).
 7. **Adding a screen to web-content**: add the section type to `SECTION_TYPES` in `content/schema.js`, a body renderer under `render/editorial/`, and document it in `design/authoring-guide.md` — a type in the schema but in neither the documented nor the deferred list fails the suite. Mount routes only through the `routes/index.js` API (`mountContentRoutes` and friends) on top of the web-framework 1.17.0 seams; never reach into private server state.
 8. **The container build**: `packages/tester/Dockerfile` is CI's `docker-build` target. It exists to prove the packages still compose into a bootable service — a regression class unit tests cannot see. It exercises `core` only; the web tier has no container-level coverage here since competence left (CA-120).
-9. **Tracking work**: create a `CA-###` card in YouTrack under its epic (features/tasks are `subtask of` their epic; only truly standalone items stay unparented) and reference the ID in commit messages so the GitHub integration links them. See *Issue Tracking — YouTrack* above.
+9. **Adding a package**: register it everywhere the others are named.
+
+   - `PACKAGES` in `.github/scripts/build-types.js` and `check-types.js`. Its subpaths join the generated consumer
+     check, and a usable-surface assertion there catches a type that resolves but is useless.
+   - `PUBLISHABLE_PACKAGES` in `npm-publish-plan.js`.
+   - The table in `LICENSE.md`, and the package lists in the root `README.md` and `CLAUDE.md`.
+   - This skill.
+
+   The manifest needs `repository` (with `directory`), `bugs` and `homepage`. Publish its first version by hand before
+   the merge (see *Publishing to npm*).
+10. **Tracking work**: create a `CA-###` card in YouTrack under its epic (features/tasks are `subtask of` their epic; only truly standalone items stay unparented) and reference the ID in commit messages so the GitHub integration links them. See *Issue Tracking — YouTrack* above.
