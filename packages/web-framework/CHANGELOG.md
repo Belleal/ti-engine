@@ -2,6 +2,36 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.45.1
+
+* fix (styles): **the shell no longer bounces when a scroll reaches its end** (CA-354).
+  <br/>
+  **What was wrong.** Edge on Windows draws an elastic overscroll. Scroll a page past its last line with a touchpad or
+  a wheel and the page stretches, then springs back. Chrome on Windows has no such effect, so the same screen bounced in
+  one browser and stood still in the other. Boris saw it in competence.
+  - The effect fires where a scroll has nowhere left to go: at the end of the shell's page scroller, which hands the
+    rest of the gesture to the document.
+  - Neither the document nor the page scroller declared `overscroll-behavior`.
+  - The sidebar declared `contain`. That stops the hand-over, but it still lets the sidebar itself bounce.
+  <br/>
+  **What changed.** `overscroll-behavior: none` on the document and on every scroller the shell declares.
+  - The document: `html`, and `body`, which propagates its `overflow` to the viewport. Engines have taken the
+    viewport's value from either element.
+  - The scrollers: `.ti-page-scrollable`, `.ti-content.pane`, `.ti-sidebar` and `.ti-modal-body`.
+  - `none` turns the effect off and also ends scroll chaining. A scroller an application nests inside a page keeps the
+    default and hands its overscroll to the page, which now drops it.
+  <br/>
+  **Verification.**
+  - **Edge's effect cannot be measured here.** Chromium on Linux does not build elastic overscroll.
+  - **`test/ti-framework.overscroll.test.js`** pins the declarations: on the document, on each shell scroller, and as
+    a sweep of every scroller the stylesheet declares. A scroller added later without it fails there instead of
+    bouncing in Edge. All 6 tests fail on 1.45.0.
+  - **The cascade-resolving reader** `ti-framework.sidebar-overflow` already used moved to
+    `test/helpers/stylesheet-cascade.js`, so the two suites share one. It now reads a selector out of a selector list,
+    which `html` and `body` needed. The sidebar suite's 13 tests resolve exactly as before.
+  - **In Chromium**, competence's Org chart was served this stylesheet. The wheel moved the page in the same steps to
+    its end (3821 px), the document never moved, and the sidebar still scrolled its own overflow.
+
 ## Version 1.45.0
 
 * feat (web-handlers): **an application can add sources to the Content-Security-Policy** (CA-352).

@@ -49,6 +49,19 @@
     --ti-title-font-size: 14px;
 }
 
+/*
+ * No elastic overscroll anywhere in the shell (1.45.1, CA-354). Edge on Windows stretches a page that is scrolled past
+ * its end with a touchpad or a wheel, then lets it spring back; Chrome on Windows does not, so the same screen bounced
+ * in one browser and stood still in the other. `none` turns the effect off and ends scroll chaining as well, where
+ * `contain` would end only the chaining. It is on the document, from both the root and the body because engines have
+ * taken the viewport's value from either, and on each scroller below: `.ti-content.pane`, `.ti-sidebar`,
+ * `.ti-page-scrollable` and `.ti-modal-body`. A scroller an application nests inside a page keeps the default and
+ * hands its overscroll to the page, which drops it.
+ */
+html {
+    overscroll-behavior: none;
+}
+
 body {
     font-family: var(--ti-font-family), system-ui;
     position: absolute;
@@ -57,6 +70,7 @@ body {
     margin: 0;
     padding: 0;
     overflow: hidden;
+    overscroll-behavior: none;
 }
 
 .ti-icon {
@@ -438,6 +452,7 @@ body {
     box-sizing: border-box;
     padding: var(--ti-padding);
     overflow: auto;
+    overscroll-behavior: none;
 }
 
 
@@ -706,7 +721,7 @@ body {
      */
     overflow-x: hidden;
     overflow-y: auto;
-    overscroll-behavior: contain;
+    overscroll-behavior: none;
     scrollbar-width: thin;
     scrollbar-color: var(--sidebar-divider) transparent;
 }
@@ -1236,6 +1251,7 @@ html.ti-busy .ti-busy-indicator-glyph {
 .ti-page-scrollable {
     flex: 1;
     overflow-y: auto;
+    overscroll-behavior: none;
     min-height: 0;
     width: 100%;
 }
@@ -2102,6 +2118,7 @@ html.ti-busy .ti-busy-indicator-glyph {
 .ti-modal-body {
     flex: 1 1 auto;
     overflow-y: auto;
+    overscroll-behavior: none;
     padding: var(--s-5);
     color: var(--fg-primary);
     font-size: var(--fs-base);
