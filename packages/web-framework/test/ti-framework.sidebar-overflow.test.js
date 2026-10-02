@@ -42,58 +42,12 @@ const assert = require( "node:assert/strict" );
 const fs = require( "node:fs" );
 const path = require( "node:path" );
 
+const { readCascade } = require( "./helpers/stylesheet-cascade" );
+
 const styles = fs.readFileSync( path.join( __dirname, "..", "bin", "static", "scripts", "ti-framework.css" ), "utf8" );
 
-const withoutComments = styles.replace( /\/\*[\s\S]*?\*\//g, "" );
-
-/**
- * Resolves the declarations that actually apply to `selector`, in cascade order.
- *
- * The stylesheet declares `.ti-sidebar` twice — a legacy rule and the app-shell rule several hundred lines later —
- * so reading the first block found would assert against a rule the browser overrides. This walks every block whose
- * selector list is exactly `selector` and lets later declarations win, which is what the browser does at equal
- * specificity, and is what makes these assertions catch a *later* rule reintroducing the defect.
- *
- * `overflow` is expanded because the shorthand is the regression: `overflow: hidden` sets `overflow-y` back to
- * hidden without ever naming it.
- */
-function declarations( selector ) {
-    const escaped = selector.replace( /[.*+?^${}()|[\]\\]/g, "\\$&" );
-    const pattern = new RegExp( "(?:^|\\}|\\*\\/)\\s*" + escaped + "\\s*\\{([^}]*)\\}", "g" );
-    const resolved = {};
-    let found = false;
-    let block;
-    while ( ( block = pattern.exec( withoutComments ) ) !== null ) {
-        found = true;
-        for ( const declaration of block[ 1 ].split( ";" ) ) {
-            const at = declaration.indexOf( ":" );
-            if ( at < 0 ) { continue; }
-            const property = declaration.slice( 0, at ).trim();
-            const value = declaration.slice( at + 1 ).trim();
-            if ( !property ) { continue; }
-            if ( property === "overflow" ) {
-                resolved[ "overflow-x" ] = value;
-                resolved[ "overflow-y" ] = value;
-            }
-            resolved[ property ] = value;
-        }
-    }
-    assert.ok( found, `no rule found for selector "${ selector }"` );
-    return resolved;
-}
-
-/**
- * Asserts the effective value of one property on one selector.
- */
-function assertDeclares( selector, property, expected, message ) {
-    const value = declarations( selector )[ property ];
-    assert.ok( value !== undefined, `${ selector } declares no ${ property }` );
-    if ( expected instanceof RegExp ) {
-        assert.match( value, expected, message );
-    } else {
-        assert.equal( value, expected, message );
-    }
-}
+// Resolved across the whole cascade rather than read from one block: see the helper for why.
+const { declarations, assertDeclares } = readCascade( styles );
 
 describe( ".ti-sidebar scrolls its overflow instead of clipping it", () => {
 
