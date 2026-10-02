@@ -24,8 +24,8 @@
  * every application ({@link PLATFORM_SETTINGS}). What differs is which of the Worker's bindings it receives, and how it
  * reaches anything else.
  * <br/>
- * There are two ways out, and the container class chooses between them. Both start from `enableInternet = false`,
- * which denies everything not listed:
+ * There are two ways out, and the container chooses between them, in one option of {@link containerSetup}. Both start
+ * from `enableInternet = false`, which denies everything not listed:
  * - **Intercepted HTTPS**, for a container that makes HTTPS calls itself, such as an OpenID sign-in. The class sets
  *   `interceptHttps = true` and allows the identity providers' hosts ({@link allowedHosts}), and Node trusts the CA
  *   Cloudflare re-signs that traffic with ({@link INTERCEPTED_HTTPS_SETTINGS}).
@@ -183,6 +183,42 @@ const SLEEP_AFTER = /^0*[1-9][0-9]*[smh]$/;
  * @private
  */
 const BROKER_OPTIONS = Object.freeze( [ "path", "url", "contentType" ] );
+
+/**
+ * The ways a container may reach beyond the state address, as {@link containerSetup} names them:
+ * - `brokered`: nothing but the state address, where the Worker answers, and makes any call the container needs
+ *   ({@link createBroker});
+ * - `intercepted`: HTTPS to the identity providers of the sign-in methods its environment enables, intercepted and
+ *   re-signed by Cloudflare ({@link allowedHosts}, {@link INTERCEPTED_HTTPS_SETTINGS}).
+ *
+ * @type {string[]}
+ * @private
+ */
+const EGRESS_MODES = Object.freeze( [ "brokered", "intercepted" ] );
+
+/**
+ * The options {@link containerSetup} takes.
+ *
+ * @type {string[]}
+ * @private
+ */
+const SETUP_OPTIONS = Object.freeze( [ "egress", "environment", "sleepAfter" ] );
+
+/**
+ * What {@link containerSetup}'s `sleepAfter` takes when the timer is read from a binding.
+ *
+ * @type {string[]}
+ * @private
+ */
+const SLEEP_AFTER_SETTING_OPTIONS = Object.freeze( [ "setting", "fallback" ] );
+
+/**
+ * The options {@link outboundByHost} takes.
+ *
+ * @type {string[]}
+ * @private
+ */
+const OUTBOUND_OPTIONS = Object.freeze( [ "state", "database", "brokers" ] );
 
 /**
  * @param {*} value
@@ -430,6 +466,203 @@ function createBroker( options ) {
     } );
 }
 
+/**
+ * What {@link containerEnvironment} takes: the application's own prefixes, defaults and settings.
+ *
+ * @typedef {Object} EnvironmentOptions
+ * @property {string[]} [prefixes] The application's own setting prefixes, besides the framework's `TI`.
+ * @property {Object<string, string>} [defaults] The bindings the container always receives, with their defaults.
+ * @property {Object<string, string>} [settings] The application's own fixed values.
+ */
+
+/**
+ * The fields {@link containerSetup} gives a container class, as `@cloudflare/containers` reads them.
+ *
+ * @typedef {Object} ContainerFields
+ * @property {number} defaultPort {@link CONTAINER_PORT}.
+ * @property {boolean} enableInternet Always `false`: everything not listed is denied.
+ * @property {boolean} interceptHttps Whether HTTPS meets the allowlist, intercepted and re-signed.
+ * @property {string[]} allowedHosts The hosts the container may reach.
+ * @property {Object<string, string>} envVars The container's environment.
+ * @property {string} sleepAfter How long the container stays awake without a request.
+ */
+
+/**
+ * The reader of {@link containerSetup}'s sleep timer, checked once: a fixed duration, or the binding it is read from.
+ *
+ * @param {*} value The option as given.
+ * @returns {(env: Object) => string}
+ * @throws {TypeError} If the option is malformed.
+ * @private
+ */
+function sleepAfterReader( value ) {
+    if ( typeof value === "string" ) {
+        if ( SLEEP_AFTER.test( value ) === false ) {
+            throw new TypeError( `containerSetup: 'sleepAfter' must be a duration @cloudflare/containers can use, such as "2m": ${ JSON.stringify( value ) }` );
+        }
+        return () => value;
+    }
+    if ( isPlainObject( value ) === true ) {
+        checkOptions( "containerSetup: 'sleepAfter'", value, SLEEP_AFTER_SETTING_OPTIONS );
+        const { setting, fallback } = value;
+        if ( typeof setting !== "string" || setting.trim() === "" ) {
+            throw new TypeError( `containerSetup: 'sleepAfter.setting' must name the binding the timer is read from: ${ JSON.stringify( setting ) }` );
+        }
+        if ( typeof fallback !== "string" || SLEEP_AFTER.test( fallback ) === false ) {
+            throw new TypeError( `containerSetup: 'sleepAfter.fallback' must be a duration @cloudflare/containers can use, such as "10m": ${ JSON.stringify( fallback ) }` );
+        }
+        return ( env ) => sleepAfter( isPlainObject( env ) ? env[ setting ] : undefined, fallback );
+    }
+    throw new TypeError( `containerSetup: 'sleepAfter' must be a duration such as "2m", or { setting, fallback } to read it from a binding: ${ JSON.stringify( value ) }` );
+}
+
+/**
+ * The fields of a container class, from one description: what the container runs as, what it may reach, what it is
+ * told, and how long it stays awake. The description is checked here, when the Worker's module loads, so a malformed
+ * one fails the deploy rather than the container's start. The function returned builds the fields from the Worker's
+ * bindings as each container starts:
+ *
+ * ```js
+ * const setup = containerSetup( { egress: "brokered", environment: { prefixes: [ "APP" ] }, sleepAfter: "2m" } );
+ *
+ * export class ApplicationContainer extends Container {
+ *     constructor( ctx, env, options ) {
+ *         super( ctx, env, options );
+ *         Object.assign( this, setup( env ) );
+ *     }
+ * }
+ * ```
+ *
+ * The way out is one choice, because it is three settings that must agree. Both start from `enableInternet = false`,
+ * which denies everything not listed:
+ * - `brokered`, unless stated: the allowlist is the state address alone, and HTTPS is not intercepted. The container
+ *   reaches nothing a handler of the Worker's does not answer ({@link createBroker}).
+ * - `intercepted`: HTTPS is intercepted, and the allowlist is the state address and the identity providers of the
+ *   sign-in methods the environment enables ({@link allowedHosts}). The environment carries the CA Node must trust
+ *   ({@link INTERCEPTED_HTTPS_SETTINGS}), under the application's own settings.
+ * <br/>
+ * The class stays the application's own, under the name its `wrangler.jsonc` gives it, because
+ * `@cloudflare/containers` keeps a class's outbound handlers under that name ({@link outboundByHost}).
+ *
+ * @method
+ * @param {Object} options
+ * @param {"brokered"|"intercepted"} [options.egress] The way out: `brokered` unless stated.
+ * @param {EnvironmentOptions} [options.environment] What {@link containerEnvironment} builds the environment from.
+ * @param {string|{setting: string, fallback: string}} options.sleepAfter How long the container stays awake without a
+ * request: a duration such as `2m`, or the binding it is read from, with the duration used when that binding's value
+ * is one the library could not use. It decides the bill more than traffic does, so it is stated, never defaulted.
+ * @returns {(env: Object) => ContainerFields} Builds new fields each time.
+ * @throws {TypeError} If an option is malformed.
+ * @public
+ */
+function containerSetup( options ) {
+    checkOptions( "containerSetup", options, SETUP_OPTIONS );
+    const { egress = "brokered", environment, sleepAfter: sleep } = options;
+    if ( EGRESS_MODES.includes( egress ) === false ) {
+        throw new TypeError( `containerSetup: 'egress' must be one of ${ EGRESS_MODES.join( ", " ) }: ${ JSON.stringify( egress ) }` );
+    }
+    // Checked as given, so a malformed environment is refused now, not as each container starts.
+    containerEnvironment( {}, environment );
+    const given = ( environment === undefined || environment === null ) ? {} : environment;
+    const intercepted = ( egress === "intercepted" );
+    const environmentOptions = ( intercepted === true )
+        ? Object.assign( {}, given, { settings: Object.assign( {}, INTERCEPTED_HTTPS_SETTINGS, given.settings ) } )
+        : given;
+    const readSleepAfter = sleepAfterReader( sleep );
+
+    return function setup( env ) {
+        const envVars = containerEnvironment( env, environmentOptions );
+        return {
+            defaultPort: CONTAINER_PORT,
+            enableInternet: false,
+            interceptHttps: intercepted,
+            allowedHosts: ( intercepted === true ) ? allowedHosts( envVars ) : [ STATE_ADDRESS ],
+            envVars: envVars,
+            sleepAfter: readSleepAfter( env )
+        };
+    };
+}
+
+/**
+ * @param {*} value
+ * @returns {boolean} Whether the value is a broker, as {@link createBroker} makes one.
+ * @private
+ */
+function isBroker( value ) {
+    return isPlainObject( value ) && typeof value.path === "string" && typeof value.matches === "function" && typeof value.forward === "function";
+}
+
+/**
+ * The Worker's answers at the state address, for a container class's `outboundByHost`: each broker's call on its own
+ * path, and the state service for everything else. The state service is built over the database binding the first
+ * time it is needed, and again only for another binding.
+ *
+ * ```js
+ * ApplicationContainer.outboundByHost = outboundByHost( {
+ *     state: ( database ) => createD1StateService( database ),
+ *     brokers: [ siteverify ]
+ * } );
+ * ```
+ *
+ * Set it on the class the Worker exports. `@cloudflare/containers` keeps these handlers under the name of the class
+ * they are set on, and looks them up by the name of the class a container runs as. Set on a parent class, they would
+ * never be found: the container would never reach its state, and the application would exit at boot.
+ * <br/>
+ * The state service is passed in, not required here. It is `@ti-engine/core`'s, and the Worker should run the same
+ * release of it as the container's client, which is the application's to choose.
+ *
+ * @method
+ * @param {Object} options
+ * @param {(database: *) => (request: Request) => Promise<Response>} options.state Builds the state service over the
+ * database binding, such as `( database ) => createD1StateService( database )`.
+ * @param {string} [options.database] The database binding's name: `DB` unless stated.
+ * @param {Broker[]} [options.brokers] The calls the Worker makes for the container, each on a path of its own.
+ * @returns {Object<string, (request: Request, env: Object) => Promise<Response>>} Keyed by {@link STATE_ADDRESS} alone.
+ * @throws {TypeError} If an option is malformed.
+ * @public
+ */
+function outboundByHost( options ) {
+    checkOptions( "outboundByHost", options, OUTBOUND_OPTIONS );
+    const { state, database = "DB", brokers = [] } = options;
+    if ( typeof state !== "function" ) {
+        throw new TypeError( "outboundByHost: 'state' must build the state service over the database binding, such as ( database ) => createD1StateService( database )." );
+    }
+    if ( typeof database !== "string" || database.trim() === "" ) {
+        throw new TypeError( `outboundByHost: 'database' must be the database binding's name: ${ JSON.stringify( database ) }` );
+    }
+    if ( Array.isArray( brokers ) === false || brokers.some( ( broker ) => isBroker( broker ) === false ) ) {
+        throw new TypeError( "outboundByHost: 'brokers' must be a list of brokers, as createBroker makes them." );
+    }
+    const paths = brokers.map( ( broker ) => broker.path );
+    if ( new Set( paths ).size !== paths.length ) {
+        throw new TypeError( `outboundByHost: no two brokers can answer the same path: ${ JSON.stringify( paths ) }` );
+    }
+
+    const services = new WeakMap();
+    const serviceOver = ( binding ) => {
+        // A binding is an object. Anything else cannot be remembered, and the state service makes of it what it will.
+        if ( binding === null || typeof binding !== "object" ) {
+            return state( binding );
+        }
+        let service = services.get( binding );
+        if ( service === undefined ) {
+            service = state( binding );
+            services.set( binding, service );
+        }
+        return service;
+    };
+
+    return Object.freeze( {
+        [ STATE_ADDRESS ]: ( request, env ) => {
+            const broker = brokers.find( ( candidate ) => candidate.matches( request ) === true );
+            if ( broker !== undefined ) {
+                return broker.forward( request );
+            }
+            return serviceOver( isPlainObject( env ) ? env[ database ] : undefined )( request );
+        }
+    } );
+}
+
 module.exports = {
     STATE_ADDRESS: STATE_ADDRESS,
     CONTAINER_PORT: CONTAINER_PORT,
@@ -439,5 +672,7 @@ module.exports = {
     INTERCEPTED_HTTPS_SETTINGS: INTERCEPTED_HTTPS_SETTINGS,
     allowedHosts: allowedHosts,
     sleepAfter: sleepAfter,
-    createBroker: createBroker
+    createBroker: createBroker,
+    containerSetup: containerSetup,
+    outboundByHost: outboundByHost
 };

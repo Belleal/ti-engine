@@ -30,7 +30,7 @@ const path = require( "node:path" );
 const { pathToFileURL } = require( "node:url" );
 const {
     STATE_ADDRESS, CONTAINER_PORT, PLATFORM_SETTINGS, containerEnvironment, IDENTITY_PROVIDER_HOSTS,
-    INTERCEPTED_HTTPS_SETTINGS, allowedHosts, sleepAfter, createBroker
+    INTERCEPTED_HTTPS_SETTINGS, allowedHosts, sleepAfter, createBroker, containerSetup, outboundByHost
 } = require( "#container" );
 
 const realFetch = globalThis.fetch;
@@ -429,6 +429,196 @@ describe( "container — a call the Worker makes for the container", () => {
     for ( const [ name, options ] of refusals ) {
         it( `refuses ${ name }`, () => {
             assert.throws( () => createBroker( options ), TypeError );
+        } );
+    }
+
+} );
+
+describe( "container — its fields, from one description", () => {
+
+    const BROKERED = Object.freeze( {
+        egress: "brokered",
+        environment: { prefixes: [ "APP" ], defaults: { TI_WEB_AUTH_METHODS: "" }, settings: { APP_VERIFY_URL: `http://${ STATE_ADDRESS }/verify` } },
+        sleepAfter: "2m"
+    } );
+
+    it( "reaches nothing but the state address when the Worker makes its calls, whatever sign-in the environment enables", () => {
+        const env = { TI_WEB_AUTH_METHODS: "openid-azure", APP_TITLE: "A title", DB: {} };
+        assert.deepEqual( containerSetup( BROKERED )( env ), {
+            defaultPort: CONTAINER_PORT,
+            enableInternet: false,
+            interceptHttps: false,
+            allowedHosts: [ STATE_ADDRESS ],
+            envVars: containerEnvironment( env, BROKERED.environment ),
+            sleepAfter: "2m"
+        } );
+    } );
+
+    it( "intercepts HTTPS to the sign-in providers the environment enables, with the CA Node must trust", () => {
+        const setup = containerSetup( {
+            egress: "intercepted",
+            environment: { defaults: { TI_WEB_AUTH_METHODS: "openid-azure" }, settings: { APP_STORE: "d1" } },
+            sleepAfter: "10m"
+        } );
+        const fields = setup( {} );
+        assert.equal( fields.enableInternet, false );
+        assert.equal( fields.interceptHttps, true );
+        assert.deepEqual( fields.allowedHosts, allowedHosts( fields.envVars ) );
+        assert.deepEqual( [ ...fields.allowedHosts ].sort(), [ STATE_ADDRESS, ...IDENTITY_PROVIDER_HOSTS[ "openid-azure" ] ].sort() );
+        assert.equal( fields.envVars.NODE_EXTRA_CA_CERTS, INTERCEPTED_HTTPS_SETTINGS.NODE_EXTRA_CA_CERTS );
+        assert.equal( fields.envVars.APP_STORE, "d1" );
+        assert.deepEqual( setup( { TI_WEB_AUTH_METHODS: "local" } ).allowedHosts, [ STATE_ADDRESS ], "a method with no provider adds no host" );
+    } );
+
+    it( "lets the application's own settings stand over the CA setting, as over everything", () => {
+        const fields = containerSetup( { egress: "intercepted", environment: { settings: { NODE_EXTRA_CA_CERTS: "/etc/ssl/own.crt" } }, sleepAfter: "2m" } )( {} );
+        assert.equal( fields.envVars.NODE_EXTRA_CA_CERTS, "/etc/ssl/own.crt" );
+    } );
+
+    it( "builds new fields from the bindings each container starts with", () => {
+        const setup = containerSetup( BROKERED );
+        assert.equal( setup( { APP_TITLE: "one" } ).envVars.APP_TITLE, "one" );
+        assert.equal( setup( { APP_TITLE: "two" } ).envVars.APP_TITLE, "two" );
+        const first = setup( {} );
+        const second = setup( {} );
+        assert.notEqual( first, second );
+        assert.notEqual( first.envVars, second.envVars );
+        assert.notEqual( first.allowedHosts, second.allowedHosts );
+    } );
+
+    it( "reads the sleep timer from a binding when told to, and falls back for a value the library could not use", () => {
+        const setup = containerSetup( { sleepAfter: { setting: "APP_SLEEP_AFTER", fallback: "10m" } } );
+        assert.equal( setup( { APP_SLEEP_AFTER: "2m" } ).sleepAfter, "2m" );
+        assert.equal( setup( { APP_SLEEP_AFTER: " 1h " } ).sleepAfter, "1h" );
+        for ( const value of [ undefined, "", "0m", "2 minutes", 120 ] ) {
+            assert.equal( setup( { APP_SLEEP_AFTER: value } ).sleepAfter, "10m", String( value ) );
+        }
+    } );
+
+    it( "has the Worker make the calls unless told otherwise, the way out that reaches least", () => {
+        const fields = containerSetup( { sleepAfter: "2m" } )( { TI_WEB_AUTH_METHODS: "openid-google" } );
+        assert.equal( fields.interceptHttps, false );
+        assert.deepEqual( fields.allowedHosts, [ STATE_ADDRESS ] );
+        assert.equal( "NODE_EXTRA_CA_CERTS" in fields.envVars, false );
+    } );
+
+    // Built when the Worker's module loads, so each of these fails the deploy, not the container's start.
+    const refusals = [
+        [ "options that are not an object", "brokered" ],
+        [ "an unknown option", { sleepAfter: "2m", enableInternet: true } ],
+        [ "an egress mode there is not", { egress: "open", sleepAfter: "2m" } ],
+        [ "a missing sleep timer", { egress: "brokered" } ],
+        [ "a sleep timer the library could not use", { sleepAfter: "0m" } ],
+        [ "a sleep timer of another type", { sleepAfter: 120 } ],
+        [ "a sleep timer read from no setting", { sleepAfter: { fallback: "10m" } } ],
+        [ "a sleep timer without a usable fallback", { sleepAfter: { setting: "APP_SLEEP_AFTER", fallback: "never" } } ],
+        [ "a sleep timer with an option there is not", { sleepAfter: { setting: "APP_SLEEP_AFTER", fallback: "10m", maximum: "1h" } } ],
+        [ "an environment the builder would refuse", { sleepAfter: "2m", environment: { prefixes: [ "app" ] } } ]
+    ];
+
+    for ( const [ name, options ] of refusals ) {
+        it( `refuses ${ name }`, () => {
+            assert.throws( () => containerSetup( options ), TypeError );
+        } );
+    }
+
+} );
+
+describe( "container — the Worker's answers at the state address", () => {
+
+    const at = ( pathname, body ) => new Request( `http://${ STATE_ADDRESS }${ pathname }`, { method: "POST", body: body === undefined ? "{}" : body } );
+
+    /**
+     * Stands in for core's D1 state service, and records each database it is built over.
+     *
+     * @returns {{ state: function(Object): function(Request): Promise<Response>, built: Object[] }}
+     */
+    function stateStub() {
+        const built = [];
+        return {
+            built: built,
+            state( database ) {
+                built.push( database );
+                return async ( request ) => Response.json( { database: database.name, path: new URL( request.url ).pathname } );
+            }
+        };
+    }
+
+    it( "answers at the state address and nowhere else", () => {
+        assert.deepEqual( Object.keys( outboundByHost( { state: stateStub().state } ) ), [ STATE_ADDRESS ] );
+    } );
+
+    it( "gives the state service of the database binding every request that is not a broker's", async () => {
+        const stub = stateStub();
+        const handler = outboundByHost( { state: stub.state } )[ STATE_ADDRESS ];
+        const response = await handler( at( "/v1/values/get" ), { DB: { name: "state" } } );
+        assert.deepEqual( await response.json(), { database: "state", path: "/v1/values/get" } );
+    } );
+
+    it( "builds the state service once per database binding", async () => {
+        const stub = stateStub();
+        const handler = outboundByHost( { state: stub.state } )[ STATE_ADDRESS ];
+        const database = { name: "state" };
+        await handler( at( "/v1/values/get" ), { DB: database } );
+        await handler( at( "/v1/values/set" ), { DB: database } );
+        assert.deepEqual( stub.built, [ database ] );
+        const another = { name: "another" };
+        await handler( at( "/v1/values/get" ), { DB: another } );
+        assert.deepEqual( stub.built, [ database, another ] );
+    } );
+
+    it( "reads the database from the binding it is told", async () => {
+        const stub = stateStub();
+        const handler = outboundByHost( { state: stub.state, database: "STATE" } )[ STATE_ADDRESS ];
+        const response = await handler( at( "/v1/keys/match" ), { STATE: { name: "named" }, DB: { name: "not this one" } } );
+        assert.deepEqual( await response.json(), { database: "named", path: "/v1/keys/match" } );
+    } );
+
+    it( "gives a broker the calls on its own path, before the state service", async () => {
+        const calls = stubFetch( () => Response.json( { "success": true } ) );
+        const stub = stateStub();
+        const siteverify = createBroker( { path: "/turnstile/v0/siteverify", url: "https://challenges.example.com/turnstile/v0/siteverify" } );
+        const notify = createBroker( { path: "/hooks/notify", url: "https://hooks.example.com/notify" } );
+        const handler = outboundByHost( { state: stub.state, brokers: [ siteverify, notify ] } )[ STATE_ADDRESS ];
+        const env = { DB: { name: "state" } };
+        assert.deepEqual( await ( await handler( at( "/turnstile/v0/siteverify", "secret=s&response=t" ), env ) ).json(), { "success": true } );
+        assert.deepEqual( await ( await handler( at( "/hooks/notify" ), env ) ).json(), { "success": true } );
+        assert.deepEqual( await ( await handler( at( "/v1/values/get" ), env ) ).json(), { database: "state", path: "/v1/values/get" } );
+        assert.deepEqual( calls.map( ( call ) => call.url ), [ "https://challenges.example.com/turnstile/v0/siteverify", "https://hooks.example.com/notify" ] );
+        assert.equal( stub.built.length, 1, "built for the state request alone" );
+    } );
+
+    it( "builds a new state service each time when the binding is not an object it can remember", async () => {
+        const built = [];
+        const handler = outboundByHost( {
+            state: ( database ) => {
+                built.push( database );
+                return async () => new Response( null, { status: 500 } );
+            }
+        } )[ STATE_ADDRESS ];
+        await handler( at( "/v1/values/get" ), {} );
+        await handler( at( "/v1/values/get" ), {} );
+        assert.deepEqual( built, [ undefined, undefined ] );
+    } );
+
+    const broker = createBroker( { path: "/hooks/notify", url: "https://hooks.example.com/notify" } );
+    const state = stateStub().state;
+
+    // Built when the Worker's module loads, so each of these fails the deploy, not the container's first state call.
+    const refusals = [
+        [ "options that are not an object", state ],
+        [ "an unknown option", { state: state, host: "state.internal" } ],
+        [ "a missing state service", {} ],
+        [ "a state service that is not a function", { state: {} } ],
+        [ "a database that is not a name", { state: state, database: "" } ],
+        [ "brokers that are not a list", { state: state, brokers: broker } ],
+        [ "a broker that is not one", { state: state, brokers: [ { path: "/hooks/notify" } ] } ],
+        [ "two brokers on one path", { state: state, brokers: [ broker, createBroker( { path: "/hooks/notify", url: "https://elsewhere.example.com/notify" } ) ] } ]
+    ];
+
+    for ( const [ name, options ] of refusals ) {
+        it( `refuses ${ name }`, () => {
+            assert.throws( () => outboundByHost( options ), TypeError );
         } );
     }
 

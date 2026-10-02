@@ -1,7 +1,7 @@
 {
   "name": "@ti-engine/cloudflare",
-  "version": "0.2.0",
-  "description": "The Cloudflare edge of a ti-engine application: what the Worker in front of its container answers itself and what it tells the container. Scanner probes answered at the Worker, and forwarding headers made true. NOTICE: This is a work in progress and the full architecture, design, and functionality are not yet available!",
+  "version": "0.3.0",
+  "description": "The Cloudflare edge of a ti-engine application: the Worker in front of its container, assembled. Scanner probes answered at the Worker, forwarding headers made true, the container's environment and egress, and the order every request is decided in. NOTICE: This is a work in progress and the full architecture, design, and functionality are not yet available!",
   "keywords": [
     "cloudflare",
     "cloudflare-workers",
@@ -26,6 +26,10 @@
     "./container": {
       "types": "./types/worker/container.d.ts",
       "default": "./worker/container.js"
+    },
+    "./worker": {
+      "types": "./types/worker/worker.d.ts",
+      "default": "./worker/worker.js"
     }
   },
   "imports": {
@@ -40,6 +44,10 @@
     "#container": {
       "types": "./types/worker/container.d.ts",
       "default": "./worker/container.js"
+    },
+    "#worker": {
+      "types": "./types/worker/worker.d.ts",
+      "default": "./worker/worker.js"
     }
   },
   "files": [

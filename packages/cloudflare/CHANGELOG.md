@@ -5,6 +5,31 @@ This document contains the list of changes made to the cloudflare package. The f
 A rule added to or widened in the probe filter applies to every application the moment it takes the release, so every
 such change is called out here.
 
+## Version 0.3.0
+
+The Worker, assembled from the pieces of 0.1.0 and 0.2.0 (CA-366). Each application wired its own Worker around them,
+in the same order and with the same answers at the state address, and a third would have copied one of the two.
+Design: `docs/superpowers/specs/2026-10-02-cloudflare-edge-package-design.md`, step 3.
+
+* feat(worker): `createWorker( options )` returns the Worker's `fetch` and, with a `sweep`, its `scheduled`. Every
+  request is decided in one order:
+  * a scanner's probe is answered `404` first, for any method, without the application's hook or the container;
+  * then the application's `edge` hook, with `origin` to reach the container, such as an edge cache or timing;
+  * then the container, told only what Cloudflare saw, by `forContainer`.
+
+  Every response then passes through the application's `finish`, a probe's answer included, apart from a WebSocket
+  upgrade. `getContainer` is passed in, so the module requires nothing outside this package and loads in Node.
+* feat(container): `containerSetup( options )` gives a container class its fields from one description, checked when
+  the module loads.
+  * The fields are `defaultPort`, `enableInternet`, `interceptHttps`, `allowedHosts`, `envVars` and `sleepAfter`.
+  * The way out is one choice, `egress`: `brokered` (the default, the state address alone) or `intercepted`
+    (interception, the identity providers' hosts and the CA setting, together).
+  * The sleep timer is stated: a duration, or `{ setting, fallback }` to read it from a binding.
+* feat(container): `outboundByHost( { state, database, brokers } )` is a container class's answers at the state
+  address. Each broker's call goes on its own path, and everything else to the state service, built once per database
+  binding. Set it on the class the Worker exports: `@cloudflare/containers` keeps outbound handlers under a class's
+  name.
+
 ## Version 0.2.0
 
 What the container starts with on Cloudflare, and what it may reach (CA-362). Each application built these itself,
