@@ -27,6 +27,7 @@ const assert = require( "node:assert/strict" );
 const { buildIndex } = require( "#loader" );
 const ContentRepository = require( "#repository" );
 const { sitemapEntries, renderSitemap, rssItems, renderRss, renderRobots } = require( "#feeds" );
+const { mountContentRoutes } = require( "#routes" );
 
 const BASE = "https://anarandaris.com";
 
@@ -121,6 +122,49 @@ describe( "feeds — robots.txt", () => {
         const txt = renderRobots( { baseUrl: BASE, allowIndexing: false } );
         assert.ok( /Disallow: \/\s*$/m.test( txt ) );
         assert.ok( !txt.includes( "Sitemap:" ), "a non-indexable site advertises no sitemap" );
+    } );
+
+} );
+
+describe( "feeds — what a cache in front of the server may keep", () => {
+
+    /**
+     * Mounts the content routes on a stand-in server, and answers one GET with the handler registered for the path.
+     */
+    function get( path ) {
+        const routes = {};
+        const server = {
+            registerRoute( method, route, ...handlers ) {
+                routes[ method + " " + String( route ) ] = handlers[ handlers.length - 1 ];
+                return this;
+            }
+        };
+        mountContentRoutes( server, { repository: new ContentRepository( buildIndex( [] ) ), baseUrl: BASE, serveSiteScript: false } );
+        const response = {
+            headers: {}, body: null,
+            set( name, value ) {
+                this.headers[ name.toLowerCase() ] = value;
+                return this;
+            },
+            type() {
+                return this;
+            },
+            send( body ) {
+                this.body = body;
+                return this;
+            }
+        };
+        routes[ "get " + path ]( { path: path }, response );
+        return response;
+    }
+
+    it( "gives robots.txt the same shared-cache policy as the sitemap and the feed", () => {
+        // robots.txt carried no policy, and a cache that stores only what a response permits (a CDN, or the Worker in
+        // front of a container) then stores nothing: every crawler's visit reached the server, and woke it if asleep.
+        // It changes only with the deployment, as the sitemap's link and the indexing switch do.
+        for ( const path of [ "/robots.txt", "/sitemap.xml", "/rss.xml" ] ) {
+            assert.equal( get( path ).headers[ "cache-control" ], "public, max-age=0, s-maxage=3600", path );
+        }
     } );
 
 } );
