@@ -81,7 +81,8 @@ function handlerOptions( opts ) {
         labels: opts.labels,
         assets: opts.assets,
         taxonomy: opts.taxonomy,
-        auth: opts.auth
+        auth: opts.auth,
+        turnstile: opts.turnstile
     };
 }
 
@@ -249,7 +250,8 @@ function mountHomeRoute( server, options ) {
  * @param {{ repository: Object, baseUrl?: string, renderPage?: Function, feed?: Object, allowIndexing?: boolean,
  *           site?: Object, labels?: Object, assets?: Object, taxonomy?: Object, serveSiteScript?: boolean,
  *           notFound?: (Object|false), media?: { root: string, prefixes: string[], maxAge?: string },
- *           redirects?: Array<{ from: string, to: string, status?: number }> }} options
+ *           redirects?: Array<{ from: string, to: string, status?: number }>,
+ *           turnstile?: { siteKey?: string, theme?: string } }} options
  * @returns {Object} The server, for chaining.
  */
 /**

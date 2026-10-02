@@ -1,6 +1,6 @@
 {
   "name": "@ti-engine/web-content",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "A content-publishing engine for ti-engine sites: path-index routing, deny-by-default content visibility, SEO document rendering, feeds, and email capture, layered on @ti-engine/web-framework. NOTICE: This is a work in progress and the full architecture, design, and functionality are not yet available!",
   "keywords": [
     "cms",
@@ -95,6 +95,10 @@
     "./capture-routes": {
       "types": "./types/capture/routes.d.ts",
       "default": "./capture/routes.js"
+    },
+    "./capture-turnstile": {
+      "types": "./types/capture/turnstile.d.ts",
+      "default": "./capture/turnstile.js"
     },
     "./media": {
       "types": "./types/routes/media.d.ts",
@@ -193,6 +197,10 @@
     "#capture-routes": {
       "types": "./types/capture/routes.d.ts",
       "default": "./capture/routes.js"
+    },
+    "#capture-turnstile": {
+      "types": "./types/capture/turnstile.d.ts",
+      "default": "./capture/turnstile.js"
     },
     "#media": {
       "types": "./types/routes/media.d.ts",

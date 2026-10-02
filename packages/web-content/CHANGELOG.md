@@ -91,3 +91,41 @@ Requires `@ti-engine/web-framework` 1.38.0, which stopped minting a CSRF token o
 * fix(content-routes): mint the CSRF token only when a page renders a form that needs it. `context.csrfToken` is read through the framework's `request.csrfToken()` on first use, and remembered. A page with a capture form gets its token and is marked per-session, as before; every other page mints nothing and stays shareable. It used to copy `request.session.csrfToken`, which the framework now leaves unset for an anonymous visitor, so a capture form would have rendered without a token and been refused on submit. Three route-level tests; the capture case fails against 0.3.1's route.
 * fix(web-content.js): fetch a CSRF token before the first submission. The account menu's sign-in form read the token from the `ti-xsrf-token` cookie at submit time, and a first-time visitor on a shared-cached page no longer has one, so it now asks `GET /csrf-token` first when the cookie is missing. Verified in real Chromium: the sign-in passes the CSRF check, where the 0.3.1 client is refused with 403 against web-framework 1.38.0. Against an older framework the cookie is always present, so the extra request never happens. Web-content 403 to 406 tests.
 * fix(content-routes): make a page per-session whenever `context.csrfToken` hands out a token (CA-166). Found by CodeRabbit. The getter minted on first read but left marking the page per-session to the renderer, and only the capture form's renderer did it, so a custom `renderPage` that embedded the token without calling `markPerSession()` would have sent one session's token out with public cache headers, to every visitor a CDN served the page to. The getter now marks the response itself when it returns a token. A read that finds no token leaves the page shareable. 2 tests: the forgetful renderer, which fails on the unfixed route, and the read with no token. Web-content 406 to 408 tests.
+
+## Version 0.5.0
+
+Cloudflare Turnstile on the capture form (CA-352). Drawing the widget needs `@ti-engine/web-framework` 1.45.0, whose
+Content-Security-Policy can admit its frame.
+
+* feat(capture): **a capture is verified with Cloudflare Turnstile before it is stored.**
+  - **What was wrong.** `POST /capture` stored whatever passed the framework's CSRF check. A CSRF token stops a forged
+    cross-site post, not a script that loads the page first and posts back what it was given. The capture form is a
+    site's one public write, and the Boris Khan site's domain is already being scanned by bots.
+  - **New module, `capture/turnstile.js`.**
+    - `publicTurnstile` gives the widget its public half: the site key and a theme, never the secret.
+    - `resolveTurnstile` decides once, at mount, what to do:
+      - `off`: neither half is configured, and nothing changes.
+      - `on`: both halves, and every submission is verified.
+      - `misconfigured`: one half without the other, and every submission is refused. That is visible, where accepting
+        unchecked behind a widget that looks like protection is not.
+    - `verifyTurnstileToken` asks `siteverify` with the secret and the token alone, and no IP. It fails closed: a
+      missing or overlong token, an unreachable, slow or garbled `siteverify`, a failed check, and a token minted for
+      another action are all refused.
+  - **`mountCaptureRoutes` and `captureHandler` take `turnstile: { siteKey, secret }`.** A submission is verified
+    before `store.submit`. A refusal redirects as `?capture=error`, like any failed capture, and logs Cloudflare's
+    error codes at WARNING. A misconfiguration is logged once, at mount, at ERROR, and the site keeps serving.
+  - **`renderCapture` draws the widget when the context carries a site key.**
+    - The widget goes inside the form, before the submit button, with `data-action="capture"`, so its token is submitted
+      with the form.
+    - Cloudflare's script follows the form once per page, with the response's nonce. Under `strict-dynamic` a tag without
+      one is dropped, and the renderer reports that through `reportProblem`.
+  - **`mountContentRoutes` takes `turnstile`, and the content route copies only the public half into the render
+    context.** A site can configure the key and the secret as one object, and a context that any template can print
+    never sees the secret.
+  - **Evidence.** `test/capture-turnstile.test.js` adds 23 tests:
+    - With the routes, the renderer and the content route reverted to 0.4.0, 10 of them fail: every one about the
+      endpoint, the form or the context.
+    - The two about unchanged behaviour (nothing configured stores as before, and draws nothing) pass on both.
+    - The other 11 test the new module itself.
+
+    Web-content goes from 408 to 431 tests.
