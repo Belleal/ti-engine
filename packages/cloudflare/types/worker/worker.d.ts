@@ -68,7 +68,8 @@ export type Worker = {
  * `sweepExpired`. Without it, the Worker has no `scheduled` handler.
  * @param {string} [options.database] The database binding the sweep is given: `DB` unless stated.
  * @returns {Worker} Frozen.
- * @throws {TypeError} If an option is malformed.
+ * @throws {TypeError} If an option is malformed. A request fails with one when a hook answers with something other than
+ * a response, naming the hook.
  * @public
  */
 declare function createWorker(options: {

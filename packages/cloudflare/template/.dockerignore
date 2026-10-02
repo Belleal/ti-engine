@@ -1,0 +1,19 @@
+# What the image must never carry, and what it does not need. The build context is the directory of `wrangler.jsonc`.
+
+# Version control, and dependencies: the image installs its own.
+.git
+node_modules
+**/node_modules
+
+# Wrangler's local state, with a local D1 database once `npm run migrate:local` or `wrangler dev` has run.
+.wrangler
+
+# Secrets and local settings.
+.env
+.env.*
+!.env.example
+
+# The Worker and its tests: the container runs neither.
+worker
+test
+wrangler.jsonc

@@ -30,7 +30,7 @@ ti-engine/                         npm workspace root (v1.3.0; workspaces = pack
 │   ├── core/          v1.19.0     Framework foundation (pluggable cache backend — Redis or HTTP, optional messaging, lifecycle, utils) + the D1 state service + shipped TypeScript declarations
 │   ├── web-framework/ v1.45.1     Express server + auth (incl. real local auth, per-provider allowed domains) + admin config-management + config drift + Profile/About + ti-charts + role gate + TI_WEB_* env overrides + /health + route seams + content-addressed immutable fragments + opt-in Server-Timing + start-up gate + busy indicator + CSP source additions + no overscroll bounce
 │   ├── web-content/   v0.5.1      Content-publishing engine — path-index routing, deny-by-default visibility, SEO documents, feeds, email capture with an optional Turnstile check (WIP)
-│   ├── cloudflare/    v0.3.0      The Cloudflare edge — the Worker in front of an application's container, assembled: scanner probes answered there, forwarding headers made true, the container's environment and egress, the order every request is decided in (WIP)
+│   ├── cloudflare/    v0.4.0      The Cloudflare edge — the Worker in front of an application's container, assembled: scanner probes answered there, forwarding headers made true, the container's environment and egress, the order every request is decided in, and the template a new application copies (WIP)
 │   └── tester/        v1.3.5      Reference/example service implementation + the docker-build target
 ├── .github/workflows/             ci.yml (lint/test/build) · codeql-analysis.yml · npm-publish.yml · cla.yml
 ├── CLAUDE.md                      The working agreement — process, read at session start (see below)
@@ -838,12 +838,12 @@ npm test    # node --test — 244 tests / 58 suites: 24 test files, plus the fiv
 
 ---
 
-## Package: cloudflare (v0.3.0 — WIP)
+## Package: cloudflare (v0.4.0 — WIP)
 
 **Role**: What the Worker in front of a ti-engine application's container decides, kept in one place (CA-359). The
-Boris Khan site and competence each carried their own copy, and the copies drifted within a day. Of the four steps,
-step 1 (probes and forwarding, 0.1.0), step 2 (the container's environment and egress, 0.2.0, CA-362) and step 3 (the
-Worker assembled, 0.3.0, CA-366) are done. An application template remains, waiting on its own go-ahead. The design record and plan are in
+Boris Khan site and competence each carried their own copy, and the copies drifted within a day. All four steps are
+done: step 1 (probes and forwarding, 0.1.0), step 2 (the container's environment and egress, 0.2.0, CA-362), step 3 (the
+Worker assembled, 0.3.0, CA-366) and step 4 (the template for the next application, 0.4.0, CA-371). The design record and plan are in
 `docs/superpowers/specs/2026-10-02-cloudflare-edge-package-design.md`.
 
 **Key files**:
@@ -852,8 +852,9 @@ Worker assembled, 0.3.0, CA-366) are done. An application template remains, wait
 | `worker/probes.js` | `createProbeFilter( { except, disable } )` → `isProbe( pathname, search )`, plus `probeResponse()` (a plain 404) and `PROBE_RULES`. The seven named rules, in order: `encoded-separators` (on the path as sent), `server-files`, `wordpress`, `graphql`, `seo-sitemaps`, `dot-paths` (on the decoded path), `user-enumeration` (query parameter names `rest_route`/`author`, case-sensitive, never values). A path that does not decode is always a probe |
 | `worker/forwarding.js` | `forContainer( request )`: drops all 20 `FORWARDING_CLAIMS`, sets `X-Forwarded-For` from `CF-Connecting-IP` (none without it) and `X-Forwarded-Proto` from the URL; never modifies the request it is given |
 | `worker/container.js` | What the container starts with and may reach (0.2.0). `PLATFORM_SETTINGS` are the nine settings every ti-engine application on Cloudflare runs as: state at `STATE_ADDRESS` (`11.0.0.1`, an address because there is no DNS), port `CONTAINER_PORT` without TLS, no exchange, no heartbeat, JSON logs. `containerEnvironment( env, { prefixes, defaults, settings } )` layers every `TI_*` string binding (always) and `<PREFIX>_*` for each of the application's `prefixes`, then named defaults (absent, blank or non-string → default), then the platform, then the application's settings. `allowedHosts( environment )` gives the state address plus each enabled OpenID method's hosts (`IDENTITY_PROVIDER_HOSTS`) and a discovery URL's host when it is a plain host name (`@cloudflare/containers` reads `*` in an allowed host as a glob); `INTERCEPTED_HTTPS_SETTINGS` holds the CA for `interceptHttps`. `sleepAfter( value, fallback )` passes exactly what `@cloudflare/containers` parses above zero. `createBroker( { path, url, contentType } )` is a call the Worker makes for the container: POST only, one HTTPS URL, the body byte for byte, only the content type passed on, never a redirect followed (`redirect: "manual"`, and a `3xx` answers 502: **workerd throws on `redirect: "error"`**, which Node accepts), 502 when unreachable, never under `/v1/`. **0.3.0:** `containerSetup( { egress, environment, sleepAfter } )`, checked at module load, returns `( env ) => fields` (`defaultPort`, `enableInternet: false`, `interceptHttps`, `allowedHosts`, `envVars`, `sleepAfter`) for `Object.assign( this, setup( env ) )` in the class's constructor; `egress` is `brokered` (default: state address only) or `intercepted` (interception + `allowedHosts` + the CA under the application's settings), and `sleepAfter` is required: a duration or `{ setting, fallback }`. `outboundByHost( { state, database = "DB", brokers } )` is the class's `outboundByHost`: brokers on their paths first, the rest to `state( env[ database ] )`, built once per binding (WeakMap) |
-| `worker/worker.js` | The Worker, assembled (0.3.0). `createWorker( { getContainer, binding, probes, edge, finish, sweep, database } )` returns a frozen `{ fetch, scheduled? }` for the module's default export. Order: a probe is answered 404 first (neither `edge` nor the container sees it); then `edge( request, origin, { env, ctx, url } )`, where `origin()` sends `forContainer( request )` to `getContainer( env[ binding ] )`; then `finish( response, context )` on **every** response, a probe's included, never on a WebSocket upgrade. `scheduled` exists only with a `sweep`, and hands `sweep( env[ database ] )` to `ctx.waitUntil`. It requires `./probes.js` and `./forwarding.js`, nothing else; `getContainer` is passed in because the SDK's ESM entry only resolves through a bundler. The module must still export `ContainerProxy` itself |
-| `test/*.test.js` | `node --test`: **143 tests / 17 suites across 4 files**: the union of both applications' probe and served lists, the site's configuration, every refusal, the claims, the platform (pinned), each environment layer, the hosts, the sleep timer against the library's own parser, the broker, `containerSetup` (both ways out, the CA under the application's settings, the sleep timer fixed or read), `outboundByHost` (brokers first, the state service built once per binding) and `createWorker` (the order, `finish`, upgrades, the sweep, every refusal) |
+| `worker/worker.js` | The Worker, assembled (0.3.0). `createWorker( { getContainer, binding, probes, edge, finish, sweep, database } )` returns a frozen `{ fetch, scheduled? }` for the module's default export. Order: a probe is answered 404 first (neither `edge` nor the container sees it); then `edge( request, origin, { env, ctx, url } )`, where `origin()` sends `forContainer( request )` to `getContainer( env[ binding ] )`; then `finish( response, context )` on **every** response, a probe's included, never on a WebSocket upgrade. A hook that answers with something other than an object (a branch returning nothing) fails the request with a `TypeError` naming `edge` or `finish` (0.4.0). `scheduled` exists only with a `sweep`, and hands `sweep( env[ database ] )` to `ctx.waitUntil`. It requires `./probes.js` and `./forwarding.js`, nothing else; `getContainer` is passed in because the SDK's ESM entry only resolves through a bundler. The module must still export `ContainerProxy` itself |
+| `template/` | What a new application copies (0.4.0, CA-371), published with the package (`files`): `wrangler.jsonc`, `Dockerfile`, `.dockerignore`, `worker/index.mjs` (the Worker: `containerSetup` with `egress: "intercepted"`, `ApplicationContainer`, `outboundByHost`, `createWorker`), `test/cloudflare.test.mjs` (the guard tests) and a README (what to copy, the names to change: `ti-application`, `ApplicationContainer`, `ti-application-state`, `APP`, `TI_INSTANCE_*`; the migrate scripts; the first deploy). Its `.gitignore` exists in the repository only: npm publishes none, so the README carries the line |
+| `test/*.test.js`, `template/test/*.test.mjs` | `node --test`: **162 tests / 21 suites across 6 files**. The package's own: the union of both applications' probe and served lists, the site's configuration, every refusal, the claims, the platform (pinned), each environment layer, the hosts, the sleep timer against the library's own parser, the broker, `containerSetup` (both ways out, the CA under the application's settings, the sleep timer fixed or read), `outboundByHost` (brokers first, the state service built once per binding) and `createWorker` (the order, `finish`, upgrades, the sweep, every refusal, the hooks' answers); `template.test.js` (the template published, every file the README names present, its `.gitignore` line in the README, the guard tests in the suite). Then the template's own 13 guard tests, run against `template/` itself |
 
 **Conventions & gotchas (this package)**:
 - **It runs in the Workers runtime.** `probes`, `forwarding` and `container` require nothing, not even a sibling;
@@ -887,10 +888,23 @@ Worker assembled, 0.3.0, CA-366) are done. An application template remains, wait
   `PLATFORM_SETTINGS` is pinned by a test like `PROBE_RULES`: a change reaches every application's container with the
   release. `@cloudflare/containers` is only a dev dependency, for the parser test. Step 3 did not make it a peer, as
   first planned: `worker.js` would then load only through a bundler, so the application passes `getContainer` in.
-- **Adoption is per application, after a release is on npm.** Until each adoption lands, the site
-  (`Site/worker/src/`) and competence (`deploy/cloudflare/`) still run their own wiring. Each release is measured
-  before adoption on the real Workers, bundled with a stand-in SDK: 0.1.0 over 1,113,160 URLs; 0.3.0 over 15,555 and
-  3,600 sets of bindings and 13,272 and 722 requests, with no difference in what is served.
+- **The template is tested where it lives (0.4.0, CA-371).** `npm test` here runs `template/test/cloudflare.test.mjs`
+  against `template/`, as an application runs it against itself: it finds `wrangler.jsonc` above it and reads the
+  names from there. So a change to an option, a default or core's D1 schema that the template relies on fails this
+  package's suite, not an application that copied it. **A core change to `components/cache/d1-state-schema.sql` fails
+  the template's schema guard** until `APPLIED_SCHEMA_SHA256` there takes the new hash (it holds core 1.19.0's).
+  - The guard tests load the Worker with `module.register` (Node ≥ 20.6, measured on 22.22 and 24.21): a data-URL
+    hook replaces `@cloudflare/containers` alone with a stand-in whose `static set outboundByHost` keeps handlers
+    under `this.name`, as the library does. No bundler, here or in an application.
+  - The template is ES modules (`.mjs`), as a module Worker must be; `eslint.config.mjs` parses `**/*.mjs` as modules.
+    It is application code, so its names stay neutral, and the framework rule applies to it as to the package.
+  - Each guard was shown to bite: 24 defects made by hand in the template, each failing it, among them a rule turned
+    off (one probe per rule, caught by that rule alone), handlers set on a base class, and `.wrangler` in git.
+- **Adoption is per application, after a release is on npm.** Both the site (`Site/worker/src/`) and competence
+  (`deploy/cloudflare/`) run 0.3.0's `createWorker`, `containerSetup` and `outboundByHost` since 2026-10-02; 0.4.0's
+  template is for the next application and asks nothing of them. Each release is measured before adoption on the real
+  Workers, bundled with a stand-in SDK: 0.1.0 over 1,113,160 URLs; 0.3.0 over 15,555 and 3,600 sets of bindings and
+  13,272 and 722 requests, with no difference in what is served.
 
 ---
 
@@ -1014,8 +1028,8 @@ Token: YouTrack → Profile → Account Security → New token (scope: YouTrack)
 2. **Extending the web UI**: subclass `TiWebAppManager`, add an HTML fragment + matching Alpine component; reuse framework CSS primitives; obey the Alpine CSP rules (no inline styles, no `?.`).
 3. **Config-management, from a consumer's side**: a consuming application registers a config document (schema + file default + semantic validators + optional composite editor) through `TiWebAppManager.registerConfigDocument` / `registerConfigEditor`. Those seams live here; the documents themselves live in the consumer. Changing either seam is a breaking change for every consumer, so treat the `exports` map and these signatures as API.
 4. **Testing**: Node.js built-in `node --test` (no external framework); each package's `test/` directory. `npm test`
-   at the root fans out across workspaces — **1591 tests today: core 244, web-framework 771, web-content 433,
-   cloudflare 143, tester none** (it is a runnable service, not a unit-tested one). The three checks that gate a push are in
+   at the root fans out across workspaces — **1610 tests today: core 244, web-framework 771, web-content 433,
+   cloudflare 162, tester none** (it is a runnable service, not a unit-tested one). The three checks that gate a push are in
    `CLAUDE.md` → *Definition of done*: `npm test`, `npm run lint` (0 errors; ESLint's only rule here is
    `no-unused-vars` as a **warning**, so a clean lint is no evidence the house style was followed — read a sibling
    file in `core` instead), and `npm run build:types && npm run check:types`.

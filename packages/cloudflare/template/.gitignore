@@ -1,0 +1,3 @@
+# Wrangler's local state, with a local D1 database once `npm run migrate:local` or `wrangler dev` has run. npm leaves
+# this file out of the published template, so an application adds the line to its own `.gitignore`.
+.wrangler/

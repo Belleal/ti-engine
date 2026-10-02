@@ -1,0 +1,71 @@
+// Cloudflare's configuration for the application: one Worker in front of one container, with D1 behind the Worker.
+// From @ti-engine/cloudflare's template. The names to change, and the first deploy, are in the template's README.
+//
+// `test/cloudflare.test.mjs` reads this file. It holds every name here that the Worker, the Dockerfile and the
+// container must agree with, so a rename that misses one of them fails the test rather than the deploy.
+{
+  "name": "ti-application",
+  "main": "worker/index.mjs",
+
+  // The newest date the workerd bundled with your wrangler supports. Before moving it, read which compatibility flags
+  // turn on between the two dates.
+  "compatibility_date": "2026-09-26",
+
+  // The workers.dev hostname. Turn it off once a custom domain serves the application, or put an Access policy on it.
+  "workers_dev": true,
+
+  // A per-version hostname would sidestep an Access policy on the main one.
+  "preview_urls": false,
+
+  "containers": [
+    {
+      // The class the Worker exports. Its name is also in `durable_objects` and `migrations` below.
+      "class_name": "ApplicationContainer",
+      "image": "./Dockerfile",
+      // What the image is built from: this directory. `.dockerignore` keeps the rest out.
+      "image_build_context": ".",
+
+      // One instance: `getContainer`, unless given a name, always reaches the same one, so a second would never run.
+      "max_instances": 1,
+
+      // 1/4 vCPU, 1 GiB memory, 4 GB disk. Memory is billed on what is provisioned, for every 10 ms the container is
+      // awake, so this and the sleep timer decide the bill more than traffic does. `lite` is a quarter of the memory.
+      "instance_type": "basic"
+    }
+  ],
+
+  "durable_objects": {
+    "bindings": [
+      // `CONTAINER` is the binding createWorker reaches the container through, unless told another.
+      { "name": "CONTAINER", "class_name": "ApplicationContainer" }
+    ]
+  },
+
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": [ "ApplicationContainer" ] }
+  ],
+
+  "d1_databases": [
+    {
+      // `DB` is the binding the state service and the sweep read, unless told another.
+      "binding": "DB",
+      "database_name": "ti-application-state",
+      // The id binds it, not the name: `npx wrangler d1 create ti-application-state` prints it.
+      "database_id": "00000000-0000-0000-0000-000000000000"
+    }
+  ],
+
+  // When the Worker sweeps expired state: daily, at 04:00 UTC.
+  "triggers": {
+    "crons": [ "0 4 * * *" ]
+  },
+
+  // Plain settings, as strings: `TI_*` for the framework, `APP_*` for the application. A deploy applies these. A
+  // secret never goes here: `npx wrangler secret put <NAME>`.
+  "vars": {
+  },
+
+  "observability": {
+    "enabled": true
+  }
+}

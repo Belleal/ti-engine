@@ -12,8 +12,10 @@ so that every application decides it the same way:
   every ti-engine application on Cloudflare runs with, the Worker's bindings it receives, and the calls it makes out.
 - **The Worker, assembled.** The order every request is decided in, the answers at the state address, and the
   scheduled sweep. An application writes only what is its own: an edge cache, timing, headers.
+- **A template for the next application.** `wrangler.jsonc`, the Dockerfile, the Worker and the guard tests a new
+  application copies, tested in this package's suite.
 
-> **Status: work in progress (0.x).** Steps 1 to 3 of four are done. The design record, including what comes next, is
+> **Status: work in progress (0.x).** All four steps of the plan are done. The design record is
 > [`docs/superpowers/specs/2026-10-02-cloudflare-edge-package-design.md`](https://github.com/Belleal/ti-engine/blob/master/docs/superpowers/specs/2026-10-02-cloudflare-edge-package-design.md).
 
 ## Usage
@@ -45,6 +47,8 @@ ApplicationContainer.outboundByHost = outboundByHost( { state: ( database ) => c
 
 export default createWorker( { getContainer, sweep: sweepExpired } );
 ```
+
+The [template](#the-template) has this Worker, with the rest of what an application needs on Cloudflare.
 
 Every module is CommonJS, and each uses only globals that Workers and Node both provide. `probes`, `forwarding` and
 `container` require nothing; `worker` requires those three and nothing outside this package. wrangler's bundler and
@@ -261,13 +265,28 @@ export default createWorker( {
 | `sweep` | `( database )`, run on the Worker's schedule, such as core's `sweepExpired` |
 | `database` | The binding the sweep is given: `DB` unless stated |
 
-An unknown option, or one that is not what it should be, throws a `TypeError` when the module loads.
+An unknown option, or one that is not what it should be, throws a `TypeError` when the module loads. A hook that
+answers with something other than a response, such as a branch that returns nothing, fails the request with a
+`TypeError` that names the hook.
 
 The Worker module must still export `ContainerProxy` itself, as the usage above does. The runtime looks for it among
 the module's own exports, so no package can export it on the module's behalf.
 
 This package knows nothing of the applications that use it. No application's prefix, path, setting or host is in it:
 each application states its own through these options.
+
+## The template
+
+`template/`, published with the package, is what a new application copies to run on Cloudflare: `wrangler.jsonc`, the
+Dockerfile and its `.dockerignore`, the Worker, and guard tests. An application copies it from
+`node_modules/@ti-engine/cloudflare/template/`, so the copy fits the release it installs. Its
+[README](template/README.md) says what to copy, which names to change, and how to deploy the first time.
+
+The guard tests hold what has failed silently before, in production first: the probes answered at the Worker and the
+application's own URLs let through, `ContainerProxy` exported, the outbound handlers kept under the class
+`wrangler.jsonc` names, the container's settings and port, the sweep, and the schema core ships. They load the Worker as
+it is, with only `@cloudflare/containers` replaced by a stand-in, so they need no bundler. They run in this package's
+suite against the template itself, so a release cannot change what the template relies on without failing here.
 
 ## Requirements
 

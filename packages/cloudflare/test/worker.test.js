@@ -194,6 +194,23 @@ describe( "worker — the order a request is decided in", () => {
         assert.equal( finished, 0 );
     } );
 
+    it( "names the hook when the edge hook answers with something other than a response", async () => {
+        // A hook with a branch that returns nothing answers undefined. Read as a response, that failed on `.status`,
+        // with a message that named neither the hook nor the cause.
+        for ( const answer of [ undefined, null, "kept at the edge", 404 ] ) {
+            const worker = createWorker( { getContainer: containerStub().getContainer, edge: () => answer } );
+            await assert.rejects( worker.fetch( new Request( "https://app.example.com/" ), ENV, contextStub() ), { name: "TypeError", message: /'edge'/ }, String( answer ) );
+        }
+    } );
+
+    it( "names the hook when finish answers with something other than a response", async () => {
+        for ( const answer of [ undefined, null, "finished" ] ) {
+            const worker = createWorker( { getContainer: containerStub().getContainer, finish: () => answer } );
+            await assert.rejects( worker.fetch( new Request( "https://app.example.com/" ), ENV, contextStub() ), { name: "TypeError", message: /'finish'/ }, String( answer ) );
+            await assert.rejects( worker.fetch( new Request( "https://app.example.com/wp-login.php" ), ENV, contextStub() ), { name: "TypeError", message: /'finish'/ }, `a probe's, ${ String( answer ) }` );
+        }
+    } );
+
     it( "fits the probe rules to the application, as the probe filter does", async () => {
         const container = containerStub();
         const worker = createWorker( {
