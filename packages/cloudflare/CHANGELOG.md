@@ -5,6 +5,39 @@ This document contains the list of changes made to the cloudflare package. The f
 A rule added to or widened in the probe filter applies to every application the moment it takes the release, so every
 such change is called out here.
 
+## Version 0.4.0
+
+The template for the next application (CA-371). Two applications learned the rest of their Cloudflare edge by hand,
+several of its traps in production first, and a third would have copied one of the two. Design:
+`docs/superpowers/specs/2026-10-02-cloudflare-edge-package-design.md`, step 4.
+
+* feat(template): `template/`, published with the package, is what a new application copies:
+  * `wrangler.jsonc`: the Worker, the container class with its Durable Object and migration, the D1 database and the
+    sweep's schedule;
+  * the `Dockerfile` and its `.dockerignore`: the application without dev dependencies, run unprivileged;
+  * `worker/index.mjs`, the Worker: `containerSetup` with intercepted HTTPS, the container class, `outboundByHost` and
+    `createWorker`;
+  * `test/cloudflare.test.mjs`, the guard tests;
+  * a README: what to copy, the names to change, the D1 migration scripts and the first deploy.
+
+  Its names are neutral: `ti-application`, `ApplicationContainer`, `APP`.
+* test(template): the guard tests load the Worker as it is, with only `@cloudflare/containers` replaced by a stand-in
+  that keeps outbound handlers under the class's name, as the library does. They need no bundler. They hold:
+  * the probes, one for each rule, answered at the Worker;
+  * every path, file and query parameter the application serves let through to the container;
+  * the forwarding, and `ContainerProxy` exported;
+  * the outbound handlers kept under the class `wrangler.jsonc` names, and a state request answered from `DB`;
+  * the container's settings and the Dockerfile's port, and the image run unprivileged;
+  * the sweep, and its schedule;
+  * `.wrangler` kept out of git and out of the image, with `.env`;
+  * the schema the installed core ships, last applied.
+
+  They run in this package's suite against the template itself.
+* fix(worker): a hook that answers with something other than a `Response` fails the request with a `TypeError` that
+  names it, `edge` or `finish`. A hook with a branch that returns nothing used to fail on `.status`, and a plain object
+  failed later, in the runtime, neither naming the hook. From `edge`, a WebSocket upgrade passes as `origin` gave it.
+  Found by CodeRabbit in review of 0.3.0 and 0.4.0.
+
 ## Version 0.3.0
 
 The Worker, assembled from the pieces of 0.1.0 and 0.2.0 (CA-366). Each application wired its own Worker around them,

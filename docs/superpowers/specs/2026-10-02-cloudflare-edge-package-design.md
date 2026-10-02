@@ -4,10 +4,10 @@
 | --- | --- |
 | **Date** | 2026-10-02 |
 | **Packages** | `packages/cloudflare` (new) |
-| **Status** | Steps 1 to 3 implemented in cloudflare 0.1.0, 0.2.0 and 0.3.0 (see §8). Step 4 proposed, waiting on its own go-ahead |
-| **Version targets** | cloudflare `0.1.0` (first release), `0.2.0` (step 2), `0.3.0` (step 3) |
+| **Status** | All four steps implemented, in cloudflare 0.1.0 to 0.4.0 (see §8) |
+| **Version targets** | cloudflare `0.1.0` (first release), `0.2.0` (step 2), `0.3.0` (step 3), `0.4.0` (step 4) |
 | **Author** | Boris Kostadinov (with Claude) |
-| **Tracking** | YouTrack [`CA-359`](https://belleal.youtrack.cloud/issue/CA-359), step 1, [`CA-362`](https://belleal.youtrack.cloud/issue/CA-362), step 2, and [`CA-366`](https://belleal.youtrack.cloud/issue/CA-366), step 3 (under `CA-11`) |
+| **Tracking** | YouTrack [`CA-359`](https://belleal.youtrack.cloud/issue/CA-359), step 1, [`CA-362`](https://belleal.youtrack.cloud/issue/CA-362), step 2, and [`CA-366`](https://belleal.youtrack.cloud/issue/CA-366), step 3, and [`CA-371`](https://belleal.youtrack.cloud/issue/CA-371), step 4 (under `CA-11`) |
 
 ---
 
@@ -153,6 +153,39 @@ Only some of each Worker is truly per application:
 19. (Step 3) **Options are checked when the module loads.** `containerSetup`, `outboundByHost` and `createWorker` are
     called at the top of the Worker's module, so a malformed option fails the deploy, as the probe filter's and a
     broker's already do, rather than the container's start or a request.
+20. (Step 4) **The template is a directory in the package, published with it.** An application copies it from
+    `node_modules/@ti-engine/cloudflare/template/`, so what it copies always fits the release it installs. Its names
+    are neutral (`ti-application`, `ApplicationContainer`, `APP`), and its README lists each one to change.
+21. (Step 4) **The template is tested where it lives.** Its guard tests are part of this package's suite, and they run
+    against the template itself. A release that renames an option, changes a default or comes with a new schema in
+    core fails here, before anyone copies it. The package's own test checks what the guard tests cannot: that every
+    file the README names is published, and that the README carries the `.gitignore` line. No test checks that the
+    template names no application: it would have to name them, which is the coupling decision 14 rules out. Review
+    keeps the template's names neutral (decision 20).
+22. (Step 4) **The guard tests load the Worker as it is, with one import replaced.** Node cannot load
+    `@cloudflare/containers` (decision 16), so a module hook (`module.register`) replaces that one import with a
+    stand-in. The stand-in keeps a class's outbound handlers under the class's name, as the library does (decision 15).
+    Everything else is the code that ships: the package's modules and core's state service. Nothing is bundled, so
+    neither ti-engine nor an application needs a bundler for these tests. Measured on Node 22.22 and 24.21.
+23. (Step 4) **The guard tests hold what failed silently before, in production first:**
+    - a probe is answered at the Worker, and every URL the application serves reaches the container: web-framework's
+      routes, the application's own, every file in its static directories, and every query parameter it sends;
+    - `ContainerProxy` is exported;
+    - the outbound handlers are kept under the class `wrangler.jsonc` names, and a state request reaches the database
+      bound as `DB`;
+    - the container starts with the platform's settings, on the port the Dockerfile exposes;
+    - the sweep reaches that database, on the schedule `wrangler.jsonc` sets;
+    - `.wrangler` stays out of git and out of the image;
+    - the schema the installed core ships is the one last applied.
+24. (Step 4) **The template's way out is `intercepted`.** With no OpenID method enabled, it reaches what `brokered`
+    does, the state address alone, because the allowlist follows the methods the environment enables. With one
+    enabled, it reaches that provider and nothing else. Under `brokered`, an OpenID method with a client ID fails its
+    discovery at start (web-framework runs it then), and the container never starts. The package's default stays
+    `brokered` (decision 18). The template chooses for an application that will most likely sign people in.
+25. (Step 4) **The template's schema hash is core's current schema.** In ti-engine, a change to core's schema fails the
+    template's guard test until the template takes the new hash, which keeps it current. In an application the hash
+    is the schema last applied, so a core upgrade that changes it stops the build until `npm run migrate:remote` has
+    run. A new application's first `npm run migrate:remote` applies exactly the schema the hash names.
 
 ## 3. The steps
 
@@ -176,8 +209,11 @@ Each step is a minor release here and then an adoption change in each applicatio
 
    `@cloudflare/containers` did not become a peer dependency after all: the application passes in `getContainer`
    (decision 16).
-4. **The template.** What a new application copies: `wrangler.jsonc`, the Dockerfile, the D1 migration scripts, and
-   a guard test that holds its URLs clear of its filter.
+4. **The template.** What a new application copies. Done in 0.4.0 (§8), in `template/`:
+   - `wrangler.jsonc`, the Dockerfile and `.dockerignore`;
+   - the Worker, `worker/index.mjs`;
+   - the guard tests, `test/cloudflare.test.mjs`, which hold its URLs clear of its filter and the rest of decision 23;
+   - a README with the D1 migration scripts, the names to change and the first deploy.
 
 ## 4. Adoption
 
@@ -258,6 +294,10 @@ What each application changes:
     its sleep timer from `COMPETENCE_CONTAINER_SLEEP_AFTER`. It keeps its own `fetch`, for the Durable Object's timing.
   - Its `outboundByHost` is `outboundByHost( { state } )`, the state service built with its partitions.
 
+**Step 4.** Nothing to adopt. Both applications already carry what the template holds, with their own guard tests,
+and the template is for the next application. Each may take 0.4.0 at its next bump, for the clearer error a hook gets
+when it answers with something other than a response.
+
 ## 5. Rejected
 
 - **A pattern each application copies.** That is the arrangement this replaces, and it drifted within a day.
@@ -275,6 +315,13 @@ What each application changes:
 - (Step 3) **The edge cache in the package.** What may be stored at the edge is the application's own decision, and
   the site's rule 9 keeps it in the site's repository, reviewed and tested there. The package gives it its place in the
   order, `edge`, and nothing more.
+- (Step 4) **A scaffold command** (`npx @ti-engine/cloudflare init`). It would rename five names, and it would be one
+  more surface to maintain and test for an application started a few times a year. The README's table does it.
+- (Step 4) **A template repository.** It would be a second repository to keep in step with the package, outside the
+  package's tests. In the package, the template is tested on every change and published with the release it fits.
+- (Step 4) **Bundling the Worker for its guard tests**, as the site's own tests do with wrangler's esbuild. ti-engine
+  has no bundler, and a new application should not need one to run its tests. A module hook replaces the one import
+  Node cannot load (decision 22).
 - **Matching a parameter's value, or its name in any case.** `?author=` enumerates users because WordPress, in PHP,
   reads exactly that name. A value is the application's data, and `?q=author` is a search.
 
@@ -297,7 +344,12 @@ finishes the job.
 
 ## 7. Not done
 
-- **Step 4**, as §3 describes. Not started.
+- **The template's second environment.** Each application has its own shape: one Worker and its workers.dev hostname,
+  or a staging and a production Worker. The README says which keys an environment must repeat (wrangler 4.144 warns
+  about `vars`, `durable_objects`, `containers` and `d1_databases`, which are not inherited).
+- **What happens outside the repository.** The template's README lists the steps, but they are done once per
+  application, in Cloudflare's dashboard or the command line: creating the D1 database, Workers Builds' settings, a
+  custom domain, an Access policy on a staging hostname, the secrets.
 - **Counting probes.** Workers logs already record each 404 with its path, and that has been enough to read every
   sweep so far.
 - **Rate limiting.** A probe already costs the container nothing. Rate limits are a zone feature, and nothing here
@@ -409,3 +461,47 @@ finishes the job.
   are typed. An egress mode there is not, a missing sleep timer, and a hook that does not answer with a response are
   type errors.
 - Each application's adoption was measured before release (§4, step 3).
+
+**cloudflare 0.4.0 — 2026-10-02 (CA-371).**
+
+- `template/`, published with the package: `wrangler.jsonc`, `Dockerfile`, `.dockerignore`, `worker/index.mjs`,
+  `test/cloudflare.test.mjs` and a README. Its `.gitignore` is in the repository only: npm leaves every `.gitignore`
+  out of a package (measured with `npm pack`), so the README carries the line.
+- `worker/worker.js`: a hook that answers with something other than a `Response` fails the request with a
+  `TypeError` that names `edge` or `finish`, a plain object or an array included. From `edge`, a WebSocket upgrade
+  passes as `origin` gave it, since Node, where an application tests its hooks, cannot make a `101` response.
+  CodeRabbit found the gap in review of #183, and the plain object in review of #184. Measured in workerd (miniflare
+  from wrangler 4.144.0): a container's answer, a cache hit and a real `101` upgrade pass, and `{}` fails naming
+  `edge`.
+- `eslint.config.mjs` parses `**/*.mjs` as modules; the template's Worker and tests could not be parsed before.
+- Tests first: 21 new, 164 in the package in 21 suites across 6 files, and 1612 in the workspace, all passing. They are
+  13 guard tests run against the template itself, 4 on what the package publishes, and 4 on the hooks' answers. Each
+  failed before the code it covers.
+- 24 defects were made by hand in the template, and the guard tests caught each one. Among them:
+  - `ContainerProxy` not exported;
+  - the class renamed in one place;
+  - the handlers set on a base class;
+  - another binding for the container or the state;
+  - no sweep, or no schedule;
+  - no migration;
+  - another port, or root, in the Dockerfile;
+  - `.wrangler` or `.env` in the image, `.wrangler` in git;
+  - a schema not applied;
+  - each of the seven rules turned off, with one probe for each that no other rule catches;
+  - a route or a query parameter the rules swallow;
+  - the state sent to a hostname.
+  The 4 package tests were each shown to bite the same way.
+- Outside the monorepo, a new application was set up exactly as the README says. It used cloudflare 0.3.0 and core
+  1.19.0 from npm, since the template's Worker uses nothing newer.
+  - Its guard tests passed 12 of 13 until `.wrangler/` went into its `.gitignore`, then 13.
+  - `wrangler deploy --dry-run` (4.144.0) bundled it: 114.04 KiB, with `CONTAINER` and `DB` bound and the class's name
+    kept.
+  - The image the template's Dockerfile builds was checked too. For this session's network only, a copy had the
+    proxy's CA added to its install stage. The image:
+    - runs as `node`;
+    - carries no dev dependency, no `.wrangler`, `.env`, Worker or tests;
+    - started with the platform's settings against core's state service on SQLite, answered `/health` 200 within 2 s;
+    - was reported healthy by Docker's `HEALTHCHECK`.
+- With a dry run, wrangler 4.144 was measured not to let an environment inherit `vars`, `durable_objects`,
+  `containers` and `d1_databases`. The README says so.
+- The guard tests load the Worker the same way on Node 22.22 and 24.21.

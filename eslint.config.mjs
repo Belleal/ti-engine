@@ -35,4 +35,10 @@ export default defineConfig( [ {
     rules: {
         "no-unused-vars": [ "warn", { "args": "after-used" } ]
     },
+}, {
+    // ES modules, where a module must be one: the Worker in `@ti-engine/cloudflare`'s template, and the tests beside it.
+    files: [ "**/*.mjs" ],
+    languageOptions: {
+        sourceType: "module",
+    },
 } ] );

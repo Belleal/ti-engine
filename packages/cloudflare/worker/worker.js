@@ -91,6 +91,43 @@ function isUpgrade( response ) {
 }
 
 /**
+ * @param {*} value
+ * @returns {string} What the value is, for a message.
+ * @private
+ */
+function kindOf( value ) {
+    if ( value === null ) {
+        return "null";
+    }
+    if ( Array.isArray( value ) === true ) {
+        return "an array";
+    }
+    return ( typeof value === "object" ) ? "an object that is not one" : typeof value;
+}
+
+/**
+ * Takes what one of the application's hooks answered, when it is a response. A hook with a branch that returns nothing
+ * answers `undefined`, and read as a response it failed on `.status`; an object that is not a response failed later
+ * still, in the runtime. Neither named the hook.
+ * <br/>
+ * From `edge`, a WebSocket upgrade passes as `origin` gave it: the Workers runtime makes it a Response, but Node, where
+ * an application tests its hooks, cannot make a `101` one.
+ *
+ * @param {string} hook The hook's option name, `edge` or `finish`.
+ * @param {*} answer
+ * @returns {Response}
+ * @throws {TypeError} If the answer is not a response.
+ * @private
+ */
+function answerOf( hook, answer ) {
+    const isUpgradeFromEdge = hook === "edge" && answer !== null && typeof answer === "object" && Array.isArray( answer ) === false && isUpgrade( answer ) === true;
+    if ( ( answer instanceof Response ) === false && isUpgradeFromEdge === false ) {
+        throw new TypeError( `createWorker: '${ hook }' must answer with a Response, not ${ kindOf( answer ) }.` );
+    }
+    return answer;
+}
+
+/**
  * The Worker in front of an application's container: its `fetch` and, with a `sweep`, its `scheduled`. Built when the
  * Worker's module loads, so a malformed option fails the deploy rather than a request.
  *
@@ -129,7 +166,8 @@ function isUpgrade( response ) {
  * `sweepExpired`. Without it, the Worker has no `scheduled` handler.
  * @param {string} [options.database] The database binding the sweep is given: `DB` unless stated.
  * @returns {Worker} Frozen.
- * @throws {TypeError} If an option is malformed.
+ * @throws {TypeError} If an option is malformed. A request fails with one when a hook answers with something other than
+ * a response, naming the hook.
  * @public
  */
 function createWorker( options ) {
@@ -168,12 +206,12 @@ function createWorker( options ) {
                 response = probeResponse();
             } else {
                 const origin = () => getContainer( env[ binding ] ).fetch( forContainer( request ) );
-                response = ( edge === undefined ) ? await origin() : await edge( request, origin, context );
+                response = ( edge === undefined ) ? await origin() : answerOf( "edge", await edge( request, origin, context ) );
             }
             if ( finish === undefined || isUpgrade( response ) === true ) {
                 return response;
             }
-            return finish( response, context );
+            return answerOf( "finish", await finish( response, context ) );
         }
     };
     if ( sweep !== undefined ) {
