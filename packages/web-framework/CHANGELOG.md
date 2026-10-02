@@ -20,6 +20,9 @@ This document will contain the list of changes made to the framework. The format
   - The scrollers: `.ti-page-scrollable`, `.ti-content.pane`, `.ti-sidebar` and `.ti-modal-body`.
   - `none` turns the effect off and also ends scroll chaining. A scroller an application nests inside a page keeps the
     default and hands its overscroll to the page, which now drops it.
+  - **Android's pull-to-refresh is off too.** In Chrome on Android, pulling down at the top of the page is the same
+    overscroll effect on the document, so it no longer reloads the application and loses what was on the screen. An
+    application that wants it back sets `overscroll-behavior-y: auto` on `html` and `body`.
   <br/>
   **Verification.**
   - **Edge's effect cannot be measured here.** Chromium on Linux does not build elastic overscroll.

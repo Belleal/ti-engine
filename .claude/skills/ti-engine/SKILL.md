@@ -355,7 +355,9 @@ npm test    # node --test — 244 tests / 58 suites: 24 test files, plus the fiv
   `.ti-content.pane`, `.ti-sidebar` (which had `contain`, ending the hand-over to the document but not its own bounce)
   and `.ti-modal-body`. **A new shell scroller must declare it too**: `ti-framework.overscroll` sweeps the stylesheet
   and fails on one that does not. A scroller an application nests inside a page keeps the default and hands its
-  overscroll to the page, which drops it. Chromium on Linux has no elastic overscroll, so Edge itself is the check.
+  overscroll to the page, which drops it. **It also turns off Android's pull-to-refresh**, the same effect on the
+  document, so a pull at the top no longer reloads the application. Chromium on Linux has no elastic overscroll, so Edge
+  itself is the check.
 - **An application can add sources to the Content-Security-Policy** (1.45.0, CA-352). `cspHeaderHandler`'s
   directive set was fixed and declares no `frame-src`, so a frame from any other origin fell to `default-src 'self'`
   and was refused, and that is all a Cloudflare Turnstile widget is. `contentSecurityPolicy.additionalSources` in
