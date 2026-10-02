@@ -37,6 +37,9 @@
       }
     }
   },
+  "contentSecurityPolicy": {
+    "additionalSources": {}
+  },
   "cookies": {
     "path": "/",
     "httpOnly": true,

@@ -413,7 +413,7 @@ class TiWebServer extends ServiceConsumer {
                 // architecture, not missing CSP; do not enable Helmet's static CSP here, as that would drop the nonce.
                 // codeql[js/insecure-helmet-configuration]
                 this.#webServer.use( helmet( { contentSecurityPolicy: false } ) );
-                this.#webServer.use( webHandlers.cspHeaderHandler() );
+                this.#webServer.use( webHandlers.cspHeaderHandler( this.serviceConfig.contentSecurityPolicy ) );
                 this.#webServer.use( webHandlers.onShutDownHandler( this ) );
 
                 // Static content is served BEFORE the session middleware, and after the security headers. Mounted after

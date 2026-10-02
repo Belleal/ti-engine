@@ -1097,13 +1097,76 @@ module.exports.nonceGenerationHandler = () => {
 };
 
 /**
- * Handler for setting the Content-Security-Policy header.
+ * The fetch directives an application may add sources to (CA-352), as Helmet names them. `scriptSrc` is deliberately
+ * not one: the policy is `strict-dynamic`, under which a browser ignores host sources in `script-src`, so a host added
+ * there would read as permission and grant none. A script is admitted by carrying the response's nonce.
+ *
+ * @type {string[]}
+ */
+const EXTENDABLE_CSP_DIRECTIVES = Object.freeze( [ "frameSrc", "connectSrc", "imgSrc", "mediaSrc", "fontSrc" ] );
+
+/**
+ * A source an application may add: an `https://` host, optionally with a leading `*.` wildcard, a port and a path.
+ * Nothing that widens the policy beyond naming a host gets in — no keyword (`'unsafe-inline'`, `'self'`, a nonce), no
+ * `*`, no scheme source such as `https:`, `data:` or `blob:`. Whitespace, quotes, `;` and `,` are refused as well: a
+ * `;` inside a source would end the directive and start one of the configuration's own choosing.
+ *
+ * @type {RegExp}
+ */
+const ADDITIONAL_CSP_SOURCE = /^https:\/\/(\*\.)?[a-z0-9-]+(\.[a-z0-9-]+)*(:[0-9]{1,5})?(\/[^\s;,'"]*)?$/i;
+
+/**
+ * The sources an application adds to the Content-Security-Policy (CA-352): `contentSecurityPolicy.additionalSources`
+ * in its web server configuration, e.g. `{ "frameSrc": [ "https://challenges.cloudflare.com" ] }` for a Cloudflare
+ * Turnstile widget, whose iframe the base policy refuses (`frame-src` falls back to `default-src 'self'`).
+ * <br/>
+ * Validated once, when the handler is built: a directive outside {@link EXTENDABLE_CSP_DIRECTIVES} and a source that is
+ * not an `https://` host are dropped, each logged at ERROR. A typo therefore cannot quietly widen the policy, and an
+ * unsafe entry cannot get into it at all.
  *
  * @method
+ * @param {Object} [configured] The `contentSecurityPolicy` section of the web server configuration.
+ * @returns {Object<string, string[]>} Frozen; empty when nothing valid is configured.
+ * @public
+ */
+module.exports.resolveCspAdditions = ( configured ) => {
+    const requested = ( configured && typeof configured.additionalSources === "object" && configured.additionalSources !== null ) ? configured.additionalSources : {};
+    const additions = {};
+    for ( const [ directive, sources ] of Object.entries( requested ) ) {
+        if ( EXTENDABLE_CSP_DIRECTIVES.includes( directive ) === false ) {
+            logger.log( `Ignored Content-Security-Policy sources for '${ directive }': only ${ EXTENDABLE_CSP_DIRECTIVES.join( ", " ) } can be extended.`, logger.logSeverity.ERROR );
+            continue;
+        }
+        const accepted = [];
+        for ( const source of ( Array.isArray( sources ) ? sources : [ sources ] ) ) {
+            const value = ( typeof source === "string" ) ? source.trim() : "";
+            if ( ADDITIONAL_CSP_SOURCE.test( value ) === true ) {
+                accepted.push( value );
+            } else {
+                logger.log( `Ignored Content-Security-Policy source '${ String( source ) }' for '${ directive }': only an https:// host can be added.`, logger.logSeverity.ERROR );
+            }
+        }
+        if ( accepted.length > 0 ) {
+            additions[ directive ] = Object.freeze( accepted );
+        }
+    }
+    return Object.freeze( additions );
+};
+
+/**
+ * Handler for setting the Content-Security-Policy header.
+ * <br/>
+ * The application's additions ({@link resolveCspAdditions}) are validated once, here, rather than per request. A
+ * directive the base set does not declare starts from `'self'`, which is what `default-src` gave it, so adding a source
+ * never takes one away.
+ *
+ * @method
+ * @param {Object} [contentSecurityPolicy] The `contentSecurityPolicy` section of the web server configuration.
  * @returns {ExpressHandler}
  * @public
  */
-module.exports.cspHeaderHandler = () => {
+module.exports.cspHeaderHandler = ( contentSecurityPolicy ) => {
+    const additions = module.exports.resolveCspAdditions( contentSecurityPolicy );
     return ( request, response, next ) => {
         const nonce = response?.locals?.cspNonce;
 
@@ -1131,6 +1194,9 @@ module.exports.cspHeaderHandler = () => {
             objectSrc: [ "'none'" ],
             frameAncestors: [ "'self'" ]
         };
+        for ( const [ name, sources ] of Object.entries( additions ) ) {
+            directives[ name ] = ( directives[ name ] || [ "'self'" ] ).concat( sources );
+        }
 
         // `upgrade-insecure-requests` is not declared above — it arrives with Helmet's `useDefaults` set, and it is
         // only ever correct for a visitor who is already on HTTPS. Served over plain HTTP it tells the browser to
