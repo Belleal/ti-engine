@@ -17,17 +17,17 @@
 
 /**
  * Requests no ti-engine application serves, which scanners send to every domain they find, answered by the Worker so
- * they never reach the container (CA-359; first written for the Boris Khan site and competence, CA-351 and CA-358).
+ * they never reach the container (CA-359; the rules from CA-351 and CA-358).
  * <br/>
  * A container on Cloudflare sleeps when nobody asks it anything, and every request renews its timer. A scanner asks
  * hundreds of questions, each answered "not found": passed on, a two-minute scan keeps the container awake, billed, for
- * those two minutes and its whole sleep timer after them, twelve minutes for competence's production container (CA-316).
+ * those two minutes and its whole sleep timer after them, twelve minutes with a ten-minute timer.
  * <br/>
  * The filter is a set of named rules ({@link PROBE_RULES}), and every application gets all of them. One whose own URLs
  * fall under a rule exempts the paths it serves from that rule alone (`except`), or turns the rule off (`disable`), and
- * holds every URL it serves clear of the result in its own tests. The Boris Khan site keeps its migrated media library
- * at WordPress's addresses, so it exempts `/wp-content/uploads/` from the `wordpress` rule, and from nothing else: a
- * script under it is still a probe.
+ * holds every URL it serves clear of the result in its own tests. An application that kept a migrated media library at
+ * WordPress's addresses exempts `/wp-content/uploads/` from the `wordpress` rule, and from nothing else: a script under
+ * it is still a probe.
  * <br/>
  * NOTE: Runs in the Workers runtime, so it requires nothing, not even another module of this package, and uses only the
  * `URLSearchParams`, `Response` and `decodeURIComponent` globals both Workers and Node provide.

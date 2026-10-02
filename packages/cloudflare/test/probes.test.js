@@ -22,7 +22,7 @@
  * - a probe let through wakes a sleeping container to say "not found", which is the cost the filter exists to save;
  * - an application's own URL taken for a probe answers 404 at the edge, with nothing in any log to say why.
  *
- * The probes are the ones scanners sent the Boris Khan site and competence in their first days live (CA-351, CA-358).
+ * The probes are ones scanners sent to applications on this stack in their first days live (CA-351, CA-358).
  * The other half of the second failure lives in each application, which holds every URL it serves clear of the filter
  * it configures.
  */
@@ -62,7 +62,7 @@ const PROBES = [
     "/%E0%A4%A",
     // A sweep for WordPress usernames, from a dozen networks, one request every eight seconds (CA-358).
     "/wp-json/", "/wp-json/wp/v2/users", "/wp-json/wp/v2/posts?per_page=20&_embed=author&_fields=_embedded",
-    "/wp-json/oembed/1.0/embed?url=https%3A%2F%2Fboriskhan.com&format=json", "/graphql", "/graphql/",
+    "/wp-json/oembed/1.0/embed?url=https%3A%2F%2Fexample.com&format=json", "/graphql", "/graphql/",
     "/author-sitemap.xml", "/post-sitemap.xml", "/sitemap_index.xml", "/wp-sitemap.xml", "/wp-sitemap-users-1.xml",
     "/?rest_route=%2Fwp%2Fv2%2Fusers&_jsonp=callback&per_page=100&_fields=id%2Cslug", "/app?rest_route=/wp/v2/users",
     "/?author=1"
@@ -71,12 +71,12 @@ const PROBES = [
 // What the two applications serve, which no rule may take: pages in two scripts, feeds, the framework's own paths,
 // static files, and the query parameters their front ends send.
 const SERVED = [
-    "/", "/bg/", "/bg/%D0%BD%D0%B0%D1%87%D0%B0%D0%BB%D0%BE/", "/2026/03/20/a-post/", "/writings/page/2/",
-    "/writings/?page=2", "/newsletter/?capture=success", "/feed/", "/sitemap.xml", "/robots.txt", "/rss.xml",
-    "/static/web-content.js", "/static/fonts/spectral-500.woff2", "/images/Authors-Study-HD.webp",
-    "/music/The-Fracture-OST-Preview.mp3", "/.well-known/security.txt", "/.well-known/", "/health", "/csrf-token",
+    "/", "/bg/", "/bg/%D0%BD%D0%B0%D1%87%D0%B0%D0%BB%D0%BE/", "/2026/03/20/a-post/", "/posts/page/2/",
+    "/posts/?page=2", "/newsletter/?signup=success", "/feed/", "/sitemap.xml", "/robots.txt", "/rss.xml",
+    "/static/web-content.js", "/static/fonts/serif-500.woff2", "/images/cover.webp",
+    "/audio/preview.mp3", "/.well-known/security.txt", "/.well-known/", "/health", "/csrf-token",
     "/logout", "/login/openid-azure", "/login/azure-callback?code=abc&state=def", "/app", "/app/", "/app/dashboard",
-    "/app/labels/0f3a9c", "/app?cycleID=4&employeeID=12&groupBy=dimension", "/admin/", "/graphqlish", "/wp",
+    "/app/labels/0f3a9c", "/app?reportID=4&personID=12&groupBy=team", "/admin/", "/graphqlish", "/wp",
     // A parameter's value is never read, and its name is matched as PHP reads it, case and all.
     "/search?q=author", "/search?q=rest_route", "/?Author=1"
 ];
@@ -111,7 +111,7 @@ describe( "probes — what the defaults answer at the edge", () => {
 
 describe( "probes — an application exempts the paths it serves", () => {
 
-    // The Boris Khan site: the media library its migration kept at WordPress's URLs, so no inbound link broke.
+    // An application that kept its migrated media library at WordPress's URLs, so no inbound link broke.
     const isProbe = createProbeFilter( { except: { wordpress: [ "/wp-content/uploads/" ] } } );
 
     it( "serves the exempt paths, in any case and however they are encoded", () => {

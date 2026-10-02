@@ -16,7 +16,7 @@
 */
 
 /*
- * What the container is told about the visitor (CA-359; first in the Boris Khan site and competence, CA-351).
+ * What the container is told about the visitor (CA-359; first CA-351).
  *
  * web-framework turns Express's `trust proxy` on, so an application believes the forwarding headers that reach it:
  * `request.ip` is the first `X-Forwarded-For` entry, `request.hostname` follows `X-Forwarded-Host`, and the scheme
@@ -28,8 +28,7 @@ const { describe, it } = require( "node:test" );
 const assert = require( "node:assert/strict" );
 const { forContainer, FORWARDING_CLAIMS } = require( "#forwarding" );
 
-// What the Boris Khan site's first scanner sent on every request, on 2026-10-02: `127.0.0.1` wherever a server might
-// look. Some names in mixed case, as a client may send them.
+// What one scanner sent on every request, on 2026-10-02: `127.0.0.1` wherever a server might look. Some names in mixed case, as a client may send them.
 const CLAIMS = {
     "X-Forwarded-For": "127.0.0.1, 10.0.0.1", "x-real-ip": "127.0.0.1", "x-originating-ip": "127.0.0.1",
     "x-client-ip": "127.0.0.1", "x-azure-clientip": "127.0.0.1", "x-azure-socketip": "127.0.0.1",
@@ -41,7 +40,7 @@ const FROM_CLOUDFLARE = { "cf-connecting-ip": "203.0.113.9", "cf-ray": "abc123-C
 describe( "forwarding — the request the container receives", () => {
 
     it( "replaces every claimed address, host and scheme with what Cloudflare saw", () => {
-        const forwarded = forContainer( new Request( "https://app.example/writings/", { headers: { ...CLAIMS, ...FROM_CLOUDFLARE } } ) );
+        const forwarded = forContainer( new Request( "https://app.example/posts/", { headers: { ...CLAIMS, ...FROM_CLOUDFLARE } } ) );
         // Express takes `request.ip` from the first X-Forwarded-For entry: it must be the connecting address alone.
         assert.equal( forwarded.headers.get( "x-forwarded-for" ), "203.0.113.9" );
         assert.equal( forwarded.headers.get( "x-forwarded-proto" ), "https" );
@@ -69,7 +68,7 @@ describe( "forwarding — the request the container receives", () => {
     } );
 
     it( "passes everything else through, Cloudflare's own headers and the host included", () => {
-        const forwarded = forContainer( new Request( "https://app.example/writings/", {
+        const forwarded = forContainer( new Request( "https://app.example/posts/", {
             headers: { ...CLAIMS, ...FROM_CLOUDFLARE, "accept-language": "bg", cookie: "connect.sid=abc" }
         } ) );
         assert.equal( forwarded.headers.get( "cf-connecting-ip" ), "203.0.113.9" );

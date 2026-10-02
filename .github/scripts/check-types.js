@@ -178,7 +178,18 @@ function writeConsumer() {
         "const forwarded: Request = forwarding.forContainer( new Request( \"https://app.example/\" ) );",
         "void isProbe; void answered; void forwarded;",
         "// @ts-expect-error — the filter takes the path as a string.",
-        "void isProbe( 42 );"
+        "void isProbe( 42 );",
+        "",
+        "// The container's environment is strings, and a broker is something a Worker can call.",
+        "import * as container from \"@ti-engine/cloudflare/container\";",
+        "const containerSettings: Record<string, string> = container.containerEnvironment( {}, { prefixes: [ \"APP\" ], defaults: { TI_A: \"\" }, settings: { TI_B: \"b\" } } );",
+        "const reachable: string[] = container.allowedHosts( containerSettings );",
+        "const broker = container.createBroker( { path: \"/hooks/notify\", url: \"https://hooks.example.com/notify\" } );",
+        "const brokered: Promise<Response> = broker.forward( new Request( broker.address, { method: \"POST\" } ) );",
+        "const recognised: boolean = broker.matches( new Request( broker.address ) );",
+        "void reachable; void brokered; void recognised;",
+        "// @ts-expect-error — a setting is a string.",
+        "void container.containerEnvironment( {}, { settings: { TI_WEB_PORT: 3000 } } );"
     );
     fs.writeFileSync( path.join( WORK_DIRECTORY, "consumer.ts" ), lines.join( "\n" ) + "\n" );
     return count;

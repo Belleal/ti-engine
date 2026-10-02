@@ -1,6 +1,6 @@
 {
   "name": "@ti-engine/cloudflare",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "The Cloudflare edge of a ti-engine application: what the Worker in front of its container answers itself and what it tells the container. Scanner probes answered at the Worker, and forwarding headers made true. NOTICE: This is a work in progress and the full architecture, design, and functionality are not yet available!",
   "keywords": [
     "cloudflare",
@@ -22,6 +22,10 @@
     "./forwarding": {
       "types": "./types/worker/forwarding.d.ts",
       "default": "./worker/forwarding.js"
+    },
+    "./container": {
+      "types": "./types/worker/container.d.ts",
+      "default": "./worker/container.js"
     }
   },
   "imports": {
@@ -32,6 +36,10 @@
     "#forwarding": {
       "types": "./types/worker/forwarding.d.ts",
       "default": "./worker/forwarding.js"
+    },
+    "#container": {
+      "types": "./types/worker/container.d.ts",
+      "default": "./worker/container.js"
     }
   },
   "files": [
@@ -59,6 +67,7 @@
     "build:types": "tsc -p tsconfig.types.json"
   },
   "devDependencies": {
+    "@cloudflare/containers": "^0.3.7",
     "typescript": "^7.0.2"
   }
 }
