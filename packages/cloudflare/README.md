@@ -168,14 +168,17 @@ Both ways out start from `enableInternet = false`, which denies everything not l
   - The environment carries `INTERCEPTED_HTTPS_SETTINGS`, so Node trusts the CA Cloudflare re-signs that traffic
     with.
   - `allowedHosts( environment )` lists the state address and the server-side hosts of each enabled sign-in method
-    (`IDENTITY_PROVIDER_HOSTS`), plus the host of a discovery URL pointed elsewhere.
+    (`IDENTITY_PROVIDER_HOSTS`), plus the host of a discovery URL pointed elsewhere when it is a plain host name.
+    `@cloudflare/containers` reads `*` in an allowed host as a glob, so a discovery URL at `*.example.com` adds
+    nothing, rather than every subdomain.
 - **Brokered by the Worker**, for a container that should reach nothing but the state address.
   `createBroker( { path, url, contentType } )` is one call the Worker makes on the container's behalf:
   - the container sends it over plain HTTP to `broker.address`, at the state address;
   - the Worker's handler for that address checks `broker.matches( request )` and returns `broker.forward( request )`.
 
-  The broker takes POST only and forwards to one HTTPS URL. Of the container's headers, it passes on only the content
-  type. A URL it cannot reach answers `502`. Turnstile's `siteverify` is a call of this kind:
+  The broker takes POST only and forwards the body, byte for byte, to one HTTPS URL. Of the container's headers, it
+  passes on only the content type. It never follows a redirect, which would carry the body to a URL it was never
+  given: a redirect answers `502`, as a URL it cannot reach does. Turnstile's `siteverify` is a call of this kind:
 
 ```js
 const siteverify = createBroker( {

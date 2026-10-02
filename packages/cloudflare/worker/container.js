@@ -145,6 +145,17 @@ const DISCOVERY_URL_SETTINGS = Object.freeze( {
 } );
 
 /**
+ * A plain host name, as DNS has it, or an IPv4 address: labels of letters, digits and hyphens, joined by single dots.
+ * URL gives a hostname in lower case, but keeps characters no host has, `*` among them, and decodes `%2a` into one.
+ * `@cloudflare/containers` reads `*` in an allowed host as a glob, so a discovery URL at `*.example.com` would let
+ * every subdomain through, and one at `*` every host.
+ *
+ * @type {RegExp}
+ * @private
+ */
+const HOST_NAME = /^[a-z0-9-]+(\.[a-z0-9-]+)*$/;
+
+/**
  * What a container whose class sets `interceptHttps = true` needs in its environment. Cloudflare re-signs intercepted
  * HTTPS with its own CA, and Node must trust it, or every call through the allowlist fails its certificate check. Node
  * reads the file at start, and a missing file is a warning, not a failure.
@@ -278,8 +289,8 @@ function containerEnvironment( env, options ) {
 
 /**
  * The hosts the container may reach: the state address, and the identity providers of the sign-in methods its
- * environment enables (`TI_WEB_AUTH_METHODS`), with the host of a discovery URL pointed elsewhere. Everything else is
- * refused by the default deny the container class sets up with `enableInternet = false`.
+ * environment enables (`TI_WEB_AUTH_METHODS`), with the host of a discovery URL pointed elsewhere when it is a plain
+ * host name. Everything else is refused by the default deny the container class sets up with `enableInternet = false`.
  * <br/>
  * An HTTPS call meets this list only when the class sets `interceptHttps = true`, and the environment carries
  * {@link INTERCEPTED_HTTPS_SETTINGS}. Without them, it falls to the internet setting, which is off.
@@ -298,7 +309,12 @@ function allowedHosts( environment ) {
         const discoveryUrl = settings[ DISCOVERY_URL_SETTINGS[ method ] ];
         if ( typeof discoveryUrl === "string" && discoveryUrl.length > 0 ) {
             try {
-                hosts.add( new URL( discoveryUrl ).hostname );
+                const host = new URL( discoveryUrl ).hostname;
+                // Only a plain host name: the library would read anything else, `*` above all, as a pattern for more
+                // hosts than this one. The sign-in then fails as plainly as with a malformed URL.
+                if ( HOST_NAME.test( host ) === true ) {
+                    hosts.add( host );
+                }
             } catch {
                 // A malformed URL fails the sign-in itself, with the framework's own message. The allowlist need not
                 // guess at it.
@@ -345,9 +361,10 @@ function sleepAfter( value, fallback ) {
  * to be intercepted, on a path of its own. The Worker's handler for that address recognises it (`matches`) and makes the
  * call (`forward`).
  * <br/>
- * Narrow on purpose: one path, POST only, one URL, and of the container's headers only the content type. The body is
- * passed on unread, since a secret may travel in it, and nothing here logs it. A URL that cannot be reached answers 502,
- * which the container should refuse as unverifiable: refusing is visible, and accepting unchecked is not.
+ * Narrow on purpose: one path, POST only, one URL and never a redirect from it, and of the container's headers only the
+ * content type. The body is passed on byte for byte and never looked into, since a secret may travel in it, and nothing
+ * here logs it. A URL that cannot be reached, or that redirects, answers 502, which the container should refuse as
+ * unverifiable: refusing is visible, and accepting unchecked is not.
  *
  * @method
  * @param {Object} options
@@ -390,11 +407,22 @@ function createBroker( options ) {
             }
             const type = contentType || request.headers.get( "content-type" );
             try {
-                return await fetch( url, {
+                const answer = await fetch( url, {
                     method: "POST",
                     headers: type ? { "content-type": type } : {},
-                    body: await request.text()
+                    // As bytes: decoded as text, a body that is not UTF-8 would go out changed.
+                    body: await request.arrayBuffer(),
+                    // Workers refuses "error", so a redirect comes back here, and goes no further.
+                    redirect: "manual"
                 } );
+                if ( answer.status >= 300 && answer.status < 400 ) {
+                    // Followed, it would carry the body, and any secret in it, to a URL this broker was never given.
+                    if ( answer.body !== null ) {
+                        await answer.body.cancel();
+                    }
+                    return new Response( null, { status: 502 } );
+                }
+                return answer;
             } catch {
                 return new Response( null, { status: 502 } );
             }

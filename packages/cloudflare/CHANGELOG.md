@@ -30,14 +30,17 @@ around the same nine settings described in different words. Design:
 * feat(container): `allowedHosts( environment )`, `IDENTITY_PROVIDER_HOSTS` and `INTERCEPTED_HTTPS_SETTINGS` cover
   the intercepted-HTTPS way out. That is the state address, plus the server-side hosts of each enabled OpenID method
   and of a discovery URL pointed elsewhere, with the CA Node must trust.
+  * A discovery URL's host counts only when it is a plain host name. `@cloudflare/containers` reads `*` in an allowed
+    host as a glob, so `*.example.com` would have let every subdomain through.
 * feat(container): `sleepAfter( value, fallback )` passes on exactly the durations `@cloudflare/containers` can parse
   above zero, and the fallback otherwise. A test holds it against the library's own `parseTimeExpression`.
   * A leading zero (`007m`) is accepted, as the library accepts it.
 * feat(container): `createBroker( { path, url, contentType } )` is a call the Worker makes for a container that
   reaches nothing but the state address.
-  * It takes POST only and forwards to one HTTPS URL.
+  * It takes POST only and forwards the body, byte for byte, to one HTTPS URL.
   * Of the container's headers, it passes on only the content type.
-  * An unreachable URL answers 502.
+  * It never follows a redirect, which would carry the body to a URL it was never given. A redirect answers 502, as
+    an unreachable URL does.
   * A path under `/v1/`, where the state protocol is, is refused.
 
   Turnstile's `siteverify`, which a container without the internet cannot make, is the call it was written for.

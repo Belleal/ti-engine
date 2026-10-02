@@ -83,7 +83,9 @@ Only some of each Worker is truly per application:
 9. (Step 2) **Each application keeps its way out.** The package offers both ways the two applications reach beyond the
    state address, and changes neither application's.
    - **Intercepted HTTPS** is competence's: `interceptHttps`, an allowlist from the enabled sign-in methods, and the
-     CA Node must trust. It is how competence's staging and production are set up to sign people in.
+     CA Node must trust. It is how competence's staging and production are set up to sign people in. A discovery URL
+     pointed elsewhere adds its host only when that is a plain host name: `@cloudflare/containers` reads `*` in an
+     allowed host as a glob, so `*.example.com` would let every subdomain through, and `*` every host.
    - **Brokered by the Worker** is the site's, for `siteverify`.
 
    **Both are proven live.** The brokered call has answered every sign-up on the site since 2026-10-02. The intercepted
@@ -111,7 +113,10 @@ Only some of each Worker is truly per application:
     - It answers one path, takes POST only and forwards to one HTTPS URL.
     - Of the container's headers, it passes on only the content type, or a fixed one: the site's `siteverify` is sent
       as `application/x-www-form-urlencoded`, exactly as before.
-    - The body goes on unread.
+    - The body goes on byte for byte. Read as text, a body that is not UTF-8 went out changed.
+    - It never follows a redirect, which would carry the body, and any secret in it, to a URL the broker was never
+      given. It asks for `redirect: "manual"` and answers a `3xx` with `502`. `redirect: "error"` is not an option:
+      workerd refuses it outright, so every call would have been a `502` in production while Node's tests passed.
     - An unreachable URL is a `502`.
     - A path under `/v1/` is refused, so a broker can never shadow the state protocol at the address they share.
 14. (Step 2) **The package knows nothing of the applications that use it** (Boris, 2026-10-02). No application's prefix,
@@ -263,15 +268,15 @@ finishes the job.
   - `sleepAfter( value, fallback )`;
   - `createBroker( { path, url, contentType } )`.
 - `@cloudflare/containers` ^0.3.7 is a dev dependency, for the test that holds `sleepAfter` against its parser.
-- Tests: 48 new, 87 in all, in 12 suites across 3 files. They cover:
+- Tests: 51 new, 90 in all, in 12 suites across 3 files. They cover:
   - the platform, pinned;
   - each layer of the environment and its order;
   - both applications' bindings;
-  - the hosts for every method and discovery URL;
+  - the hosts for every method and discovery URL, and a discovery host that is not a plain host name;
   - the sleep timer against the library;
-  - the broker's forwarding, refusals and failures;
+  - the broker's forwarding, byte for byte, its refusals, redirects and failures;
   - every malformed option.
-- Fifteen plausible defects were each made by hand, and the suite caught every one:
+- Twenty-seven plausible defects were each made by hand, and the suite caught every one:
   - the platform put over the application's settings;
   - defaults by truthiness;
   - a non-string passed through;
@@ -285,6 +290,16 @@ finishes the job.
   - a broker under `/v1/`;
   - plain HTTP as a broker's target;
   - the container's content type over the broker's;
-  - an unreachable URL thrown instead of answered `502`.
+  - an unreachable URL thrown instead of answered `502`;
+  - a discovery host added whatever its characters, with `*` or `_` allowed, or matched unanchored;
+  - a redirect followed, passed back to the container, or its body left open;
+  - the redirect range off by one at either end, three ways;
+  - the body decoded as text.
+- CodeRabbit's review of #182 found the last three groups: ways out wider than the options named. Each fix was
+  measured in workerd itself (miniflare 5 from wrangler 4.144.0), not only in Node:
+  - a body that is not UTF-8 arrives exact, with its `Content-Length`;
+  - a `307` is answered `502` after one call out, never a second;
+  - the target's own `400` comes back as it came;
+  - workerd's URL parser gives the same hosts as Node's.
 - `check:types` gained consumer checks for the container module: the environment is `Record<string, string>`, a
   broker is callable, and a setting that is not a string is a type error.

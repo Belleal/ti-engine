@@ -45,8 +45,8 @@ declare function containerEnvironment(env: Object, options?: {
 }): Record<string, string>;
 /**
  * The hosts the container may reach: the state address, and the identity providers of the sign-in methods its
- * environment enables (`TI_WEB_AUTH_METHODS`), with the host of a discovery URL pointed elsewhere. Everything else is
- * refused by the default deny the container class sets up with `enableInternet = false`.
+ * environment enables (`TI_WEB_AUTH_METHODS`), with the host of a discovery URL pointed elsewhere when it is a plain
+ * host name. Everything else is refused by the default deny the container class sets up with `enableInternet = false`.
  * <br/>
  * An HTTPS call meets this list only when the class sets `interceptHttps = true`, and the environment carries
  * {@link INTERCEPTED_HTTPS_SETTINGS}. Without them, it falls to the internet setting, which is off.
@@ -104,9 +104,10 @@ export type Broker = {
  * to be intercepted, on a path of its own. The Worker's handler for that address recognises it (`matches`) and makes the
  * call (`forward`).
  * <br/>
- * Narrow on purpose: one path, POST only, one URL, and of the container's headers only the content type. The body is
- * passed on unread, since a secret may travel in it, and nothing here logs it. A URL that cannot be reached answers 502,
- * which the container should refuse as unverifiable: refusing is visible, and accepting unchecked is not.
+ * Narrow on purpose: one path, POST only, one URL and never a redirect from it, and of the container's headers only the
+ * content type. The body is passed on byte for byte and never looked into, since a secret may travel in it, and nothing
+ * here logs it. A URL that cannot be reached, or that redirects, answers 502, which the container should refuse as
+ * unverifiable: refusing is visible, and accepting unchecked is not.
  *
  * @method
  * @param {Object} options

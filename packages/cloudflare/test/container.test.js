@@ -40,7 +40,8 @@ afterEach( () => {
 } );
 
 /**
- * Stands in for the Workers runtime's `fetch`, and records each call.
+ * Stands in for the Workers runtime's `fetch`, and records each call. The body is recorded as the bytes that would go
+ * out, whatever form it was given in.
  *
  * @param {function(): Response} answer
  * @returns {Object[]}
@@ -48,11 +49,20 @@ afterEach( () => {
 function stubFetch( answer ) {
     const calls = [];
     globalThis.fetch = async ( url, init ) => {
-        calls.push( { url: String( url ), method: init.method, headers: Object.assign( {}, init.headers ), body: init.body } );
+        const body = ( init.body === undefined ) ? undefined : new Uint8Array( await new Response( init.body ).arrayBuffer() );
+        calls.push( { url: String( url ), method: init.method, headers: Object.assign( {}, init.headers ), redirect: init.redirect, body: body } );
         return answer();
     };
     return calls;
 }
+
+/**
+ * The bytes of a text, as UTF-8.
+ *
+ * @param {string} text
+ * @returns {Uint8Array}
+ */
+const bytes = ( text ) => new TextEncoder().encode( text );
 
 describe( "container — the platform", () => {
 
@@ -235,6 +245,29 @@ describe( "container — the hosts it may reach", () => {
         assert.deepEqual( hostsFor( { TI_WEB_AUTH_METHODS: "openid-azure", TI_AZURE_AUTH_DISCOVERY_URL: "not a url" } ), azure.sort(), "a URL that is not one adds nothing" );
         assert.deepEqual( hostsFor( { TI_WEB_AUTH_METHODS: "openid-azure", TI_AZURE_AUTH_DISCOVERY_URL: "https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration" } ),
             azure.sort(), "each host once" );
+        assert.deepEqual( hostsFor( { TI_WEB_AUTH_METHODS: "openid-azure", TI_AZURE_AUTH_DISCOVERY_URL: "https://Login.Example.COM/tenant/v2.0/.well-known/openid-configuration" } ),
+            [ ...azure, "login.example.com" ].sort(), "a host as URL gives it, in lower case" );
+    } );
+
+    it( "adds a discovery host only when it is a plain host name, since the library reads `*` as any host at all", () => {
+        // `@cloudflare/containers` matches each entry as a glob, so `*.example.com` would let every subdomain through,
+        // and `*` every host. URL keeps these characters in a hostname, and decodes `%2a` into one.
+        const azure = [ STATE_ADDRESS, ...IDENTITY_PROVIDER_HOSTS[ "openid-azure" ] ].sort();
+        for ( const discoveryUrl of [
+            "https://*.example.com/.well-known/openid-configuration",
+            "https://*/.well-known/openid-configuration",
+            "https://login.*.com/.well-known/openid-configuration",
+            "https://login%2a.example.com/.well-known/openid-configuration",
+            "https://login_test.example.com/.well-known/openid-configuration",
+            "https://login!.example.com/.well-known/openid-configuration",
+            "https://[::1]/.well-known/openid-configuration"
+        ] ) {
+            assert.deepEqual( hostsFor( { TI_WEB_AUTH_METHODS: "openid-azure", TI_AZURE_AUTH_DISCOVERY_URL: discoveryUrl } ), azure, discoveryUrl );
+        }
+        assert.deepEqual( hostsFor( { TI_WEB_AUTH_METHODS: "openid-azure", TI_AZURE_AUTH_DISCOVERY_URL: "https://10.0.0.7/.well-known/openid-configuration" } ),
+            [ ...azure, "10.0.0.7" ].sort(), "an IPv4 address is exact too" );
+        assert.deepEqual( hostsFor( { TI_WEB_AUTH_METHODS: "openid-azure", TI_AZURE_AUTH_DISCOVERY_URL: "https://bücher.example/.well-known/openid-configuration" } ),
+            [ ...azure, "xn--bcher-kva.example" ].sort(), "an international name, as DNS has it" );
     } );
 
     it( "names the hosts as frozen lists, and the setting intercepted HTTPS needs", () => {
@@ -316,9 +349,39 @@ describe( "container — a call the Worker makes for the container", () => {
         assert.deepEqual( await response.json(), { "success": true, "action": "capture" } );
         // The content type is the one the broker names, and no other header of the container's goes out.
         assert.deepEqual( calls, [ {
-            url: SITEVERIFY, method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" },
-            body: "secret=the-secret&response=a-token"
+            url: SITEVERIFY, method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, redirect: "manual",
+            body: bytes( "secret=the-secret&response=a-token" )
         } ] );
+    } );
+
+    it( "forwards the body byte for byte, never decoded as text", async () => {
+        const calls = stubFetch( () => new Response( "ok" ) );
+        const broker = createBroker( { path: "/hooks/notify", url: "https://hooks.example.com/notify" } );
+        // Not UTF-8: decoded as text, each invalid byte would go out as three others.
+        const binary = new Uint8Array( [ 0xff, 0xfe, 0x00, 0x80, 0x41 ] );
+        await broker.forward( new Request( atState( "/hooks/notify" ), { method: "POST", body: binary } ) );
+        await broker.forward( new Request( atState( "/hooks/notify" ), { method: "POST", body: "naïve ✓" } ) );
+        await broker.forward( new Request( atState( "/hooks/notify" ), { method: "POST" } ) );
+        assert.deepEqual( calls.map( ( call ) => call.body ), [ binary, bytes( "naïve ✓" ), new Uint8Array( 0 ) ] );
+    } );
+
+    it( "never follows a redirect, which would carry the body to a URL it was never given, and answers 502", async () => {
+        // Workers refuses `redirect: "error"` outright, so the broker asks for the redirect itself and refuses it.
+        for ( const status of [ 300, 301, 302, 303, 307, 308, 399 ] ) {
+            let moved;
+            const calls = stubFetch( () => ( moved = new Response( "moved", { status: status, headers: { "location": "https://elsewhere.example.com/collect" } } ) ) );
+            const response = await siteverify().forward( new Request( atState( SITEVERIFY_PATH ), { method: "POST", body: "secret=s&response=t" } ) );
+            assert.equal( response.status, 502, String( status ) );
+            assert.equal( response.headers.get( "location" ), null, "the redirect's address is not passed on" );
+            assert.deepEqual( calls.map( ( call ) => [ call.url, call.redirect ] ), [ [ SITEVERIFY, "manual" ] ] );
+            assert.equal( moved.bodyUsed, true, "the redirect's body is released, not left holding the connection" );
+        }
+        // Every other answer is the URL's own, and goes back as it came, its errors included.
+        for ( const status of [ 200, 204, 299, 400, 404, 500 ] ) {
+            stubFetch( () => new Response( null, { status: status } ) );
+            const response = await siteverify().forward( new Request( atState( SITEVERIFY_PATH ), { method: "POST", body: "secret=s&response=t" } ) );
+            assert.equal( response.status, status );
+        }
     } );
 
     it( "passes on the container's own content type when it names none", async () => {
