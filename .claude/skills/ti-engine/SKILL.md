@@ -851,8 +851,8 @@ Worker assembly and an application template remain, each waiting on its own go-a
 |------|---------|
 | `worker/probes.js` | `createProbeFilter( { except, disable } )` → `isProbe( pathname, search )`, plus `probeResponse()` (a plain 404) and `PROBE_RULES`. The seven named rules, in order: `encoded-separators` (on the path as sent), `server-files`, `wordpress`, `graphql`, `seo-sitemaps`, `dot-paths` (on the decoded path), `user-enumeration` (query parameter names `rest_route`/`author`, case-sensitive, never values). A path that does not decode is always a probe |
 | `worker/forwarding.js` | `forContainer( request )`: drops all 20 `FORWARDING_CLAIMS`, sets `X-Forwarded-For` from `CF-Connecting-IP` (none without it) and `X-Forwarded-Proto` from the URL; never modifies the request it is given |
-| `worker/container.js` | What the container starts with and may reach (0.2.0). `PLATFORM_SETTINGS` are the nine settings every ti-engine application on Cloudflare runs as: state at `STATE_ADDRESS` (`11.0.0.1`, an address because there is no DNS), port `CONTAINER_PORT` without TLS, no exchange, no heartbeat, JSON logs. `containerEnvironment( env, { passThrough, defaults, settings } )` layers the pattern's string bindings, then named defaults (absent, blank or non-string → default), then the platform, then the application's settings. `allowedHosts( environment )` gives the state address plus each enabled OpenID method's hosts (`IDENTITY_PROVIDER_HOSTS`) and a discovery URL's host; `INTERCEPTED_HTTPS_SETTINGS` holds the CA for `interceptHttps`. `sleepAfter( value, fallback )` passes exactly what `@cloudflare/containers` parses above zero. `createBroker( { path, url, contentType } )` is a call the Worker makes for the container: POST only, one HTTPS URL, only the content type passed on, 502 when unreachable, never under `/v1/` |
-| `test/*.test.js` | `node --test`: **83 tests / 12 suites across 3 files**: the union of both applications' probe and served lists, the site's configuration, every refusal, the claims, the platform (pinned), each environment layer, the hosts, the sleep timer against the library's own parser, and the broker |
+| `worker/container.js` | What the container starts with and may reach (0.2.0). `PLATFORM_SETTINGS` are the nine settings every ti-engine application on Cloudflare runs as: state at `STATE_ADDRESS` (`11.0.0.1`, an address because there is no DNS), port `CONTAINER_PORT` without TLS, no exchange, no heartbeat, JSON logs. `containerEnvironment( env, { prefixes, defaults, settings } )` layers every `TI_*` string binding (always) and `<PREFIX>_*` for each of the application's `prefixes`, then named defaults (absent, blank or non-string → default), then the platform, then the application's settings. `allowedHosts( environment )` gives the state address plus each enabled OpenID method's hosts (`IDENTITY_PROVIDER_HOSTS`) and a discovery URL's host; `INTERCEPTED_HTTPS_SETTINGS` holds the CA for `interceptHttps`. `sleepAfter( value, fallback )` passes exactly what `@cloudflare/containers` parses above zero. `createBroker( { path, url, contentType } )` is a call the Worker makes for the container: POST only, one HTTPS URL, only the content type passed on, 502 when unreachable, never under `/v1/` |
+| `test/*.test.js` | `node --test`: **87 tests / 12 suites across 3 files**: the union of both applications' probe and served lists, the site's configuration, every refusal, the claims, the platform (pinned), each environment layer, the hosts, the sleep timer against the library's own parser, and the broker |
 
 **Conventions & gotchas (this package)**:
 - **It runs in the Workers runtime.** A module requires nothing, not even a sibling, and uses only globals both Workers
@@ -866,11 +866,15 @@ Worker assembly and an application template remain, each waiting on its own go-a
   application's own URLs at the edge.
 - **A rule change is a behaviour change for every consumer.** Call it out in the changelog. `PROBE_RULES` is pinned by
   a test. Each application keeps a guard test that runs every URL it serves through its configured filter.
-- **Two ways out, chosen by the container class.** Both start from `enableInternet = false`.
-  - Intercepted HTTPS (competence's sign-in): `interceptHttps = true`, `allowedHosts( envVars )`, and
-    `INTERCEPTED_HTTPS_SETTINGS` in the environment.
-  - Brokered (the site's `siteverify`): the allowlist is the state address alone, and the Worker makes the call through
-    `createBroker`.
+- **Two ways out, chosen by the container class, both proven live.** Both start from `enableInternet = false`.
+  - Intercepted HTTPS, for a container that signs people in with OpenID itself: `interceptHttps = true`,
+    `allowedHosts( envVars )`, and `INTERCEPTED_HTTPS_SETTINGS` in the environment.
+  - Brokered, for a container that should reach nothing but the state address: the allowlist is the state address
+    alone, and the Worker makes the call through `createBroker` (Turnstile's `siteverify`, for instance).
+- **The package knows nothing of the applications that use it** (Boris, 2026-10-02). No consumer's name, prefix,
+  path, setting or host goes in its code, tests, README or changelog. The framework's `TI_*` settings pass by
+  default; an application adds `prefixes`, `defaults`, `settings`, brokers and probe exceptions of its own. A first
+  draft took a pass-through pattern, and its example named `COMPETENCE_*`: exactly the coupling this rules out.
 
   `PLATFORM_SETTINGS` is pinned by a test like `PROBE_RULES`: a change reaches every application's container with the
   release. `@cloudflare/containers` is only a dev dependency, for the parser test; step 3 makes it a peer.
@@ -1000,8 +1004,8 @@ Token: YouTrack → Profile → Account Security → New token (scope: YouTrack)
 2. **Extending the web UI**: subclass `TiWebAppManager`, add an HTML fragment + matching Alpine component; reuse framework CSS primitives; obey the Alpine CSP rules (no inline styles, no `?.`).
 3. **Config-management, from a consumer's side**: a consuming application registers a config document (schema + file default + semantic validators + optional composite editor) through `TiWebAppManager.registerConfigDocument` / `registerConfigEditor`. Those seams live here; the documents themselves live in the consumer. Changing either seam is a breaking change for every consumer, so treat the `exports` map and these signatures as API.
 4. **Testing**: Node.js built-in `node --test` (no external framework); each package's `test/` directory. `npm test`
-   at the root fans out across workspaces — **1531 tests today: core 244, web-framework 771, web-content 433,
-   cloudflare 83, tester none** (it is a runnable service, not a unit-tested one). The three checks that gate a push are in
+   at the root fans out across workspaces — **1535 tests today: core 244, web-framework 771, web-content 433,
+   cloudflare 87, tester none** (it is a runnable service, not a unit-tested one). The three checks that gate a push are in
    `CLAUDE.md` → *Definition of done*: `npm test`, `npm run lint` (0 errors; ESLint's only rule here is
    `no-unused-vars` as a **warning**, so a clean lint is no evidence the house style was followed — read a sibling
    file in `core` instead), and `npm run build:types && npm run check:types`.

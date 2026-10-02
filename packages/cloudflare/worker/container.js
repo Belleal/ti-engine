@@ -16,8 +16,7 @@
 */
 
 /**
- * What a ti-engine application's container starts with on Cloudflare, and what it may reach (CA-362; first written for
- * the Boris Khan site and competence, which each built their own).
+ * What a ti-engine application's container starts with on Cloudflare, and what it may reach (CA-362).
  * <br/>
  * On Cloudflare the application runs as a container behind a Worker. The container has no address of its own, and its
  * state lives in D1, behind the Worker: sessions and the configuration store reach it over the state protocol, at an
@@ -25,14 +24,16 @@
  * every application ({@link PLATFORM_SETTINGS}). What differs is which of the Worker's bindings it receives, and how it
  * reaches anything else.
  * <br/>
- * Two ways out are in use, and the container class chooses between them. Both start from `enableInternet = false`,
+ * There are two ways out, and the container class chooses between them. Both start from `enableInternet = false`,
  * which denies everything not listed:
- * - **Intercepted HTTPS.** competence's container signs people in with OpenID itself. Its class sets
- *   `interceptHttps = true` and allows its identity providers' hosts ({@link allowedHosts}), and Node trusts the CA
+ * - **Intercepted HTTPS**, for a container that makes HTTPS calls itself, such as an OpenID sign-in. The class sets
+ *   `interceptHttps = true` and allows the identity providers' hosts ({@link allowedHosts}), and Node trusts the CA
  *   Cloudflare re-signs that traffic with ({@link INTERCEPTED_HTTPS_SETTINGS}).
- * - **Brokered by the Worker.** The site's container makes one call of its own, Turnstile's `siteverify`. It sends it
- *   over plain HTTP to the state address, and the Worker makes the call ({@link createBroker}), so the container
- *   reaches nothing but that address.
+ * - **Brokered by the Worker**, for a container that should reach nothing but the state address. It sends a call, such
+ *   as Turnstile's `siteverify`, over plain HTTP to the state address, and the Worker makes it ({@link createBroker}).
+ * <br/>
+ * It knows nothing of the applications that use it. Every application gets the framework's own settings, `TI_*`, and
+ * names its own prefix, settings and calls through options.
  * <br/>
  * NOTE: Runs in the Workers runtime, so it requires nothing, not even another module of this package, and uses only the
  * `Request`, `Response`, `URL` and `fetch` globals both Workers and Node provide.
@@ -43,8 +44,8 @@
 /**
  * Where the container reaches the state service, and every other call the Worker answers for it. An address, not a
  * hostname: with the internet off, the container gets no DNS in production. So a name like `state.internal` never
- * resolves, and the application exits at boot. The site found that only once deployed, because wrangler's local runtime
- * does resolve such names. Nothing listens here: Cloudflare's egress layer hands out this address for an intercepted
+ * resolves, and the application exits at boot. That shows only once deployed, because wrangler's local runtime does
+ * resolve such names. Nothing listens here: Cloudflare's egress layer hands out this address for an intercepted
  * virtual host, and the Worker's `outboundByHost` handler for it answers.
  *
  * @type {string}
@@ -94,12 +95,30 @@ const PLATFORM_SETTINGS = Object.freeze( {
 } );
 
 /**
+ * The prefix of the framework's own settings (`TI_WEB_*`, `TI_MEMORY_CACHE_*` and the rest). Every binding that
+ * carries it reaches the container.
+ *
+ * @type {string}
+ * @private
+ */
+const FRAMEWORK_PREFIX = "TI";
+
+/**
+ * A prefix an application can name for settings of its own: capitals and digits, in words joined by single
+ * underscores, without the underscore that separates it from a setting's name.
+ *
+ * @type {RegExp}
+ * @private
+ */
+const PREFIX = /^[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$/;
+
+/**
  * The options {@link containerEnvironment} takes.
  *
  * @type {string[]}
  * @private
  */
-const ENVIRONMENT_OPTIONS = Object.freeze( [ "passThrough", "defaults", "settings" ] );
+const ENVIRONMENT_OPTIONS = Object.freeze( [ "prefixes", "defaults", "settings" ] );
 
 /**
  * The hosts an OpenID sign-in reaches from the server, by the web-framework sign-in method that uses them: discovery,
@@ -208,7 +227,8 @@ function checkSettings( option, values ) {
  * the image, because secrets exist only as the Worker's bindings.
  * <br/>
  * Each layer goes over the one before:
- * 1. every string binding whose name `passThrough` matches;
+ * 1. every string binding named `TI_<NAME>`, the framework's own settings, and `<PREFIX>_<NAME>` for each of
+ *    `prefixes`, the application's own;
  * 2. `defaults`: each named binding when it is a non-blank string, and its default otherwise, so the container always
  *    receives it;
  * 3. {@link PLATFORM_SETTINGS}, which no variable can override;
@@ -221,8 +241,8 @@ function checkSettings( option, values ) {
  * @method
  * @param {Object} env The Worker's bindings.
  * @param {Object} [options]
- * @param {RegExp} [options.passThrough] The names of the bindings that pass through as they are, such as
- * `/^(TI|COMPETENCE)_[A-Z0-9_]+$/`. Without it, none does.
+ * @param {string[]} [options.prefixes] The application's own setting prefixes, besides the framework's `TI`: `[ "APP" ]`
+ * passes `APP_*` through too.
  * @param {Object<string, string>} [options.defaults] The bindings the container always receives: name → its value when
  * the binding is absent, blank or not a string.
  * @param {Object<string, string>} [options.settings] The application's own fixed values.
@@ -233,21 +253,20 @@ function checkSettings( option, values ) {
 function containerEnvironment( env, options ) {
     const given = ( options === undefined || options === null ) ? {} : options;
     checkOptions( "containerEnvironment", given, ENVIRONMENT_OPTIONS );
-    const { passThrough, defaults = {}, settings = {} } = given;
-    if ( passThrough !== undefined && ( passThrough instanceof RegExp === false || passThrough.global === true || passThrough.sticky === true ) ) {
-        // A global or sticky pattern remembers where it last matched, so `test` would skip every other binding.
-        throw new TypeError( "containerEnvironment: 'passThrough' must be a regular expression without the g or y flag." );
+    const { prefixes = [], defaults = {}, settings = {} } = given;
+    if ( Array.isArray( prefixes ) === false || prefixes.some( ( prefix ) => typeof prefix !== "string" || PREFIX.test( prefix ) === false ) ) {
+        throw new TypeError( `containerEnvironment: 'prefixes' must be a list of setting prefixes such as "APP", in capitals and without the trailing underscore: ${ JSON.stringify( prefixes ) }` );
     }
     checkSettings( "defaults", defaults );
     checkSettings( "settings", settings );
 
+    // Built from prefixes the check above confines to capitals, digits and underscores, so nothing in it is a pattern.
+    const passedThrough = new RegExp( `^(${ [ FRAMEWORK_PREFIX, ...prefixes ].join( "|" ) })_[A-Z0-9_]+$` );
     const bindings = isPlainObject( env ) ? env : {};
     const environment = {};
-    if ( passThrough !== undefined ) {
-        for ( const [ name, value ] of Object.entries( bindings ) ) {
-            if ( typeof value === "string" && passThrough.test( name ) === true ) {
-                environment[ name ] = value;
-            }
+    for ( const [ name, value ] of Object.entries( bindings ) ) {
+        if ( typeof value === "string" && passedThrough.test( name ) === true ) {
+            environment[ name ] = value;
         }
     }
     for ( const [ name, fallback ] of Object.entries( defaults ) ) {

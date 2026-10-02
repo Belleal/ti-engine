@@ -82,32 +82,36 @@ describe( "container — the platform", () => {
 
 describe( "container — the environment", () => {
 
-    // competence's: every setting an operator gives the Worker, for the application to read.
-    const PASS_THROUGH = /^(TI|COMPETENCE)_[A-Z0-9_]+$/;
-
-    it( "passes through the string bindings the pattern names, and nothing else", () => {
+    it( "passes through the framework's TI_* settings and the application's own prefix, as strings, and nothing else", () => {
         const environment = containerEnvironment( {
-            TI_WEB_AUTH_ADMINS: "boris@example.com",
+            TI_WEB_AUTH_ADMINS: "admin@example.com",
             TI_WEB_COOKIE_SECRET: "secret-from-the-store",
-            COMPETENCE_TEST_USER_ENABLED: "false",
+            APP_TEST_USER_ENABLED: "false",
             DB: { prepare: () => null },
             CONTAINER: { idFromName: () => null },
             UNRELATED: "not for the container",
             ti_lowercase: "not a setting",
+            TI: "a prefix, not a setting",
+            APP_: "a prefix, not a setting",
+            APPX_SETTING: "another prefix",
             TI_NOT_A_STRING: 42,
             TI_AN_OBJECT: { a: 1 }
-        }, { passThrough: PASS_THROUGH } );
-        assert.equal( environment.TI_WEB_AUTH_ADMINS, "boris@example.com" );
+        }, { prefixes: [ "APP" ] } );
+        assert.equal( environment.TI_WEB_AUTH_ADMINS, "admin@example.com" );
         assert.equal( environment.TI_WEB_COOKIE_SECRET, "secret-from-the-store" );
-        assert.equal( environment.COMPETENCE_TEST_USER_ENABLED, "false" );
-        for ( const name of [ "DB", "CONTAINER", "UNRELATED", "ti_lowercase", "TI_NOT_A_STRING", "TI_AN_OBJECT" ] ) {
+        assert.equal( environment.APP_TEST_USER_ENABLED, "false" );
+        for ( const name of [ "DB", "CONTAINER", "UNRELATED", "ti_lowercase", "TI", "APP_", "APPX_SETTING", "TI_NOT_A_STRING", "TI_AN_OBJECT" ] ) {
             assert.equal( name in environment, false, name );
         }
         assert.ok( Object.values( environment ).every( ( value ) => typeof value === "string" ), "a container's environment is strings" );
     } );
 
-    it( "passes nothing through without a pattern", () => {
-        assert.deepEqual( containerEnvironment( { TI_WEB_AUTH_ADMINS: "boris@example.com" } ), PLATFORM_SETTINGS );
+    it( "passes the framework's settings without being told, and an application's only when it names its prefix", () => {
+        const bindings = { TI_WEB_AUTH_ADMINS: "admin@example.com", APP_SETTING: "x", MY_APP_SETTING: "y" };
+        assert.deepEqual( containerEnvironment( bindings ), Object.assign( {}, PLATFORM_SETTINGS, { TI_WEB_AUTH_ADMINS: "admin@example.com" } ) );
+        const both = containerEnvironment( bindings, { prefixes: [ "APP", "MY_APP" ] } );
+        assert.equal( both.APP_SETTING, "x" );
+        assert.equal( both.MY_APP_SETTING, "y", "a prefix of more than one word" );
         assert.deepEqual( containerEnvironment( undefined ), PLATFORM_SETTINGS );
     } );
 
@@ -126,19 +130,20 @@ describe( "container — the environment", () => {
         assert.equal( set.TI_SITE_ALLOW_INDEXING, "true" );
     } );
 
-    it( "receives a default's binding without a pattern, as an application that lists its variables does", () => {
-        // The Boris Khan site's: five bindings, each always present, and nothing else of the Worker's.
+    it( "keeps a named setting present, with its default, whatever the Worker has", () => {
+        // An application that reads some settings as always present: empty, or a default, never undefined.
         const defaults = {
-            TI_WEB_COOKIE_SECRET: "", TI_WEB_AUTH_METHODS: "", TI_WEB_AUTH_ADMINS: "", TI_SITE_ALLOW_INDEXING: "false",
-            TI_SITE_TURNSTILE_SECRET: ""
+            TI_WEB_COOKIE_SECRET: "", TI_WEB_AUTH_METHODS: "", TI_WEB_AUTH_ADMINS: "", APP_ALLOW_INDEXING: "false",
+            APP_TURNSTILE_SECRET: ""
         };
         const environment = containerEnvironment(
-            { TI_SITE_ALLOW_INDEXING: "true", TI_SITE_TURNSTILE_SECRET: "the-secret", TI_UNLISTED: "x", DB: {} },
-            { defaults, settings: { TI_SITE_TURNSTILE_VERIFY_URL: "http://11.0.0.1/turnstile/v0/siteverify" } }
+            { APP_ALLOW_INDEXING: "true", APP_TURNSTILE_SECRET: "the-secret", TI_UNLISTED: "x", DB: {} },
+            { defaults, settings: { APP_TURNSTILE_VERIFY_URL: "http://11.0.0.1/turnstile/v0/siteverify" } }
         );
         assert.deepEqual( environment, Object.assign( {}, PLATFORM_SETTINGS, {
-            TI_WEB_COOKIE_SECRET: "", TI_WEB_AUTH_METHODS: "", TI_WEB_AUTH_ADMINS: "", TI_SITE_ALLOW_INDEXING: "true",
-            TI_SITE_TURNSTILE_SECRET: "the-secret", TI_SITE_TURNSTILE_VERIFY_URL: "http://11.0.0.1/turnstile/v0/siteverify"
+            TI_WEB_COOKIE_SECRET: "", TI_WEB_AUTH_METHODS: "", TI_WEB_AUTH_ADMINS: "", APP_ALLOW_INDEXING: "true",
+            APP_TURNSTILE_SECRET: "the-secret", APP_TURNSTILE_VERIFY_URL: "http://11.0.0.1/turnstile/v0/siteverify",
+            TI_UNLISTED: "x"
         } ) );
     } );
 
@@ -150,16 +155,16 @@ describe( "container — the environment", () => {
             TI_WEB_USE_TLS: "true",
             TI_MESSAGE_EXCHANGE_ENABLED: "true",
             TI_SERVICE_HEALTH_CHECK_ENABLED: "true"
-        }, { passThrough: PASS_THROUGH, defaults: { TI_AUDITING_LOG_USES_JSON: "false" } } );
+        }, { defaults: { TI_AUDITING_LOG_USES_JSON: "false" } } );
         assert.deepEqual( environment, PLATFORM_SETTINGS );
     } );
 
     it( "puts the application's own settings over everything, the platform included", () => {
-        const environment = containerEnvironment( { COMPETENCE_DATA_STORE: "redis" }, {
-            passThrough: PASS_THROUGH,
-            settings: Object.assign( { COMPETENCE_DATA_STORE: "d1" }, INTERCEPTED_HTTPS_SETTINGS )
+        const environment = containerEnvironment( { APP_DATA_STORE: "redis" }, {
+            prefixes: [ "APP" ],
+            settings: Object.assign( { APP_DATA_STORE: "d1" }, INTERCEPTED_HTTPS_SETTINGS )
         } );
-        assert.equal( environment.COMPETENCE_DATA_STORE, "d1" );
+        assert.equal( environment.APP_DATA_STORE, "d1" );
         assert.equal( environment.NODE_EXTRA_CA_CERTS, "/etc/cloudflare/certs/cloudflare-containers-ca.crt" );
         // Code, reviewed, may move what a variable may not.
         assert.equal( containerEnvironment( {}, { settings: { TI_WEB_PORT: "8080" } } ).TI_WEB_PORT, "8080" );
@@ -178,11 +183,15 @@ describe( "container — the environment", () => {
     // than discovered as a setting that never arrives.
     const refusals = [
         [ "options that are not an object", "TI_" ],
-        [ "an unknown option", { passthrough: PASS_THROUGH } ],
-        [ "a pattern that is a string", { passThrough: "^TI_" } ],
-        [ "a pattern that is a list", { passThrough: [ "TI_WEB_PORT" ] } ],
-        [ "a global pattern, which remembers where it last matched", { passThrough: /^TI_/g } ],
-        [ "a sticky pattern", { passThrough: /^TI_/y } ],
+        [ "an unknown option", { prefix: [ "APP" ] } ],
+        [ "a pattern in place of prefixes", { passThrough: /^(TI|APP)_/ } ],
+        [ "prefixes that are not a list", { prefixes: "APP" } ],
+        [ "a prefix that is not a string", { prefixes: [ 42 ] } ],
+        [ "a prefix in lower case, which no setting carries", { prefixes: [ "app" ] } ],
+        [ "a prefix with its underscore", { prefixes: [ "APP_" ] } ],
+        [ "a prefix that starts with a digit", { prefixes: [ "1APP" ] } ],
+        [ "an empty prefix", { prefixes: [ "" ] } ],
+        [ "a prefix that is a pattern", { prefixes: [ "A|B" ] } ],
         [ "defaults that are not an object", { defaults: [ "TI_WEB_PORT" ] } ],
         [ "a default that is not a string", { defaults: { TI_SITE_ALLOW_INDEXING: false } } ],
         [ "settings that are not an object", { settings: "TI_WEB_PORT=3000" } ],
@@ -279,7 +288,7 @@ describe( "container — a call the Worker makes for the container", () => {
 
     const SITEVERIFY_PATH = "/turnstile/v0/siteverify";
     const SITEVERIFY = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
-    // The Boris Khan site's: Turnstile's `siteverify`, which the container cannot reach itself.
+    // Turnstile's `siteverify`: a call a container without the internet cannot make itself.
     const siteverify = () => createBroker( { path: SITEVERIFY_PATH, url: SITEVERIFY, contentType: "application/x-www-form-urlencoded" } );
     const atState = ( pathname ) => `http://${ STATE_ADDRESS }${ pathname }`;
 

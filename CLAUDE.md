@@ -199,6 +199,9 @@ What made the difference on the bugs solved so far, in order of how often it mat
 - Five packages — `core`, `web-framework`, `web-content`, `tester`, `cloudflare` — each with its **own** version and
   `CHANGELOG.md`. Dependency direction: `core` → `web-framework` → `web-content`; `tester` → `core`; `cloudflare`
   depends on nothing (it runs in the Worker in front of an application's container, not in the container).
+- **The framework knows nothing of the applications that use it** (Boris, 2026-10-02). No package carries a
+  consumer's name, prefix, path, setting or host in its code, tests, defaults or README. An application states its own
+  through options. A design record may say which application a lesson came from; an API may not depend on one.
 - **Merging to `master` publishes to npm.** A version bump plus its changelog section is the entire release ritual;
   `npm-publish.yml` compares declared versions against the registry, so a merge that bumps nothing publishes
   nothing.

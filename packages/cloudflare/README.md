@@ -64,8 +64,8 @@ An application whose own URLs fall under a rule has two options. Nothing else is
 
 - **`except`** exempts paths from one rule: `{ <rule>: [ <path prefixes> ] }`. A prefix is compared with the decoded
   path, ignoring case, so it is written decoded, starting with `/`, and without a query. Every other rule still applies
-  under it. The Boris Khan site keeps its media library at WordPress's addresses, so it exempts
-  `/wp-content/uploads/` from `wordpress`; a `.php` file under that prefix is still a probe.
+  under it. An application that kept its media library at WordPress's addresses exempts `/wp-content/uploads/` from
+  `wordpress`; a `.php` file under that prefix is still a probe.
 - **`disable`** turns rules off altogether: `[ <rule>, … ]`. An application with a real GraphQL endpoint disables
   `graphql`.
 
@@ -113,13 +113,14 @@ export class ApplicationContainer extends Container {
 
     constructor( ctx, env, options ) {
         super( ctx, env, options );
+        // Every TI_* setting on the Worker, every APP_* setting, and a sign-in method when none is set.
         this.envVars = containerEnvironment( env, {
-            passThrough: /^(TI|APPLICATION)_[A-Z0-9_]+$/,
+            prefixes: [ "APP" ],
             defaults: { TI_WEB_AUTH_METHODS: "openid-azure" },
             settings: INTERCEPTED_HTTPS_SETTINGS
         } );
         this.allowedHosts = allowedHosts( this.envVars );
-        this.sleepAfter = sleepAfter( env.APPLICATION_CONTAINER_SLEEP_AFTER, "10m" );
+        this.sleepAfter = sleepAfter( env.APP_CONTAINER_SLEEP_AFTER, "10m" );
     }
 
 }
@@ -139,12 +140,14 @@ export class ApplicationContainer extends Container {
 
 The state is reached at an address, not a hostname, because a container without the internet gets no DNS.
 
-`containerEnvironment( env, { passThrough, defaults, settings } )` builds the rest from the Worker's bindings, in
-four layers, each over the one before:
+`containerEnvironment( env, { prefixes, defaults, settings } )` builds the rest from the Worker's bindings, in four
+layers, each over the one before:
 
-1. `passThrough`: every string binding whose name the pattern matches, such as all `TI_*` settings an operator sets.
+1. Every string binding named `TI_<NAME>`, the framework's own settings, and `<PREFIX>_<NAME>` for each of
+   `prefixes`, the application's own (`[ "APP" ]` passes `APP_*`). A prefix is written in capitals without its
+   underscore.
 2. `defaults`: each named binding when it is a non-blank string, and its default otherwise, so the container always
-   receives it. An application that lists its variables names them here and needs no pattern.
+   receives it.
 3. `PLATFORM_SETTINGS`, which no variable can override.
 4. `settings`: the application's own fixed values, over everything.
 
@@ -166,15 +169,13 @@ Both ways out start from `enableInternet = false`, which denies everything not l
     with.
   - `allowedHosts( environment )` lists the state address and the server-side hosts of each enabled sign-in method
     (`IDENTITY_PROVIDER_HOSTS`), plus the host of a discovery URL pointed elsewhere.
-
-  competence signs in this way.
 - **Brokered by the Worker**, for a container that should reach nothing but the state address.
   `createBroker( { path, url, contentType } )` is one call the Worker makes on the container's behalf:
   - the container sends it over plain HTTP to `broker.address`, at the state address;
   - the Worker's handler for that address checks `broker.matches( request )` and returns `broker.forward( request )`.
 
   The broker takes POST only and forwards to one HTTPS URL. Of the container's headers, it passes on only the content
-  type. A URL it cannot reach answers `502`. The Boris Khan site brokers Turnstile's `siteverify` this way.
+  type. A URL it cannot reach answers `502`. Turnstile's `siteverify` is a call of this kind:
 
 ```js
 const siteverify = createBroker( {
@@ -183,7 +184,7 @@ const siteverify = createBroker( {
     contentType: "application/x-www-form-urlencoded"
 } );
 
-SiteContainer.outboundByHost = {
+ApplicationContainer.outboundByHost = {
     [ STATE_ADDRESS ]: ( request, env ) => siteverify.matches( request )
         ? siteverify.forward( request )
         : createD1StateService( env.DB )( request )
@@ -191,6 +192,9 @@ SiteContainer.outboundByHost = {
 ```
 
 A broker's path cannot be under `/v1/`, where the state protocol is, so the two can share the address.
+
+This package knows nothing of the applications that use it. No application's prefix, path, setting or host is in it:
+each application states its own through these options.
 
 ## Requirements
 

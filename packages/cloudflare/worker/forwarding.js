@@ -16,8 +16,7 @@
 */
 
 /**
- * The request as the container should see it: claiming only what Cloudflare saw (CA-359; first written for the Boris
- * Khan site and competence, CA-351).
+ * The request as the container should see it: claiming only what Cloudflare saw (CA-359; first CA-351).
  * <br/>
  * web-framework turns Express's `trust proxy` on, so an application believes the forwarding headers that reach it:
  * `request.ip` is the first `X-Forwarded-For` entry, `request.hostname` follows `X-Forwarded-Host`, and the scheme
@@ -32,8 +31,8 @@
  */
 
 /**
- * Headers a client can send to claim an address, a host or a scheme it does not have. The first scanner of the Boris
- * Khan site sent `127.0.0.1` in eight of these on every request, hoping something trusts a "local" caller.
+ * Headers a client can send to claim an address, a host or a scheme it does not have. One scanner sent `127.0.0.1` in
+ * eight of these on every request, hoping something trusts a "local" caller.
  * {@link forContainer} drops every one and then states the two it can vouch for.
  *
  * @type {string[]}

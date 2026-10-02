@@ -80,38 +80,47 @@ Only some of each Worker is truly per application:
    test pins the list, so a change is made on purpose. Each application's own guard test then catches a swallowed URL
    when its range is bumped.
 
-Step 2 added these:
-
-9. **Each application keeps its way out.** The package offers both ways the two applications reach beyond the state
-   address, and changes neither application's.
+9. (Step 2) **Each application keeps its way out.** The package offers both ways the two applications reach beyond the
+   state address, and changes neither application's.
    - **Intercepted HTTPS** is competence's: `interceptHttps`, an allowlist from the enabled sign-in methods, and the
      CA Node must trust. It is how competence's staging and production are set up to sign people in.
    - **Brokered by the Worker** is the site's, for `siteverify`.
 
-   The site's §7 records that a container without the internet resolves no public hostname, which is why it brokers.
-   competence's design record still calls the intercepted mode unproven; its live sign-ins are the test. Which mode an
-   application uses is the container class's choice, and step 3's to make simpler.
-10. **One environment builder, in four layers.** The pattern pass-through, the named defaults, the platform, then the
-    application's settings. That covers both applications as they are:
-    - competence passes every `TI_*`/`COMPETENCE_*` binding;
-    - the site lists five, each always present, with an empty or `false` default.
+   **Both are proven live.** The brokered call has answered every sign-up on the site since 2026-10-02. The intercepted
+   mode is how competence's staging and production sign people in, and Boris confirmed they do (2026-10-02). The
+   site's §7 had doubted that a container without the internet could reach a public host at all, which is why it
+   brokers; competence's sign-ins settle that. Which mode an application uses is the container class's choice, and
+   step 3's to make simpler.
+10. (Step 2) **One environment builder, in four layers.** In order, each over the one before:
+    - the bindings that pass through;
+    - the named defaults;
+    - the platform;
+    - the application's settings.
 
-    No variable overrides the platform. An application's own settings, which are code and reviewed, override
-    everything.
-11. **A default replaces a binding that is absent, blank or not a string.** That is competence's rule for
+    The framework's own settings, `TI_*`, always pass through. An application adds its own prefix, such as
+    `prefixes: [ "APP" ]` for `APP_*`, and names the settings it reads as always present in `defaults`. No variable
+    overrides the platform. An application's own settings, which are code and reviewed, override everything.
+11. (Step 2) **A default replaces a binding that is absent, blank or not a string.** That is competence's rule for
     `TI_WEB_AUTH_METHODS`. The site's `env.X || ""` differs only for a binding that is whitespace or not a string, and
     the site has neither: its one committed variable and its secrets are strings.
-12. **The sleep timer passes exactly what the library parses above zero.** A test holds it against
+12. (Step 2) **The sleep timer passes exactly what the library parses above zero.** A test holds it against
     `@cloudflare/containers`' own `parseTimeExpression`. competence's rule also refused a leading zero (`007m`), which
     the library accepts; no configuration uses one. The library is a dev dependency for that test and nothing else.
     It becomes a peer dependency in step 3, when the package builds the class.
-13. **A broker is one operation, never a proxy.**
+13. (Step 2) **A broker is one operation, never a proxy.**
     - It answers one path, takes POST only and forwards to one HTTPS URL.
     - Of the container's headers, it passes on only the content type, or a fixed one: the site's `siteverify` is sent
       as `application/x-www-form-urlencoded`, exactly as before.
     - The body goes on unread.
     - An unreachable URL is a `502`.
     - A path under `/v1/` is refused, so a broker can never shadow the state protocol at the address they share.
+14. (Step 2) **The package knows nothing of the applications that use it** (Boris, 2026-10-02). No application's prefix,
+    path, setting or host is in its code, tests, README or changelog. Each application states its own through options:
+    `prefixes`, `defaults` and `settings`; a broker's path and URL; a filter's `except` and `disable`. The first draft
+    of 0.2.0 took a pass-through pattern, and the example that exercised it was `/^(TI|COMPETENCE)_…$/`. That put one
+    application's prefix where the framework's belongs and tied the two the wrong way. So the framework's `TI_*` became
+    the default, and `prefixes` became the application's own. The step-1 modules' comments and tests were made neutral
+    in the same release.
 
 ## 3. The steps
 
@@ -136,10 +145,10 @@ Each step is a minor release here and then an adoption change in each applicatio
 
 ## 4. Adoption
 
-**Step 1.** Neither application changes behaviour. Measured before adoption, against each application's current filter, over
-1,113,160 URLs: every literal path in the three test suites, the site's URL inventory, redirects and published files,
-competence's static files, and every combination of the rules' fragments three segments deep under eight queries. The
-result was 0 differences: the site's configuration against `Site/worker/src/router.js`, the defaults against
+**Step 1.** Neither application changes behaviour. Measured before adoption, against each application's current filter,
+over 1,113,160 URLs: every literal path in the three test suites, the site's URL inventory, redirects and published
+files, competence's static files, and every combination of the rules' fragments three segments deep under eight queries.
+The result was 0 differences: the site's configuration against `Site/worker/src/router.js`, the defaults against
 competence's `container-settings.js`.
 
 - **The site.**
@@ -154,21 +163,27 @@ competence's `container-settings.js`.
   - Its guard tests still run: every static file, every path the front end requests, and every query parameter it
     sends.
 
-**Step 2.** Again, neither application changes behaviour. The evidence is the real container classes, bundled as
-wrangler bundles them, with a stand-in SDK, before and after each switch. Built from the same bindings, each must give
-the same:
+**Step 2.** competence does not change behaviour; the site changes in one respect, below. The evidence is the real
+container classes, bundled as wrangler bundles them, with a stand-in SDK, before and after each switch. Built from the
+same bindings, each must give the same:
+
 - `envVars`, `allowedHosts` and `sleepAfter`;
 - `enableInternet`, `interceptHttps` and `defaultPort`;
 - answers from its outbound handler.
+
+What each application changes:
 
 - **The site.**
   - `SiteContainer` takes `STATE_ADDRESS` and `CONTAINER_PORT` from the package.
   - It builds `envVars` with `containerEnvironment`: its five variables as `defaults`, and the `siteverify` address
     as a setting.
+  - Every `TI_*` binding on its Worker now reaches the container, not only those five, because the framework's settings
+    pass by default (decision 14). This is the one behaviour change. Its committed configuration has no other `TI_*`
+    binding, but one set only in the dashboard now reaches the container too.
   - It brokers `siteverify` with `createBroker`, so `siteverify.js` goes.
   - Its allowlist stays the state address alone, and `sleepAfter` stays `2m`.
 - **competence.**
-  - `container-settings.js` builds its environment with `containerEnvironment`: its pattern, its `openid-azure`
+  - `container-settings.js` builds its environment with `containerEnvironment`: its own prefix, its `openid-azure`
     default, and `COMPETENCE_DATA_STORE` with `INTERCEPTED_HTTPS_SETTINGS` as settings.
   - Its hosts come from `allowedHosts`, and its sleep timer from `sleepAfter`.
   - It keeps its exports, the partition fingerprint and the Server-Timing helpers, so `worker.mjs` and its tests do
@@ -243,12 +258,12 @@ finishes the job.
 
 - `worker/container.js`, exported as `@ti-engine/cloudflare/container`:
   - `STATE_ADDRESS`, `CONTAINER_PORT` and `PLATFORM_SETTINGS`, the nine settings both applications carried;
-  - `containerEnvironment( env, { passThrough, defaults, settings } )`;
+  - `containerEnvironment( env, { prefixes, defaults, settings } )`;
   - `IDENTITY_PROVIDER_HOSTS`, `allowedHosts( environment )` and `INTERCEPTED_HTTPS_SETTINGS`;
   - `sleepAfter( value, fallback )`;
   - `createBroker( { path, url, contentType } )`.
 - `@cloudflare/containers` ^0.3.7 is a dev dependency, for the test that holds `sleepAfter` against its parser.
-- Tests: 44 new, 83 in all, in 12 suites across 3 files. They cover:
+- Tests: 48 new, 87 in all, in 12 suites across 3 files. They cover:
   - the platform, pinned;
   - each layer of the environment and its order;
   - both applications' bindings;
@@ -256,17 +271,20 @@ finishes the job.
   - the sleep timer against the library;
   - the broker's forwarding, refusals and failures;
   - every malformed option.
-- Twelve plausible defects were each made by hand, and the suite caught every one:
+- Fifteen plausible defects were each made by hand, and the suite caught every one:
   - the platform put over the application's settings;
   - defaults by truthiness;
   - a non-string passed through;
-  - a global pattern accepted;
+  - `TI_*` not passed by default;
+  - a prefix matched without its separator;
+  - any prefix accepted;
   - sign-in methods left untrimmed;
   - a zero sleep timer accepted, or one left untrimmed;
   - every header forwarded;
   - any method forwarded;
   - a broker under `/v1/`;
   - plain HTTP as a broker's target;
-  - the container's content type over the broker's.
+  - the container's content type over the broker's;
+  - an unreachable URL thrown instead of answered `502`.
 - `check:types` gained consumer checks for the container module: the environment is `Record<string, string>`, a
   broker is callable, and a setting that is not a string is a type error.

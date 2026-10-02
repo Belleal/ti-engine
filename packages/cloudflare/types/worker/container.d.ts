@@ -15,7 +15,8 @@ export = _exports;
  * the image, because secrets exist only as the Worker's bindings.
  * <br/>
  * Each layer goes over the one before:
- * 1. every string binding whose name `passThrough` matches;
+ * 1. every string binding named `TI_<NAME>`, the framework's own settings, and `<PREFIX>_<NAME>` for each of
+ *    `prefixes`, the application's own;
  * 2. `defaults`: each named binding when it is a non-blank string, and its default otherwise, so the container always
  *    receives it;
  * 3. {@link PLATFORM_SETTINGS}, which no variable can override;
@@ -28,8 +29,8 @@ export = _exports;
  * @method
  * @param {Object} env The Worker's bindings.
  * @param {Object} [options]
- * @param {RegExp} [options.passThrough] The names of the bindings that pass through as they are, such as
- * `/^(TI|COMPETENCE)_[A-Z0-9_]+$/`. Without it, none does.
+ * @param {string[]} [options.prefixes] The application's own setting prefixes, besides the framework's `TI`: `[ "APP" ]`
+ * passes `APP_*` through too.
  * @param {Object<string, string>} [options.defaults] The bindings the container always receives: name → its value when
  * the binding is absent, blank or not a string.
  * @param {Object<string, string>} [options.settings] The application's own fixed values.
@@ -38,7 +39,7 @@ export = _exports;
  * @public
  */
 declare function containerEnvironment(env: Object, options?: {
-    passThrough?: RegExp;
+    prefixes?: string[];
     defaults?: Record<string, string>;
     settings?: Record<string, string>;
 }): Record<string, string>;

@@ -182,7 +182,7 @@ function writeConsumer() {
         "",
         "// The container's environment is strings, and a broker is something a Worker can call.",
         "import * as container from \"@ti-engine/cloudflare/container\";",
-        "const containerSettings: Record<string, string> = container.containerEnvironment( {}, { passThrough: /^TI_/, defaults: { TI_A: \"\" }, settings: { TI_B: \"b\" } } );",
+        "const containerSettings: Record<string, string> = container.containerEnvironment( {}, { prefixes: [ \"APP\" ], defaults: { TI_A: \"\" }, settings: { TI_B: \"b\" } } );",
         "const reachable: string[] = container.allowedHosts( containerSettings );",
         "const broker = container.createBroker( { path: \"/hooks/notify\", url: \"https://hooks.example.com/notify\" } );",
         "const brokered: Promise<Response> = broker.forward( new Request( broker.address, { method: \"POST\" } ) );",
