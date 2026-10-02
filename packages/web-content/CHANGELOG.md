@@ -130,3 +130,17 @@ Content-Security-Policy can admit its frame.
     - The other 11 test the new module itself.
 
     Web-content goes from 408 to 432 tests.
+
+## Version 0.5.1
+
+* fix(routes): **`robots.txt` carries the same shared-cache policy as the sitemap and the feed** (CA-357).
+  - **What was wrong.** `mountContentRoutes` sends `/sitemap.xml` and `/rss.xml` with
+    `public, max-age=0, s-maxage=3600`, and `/robots.txt` with no policy at all. A cache that stores only what a response
+    permits keeps nothing for a response like that, and the Cloudflare Worker in front of the Boris Khan site's container
+    is such a cache. So every crawler's `robots.txt` request reached the container, and woke it if it was asleep: one
+    did, at 11:33 UTC on 2026-10-02.
+  - **What changed.** `robots.txt` gets the sitemap's policy, for the sitemap's reason: it changes only with the
+    deployment, as the sitemap's link and the indexing switch do. A switch of `allowIndexing` therefore reaches a shared
+    cache within the hour, as the sitemap's already did.
+  - **Evidence.** `test/feeds.test.js` mounts the routes and requires the one policy on all three documents. It fails
+    on 0.5.0, at `/robots.txt`, which has no `Cache-Control`. Web-content goes from 432 to 433 tests.

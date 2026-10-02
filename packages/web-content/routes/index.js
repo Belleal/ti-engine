@@ -307,6 +307,9 @@ function mountContentRoutes( server, options ) {
     } );
 
     server.registerRoute( "get", "/robots.txt", ( request, response ) => {
+        // The sitemap's policy, for the sitemap's reason: it changes only with the deployment. Without one, a cache that
+        // stores only what a response permits kept nothing, and every crawler's visit reached the server.
+        response.set( "Cache-Control", "public, max-age=0, s-maxage=3600" );
         response.type( "text/plain" ).send( feeds.renderRobots( { baseUrl: baseUrl, allowIndexing: opts.allowIndexing } ) );
     } );
 

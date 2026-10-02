@@ -29,7 +29,7 @@ ti-engine/                         npm workspace root (v1.3.0; workspaces = pack
 ├── packages/
 │   ├── core/          v1.19.0     Framework foundation (pluggable cache backend — Redis or HTTP, optional messaging, lifecycle, utils) + the D1 state service + shipped TypeScript declarations
 │   ├── web-framework/ v1.45.1     Express server + auth (incl. real local auth, per-provider allowed domains) + admin config-management + config drift + Profile/About + ti-charts + role gate + TI_WEB_* env overrides + /health + route seams + content-addressed immutable fragments + opt-in Server-Timing + start-up gate + busy indicator + CSP source additions + no overscroll bounce
-│   ├── web-content/   v0.5.0      Content-publishing engine — path-index routing, deny-by-default visibility, SEO documents, feeds, email capture with an optional Turnstile check (WIP)
+│   ├── web-content/   v0.5.1      Content-publishing engine — path-index routing, deny-by-default visibility, SEO documents, feeds, email capture with an optional Turnstile check (WIP)
 │   └── tester/        v1.3.5      Reference/example service implementation + the docker-build target
 ├── .github/workflows/             ci.yml (lint/test/build) · codeql-analysis.yml · npm-publish.yml · cla.yml
 ├── CLAUDE.md                      The working agreement — process, read at session start (see below)
@@ -766,7 +766,7 @@ npm test    # node --test — 244 tests / 58 suites: 24 test files, plus the fiv
 
 ---
 
-## Package: web-content (v0.5.0 — WIP)
+## Package: web-content (v0.5.1 — WIP)
 
 **Role**: A **content-publishing engine** — turns registered content sources into a public, server-rendered website: path-index routing, deny-by-default visibility, SEO documents (canonical / `hreflang` / Open Graph / JSON-LD), feeds, and email capture. Layered on `web-framework` the way competence is, but **public-by-default** instead of protect-by-default: it is the first consumer of the 1.17.0 route seams and needs web-framework **≥ 1.17.0**. Node `>= 20.12`. Built for the standalone author's site, which lives outside this repo (its own specs are referenced as `Site/docs/`).
 
@@ -791,14 +791,14 @@ npm test    # node --test — 244 tests / 58 suites: 24 test files, plus the fiv
 | `render/context.js` | The page context templates need — eyebrow, meta line, term pills, breadcrumb, adjacent posts (prev/next resolved through the repository for the *same* viewer, so it can't link to a withheld record) |
 | `routes/content-routes.js` | The catch-all path-index resolver — alias → 301, miss → `next()`, hit → render; **cache policy keyed on the record's visibility**, so a non-public response never carries public cache headers |
 | `routes/index.js` | The mount API — `mountContentRoutes`, `mountHomeRoute`, `mountRedirects`, `mountSessionRoute`, `defineContentUnprotectedRoutes` |
-| `routes/feeds.js` | `sitemap.xml` / `rss.xml` / `robots.txt` — sitemap membership resolved as an **anonymous** viewer (a gated record only when it exposes a public teaser); RSS is public-only |
+| `routes/feeds.js` | `sitemap.xml` / `rss.xml` / `robots.txt` — sitemap membership resolved as an **anonymous** viewer (a gated record only when it exposes a public teaser); RSS is public-only. All three are served `public, max-age=0, s-maxage=3600` (`robots.txt` only since 0.5.1, CA-357): a shared cache in front of the server keeps only what a response permits, so one without a policy reaches the server on every request |
 | `routes/media.js` | Serves a migrated media library at its **original** URLs (`/wp-content/uploads/…`) from a mirror tree, so nothing needs rewriting and inbound links keep working; misses fall through to the real 404, dotfiles and directory listings refused, cache long but **never `immutable`** |
 | `capture/store.js` / `admin.js` / `routes.js` | Email capture (preorders / newsletter / beta) — no IP stored, `consentAt` stamped server-side, only schema fields persisted, dedupe on (email, purpose), erasure by email across every purpose. Admin reporting **fails closed**: an absent guard selects the built-in admin check, never none |
 | `capture/turnstile.js` | Cloudflare Turnstile on the capture form (0.5.0, CA-352) — `publicTurnstile` (the site key and theme, the only half a renderer is handed), `resolveTurnstile` (`off` / `on` / `misconfigured`, decided once at mount) and `verifyTurnstileToken` (`siteverify`, **fails closed**: a missing or overlong token, a slow or unreachable Cloudflare, an answer that is not a success, a token minted for another action). It never sends the visitor's IP, the store's no-IP rule. No `require()`: the form renderer imports it |
 | `static/web-content.js` | The vanilla, dependency-free site script (reveal observer, dictionary toggle + filter, language menu, topbar toggle, audio player); served under `/static/` by `mountContentRoutes` and overridable by the consumer |
 | `design/author-site-engine.md` | Design record + phased plan |
 | `design/authoring-guide.md` | **The authoring guide** — how a record is found, the envelope, the `sections` body, every section type, and why a record does not appear. It ships with the engine (moved here in 0.2.0) so every consumer has it, and its guard came along: a section type present in the schema but absent from both the documented and the deferred lists **fails this package's suite** |
-| `test/*.test.js` | `node --test` — **432 tests / 110 suites across 23 files** (schema, loader, repository, taxonomy, transliterate, markdown + markdown-editorial, document, html, page, feeds, media, capture, capture-turnstile, sources, content-routes, routes-index, routes-not-found, …) |
+| `test/*.test.js` | `node --test` — **433 tests / 111 suites across 23 files** (schema, loader, repository, taxonomy, transliterate, markdown + markdown-editorial, document, html, page, feeds, media, capture, capture-turnstile, sources, content-routes, routes-index, routes-not-found, …) |
 
 **Content model**:
 - **Content types** — exactly four: `post`, `page`, `book`, `release`. A lexicon/dictionary is a **section on a `page`**, not a fifth type.
@@ -949,7 +949,7 @@ Token: YouTrack → Profile → Account Security → New token (scope: YouTrack)
 2. **Extending the web UI**: subclass `TiWebAppManager`, add an HTML fragment + matching Alpine component; reuse framework CSS primitives; obey the Alpine CSP rules (no inline styles, no `?.`).
 3. **Config-management, from a consumer's side**: a consuming application registers a config document (schema + file default + semantic validators + optional composite editor) through `TiWebAppManager.registerConfigDocument` / `registerConfigEditor`. Those seams live here; the documents themselves live in the consumer. Changing either seam is a breaking change for every consumer, so treat the `exports` map and these signatures as API.
 4. **Testing**: Node.js built-in `node --test` (no external framework); each package's `test/` directory. `npm test`
-   at the root fans out across workspaces — **1441 tests today: core 244, web-framework 765, web-content 432, tester
+   at the root fans out across workspaces — **1448 tests today: core 244, web-framework 771, web-content 433, tester
    none** (it is a runnable service, not a unit-tested one). The three checks that gate a push are in
    `CLAUDE.md` → *Definition of done*: `npm test`, `npm run lint` (0 errors; ESLint's only rule here is
    `no-unused-vars` as a **warning**, so a clean lint is no evidence the house style was followed — read a sibling
