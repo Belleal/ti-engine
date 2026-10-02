@@ -31,6 +31,7 @@
 
 const { renderDocument } = require( "#page" );
 const { buildPageContext } = require( "#context" );
+const { publicTurnstile } = require( "#capture-turnstile" );
 const logger = require( "@ti-engine/core/logger" );
 
 // Matches the framework's own admin role name.
@@ -117,7 +118,7 @@ function parsePageParam( value ) {
  * Builds the catch-all Express handler that resolves a request path against the content index.
  *
  * @param {import("../content/repository.js")} repository
- * @param {{ baseUrl?: string, renderPage?: (record: Object, context: Object) => (string|Object), site?: Object, labels?: Object, assets?: Object }} [options]
+ * @param {{ baseUrl?: string, renderPage?: (record: Object, context: Object) => (string|Object), site?: Object, labels?: Object, assets?: Object, turnstile?: { siteKey?: string, theme?: string } }} [options]
  * @returns {(request: Object, response: Object, next: Function) => void}
  */
 function contentHandler( repository, options ) {
@@ -165,6 +166,9 @@ function contentHandler( repository, options ) {
             // Which sign-in methods exist is site configuration, not viewer state -- safe to render into a
             // shared-cached page, unlike anything about WHO is asking.
             auth: opts.auth,
+            // The capture form's challenge (CA-352): the site key and theme alone. The site may configure the key and
+            // the secret as one object, and a context any template can print must never be handed the secret.
+            turnstile: publicTurnstile( opts.turnstile ),
             preview: preview
         };
 

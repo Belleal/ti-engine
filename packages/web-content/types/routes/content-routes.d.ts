@@ -56,7 +56,7 @@ declare function parsePageParam(value: any): number;
  * Builds the catch-all Express handler that resolves a request path against the content index.
  *
  * @param {import("../content/repository.js")} repository
- * @param {{ baseUrl?: string, renderPage?: (record: Object, context: Object) => (string|Object), site?: Object, labels?: Object, assets?: Object }} [options]
+ * @param {{ baseUrl?: string, renderPage?: (record: Object, context: Object) => (string|Object), site?: Object, labels?: Object, assets?: Object, turnstile?: { siteKey?: string, theme?: string } }} [options]
  * @returns {(request: Object, response: Object, next: Function) => void}
  */
 declare function contentHandler(repository: import("../content/repository.js"), options?: {
@@ -65,4 +65,8 @@ declare function contentHandler(repository: import("../content/repository.js"), 
     site?: Object;
     labels?: Object;
     assets?: Object;
+    turnstile?: {
+        siteKey?: string;
+        theme?: string;
+    };
 }): (request: Object, response: Object, next: Function) => void;

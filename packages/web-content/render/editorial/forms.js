@@ -31,6 +31,7 @@
  */
 
 const { html, raw } = require( "#html" );
+const { TURNSTILE_SCRIPT_URL, TURNSTILE_ACTION } = require( "#capture-turnstile" );
 
 const STATUS_KINDS = new Set( [ "success", "duplicate", "error" ] );
 
@@ -120,8 +121,37 @@ function renderCapture( section, context ) {
     const statusBody = section.statusBody || labels[ "captureStatus" + capitalise( outcome ) + "Body" ];
     const status = outcome ? renderFormStatus( outcome, statusTitle, statusBody ) : raw( "" );
     const intro = section.body ? html`<p class="capture-intro">${ section.body }</p>` : raw( "" );
+    const challenge = renderChallenge( context );
 
-    return html`${ intro }${ status }<form class="capture-form" method="post" action="${ section.action || "/capture" }">${ hidden }<div class="${ fieldClasses }"><label class="field-label" for="${ emailId }">${ section.emailLabel || labels.emailLabel || "Email address" }</label><input class="field-input" id="${ emailId }" type="email" name="email" autocomplete="email" required${ describedBy }>${ hint }${ error }</div><div class="field field-consent"><input class="field-checkbox" id="${ consentId }" type="checkbox" name="consent" value="1" required><label class="field-consent-text" for="${ consentId }">${ section.consentText || labels.consentText || "" }</label></div><button class="btn btn-accept" type="submit">${ section.submitLabel || labels.submitLabel || "Sign up" }</button></form>`;
+    return html`${ intro }${ status }<form class="capture-form" method="post" action="${ section.action || "/capture" }">${ hidden }<div class="${ fieldClasses }"><label class="field-label" for="${ emailId }">${ section.emailLabel || labels.emailLabel || "Email address" }</label><input class="field-input" id="${ emailId }" type="email" name="email" autocomplete="email" required${ describedBy }>${ hint }${ error }</div><div class="field field-consent"><input class="field-checkbox" id="${ consentId }" type="checkbox" name="consent" value="1" required><label class="field-consent-text" for="${ consentId }">${ section.consentText || labels.consentText || "" }</label></div>${ challenge.widget }<button class="btn btn-accept" type="submit">${ section.submitLabel || labels.submitLabel || "Sign up" }</button></form>${ challenge.script }`;
+}
+
+/**
+ * The Cloudflare Turnstile challenge for a capture form (CA-352), when the site configures one: the widget, which goes
+ * inside the form so its token is submitted with it, and Cloudflare's script, once per page however many forms it has.
+ * <br/>
+ * The context carries only the widget's public half (`publicTurnstile`), so nothing here can print the secret. The
+ * script tag carries the response's nonce: under `strict-dynamic` a tag without one is dropped without a word, and the
+ * widget simply never appears.
+ *
+ * @param {Object} context
+ * @returns {{ widget: import("../html.js").SafeString, script: import("../html.js").SafeString }}
+ */
+function renderChallenge( context ) {
+    const turnstile = context && context.turnstile;
+    if ( !turnstile || !turnstile.siteKey ) {
+        return { widget: raw( "" ), script: raw( "" ) };
+    }
+    const widget = html`<div class="cf-turnstile capture-challenge" data-sitekey="${ turnstile.siteKey }" data-action="${ TURNSTILE_ACTION }" data-theme="${ turnstile.theme || "auto" }"></div>`;
+    if ( context.challengeScriptRendered === true ) {
+        return { widget: widget, script: raw( "" ) };
+    }
+    context.challengeScriptRendered = true;
+    if ( !context.nonce && typeof context.reportProblem === "function" ) {
+        context.reportProblem( "Turnstile challenge rendered without a CSP nonce; under strict-dynamic its script is dropped and the widget never appears. The render context is missing `nonce`." );
+    }
+    const nonce = context.nonce ? html` nonce="${ context.nonce }"` : raw( "" );
+    return { widget: widget, script: html`<script src="${ TURNSTILE_SCRIPT_URL }" async defer${ nonce }></script>` };
 }
 
 /**

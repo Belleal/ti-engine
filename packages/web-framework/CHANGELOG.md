@@ -2,6 +2,37 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.45.0
+
+* feat (web-handlers): **an application can add sources to the Content-Security-Policy** (CA-352).
+  <br/>
+  **What was wrong.** `cspHeaderHandler` built a fixed set of directives with no `frame-src`. A frame from anywhere but
+  this origin therefore fell back to `default-src 'self'` and was refused. A Cloudflare Turnstile widget is exactly
+  that: an iframe from `https://challenges.cloudflare.com`. Its script loads under `'strict-dynamic'` by carrying the
+  nonce, but the widget never drew, and nothing an application could configure changed that. The Boris Khan site needs
+  it on its newsletter form, which is its one public write, and bots already scan the domain.
+  <br/>
+  **What changed.**
+  - `contentSecurityPolicy.additionalSources` in the web server configuration maps a directive to extra sources:
+    `{ "frameSrc": [ "https://challenges.cloudflare.com" ] }`.
+    - Only `frameSrc`, `connectSrc`, `imgSrc`, `mediaSrc` and `fontSrc` can be extended.
+    - A directive the base policy does not declare starts from `'self'`, so adding a source never takes one away.
+    - `scriptSrc` cannot be extended: under `'strict-dynamic'` a host there would be ignored by the browser.
+  - `resolveCspAdditions` validates the section once, when the handler is built. A directive that cannot be extended
+    is dropped, each logged at ERROR, and so is any source that is not an `https://` host:
+    - a keyword such as `'unsafe-inline'`;
+    - `*`;
+    - `https:`, `data:` or `blob:`;
+    - a plain `http://` host;
+    - a value containing a quote, a comma, whitespace or a `;`. A `;` would otherwise end the directive and start one of
+      the configuration's own choosing.
+  - `TiWebServer` hands the handler its `contentSecurityPolicy` section. `bin/web-server.json` ships it empty, so the
+    policy is unchanged unless an application sets it.
+  <br/>
+  **Evidence.** `test/web-handlers.csp-sources.test.js` adds 10 tests, and 9 of them fail on 1.44.0, the wiring in
+  `web-server.js` among them. The tenth, that an unconfigured policy is unchanged, passes on both by design. The 18
+  existing tests in `web-handlers.csp-upgrade-insecure.test.js` pass unchanged.
+
 ## Version 1.44.0
 
 * feat (ti-framework): **the shell shows that it is working while a request is outstanding** (CA-345).

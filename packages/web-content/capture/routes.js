@@ -29,9 +29,15 @@
  *
  * CSRF is enforced by the framework's global middleware, so the form must carry the token (render/editorial/forms.js
  * emits it). Nothing here needs to re-check it.
+ *
+ * A CSRF token does not stop a script, which loads the page and posts back what it was given. With Cloudflare Turnstile
+ * configured (CA-352), each submission's token is verified with Cloudflare before anything is stored, and a failed or
+ * unverifiable check is refused like any other failed capture.
  */
 
+const logger = require( "@ti-engine/core/logger" );
 const { summarise, toCsv } = require( "#capture-admin" );
+const { resolveTurnstile, verifyTurnstileToken, TURNSTILE_RESPONSE_FIELD } = require( "#capture-turnstile" );
 
 const CAPTURE_PATH = "/capture";
 const ADMIN_BASE = "/admin/capture";
@@ -89,26 +95,62 @@ function safeReturnPath( returnTo, repository ) {
 }
 
 /**
+ * Whether a submission passed its challenge. With Turnstile off it always has, as before; misconfigured, it never has
+ * (see {@link resolveTurnstile}).
+ *
+ * @method
+ * @param {{ mode: string, secret?: string }} challenge As {@link resolveTurnstile} decided it.
+ * @param {Object} body The submitted form.
+ * @param {{ fetch?: Function, timeoutMs?: number }} [verification]
+ * @returns {Promise<{ ok: boolean, codes: string[] }>}
+ * @private
+ */
+function checkChallenge( challenge, body, verification ) {
+    if ( challenge.mode === "off" ) {
+        return Promise.resolve( { ok: true, codes: [] } );
+    }
+    if ( challenge.mode !== "on" ) {
+        return Promise.resolve( { ok: false, codes: [ "misconfigured" ] } );
+    }
+    const opts = verification || {};
+    return verifyTurnstileToken( body[ TURNSTILE_RESPONSE_FIELD ], { secret: challenge.secret, fetch: opts.fetch, timeoutMs: opts.timeoutMs } );
+}
+
+/**
  * The public capture endpoint.
+ * <br/>
+ * With `turnstile` configured, the submission's challenge is verified first, and a submission that fails it is never
+ * handed to the store. The refusal redirects like any failed capture (`?capture=error`), and the log names Cloudflare's
+ * reason.
  *
  * @param {Object} store
  * @param {Object} repository
+ * @param {{ turnstile?: { siteKey?: string, secret?: string, fetch?: Function, timeoutMs?: number } }} [options]
  * @returns {(request: Object, response: Object) => void}
  */
-function captureHandler( store, repository ) {
+function captureHandler( store, repository, options ) {
+    const turnstile = ( options && options.turnstile ) || {};
+    const challenge = resolveTurnstile( turnstile );
     return function ( request, response ) {
         const body = request.body || {};
         const target = safeReturnPath( body.returnTo, repository );
         // Deliberately never reads request.ip: there is no IP field to store, so there is none to leak or erase.
-        store.submit( {
-            email: body.email,
-            purpose: body.purpose,
-            edition: body.edition,
-            source: body.source,
-            locale: body.locale,
-            consent: body.consent
-        } ).then( ( result ) => {
-            response.redirect( 303, target + "?capture=" + encodeURIComponent( result.status ) );
+        checkChallenge( challenge, body, turnstile ).then( ( verdict ) => {
+            if ( verdict.ok !== true ) {
+                logger.log( `Refused a capture: its Turnstile challenge did not verify (${ verdict.codes.join( ", " ) }).`, logger.logSeverity.WARNING );
+                response.redirect( 303, target + "?capture=error" );
+                return undefined;
+            }
+            return store.submit( {
+                email: body.email,
+                purpose: body.purpose,
+                edition: body.edition,
+                source: body.source,
+                locale: body.locale,
+                consent: body.consent
+            } ).then( ( result ) => {
+                response.redirect( 303, target + "?capture=" + encodeURIComponent( result.status ) );
+            } );
         } ).catch( () => {
             response.redirect( 303, target + "?capture=error" );
         } );
@@ -122,12 +164,20 @@ function captureHandler( store, repository ) {
  * {@link defaultRequireAdmin}, never "no guard" -- these endpoints expose every stored address, so a forgotten
  * option must fail closed.
  *
+ * `turnstile` takes the site key and the secret together (CA-352). With one and not the other, every submission is
+ * refused and the cause is logged here, once, at ERROR. The site keeps serving: a missing secret is a reason to stop
+ * accepting sign-ups unchecked, not a reason to take the site down.
+ *
  * @param {Object} server  A TiWebServer instance (>= 1.17.0).
- * @param {{ store: Object, repository?: Object, requireAdmin?: Function }} options
+ * @param {{ store: Object, repository?: Object, requireAdmin?: Function, turnstile?: { siteKey?: string, secret?: string } }} options
  * @returns {Object} The server, for chaining.
  */
 function mountCaptureRoutes( server, options ) {
     const opts = options || {};
+    const challenge = resolveTurnstile( opts.turnstile );
+    if ( challenge.mode === "misconfigured" ) {
+        logger.log( `Capture is refusing every submission: ${ challenge.problem }.`, logger.logSeverity.ERROR );
+    }
     const store = opts.store;
     if ( !store ) {
         // Loudly, at boot. Mounting nothing leaves the form POSTing into the 404 handler, so the misconfiguration
@@ -139,7 +189,7 @@ function mountCaptureRoutes( server, options ) {
     const guard = ( typeof opts.requireAdmin === "function" ) ? opts.requireAdmin : defaultRequireAdmin;
     const admin = ( handler ) => [ guard, handler ];
 
-    server.registerRoute( "post", CAPTURE_PATH, captureHandler( store, opts.repository ) );
+    server.registerRoute( "post", CAPTURE_PATH, captureHandler( store, opts.repository, { turnstile: opts.turnstile } ) );
 
     server.registerRoute( "get", ADMIN_BASE, ...admin( ( request, response ) => {
         store.list().then( ( records ) => {

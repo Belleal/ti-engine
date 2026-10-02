@@ -298,6 +298,39 @@ signed its user out. An application needs no change; whatever its `onStart` chai
   a malformed JSON body is a `400` (`E_WEB_INVALID_REQUEST_BODY`), an oversized one a `413`, an unsupported encoding a
   `415` — none of it echoing the body back.
 
+## Adding sources to the Content-Security-Policy
+
+The framework sends one Content-Security-Policy, built per response so that it can carry the response's nonce:
+- Scripts are admitted by that nonce under `'strict-dynamic'`.
+- There is no `frame-src`, so a frame from anywhere but this origin falls back to `default-src 'self'` and is refused.
+
+An embedded third-party widget, such as Cloudflare Turnstile, is exactly such a frame. To admit it, name its host in the
+web server configuration:
+
+```json
+"contentSecurityPolicy": {
+  "additionalSources": {
+    "frameSrc": [ "https://challenges.cloudflare.com" ]
+  }
+}
+```
+
+**Which directives can be extended.** Only `frameSrc`, `connectSrc`, `imgSrc`, `mediaSrc` and `fontSrc` can be
+extended:
+- A directive the base policy declares keeps its sources and gains the new ones.
+- One it does not declare starts from `'self'`, which is what `default-src` gave it.
+- `scriptSrc` cannot be extended. Under `'strict-dynamic'` a browser ignores host sources there, so a host would read
+  as permission and grant none. Give the script tag the response's nonce instead.
+
+**What a source can be.** Only an `https://` host can be added, optionally with a leading `*.`, a port or a path.
+Anything else is dropped when the server starts, each one logged at ERROR, so a typo cannot quietly widen the policy.
+That covers:
+- a keyword such as `'unsafe-inline'`;
+- `*`;
+- a scheme source such as `https:` or `data:`;
+- a plain `http://` host;
+- a value containing a quote, a comma, whitespace or a `;`.
+
 ## Configure HTTPS for development
 
 Use the `mkcert` tool to create a certificate for development.

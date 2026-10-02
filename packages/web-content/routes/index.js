@@ -42,6 +42,7 @@ const feeds = require( "#feeds" );
 const { contentHandler, viewerFromRequest, decodePath } = require( "#content-routes" );
 const { renderStateDocument } = require( "#page" );
 const { mountMediaRoutes } = require( "#media" );
+const { publicTurnstile } = require( "#capture-turnstile" );
 const logger = require( "@ti-engine/core/logger" );
 
 // The site behaviour script ships with the package. It is read once at mount rather than per request, and served
@@ -81,7 +82,10 @@ function handlerOptions( opts ) {
         labels: opts.labels,
         assets: opts.assets,
         taxonomy: opts.taxonomy,
-        auth: opts.auth
+        auth: opts.auth,
+        // The challenge's public half alone (CA-352). These options also reach the 404 handler, which copies them into
+        // the context it renders with, and a site may configure the key and the secret as one object.
+        turnstile: publicTurnstile( opts.turnstile )
     };
 }
 
@@ -249,7 +253,8 @@ function mountHomeRoute( server, options ) {
  * @param {{ repository: Object, baseUrl?: string, renderPage?: Function, feed?: Object, allowIndexing?: boolean,
  *           site?: Object, labels?: Object, assets?: Object, taxonomy?: Object, serveSiteScript?: boolean,
  *           notFound?: (Object|false), media?: { root: string, prefixes: string[], maxAge?: string },
- *           redirects?: Array<{ from: string, to: string, status?: number }> }} options
+ *           redirects?: Array<{ from: string, to: string, status?: number }>,
+ *           turnstile?: { siteKey?: string, theme?: string } }} options
  * @returns {Object} The server, for chaining.
  */
 /**
