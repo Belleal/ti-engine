@@ -88,7 +88,12 @@ What happens today, read from the code:
    The framework gives it a neutral look; an application styles it.
 9. **Not done:**
    - No profile field for a language. The choice lives in the browser, which is where it was made.
-   - No language switch inside the application's shell. Decision 5 is what one would link to.
+   - No language switch inside the application's shell. Decision 5 is what one would link to. The first adopter's
+     is [`CA-412`](https://belleal.youtrack.cloud/issue/CA-412).
+   - **The offer is not checked against the application's labels**, only against core's codes. A code core knows
+     and the catalogue lacks is offered, and every label then reads core's not-found placeholder (measured through
+     the first adopter with `de`). Checking it needs core to say which languages a catalogue carries without
+     comparing against that placeholder: [`CA-413`](https://belleal.youtrack.cloud/issue/CA-413).
 
 ## 3. Interfaces
 
@@ -149,3 +154,7 @@ What happens today, read from the code:
   - a visit without a session remembers the choice;
   - EN and a sign-in give English, with the guide at another address (`3fedcb4574d1` against `08145ea01c13`);
   - `/language/bg` while signed in switches at once.
+- 2026-10-03 — the first adopter's documentation pass measured that a code core knows and the application's labels
+  lack (`de`) is offered, and renders every label on the sign-in card as core's not-found placeholder. Recorded under
+  decision 9 and in the README; the check is [`CA-413`](https://belleal.youtrack.cloud/issue/CA-413). The README's
+  `{language}` fallback said the deployment's language only, and now says English last, as decision 6 does.

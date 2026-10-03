@@ -352,7 +352,9 @@ npm test    # node --test — 244 tests / 58 suites: 24 test files, plus the fiv
 **Since the skill's last sync (1.25.1 → 1.48.0):**
 - **The visitor chooses the interface language on the sign-in screen** (1.48.0, CA-410; design record
   `docs/superpowers/specs/2026-10-03-language-choice-at-sign-in-design.md`).
-  - **Offered languages:** `languages` / `TI_WEB_LANGUAGES` lists them; configuring nothing changes nothing.
+  - **Offered languages:** `languages` / `TI_WEB_LANGUAGES` lists them; configuring nothing changes nothing. They are
+    checked against core's codes, **not against the application's labels**: a code core knows and the catalogue lacks
+    is offered, and every label then reads core's not-found placeholder (measured with `de`; CA-413).
   - **The choice:** `GET /language/:code`, unprotected, keeps it in the `ti-language` cookie and switches a signed-in
     session at once.
   - **`resolveRequestLanguage( request, instance )`** is the one place a request's language is decided: session, then

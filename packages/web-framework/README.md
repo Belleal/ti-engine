@@ -93,7 +93,9 @@ on the user, a deployment configured for another language turned English at sign
 
 List the languages a visitor may choose between in `languages` (or `TI_WEB_LANGUAGES`), as core's two-letter codes:
 `"languages": [ "en", "bg" ]`. A code core does not know is left out, with a warning at start. With two or more, the
-sign-in card gains a footer row of links, `EN` / `BG`.
+sign-in card gains a footer row of links, `EN` / `BG`. List only languages the application's labels carry: the codes
+are checked against core's, not against the catalogue, so a code core knows and the catalogue lacks is offered, and
+every label then reads core's not-found placeholder.
 - **Each link** is `GET /language/<code>`. It keeps the choice in a `ti-language` cookie for a year (`HttpOnly`,
   `SameSite=Lax`, `Secure` on HTTPS) and redirects home, so the page is rendered again in the language chosen.
 - **A signed-in session** that follows such a link switches at once, so an application may link to it from inside.
@@ -107,8 +109,8 @@ from it:
 - `{ti-language-placeholder}` is filled with it. The framework's `index.html` writes `<html lang>` with it.
 - `{ti-language-switch-placeholder}` becomes the switch, or nothing with fewer than two languages.
 - **A fragment's `path` may contain `{language}`:** `fragments/guide/{language}/frame-help.html` is served from the
-  request's language. A language with no file falls back to the deployment's, with one warning per fragment and
-  language.
+  request's language. A language with no file falls back to the deployment's, then to English, with one warning per
+  fragment and language.
 - **Immutable fragments are addressed once per language.** The URL changes with the language, so a browser keeps one
   copy per language and never serves one for the other.
 
