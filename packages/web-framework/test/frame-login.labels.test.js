@@ -136,6 +136,14 @@ function attributeOf( tag, name ) {
 }
 
 /**
+ * A text run that is one token the server fills before the page is sent, such as the language switch (CA-410). It is
+ * markup in waiting, not words anybody reads; what replaces it is tested where it is rendered.
+ *
+ * @type {RegExp}
+ */
+const RE_SERVER_TOKEN = /^\s*\{ti-[a-z-]+-placeholder}\s*$/;
+
+/**
  * Walks a fragment and reports every problem with how its visible text is labelled.
  *
  * @method
@@ -182,7 +190,7 @@ function auditLabels( html ) {
                 }
                 open.length = index;
             }
-        } else if ( /\p{L}/u.test( token.text ) ) {
+        } else if ( /\p{L}/u.test( token.text ) && !RE_SERVER_TOKEN.test( token.text ) ) {
             // The mark is the one exemption: a single letter drawn as a logo, not a word to translate.
             const parent = open[ open.length - 1 ];
             if ( parent && ( parent.key !== null || parent.isMark ) ) {
@@ -235,9 +243,10 @@ describe( "every string on the login screen goes through the label directive", (
 
     it( "the audit finds what it is looking for, so an empty result means something", () => {
         // Guard the guard: a scanner that saw no text at all would pass every assertion above.
-        const audit = auditLabels( "<div><span>Literal</span><input placeholder=\"Type\"/><em x-text-label=\"k\"></em></div>" );
+        const audit = auditLabels( "<div><span>Literal</span><input placeholder=\"Type\"/><em x-text-label=\"k\"></em>{ti-language-switch-placeholder}<span>Words {ti-language-switch-placeholder}</span></div>" );
 
-        assert.deepEqual( audit.unlabelled, [ "Literal", "placeholder=\"Type\"" ] );
+        // A lone server token is exempt; the same token beside words is not, so the exemption cannot hide text.
+        assert.deepEqual( audit.unlabelled, [ "Literal", "placeholder=\"Type\"", "Words {ti-language-switch-placeholder}" ] );
         assert.deepEqual( audit.withoutFallback, [ "k" ] );
 
         // HTML takes either quote. A literal placeholder written in single quotes must be caught just the same, and a

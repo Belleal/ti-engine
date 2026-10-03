@@ -57,6 +57,99 @@ const MAX_HELD_LABELS_BUNDLES = 16;
 
 const RE_NONCE_ATTR = /\{ti-nonce-placeholder}/g;
 const RE_CSRF_ATTR = /\{ti-csrf-placeholder}/g;
+const RE_LANGUAGE_ATTR = /\{ti-language-placeholder}/g;
+const RE_LANGUAGE_SWITCH = /\{ti-language-switch-placeholder}/g;
+const RE_LANGUAGE_CODE = /^[a-z]{2}$/;
+
+/**
+ * The token a fragment's `path` may carry, filled with the request's language when the fragment is rendered (CA-410).
+ *
+ * @type {string}
+ */
+const FRAGMENT_LANGUAGE_TOKEN = "{language}";
+
+/**
+ * The language a `{language}` fragment is served in when neither the request's language nor the deployment's has a
+ * file: English, core's own default. A deployment whose language has labels but no translated screens yet still serves
+ * the screens.
+ *
+ * @type {string}
+ */
+const FRAGMENT_LAST_RESORT_LANGUAGE = "en";
+
+/**
+ * Each language's name for itself, for the sign-in screen's language switch (CA-410). The switch reads
+ * `interface.language-name` in each language first; this is what it shows when the application's catalogue does not
+ * carry that key, which, since an application loads only its own labels, is the case until it adds one. Core's
+ * `localizationLanguage` carries English names only.
+ *
+ * @type {Object<string, string>}
+ */
+const LANGUAGE_ENDONYMS = Object.freeze( {
+    bg: "Български", cs: "Čeština", da: "Dansk", de: "Deutsch", el: "Ελληνικά", en: "English", es: "Español",
+    et: "Eesti", fi: "Suomi", fr: "Français", hr: "Hrvatski", hu: "Magyar", it: "Italiano", lt: "Lietuvių",
+    lv: "Latviešu", mk: "Македонски", nl: "Nederlands", no: "Norsk", pl: "Polski", pt: "Português", ro: "Română",
+    ru: "Русский", sk: "Slovenčina", sl: "Slovenščina", sq: "Shqip", sr: "Српски", sv: "Svenska", tr: "Türkçe",
+    uk: "Українська"
+} );
+
+/**
+ * Escapes a value for an HTML attribute or text node.
+ *
+ * @method
+ * @param {*} value
+ * @returns {string}
+ * @private
+ */
+const escapeHtml = ( value ) => String( value ).replace( /[&<>"']/g, ( character ) => ( {
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;"
+}[ character ] ) );
+
+/**
+ * The language a rendered page names in `<html lang>`: the request's, when it is a two-letter code, else the
+ * deployment's.
+ *
+ * @method
+ * @param {string} [language]
+ * @returns {string}
+ * @private
+ */
+const documentLanguageOf = ( language ) => {
+    if ( typeof language === "string" && RE_LANGUAGE_CODE.test( language ) ) {
+        return language;
+    }
+    const system = String( localization.getSystemLanguage() || "" );
+    return RE_LANGUAGE_CODE.test( system ) ? system : "en";
+};
+
+/**
+ * The sign-in card's language switch (CA-410): one link per offered language to `/language/<code>`, which keeps the
+ * choice and renders the page again. Nothing when fewer than two languages are offered, so a deployment that offers
+ * one has no switch, and no empty footer either.
+ * <br/>
+ * Each link shows its code, uppercased, as a compact switch does, and is named by the language's name for itself, read
+ * in that language, so a screen reader announces "Български" in Bulgarian whatever the page is in. The current
+ * language carries `aria-current`.
+ *
+ * @method
+ * @param {string} current The language the page is rendered in.
+ * @param {string[]} languages The languages the deployment offers.
+ * @returns {string}
+ * @private
+ */
+const renderLanguageSwitch = ( current, languages ) => {
+    const codes = ( Array.isArray( languages ) ? languages : [] ).filter( ( code ) => typeof code === "string" && RE_LANGUAGE_CODE.test( code ) );
+    if ( codes.length < 2 ) {
+        return "";
+    }
+    const label = escapeHtml( localization.getLabel( "interface.default.login.language-switch", current, "Language" ) );
+    const links = codes.map( ( code ) => {
+        const own = escapeHtml( localization.getLabel( "interface.language-name", code, LANGUAGE_ENDONYMS[ code ] || code.toUpperCase() ) );
+        const isCurrent = ( code === current );
+        return `<a class="ti-login-language" href="/language/${ code }" lang="${ code }" hreflang="${ code }" aria-label="${ own }"${ isCurrent ? " aria-current=\"true\"" : "" }>${ code.toUpperCase() }</a>`;
+    } ).join( "" );
+    return `<div class="ti-login-card-foot"><nav class="ti-login-languages" aria-label="${ label }">${ links }</nav></div>`;
+};
 const RE_HTMX_CONFIG = /\{ti-htmx-config-placeholder}/g;
 const RE_CSP_NONCE = /^[A-Za-z0-9+/=_-]{16,}$/;
 const TI_NESTED_FRAME_PLACEHOLDER = "ti-nested-frame-placeholder";
@@ -165,8 +258,9 @@ class TiWebAppManager {
     #baseApplicationInfo = null;
     #labelsBundlesByLanguage = new Map();
     #labelsBundlesByHash = new Map();
-    #immutableAddressing = null;
+    #immutableAddressing = new Map();
     #unaddressableReported = new Set();
+    #untranslatedReported = new Set();
 
     /**
      * @constructor
@@ -269,8 +363,8 @@ class TiWebAppManager {
             } );
         }
         this.#fragments[ identifier ] = fragment;
-        // A new member moves every address: the version covers the whole set.
-        this.#immutableAddressing = null;
+        // A new member moves every address: the version covers the whole set, in every language.
+        this.#immutableAddressing = new Map();
     }
 
     /**
@@ -413,6 +507,10 @@ class TiWebAppManager {
      * @param {boolean} [options.isHome] Optional flag to indicate whether the requested route is the home page.
      * @param {string} [options.nonce] Optional CSP nonce to inject into inline scripts/styles.
      * @param {string} [options.title] Optional title to replace the placeholder in the HTML.
+     * @param {string} [options.language] The language the request is answered in (CA-410): a signed-in session's, else
+     * the visitor's choice, else the configured one. Fills `{ti-language-placeholder}`.
+     * @param {string[]} [options.languages] The languages the deployment offers. With two or more,
+     * `{ti-language-switch-placeholder}` becomes the sign-in card's language switch.
      * @returns {Promise<string>}
      * @virtual
      * @public
@@ -449,6 +547,11 @@ class TiWebAppManager {
             } );
 
             transformedHtml = transformedHtml.replace( "{ti-title-placeholder}", options.title || "" );
+
+            // The request's language (CA-410): `<html lang>`, and the sign-in card's switch between the languages offered.
+            const documentLanguage = documentLanguageOf( options.language );
+            transformedHtml = transformedHtml.replaceAll( RE_LANGUAGE_ATTR, documentLanguage );
+            transformedHtml = transformedHtml.replaceAll( RE_LANGUAGE_SWITCH, () => renderLanguageSwitch( documentLanguage, options.languages ) );
 
             resolve( transformedHtml );
         } );
@@ -546,7 +649,8 @@ class TiWebAppManager {
                 // The catalogue's address rather than the catalogue: this answer is `no-store` and fetched on every
                 // page load, and carrying the tree made every refresh re-send it (410 KB in English, 745 KB in
                 // Bulgarian, for competence). The browser fetches the URL itself and keeps the bytes it addresses.
-                const labelsBundle = this.getLabelsBundle( session?.language );
+                // The request's language, which an anonymous visitor can have chosen (CA-410).
+                const labelsBundle = this.getLabelsBundle( ( options && options.language ) || session?.language );
                 resolve( {
                     labelsBundle: { hash: labelsBundle.hash, url: labelsBundle.url },
                     auth: {
@@ -848,7 +952,7 @@ class TiWebAppManager {
                 return this.#renderFragmentMarkup( staticContentPaths, fragment, renderOptions );
             } ).then( ( rendered ) => {
                 markup = rendered;
-                return this.#resolveImmutableAddressing( staticContentPaths );
+                return this.#resolveImmutableAddressing( staticContentPaths, renderOptions.language, renderOptions.languages );
             } ).then( ( addressing ) => {
                 if ( addressing === null ) {
                     return resolve( markup );
@@ -886,7 +990,7 @@ class TiWebAppManager {
      */
     #renderFragmentMarkup( staticContentPaths, fragment, options = {} ) {
         return new Promise( ( resolve, reject ) => {
-            this.#locateStaticFile( staticContentPaths, fragment.path ).then( ( fileData ) => {
+            this.#locateFragmentFile( staticContentPaths, fragment.path, options.language ).then( ( fileData ) => {
                 return this.#replaceComponentPlaceholders( fileData, staticContentPaths, fragment.components );
             } ).then( ( fileData ) => {
                 return this.transformHtml( fileData, { ...options, title: fragment.title || options.title } );
@@ -909,22 +1013,34 @@ class TiWebAppManager {
      * copy it had cached for good. Nothing is addressed after a failure either: a fragment that cannot be rendered
      * fails its own requests too, and every fragment keeps revalidating as before.
      *
+     * <br/>
+     * One address per language (CA-410). A fragment's markup can differ by language, through a `{language}` path or
+     * anything `transformHtml` fills from `options.language`, and the URL that names it does not: one version over every
+     * language would give both languages the same URL, and a browser that switched language would serve the other
+     * language's copy from its own cache, for good. A version computed over each language's own markup changes the URL
+     * with the language instead.
+     *
      * @method
      * @param {string[]} staticContentPaths
+     * @param {string} [language] The language the request is rendered in.
+     * @param {string[]} [languages] The languages the deployment offers, as the request renders them.
      * @returns {Promise<{version: string, digests: Map<string, string>, identifiers: Set<string>}|null>}
      */
-    #resolveImmutableAddressing( staticContentPaths ) {
-        if ( this.#immutableAddressing === null ) {
+    #resolveImmutableAddressing( staticContentPaths, language, languages ) {
+        const key = ( typeof language === "string" ) ? language : "";
+        if ( !this.#immutableAddressing.has( key ) ) {
             const identifiers = Object.keys( this.#fragments ).filter( ( identifier ) => this.#fragments[ identifier ] && this.#fragments[ identifier ].immutable === true );
             if ( identifiers.length === 0 || this.#staticFileCacheEnabled !== true ) {
-                this.#immutableAddressing = Promise.resolve( null );
+                this.#immutableAddressing.set( key, Promise.resolve( null ) );
             } else {
-                this.#immutableAddressing = Promise.all( identifiers.map( ( identifier ) => {
+                this.#immutableAddressing.set( key, Promise.all( identifiers.map( ( identifier ) => {
                     return this.#renderFragmentMarkup( staticContentPaths, this.#fragments[ identifier ], {
                         isPartial: true,
                         view: identifier,
                         nonce: "",
-                        csrfToken: ""
+                        csrfToken: "",
+                        language: language,
+                        languages: languages
                     } ).then( ( markup ) => [ identifier, fragmentFingerprint.digestOf( markup ) ] );
                 } ) ).then( ( entries ) => {
                     const digests = new Map( entries );
@@ -932,10 +1048,56 @@ class TiWebAppManager {
                 } ).catch( ( error ) => {
                     logger.log( `The immutable fragments of '${ this.#webAppIdentifier }' could not be addressed; every fragment revalidates instead.`, logger.logSeverity.WARNING, error );
                     return null;
-                } );
+                } ) );
             }
         }
-        return this.#immutableAddressing;
+        return this.#immutableAddressing.get( key );
+    }
+
+    /**
+     * Locates a fragment's file. A path carrying `{language}` (CA-410) is tried in the request's language, then in the
+     * deployment's, then in {@link FRAGMENT_LAST_RESORT_LANGUAGE}, with one warning per path and language: a
+     * half-translated deployment should lose the translation, not the screen. When none of them has a file, the
+     * request's language is asked for, and fails as any missing fragment does.
+     *
+     * @method
+     * @param {string[]} staticContentPaths
+     * @param {string} fragmentPath
+     * @param {string} [language] The language the request is rendered in.
+     * @returns {Promise<string>}
+     */
+    #locateFragmentFile( staticContentPaths, fragmentPath, language ) {
+        const filePath = String( fragmentPath || "" );
+        if ( !filePath.includes( FRAGMENT_LANGUAGE_TOKEN ) ) {
+            return this.#locateStaticFile( staticContentPaths, filePath );
+        }
+        const inLanguage = ( code ) => filePath.replaceAll( FRAGMENT_LANGUAGE_TOKEN, code );
+        const wanted = ( typeof language === "string" && RE_LANGUAGE_CODE.test( language ) ) ? language : documentLanguageOf();
+        const candidates = [ ...new Set( [ wanted, documentLanguageOf(), FRAGMENT_LAST_RESORT_LANGUAGE ] ) ];
+        const found = candidates.find( ( code ) => this.#hasStaticFile( staticContentPaths, inLanguage( code ) ) );
+        if ( found !== undefined && found !== wanted ) {
+            const reported = `${ filePath } ${ wanted }`;
+            if ( !this.#untranslatedReported.has( reported ) ) {
+                this.#untranslatedReported.add( reported );
+                logger.log( `Fragment '${ filePath }' has no '${ wanted }' file; it is served in '${ found }' instead.`, logger.logSeverity.WARNING );
+            }
+        }
+        return this.#locateStaticFile( staticContentPaths, inLanguage( found || wanted ) );
+    }
+
+    /**
+     * Whether a static file exists in any of the static content paths, from the cache when it holds it.
+     *
+     * @method
+     * @param {string[]} staticContentPaths
+     * @param {string} filePath
+     * @returns {boolean}
+     */
+    #hasStaticFile( staticContentPaths, filePath ) {
+        if ( this.#staticFileCacheEnabled === true && this.#staticFileCache[ filePath ] !== undefined ) {
+            return true;
+        }
+        return staticContentPaths.some( ( staticContentPath ) => fs.existsSync( path.join( staticContentPath, filePath ) ) );
     }
 
     /**

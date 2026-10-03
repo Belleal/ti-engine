@@ -47,7 +47,7 @@ function mockSession( initial = {} ) {
     return session;
 }
 
-function mockRequest( { query = {}, body = {}, params = {}, session = mockSession() } = {} ) {
+function mockRequest( { query = {}, body = {}, params = {}, session = mockSession(), cookies = {} } = {} ) {
     const headers = { host: "app.example.com", accept: "text/html" };
     return {
         method: "GET",
@@ -56,6 +56,7 @@ function mockRequest( { query = {}, body = {}, params = {}, session = mockSessio
         body: body,
         params: params,
         session: session,
+        cookies: cookies,
         get: ( name ) => headers[ String( name ).toLowerCase() ]
     };
 }
@@ -67,13 +68,14 @@ function user( language ) {
     };
 }
 
-function instance( { userLanguage, serviceLanguage } = {} ) {
+function instance( { userLanguage, serviceLanguage, offered = [] } = {} ) {
     const serviceConfig = { auth: { admins: [] } };
     if ( serviceLanguage !== undefined ) {
         serviceConfig.language = serviceLanguage;
     }
     return {
         serviceConfig: serviceConfig,
+        offeredLanguages: offered,
         authenticate: () => Promise.resolve(),
         authorize: () => Promise.resolve( user( userLanguage ) ),
         augmentSession: ( session ) => session
@@ -87,16 +89,17 @@ function signIn( handler, request ) {
     } );
 }
 
-function openIDSignIn( options ) {
+function openIDSignIn( options = {} ) {
     const request = mockRequest( {
         query: { code: "code", state: STATE },
-        session: mockSession( { oidc: { codeVerifier: "verifier", state: STATE, nonce: "nonce" } } )
+        session: mockSession( { oidc: { codeVerifier: "verifier", state: STATE, nonce: "nonce" } } ),
+        cookies: options.cookies
     } );
     return signIn( webHandlers.authorizedOAuth2CallbackHandler( instance( options ), "openid-google" ), request );
 }
 
-function localSignIn( options ) {
-    const request = mockRequest( { params: { method: "local" }, body: { username: "someone", password: "password" } } );
+function localSignIn( options = {} ) {
+    const request = mockRequest( { params: { method: "local" }, body: { username: "someone", password: "password" }, cookies: options.cookies } );
     return signIn( webHandlers.authenticationHandler( instance( options ) ), request );
 }
 
@@ -116,6 +119,16 @@ describe( "the language a session starts in", () => {
 
             it( "takes the user's own language first", async () => {
                 assert.equal( ( await run( { userLanguage: "de", serviceLanguage: "en" } ) ).language, "de" );
+            } );
+
+            it( "takes the language the visitor chose on the sign-in screen before anything else (CA-410)", async () => {
+                const chose = { cookies: { "ti-language": "en" }, offered: [ "en", "bg" ] };
+                assert.equal( ( await run( { ...chose, userLanguage: "de", serviceLanguage: "bg" } ) ).language, "en" );
+            } );
+
+            it( "ignores a choice the deployment does not offer, or any choice where it offers none", async () => {
+                assert.equal( ( await run( { cookies: { "ti-language": "de" }, offered: [ "en", "bg" ] } ) ).language, "bg" );
+                assert.equal( ( await run( { cookies: { "ti-language": "en" } } ) ).language, "bg" );
             } );
 
         } );

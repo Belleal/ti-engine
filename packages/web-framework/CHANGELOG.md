@@ -2,6 +2,53 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.48.0
+
+* feat (localization): **the visitor chooses the interface language on the sign-in screen, and the session starts in
+  it** (CA-410). Design record: `docs/superpowers/specs/2026-10-03-language-choice-at-sign-in-design.md`.
+  <br/>
+  **What was missing.** A session's language was settled before the visitor arrived:
+  - **At sign-in**, `user.language`, which no sign-in sets, else the configured language, else the deployment's.
+  - **The sign-in screen** was always in the deployment's language.
+  - **A served fragment** was bound to one file when it was registered, and `transformHtml` saw no language.
+  - **Immutable fragments** shared one content address, which cannot tell two languages apart.
+  <br/>
+  **What changed.**
+  - **`languages` in the server configuration** (`TI_WEB_LANGUAGES`) lists what a visitor may choose; a code core does
+    not know is left out with a warning. Configuring nothing changes nothing.
+  - **`GET /language/:code`**, reachable before sign-in, keeps an offered choice in a `ti-language` cookie for a year
+    (`HttpOnly`, `SameSite=Lax`, `Secure` on HTTPS) and redirects home. A signed-in session takes it at once. A plain
+    link, so the switch needs no script, and no CSRF token is minted for an anonymous visit.
+  - **`resolveRequestLanguage( request, instance )`** decides a request's language: the signed-in session's, else the
+    choice, else the configured, else the deployment's. `/app/config`, `/app/labels/:hash` and every rendered view
+    ask it.
+  - **Sign-in** takes the choice first, then `user.language`, then the configured language.
+  - **`transformHtml`** receives `options.language` and `options.languages`.
+    - `{ti-language-placeholder}` is filled with the language, and `index.html` writes `<html lang>` with it.
+    - `{ti-language-switch-placeholder}`, at the foot of the sign-in card, becomes the switch, or nothing with fewer
+      than two languages. Each language is a link showing its code and named by its own name, with `aria-current` on
+      the current one.
+  - **A fragment `path` may contain `{language}`.** It is served in the request's language, else the deployment's,
+    else English, with one warning per fragment and language.
+  - **Immutable fragments get one content address per language,** so a browser keeps one copy per language and never
+    serves one for the other.
+  - Labels `interface.language-name` and `interface.default.login.language-switch` (en, bg), with a built-in table of
+    each language's own name for an application that does not carry the first. README → *Choosing the language on
+    the sign-in screen*.
+  <br/>
+  **Verified.**
+  - `test/language-choice.test.js` (27) and two sign-in cases in `web-handlers.session-language` catch all 22
+    mutations tried.
+  - The sign-in label sweep exempts a lone server token, and its self-check proves a token beside words is still
+    caught.
+  - **In Chromium, through an application offering en and bg:**
+    - a first visit is in English;
+    - BG re-renders the sign-in screen in Bulgarian, with the cookie set;
+    - signing in gives Bulgarian, the guide included;
+    - a return without a session remembers the choice;
+    - EN gives English, with the guide at another address;
+    - `/language/bg` while signed in switches at once.
+
 ## Version 1.47.0
 
 * feat (shell): **on a narrow screen the sidebar is a drawer, opened from a menu button in the topbar** (CA-406).
