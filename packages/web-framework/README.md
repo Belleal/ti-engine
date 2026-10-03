@@ -210,6 +210,23 @@ Since 1.39.0:
 * **Screen fragments requested by HTMX revalidate** (`private, no-cache`), so a repeat visit to a screen is a `304`. Full pages stay `no-store`.
 * **`/static` is served before the session middleware**, so an asset never reads or writes a session.
 
+## The bundled browser libraries
+
+htmx and Alpine's CSP build ship inside the package as `bin/static/scripts/lib/htmx.min.js` and
+`bin/static/scripts/lib/alpinejs-csp.min.js`, so a consumer serves them from its own origin, under its own
+Content-Security-Policy. They are committed files:
+
+* **`npm install` regenerates them.** The postinstall, `bin/build/post-install.js`, copies them from `htmx.org` and
+  `@alpinejs/csp` in `node_modules`.
+* **`htmx.org` and `@alpinejs/csp` are pinned exactly**, so the version installed, bundled and declared is one
+  version.
+* **To move a library:** change its pin, run `npm install`, and commit `bin/static/scripts/lib/` with the pin. A
+  change made without an install (an editor on GitHub, a bot's pull request) leaves the old copy in place.
+* **CI and the publish workflow check this.** Each fails when its own install changes the committed copies, and so
+  does `test/bundled-libraries.test.js`. The publish job packs what is committed, with no install, so this check is
+  what keeps a stale copy from shipping. Releases 1.39.0 to 1.46.0 shipped htmx 2.0.10 and Alpine 3.17.3 while
+  declaring `^2.0.11` and `^3.17.4`.
+
 ## Screens that never change
 
 A screen fragment is served at an address that names the screen, not a version of it, so by default it revalidates:

@@ -2,6 +2,37 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.46.1
+
+* fix (build): **the bundled htmx and Alpine are the declared versions again** (CA-402).
+  <br/>
+  **What was wrong.** web-framework ships htmx and Alpine's CSP build as committed files in `bin/static/scripts/lib/`.
+  The postinstall regenerates them from `node_modules` on every install, and the publish job packs what is committed,
+  with no install. `fbf55ce` (2026-09-24) raised the ranges to `htmx.org ^2.0.11` and `@alpinejs/csp ^3.17.4`
+  without an install, so the files stayed at htmx 2.0.10 and Alpine 3.17.3.
+  - **Measured on the published tarballs:** 1.38.0 was consistent, at 2.0.10 and 3.17.3 against `^2.0.10` and
+    `^3.17.3`. 1.39.0, 1.42.0 and 1.46.0 ship 2.0.10 and 3.17.3 against `^2.0.11` and `^3.17.4`.
+  - **Who got the stale copies:** a consumer whose install runs the postinstall got the installed versions, and one
+    that installs with scripts off got the old ones.
+  <br/>
+  **Why it survived.** Nothing compared the committed copies with the declared versions, and CI's own install
+  rewrites them before any test runs, so CI always saw fresh files. A local `npm install` does regenerate them; I
+  measured it with npm 10 and npm 11.
+  <br/>
+  **What changed.**
+  - The files are regenerated: htmx 2.0.11, and Alpine CSP 3.17.4.
+  - **Both dependencies are pinned exactly**, so the version installed, bundled and declared is one version. A newer
+    upstream patch therefore changes nothing until a pin moves.
+  - **CI and the publish workflow's test job check the bundle after their install.** Each fails when the install
+    changed the committed copies, which is what a pin moved without an install looks like.
+  - **`test/bundled-libraries.test.js` (7 tests)** checks that both pins are exact, that each file states its pinned
+    version, that each is a byte-for-byte copy of the installed package's file, and that the postinstall still copies
+    from those paths.
+  - README → *The bundled browser libraries*.
+  <br/>
+  **Rejected:** keeping the ranges and checking against whatever CI installs. With no lockfile in this repository, CI
+  installs the newest match, so any upstream patch release would turn every open pull request red at once.
+
 ## Version 1.46.0
 
 * feat (login): **a heading slot inside the sign-in card** (CA-387).
