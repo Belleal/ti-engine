@@ -16,10 +16,13 @@ This document will contain the list of changes made to the framework. The format
   - **`component-navigation-toggle.html`,** whose placeholder the framework's topbar carries first, is a menu button
     with `aria-expanded`. It slides the sidebar in over a scrim that it teleports to `<body>`: a topbar can carry a
     backdrop filter, which would trap a fixed scrim inside the topbar.
-  - **Opening** makes `#ti-content` `inert` and moves the focus to the active entry.
+  - **Opening** makes the topbar and the screen `inert` (`#ti-content-wrapper`, or `#ti-content` in a frame without
+    the wrapper) and moves the focus to the active entry. With the screen alone inert, Tab from the drawer's last
+    entry reached the menu button, which the drawer covers.
   - **Closing:** Escape and the scrim close it and give the focus back to the button. Any request for `#ti-content`
     closes it as it starts (`htmx:beforeRequest`), and so does `openScreen`, so a tap on an entry closes the drawer
-    before a sleeping container answers.
+    before a sleeping container answers. A screen chosen from the drawer leaves the focus on the menu button too:
+    the entry that held it is hidden with the drawer, and the browser dropped it to `<body>`.
   - **Widening the window** past the breakpoint closes it.
   - **The collapsed state never applies to the drawer** (`collapsed` reads false while `navigationDrawer` is true).
   - **The shell takes `100dvh` there.**
@@ -30,15 +33,17 @@ This document will contain the list of changes made to the framework. The format
     application whose own topbar predates the button keeps the column, rather than losing navigation.
   - `.ti-icon.menu`; the label `interface.navigation-toggle.label` (en "Menu", bg "Меню"); README → *On a narrow
     screen*.
-  - **`test/ti-framework.navigation-drawer.test.js` (21 tests)** covers the store and the component in the sandbox,
+  - **`test/ti-framework.navigation-drawer.test.js` (27 tests)** covers the store and the component in the sandbox,
     the markup and its assembly into the topbar, and the stylesheet read from inside its own `@media` block. That
-    includes the guard on every rule, and the breakpoint agreeing with the script's. It catches all 16 mutations
-    tried.
+    includes the guard on every rule, the breakpoint agreeing with the script's, what the open drawer makes inert and
+    where the focus goes when it closes. It catches all 22 mutations tried.
   <br/>
   **Verified in Chromium** at 390x844 through competence, in two themes:
   - one column with no horizontal overflow on the dashboard;
-  - the drawer opens with the focus on the active entry and the screen inert;
+  - the drawer opens with the focus on the active entry and the topbar and screen inert;
+  - Tab past the last entry leaves the page rather than landing on the covered menu button, as it did before;
   - a tap on an entry closes it and loads the screen;
+  - a screen chosen with the keyboard leaves the focus on the menu button, where it had fallen to `<body>`;
   - Escape and the scrim return the focus to the button;
   - widening to 1280 puts the sidebar back in its column.
 * fix (shell): **the sidebar's user menu opens inside the window** (CA-408).
@@ -54,10 +59,13 @@ This document will contain the list of changes made to the framework. The format
   **What changed.**
   - The flyout places its panel again whenever the panel's size changes, through a `ResizeObserver` attached a tick
     after `init`, when its ref exists. That includes the frame `x-show` reveals it in.
+  - **In a browser without `ResizeObserver`** it places the panel once more in that frame: `x-show` asks for its
+    `requestAnimationFrame` before the tick runs, so a frame asked for in the tick comes after the reveal. Measured
+    in Chromium at 1280x844 with `ResizeObserver` removed: y=832 with 12px showing before, y=710 after.
   - The clamp holds the margin.
   - **Measured after:** inside the window at 1280x844 (y=710), at 1440x1000 (y=866) and at 390x844.
-  - **`test/ti-framework.sidebar-flyout.test.js` (6 tests)** models Alpine's order, the refs arriving after `init`. It
-    catches all 5 mutations tried.
+  - **`test/ti-framework.sidebar-flyout.test.js` (7 tests)** models Alpine's order: the refs arrive after `init`,
+    and the panel is revealed a frame late. It catches all 8 mutations tried.
 
 ## Version 1.46.1
 
