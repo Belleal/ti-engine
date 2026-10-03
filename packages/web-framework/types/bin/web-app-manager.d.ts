@@ -163,6 +163,10 @@ declare class TiWebAppManager {
      * @param {boolean} [options.isHome] Optional flag to indicate whether the requested route is the home page.
      * @param {string} [options.nonce] Optional CSP nonce to inject into inline scripts/styles.
      * @param {string} [options.title] Optional title to replace the placeholder in the HTML.
+     * @param {string} [options.language] The language the request is answered in (CA-410): a signed-in session's, else
+     * the visitor's choice, else the configured one. Fills `{ti-language-placeholder}`.
+     * @param {string[]} [options.languages] The languages the deployment offers. With two or more,
+     * `{ti-language-switch-placeholder}` becomes the sign-in card's language switch.
      * @returns {Promise<string>}
      * @virtual
      * @public
@@ -172,6 +176,8 @@ declare class TiWebAppManager {
         isHome?: boolean;
         nonce?: string;
         title?: string;
+        language?: string;
+        languages?: string[];
     }): Promise<string>;
     /**
      * Used to assemble the complete HTML view for the requested route, including nested HTML fragments.

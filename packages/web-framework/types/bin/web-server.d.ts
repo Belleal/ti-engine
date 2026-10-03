@@ -97,6 +97,13 @@ declare const RE_WELL_KNOWN_UNPROTECTED: RegExp;
  */
 declare const RE_LABELS_BUNDLE_UNPROTECTED: RegExp;
 /**
+ * Default unprotected route matcher for the visitor's choice of language (`/language/<code>`, CA-410): two letters, as
+ * every code core knows is.
+ *
+ * @type {RegExp}
+ */
+declare const RE_LANGUAGE_CHOICE_UNPROTECTED: RegExp;
+/**
  * A web server microservice based on the ti-engine.
  * <br/>
  * Note: The web server is fully functional and already comes with all the necessary fundamentals and security features. However, it is designed to be extended
@@ -149,6 +156,16 @@ declare class TiWebServer extends ServiceConsumer {
      * @public
      */
     get isShuttingDown(): boolean;
+    /**
+     * Property returning the languages a visitor may choose between (CA-410): `languages` in the service
+     * configuration, or `TI_WEB_LANGUAGES`, less any code core does not know. Empty when none is configured, which
+     * offers only the deployment's language and leaves the sign-in screen without a switch.
+     *
+     * @property
+     * @returns {string[]}
+     * @public
+     */
+    get offeredLanguages(): string[];
     /**
      * Property returning the list of static content directories.
      *
@@ -353,6 +370,7 @@ declare class TiWebServer extends ServiceConsumer {
      * - /login/:method
      * - /health
      * - /csrf-token
+     * - /language/:code
      * <br/>
      * NOTE: You can define custom unprotected routes by overriding the {@link TiWebServer#defineUnprotectedRoutes} method.
      *
@@ -412,6 +430,24 @@ declare class TiWebServer extends ServiceConsumer {
      * @public
      */
     addUnprotectedRoute(pattern: string | RegExp): TiWebServer;
+    /**
+     * Resolves the configured `languages` into the codes a visitor may choose between (CA-410): each trimmed and
+     * lowercased, duplicates dropped, and a code core's `localizationLanguage` does not know left out with a warning.
+     * Pure, like {@link TiWebServer.resolveStaticCachePolicy}: the caller logs the warnings.
+     * <br/>
+     * A typo drops one language rather than failing the start. The choice is a convenience, and a deployment that
+     * cannot start over it would cost far more than one missing entry in its switch.
+     *
+     * @method
+     * @static
+     * @param {string[]|string} [languages] The configured list, if any.
+     * @returns {{languages: string[], warnings: string[]}}
+     * @public
+     */
+    static resolveOfferedLanguages(languages?: string[] | string): {
+        languages: string[];
+        warnings: string[];
+    };
     /**
      * Resolves a `staticCache` configuration block into the policy the `/static` mounts apply, filling in
      * {@link TiWebServer.#STATIC_CACHE_DEFAULTS} per key and rejecting values that cannot be honored. Pure: problems
@@ -517,5 +553,6 @@ declare class TiWebServer extends ServiceConsumer {
 declare namespace TiWebServer {
     export { RE_STATIC_UNPROTECTED };
     export { RE_WELL_KNOWN_UNPROTECTED };
+    export { RE_LANGUAGE_CHOICE_UNPROTECTED };
     export { RE_LABELS_BUNDLE_UNPROTECTED };
 }

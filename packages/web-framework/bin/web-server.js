@@ -37,6 +37,7 @@ const authorization = require( "#authorization" );
 const adminConfigHandlers = require( "#admin-config-handlers" );
 const configService = require( "#config-service" );
 const applyWebConfigEnvOverrides = require( "#web-config-env" );
+const localization = require( "@ti-engine/core/localization" );
 
 /** @typedef {import("node:http").Server} NodeServer */
 
@@ -49,6 +50,8 @@ const applyWebConfigEnvOverrides = require( "#web-config-env" );
  * @property {string} host
  * @property {TiLocalizationLanguage} [language] The language a session starts in when its user carries none. Unset, it is
  *           the deployment's own — `TI_LOCALIZATION_LANGUAGE` as core resolved it — rather than a fixed default.
+ * @property {TiLocalizationLanguage[]} [languages] The languages a visitor may choose between on the sign-in screen
+ *           (CA-410), overridable with `TI_WEB_LANGUAGES`. Unset, only the deployment's language is offered.
  * @property {number} port
  * @property {string} publicPath
  * @property {number} requestTimeout
@@ -154,6 +157,14 @@ const RE_WELL_KNOWN_UNPROTECTED = /^\/\.well-known\/(?:[^/]+\/)*[^/]+\.[^/]+$/i;
 const RE_LABELS_BUNDLE_UNPROTECTED = /^\/app\/labels\/[0-9a-f]{16}$/;
 
 /**
+ * Default unprotected route matcher for the visitor's choice of language (`/language/<code>`, CA-410): two letters, as
+ * every code core knows is.
+ *
+ * @type {RegExp}
+ */
+const RE_LANGUAGE_CHOICE_UNPROTECTED = /^\/language\/[a-z]{2}$/i;
+
+/**
  * Brotli quality for responses compressed on the fly. The default of `compression` (4) is kept deliberately and stated
  * here so it is not "improved": quality 11 costs tens of milliseconds of CPU on a 400 KB script, paid on every request
  * that is not already cached — and on a container, CPU time is what is billed.
@@ -187,6 +198,7 @@ class TiWebServer extends ServiceConsumer {
     #staticContentPaths = [];
     #allowedHosts = [];
     #unprotectedRoutes = [];
+    #offeredLanguages = [];
     #webAppManager;
     #authManager;
 
@@ -212,6 +224,10 @@ class TiWebServer extends ServiceConsumer {
         }
 
         this.#authManager = new AuthManager( this.serviceConfig.auth );
+
+        const offered = TiWebServer.resolveOfferedLanguages( this.serviceConfig.languages );
+        offered.warnings.forEach( ( warning ) => logger.log( warning, logger.logSeverity.WARNING ) );
+        this.#offeredLanguages = Object.freeze( offered.languages );
 
         // If there is a web application configuration, create the web application manager:
         if ( this.serviceConfig.application ) {
@@ -262,6 +278,19 @@ class TiWebServer extends ServiceConsumer {
      */
     get isShuttingDown() {
         return this.#isShuttingDown;
+    }
+
+    /**
+     * Property returning the languages a visitor may choose between (CA-410): `languages` in the service
+     * configuration, or `TI_WEB_LANGUAGES`, less any code core does not know. Empty when none is configured, which
+     * offers only the deployment's language and leaves the sign-in screen without a switch.
+     *
+     * @property
+     * @returns {string[]}
+     * @public
+     */
+    get offeredLanguages() {
+        return this.#offeredLanguages;
     }
 
     /**
@@ -711,6 +740,7 @@ class TiWebServer extends ServiceConsumer {
      * - /login/:method
      * - /health
      * - /csrf-token
+     * - /language/:code
      * <br/>
      * NOTE: You can define custom unprotected routes by overriding the {@link TiWebServer#defineUnprotectedRoutes} method.
      *
@@ -743,6 +773,8 @@ class TiWebServer extends ServiceConsumer {
         this.#webServer.post( "/login/:method", webHandlers.authenticationHandler( this ) );
         this.#webServer.post( "/logout", webHandlers.logoutHandler() );
         this.#webServer.get( "/health", webHandlers.healthHandler() );
+        // The visitor's choice of interface language, before or after sign-in (CA-410).
+        this.#webServer.get( "/language/:code", webHandlers.languageChoiceHandler( this ) );
         // A script's way to a CSRF token when the page it runs on was served from a shared cache, which cannot carry
         // one. Tokens are no longer minted on every anonymous page view, precisely so that such pages can be shared.
         this.#webServer.get( "/csrf-token", webHandlers.csrfTokenHandler() );
@@ -804,6 +836,8 @@ class TiWebServer extends ServiceConsumer {
         this.#unprotectedRoutes.push( RE_WELL_KNOWN_UNPROTECTED );
         // The sign-in page resolves its labels before anyone is signed in, like `/app/config` that points to them.
         this.#unprotectedRoutes.push( RE_LABELS_BUNDLE_UNPROTECTED );
+        // A language is chosen on the sign-in screen, before anyone is signed in (CA-410).
+        this.#unprotectedRoutes.push( RE_LANGUAGE_CHOICE_UNPROTECTED );
     }
 
     /**
@@ -935,6 +969,37 @@ class TiWebServer extends ServiceConsumer {
     static #toServedPath( rootPath, filePath ) {
         // Split on the platform separator only: on POSIX a backslash is a legal filename character, not a delimiter.
         return "/" + path.relative( String( rootPath || "" ), String( filePath || "" ) ).split( path.sep ).join( "/" );
+    }
+
+    /**
+     * Resolves the configured `languages` into the codes a visitor may choose between (CA-410): each trimmed and
+     * lowercased, duplicates dropped, and a code core's `localizationLanguage` does not know left out with a warning.
+     * Pure, like {@link TiWebServer.resolveStaticCachePolicy}: the caller logs the warnings.
+     * <br/>
+     * A typo drops one language rather than failing the start. The choice is a convenience, and a deployment that
+     * cannot start over it would cost far more than one missing entry in its switch.
+     *
+     * @method
+     * @static
+     * @param {string[]|string} [languages] The configured list, if any.
+     * @returns {{languages: string[], warnings: string[]}}
+     * @public
+     */
+    static resolveOfferedLanguages( languages ) {
+        const result = { languages: [], warnings: [] };
+        if ( languages === undefined || languages === null ) {
+            return result;
+        }
+        const known = new Set( Object.values( localization.localizationLanguage ) );
+        ( Array.isArray( languages ) ? languages : [ languages ] ).forEach( ( entry ) => {
+            const code = String( entry ).trim().toLowerCase();
+            if ( !known.has( code ) ) {
+                result.warnings.push( `Offered language '${ String( entry ).slice( 0, 20 ) }' is not a language code core knows; it is left out of the languages a visitor may choose.` );
+            } else if ( !result.languages.includes( code ) ) {
+                result.languages.push( code );
+            }
+        } );
+        return result;
     }
 
     /**
@@ -1192,4 +1257,5 @@ module.exports = TiWebServer;
 // Exported for unit testing of the ReDoS-hardened matchers; not part of the customization surface.
 TiWebServer.RE_STATIC_UNPROTECTED = RE_STATIC_UNPROTECTED;
 TiWebServer.RE_WELL_KNOWN_UNPROTECTED = RE_WELL_KNOWN_UNPROTECTED;
+TiWebServer.RE_LANGUAGE_CHOICE_UNPROTECTED = RE_LANGUAGE_CHOICE_UNPROTECTED;
 TiWebServer.RE_LABELS_BUNDLE_UNPROTECTED = RE_LABELS_BUNDLE_UNPROTECTED;

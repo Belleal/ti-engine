@@ -9,6 +9,8 @@ export declare var serverTimingHandler: (instance: TiWebServer) => ExpressHandle
 export declare var timedHandler: (name: string, handler: ExpressHandler) => ExpressHandler;
 export declare var userInformationHandler: () => ExpressHandler;
 export declare var labelsBundleHandler: (instance: TiWebServer) => ExpressHandler;
+export declare var languageChoiceHandler: (instance: TiWebServer) => ExpressHandler;
+export { resolveRequestLanguage };
 export declare var httpRedirectHandler: (instance: TiWebServer) => ExpressHandler;
 export declare var serviceCallHandler: (instance: TiWebServer) => ExpressHandler;
 export declare var invalidRouteHandler: () => ExpressHandler;
@@ -28,3 +30,17 @@ export type ExpressRequest = import("express").Request;
 export type ExpressResponse = import("express").Response;
 export type ExpressHandler = (request: ExpressRequest, response: ExpressResponse, next: (error: Error | null) => void) => void;
 export type ExpressErrorHandler = (error: Error, request: ExpressRequest, response: ExpressResponse, next: (error: Error | null) => void) => void;
+/**
+ * The language a request is served in (CA-410): a signed-in session's, else the one the visitor chose, else the one
+ * the service configuration names, else the deployment's.
+ * <br/>
+ * Everything that answers a request that may be anonymous asks this rather than reading `session.language`, which an
+ * anonymous request does not have: the sign-in screen, its label catalogue, and the views rendered around it.
+ *
+ * @method
+ * @param {Object} request
+ * @param {TiWebServer} instance
+ * @returns {string}
+ * @public
+ */
+declare let resolveRequestLanguage: (request: Object, instance: TiWebServer) => string;

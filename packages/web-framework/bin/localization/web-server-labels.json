@@ -49,8 +49,16 @@
         "welcome": {
           "en": "Welcome back",
           "bg": "Добре дошли отново"
+        },
+        "language-switch": {
+          "en": "Language",
+          "bg": "Език"
         }
       }
+    },
+    "language-name": {
+      "en": "English",
+      "bg": "Български"
     },
     "busy-indicator": {
       "status": {

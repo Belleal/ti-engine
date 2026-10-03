@@ -107,6 +107,10 @@
             <!-- Shown only when no authentication method is enabled/configured. -->
             <div class="ti-login-empty" x-text-label="interface.default.login.no-sign-in-method">No sign-in method is configured. Please contact your administrator.</div>
             <!--/ti-auth-none-->
+
+            <!-- The language switch (CA-410): a footer row of links to /language/<code>, drawn by the server when the
+                 deployment offers two or more languages, and nothing otherwise. -->
+            {ti-language-switch-placeholder}
         </div>
 
         <!-- Application extension slot. The framework ships this component empty; an application supplies its own

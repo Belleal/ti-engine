@@ -2821,6 +2821,58 @@ html.ti-busy .ti-busy-indicator-glyph {
     box-shadow: var(--shadow-lg);
 }
 
+/* The language switch (CA-410): a footer row under the sign-in methods, drawn only when two or more languages are
+   offered. Plain links, so it needs no script; the current language is marked by the server with `aria-current`. */
+.ti-login-card-foot {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    margin-top: var(--s-5);
+    padding-top: var(--s-4);
+    border-top: 1px solid var(--border-soft);
+}
+
+.ti-login-languages {
+    display: inline-flex;
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+    overflow: hidden;
+}
+
+.ti-login-language {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 40px;
+    height: 28px;
+    padding: 0 var(--s-2);
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--fg-secondary);
+    text-decoration: none;
+}
+
+.ti-login-language + .ti-login-language {
+    border-left: 1px solid var(--border);
+}
+
+.ti-login-language:hover {
+    background: var(--bg-tint);
+    color: var(--fg-primary);
+}
+
+.ti-login-language[aria-current="true"] {
+    background: var(--accent-soft);
+    color: var(--accent);
+}
+
+/* Inside the switch's edge, which clips anything drawn outside it. */
+.ti-login-language:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+}
+
 .ti-login-error {
     display: none;
     color: var(--danger);

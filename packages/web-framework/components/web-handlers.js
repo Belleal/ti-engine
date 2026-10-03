@@ -238,21 +238,83 @@ let getRequestOrigin = ( request ) => {
 };
 
 /**
- * The language a new session starts in: the user's own, else the one the service configuration names, else the
- * deployment's — what core resolved from `TI_LOCALIZATION_LANGUAGE`, its settings file or its default.
+ * The cookie that holds the language a visitor chose, before or after sign-in (CA-410). Set only by
+ * {@link languageChoiceHandler}, and honoured only while its value is a language the deployment offers.
+ *
+ * @constant
+ * @type {string}
+ * @private
+ */
+const LANGUAGE_COOKIE_NAME = "ti-language";
+
+/**
+ * How long a language choice is kept: a year, renewed by every choice.
+ *
+ * @constant
+ * @type {number}
+ * @private
+ */
+const LANGUAGE_COOKIE_MAX_AGE = 365 * 24 * 60 * 60 * 1000;
+
+/**
+ * The language the visitor chose with {@link languageChoiceHandler}, when it is one the deployment offers.
  * <br/>
- * The last step is CA-198. The service configuration used to default to "en", and no identity provider puts a
- * language on the user, so every session was English: a deployment set to Bulgarian turned English the moment
- * anybody signed in, while its login page, which asks core with no language, stayed Bulgarian.
+ * A deployment that offers none ignores the cookie altogether, so configuring nothing changes nothing; and a cookie
+ * left from a language the deployment has since stopped offering is not honoured.
+ *
+ * @method
+ * @param {Object} request
+ * @param {TiWebServer} instance
+ * @returns {string|undefined}
+ * @private
+ */
+let readLanguageChoice = ( request, instance ) => {
+    const chosen = request && request.cookies && request.cookies[ LANGUAGE_COOKIE_NAME ];
+    const offered = ( instance && Array.isArray( instance.offeredLanguages ) ) ? instance.offeredLanguages : [];
+    return ( typeof chosen === "string" && offered.includes( chosen ) ) ? chosen : undefined;
+};
+
+/**
+ * The language a request is served in (CA-410): a signed-in session's, else the one the visitor chose, else the one
+ * the service configuration names, else the deployment's.
+ * <br/>
+ * Everything that answers a request that may be anonymous asks this rather than reading `session.language`, which an
+ * anonymous request does not have: the sign-in screen, its label catalogue, and the views rendered around it.
+ *
+ * @method
+ * @param {Object} request
+ * @param {TiWebServer} instance
+ * @returns {string}
+ * @public
+ */
+let resolveRequestLanguage = ( request, instance ) => {
+    const session = request && request.session;
+    if ( session && session.user && typeof session.language === "string" && session.language ) {
+        return session.language;
+    }
+    return readLanguageChoice( request, instance ) || instance?.serviceConfig?.language || localization.getSystemLanguage();
+};
+
+/**
+ * The language a new session starts in: the one the visitor chose on the sign-in screen, else the user's own, else the
+ * one the service configuration names, else the deployment's — what core resolved from `TI_LOCALIZATION_LANGUAGE`, its
+ * settings file or its default.
+ * <br/>
+ * The visitor's choice comes first (CA-410): it was made a moment ago by the person at the keyboard, where a claim or a
+ * configured default is older and says less. The last step is CA-198. The service configuration used to default to
+ * "en", and no identity provider puts a language on the user, so every session was English: a deployment set to
+ * Bulgarian turned English the moment anybody signed in, while its login page, which asks core with no language,
+ * stayed Bulgarian.
  *
  * @method
  * @param {User} user
  * @param {TiWebServer} instance
+ * @param {string} [chosen] The visitor's choice, from {@link readLanguageChoice}.
  * @returns {string}
  * @private
  */
-let resolveSessionLanguage = ( user, instance ) => {
-    return user.language || instance.serviceConfig.language || localization.getSystemLanguage();
+let resolveSessionLanguage = ( user, instance, chosen ) => {
+    return chosen || user.language || instance.serviceConfig.language || localization.getSystemLanguage();
 };
 
 /**
@@ -507,7 +569,7 @@ module.exports.authenticationHandler = ( instance ) => {
             } ).then( ( user ) => {
                 return regenerateAndSaveSession( request, "/", ( session ) => {
                     session.user = user.asJSON();
-                    session.language = resolveSessionLanguage( user, instance );
+                    session.language = resolveSessionLanguage( user, instance, readLanguageChoice( request, instance ) );
 
                     return authorization.applyAdminRole( instance.augmentSession( session, request ), instance.serviceConfig?.auth?.admins );
                 } );
@@ -637,7 +699,7 @@ module.exports.authorizedOAuth2CallbackHandler = ( instance, authMethod ) => {
         instance.authorize( authMethod, new URL( request.originalUrl, getBaseUrl( request ) ), oidc ).then( ( user ) => {
             return regenerateAndSaveSession( request, "/", ( session ) => {
                 session.user = user.asJSON();
-                session.language = resolveSessionLanguage( user, instance );
+                session.language = resolveSessionLanguage( user, instance, readLanguageChoice( request, instance ) );
 
                 delete session.oidc;
 
@@ -841,7 +903,7 @@ module.exports.labelsBundleHandler = ( instance ) => {
         try {
             const requested = String( request.params?.hash || "" );
             const held = manager.findLabelsBundle( requested );
-            const bundle = held || manager.getLabelsBundle( request.session?.language );
+            const bundle = held || manager.getLabelsBundle( resolveRequestLanguage( request, instance ) );
             const isAddressed = ( bundle.hash === requested );
             response.set( "Cache-Control", isAddressed ? "public, max-age=31536000, immutable" : "no-store" );
             response.set( "Content-Type", "application/json; charset=utf-8" );
@@ -851,6 +913,46 @@ module.exports.labelsBundleHandler = ( instance ) => {
         }
     };
 };
+
+/**
+ * Handler for `GET /language/:code`, the visitor's choice of interface language (CA-410).
+ * <br/>
+ * A language the deployment offers is kept in the `ti-language` cookie for a year, and a signed-in session takes it
+ * at once, so the cookie and the session never disagree. Anything else changes nothing. Either way the answer is a
+ * redirect home, which renders the page again in the language now in effect: the `<html lang>`, the label catalogue's
+ * address and any per-language fragment all come from the server.
+ * <br/>
+ * A GET, and a plain link, so the switch needs no script and no CSRF token: minting one for the sign-in screen would
+ * create a session for every anonymous visit. It is idempotent, and a forged request can only change somebody's
+ * language, which is all the real one does.
+ *
+ * @method
+ * @param {TiWebServer} instance
+ * @returns {ExpressHandler}
+ * @public
+ */
+module.exports.languageChoiceHandler = ( instance ) => {
+    return ( request, response ) => {
+        const code = String( ( request.params && request.params.code ) || "" ).toLowerCase();
+        const offered = ( instance && Array.isArray( instance.offeredLanguages ) ) ? instance.offeredLanguages : [];
+        response.set( "Cache-Control", "no-store" );
+        if ( offered.includes( code ) ) {
+            response.cookie( LANGUAGE_COOKIE_NAME, code, {
+                path: "/",
+                maxAge: LANGUAGE_COOKIE_MAX_AGE,
+                sameSite: "lax",
+                httpOnly: true,
+                secure: isSecureRequest( request )
+            } );
+            if ( request.session && request.session.user ) {
+                request.session.language = code;
+            }
+        }
+        response.redirect( exceptions.httpCode.C_303, "/" );
+    };
+};
+
+module.exports.resolveRequestLanguage = resolveRequestLanguage;
 
 /**
  * Handler for redirecting HTTP requests to HTTPS. Also works behind proxies using X-Forwarded-Proto.
@@ -1239,6 +1341,11 @@ module.exports.webAppHandler = ( instance ) => {
             return exception;
         };
 
+        // The language this request is answered in, before sign-in included (CA-410). Handed to the manager rather
+        // than written to the session: an anonymous visit must not create one.
+        const language = resolveRequestLanguage( request, instance );
+        const languages = Array.isArray( instance.offeredLanguages ) ? instance.offeredLanguages : [];
+
         if ( request.method === "GET" || request.method === "HEAD" ) {
             if ( isAcceptingResponseType( request, "html" ) ) {
                 // HEAD: set headers only:
@@ -1258,6 +1365,8 @@ module.exports.webAppHandler = ( instance ) => {
                         nonce: nonce,
                         isPartial: isPartial,
                         view: request.params.view,
+                        language: language,
+                        languages: languages,
                         // The content address a reference to an immutable fragment carries (CA-183). The manager says
                         // whether it names what was rendered; only then may the browser keep the answer for good.
                         version: ( request.query && typeof request.query.v === "string" ) ? request.query.v : undefined,
@@ -1308,7 +1417,8 @@ module.exports.webAppHandler = ( instance ) => {
                     params: request.params,
                     headers: request.headers,
                     url: request.originalUrl,
-                    method: request.method
+                    method: request.method,
+                    language: language
                 };
                 instance.webAppManager.processDataRequest( request.session, request.params?.view, requestContext ).then( ( result ) => {
                     response.set( "Cache-Control", "no-store" );

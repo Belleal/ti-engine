@@ -27,6 +27,7 @@ The web server configuration (host, port, TLS, cookies, etc.) is normally provid
 * `TI_WEB_STATIC_IMMUTABLE` (`true`/`false`) overrides `staticCache.immutable`.
 * `TI_WEB_STATIC_IMMUTABLE_PATHS` (comma-separated) **replaces** `staticCache.immutablePaths`. An explicitly empty value means *no long-lived paths*.
 * `TI_WEB_SERVER_TIMING` (`true`/`false`) overrides `serverTiming`: whether every response says, in a `Server-Timing` header, where its time went in the process. Off by default. See [Timing a response](#timing-a-response).
+* `TI_WEB_LANGUAGES` (comma-separated) **replaces** `languages`: the interface languages a visitor may choose between on the sign-in screen. See [Choosing the language on the sign-in screen](#choosing-the-language-on-the-sign-in-screen).
 
 OpenID Connect providers are configured with their own variables — `TI_AZURE_AUTH_CLIENT_ID` / `TI_AZURE_AUTH_CLIENT_SECRET` / `TI_AZURE_AUTH_CALLBACK_URL` / `TI_AZURE_AUTH_DISCOVERY_URL` / `TI_AZURE_AUTH_ALLOWED_DOMAINS`, and the `TI_GCLOUD_AUTH_*` equivalents. `…_ALLOWED_DOMAINS` (comma-separated) **replaces** the provider's `allowedDomains`: see [Which domains may sign in through which provider](#which-domains-may-sign-in-through-which-provider). A callback URL may be given either as the full absolute URL registered with the provider (`https://your-host/login/azure-callback`) or as a path (`/login/azure-callback`): the server always listens on the path, while the `redirect_uri` sent to the provider is the absolute value verbatim if one was configured, and otherwise assembled from the request's forwarded protocol/host.
 
@@ -79,10 +80,46 @@ A refused sign-in is logged at `WARNING` with the subject and the domain it carr
 
 ### The language a session starts in
 
-A new session takes the user's own language, else the service configuration's `language` when one is set, else the
-deployment's: `TI_LOCALIZATION_LANGUAGE` as core resolved it (`localization.getSystemLanguage()`). The shipped
-configuration sets none. It used to set `"en"`, and since no identity provider puts a language on the user, a
-deployment configured for another language turned English at sign-in while its login page did not.
+A new session takes, in order:
+1. the language the visitor chose on the sign-in screen, when the deployment offers it;
+2. the user's own language;
+3. the service configuration's `language`, when one is set;
+4. the deployment's: `TI_LOCALIZATION_LANGUAGE` as core resolved it (`localization.getSystemLanguage()`).
+
+The shipped configuration sets no `language`. It used to set `"en"`, and since no identity provider puts a language
+on the user, a deployment configured for another language turned English at sign-in while its login page did not.
+
+### Choosing the language on the sign-in screen
+
+List the languages a visitor may choose between in `languages` (or `TI_WEB_LANGUAGES`), as core's two-letter codes:
+`"languages": [ "en", "bg" ]`. A code core does not know is left out, with a warning at start. With two or more, the
+sign-in card gains a footer row of links, `EN` / `BG`. List only languages the application's labels carry: the codes
+are checked against core's, not against the catalogue, so a code core knows and the catalogue lacks is offered, and
+every label then reads core's not-found placeholder.
+- **Each link** is `GET /language/<code>`. It keeps the choice in a `ti-language` cookie for a year (`HttpOnly`,
+  `SameSite=Lax`, `Secure` on HTTPS) and redirects home, so the page is rendered again in the language chosen.
+- **A signed-in session** that follows such a link switches at once, so an application may link to it from inside.
+- **Configuring nothing** offers only the deployment's language: the switch is not drawn and the cookie is ignored.
+
+The language a request is answered in is the signed-in session's, else the visitor's choice, else the configured one,
+else the deployment's. `resolveRequestLanguage( request, instance )` in `web-handlers` decides it, and the rest follows
+from it:
+- `/app/config` points at the label catalogue in that language, so the sign-in screen itself switches.
+- `transformHtml` receives it as `options.language`, and the offered list as `options.languages`.
+- `{ti-language-placeholder}` is filled with it. The framework's `index.html` writes `<html lang>` with it.
+- `{ti-language-switch-placeholder}` becomes the switch, or nothing with fewer than two languages.
+- **A fragment's `path` may contain `{language}`:** `fragments/guide/{language}/frame-help.html` is served from the
+  request's language. A language with no file falls back to the deployment's, then to English, with one warning per
+  fragment and language.
+- **Immutable fragments are addressed once per language.** The URL changes with the language, so a browser keeps one
+  copy per language and never serves one for the other.
+
+The switch is plain links drawn by the server, so it needs no script. Each link shows its code, and is named for
+assistive technology by the language's name for itself (`interface.language-name` read in that language, else a
+built-in table: "English", "Български"). The current one carries `aria-current`. Its look is `.ti-login-card-foot`,
+`.ti-login-languages` and `.ti-login-language`; restyle those to fit an application. As with every framework string,
+the labels (`interface.language-name`, `interface.default.login.language-switch`) resolve only in an application that
+carries them in its own catalogue.
 
 ## Local (username/password) authentication
 
