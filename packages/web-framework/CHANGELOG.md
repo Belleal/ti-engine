@@ -2,6 +2,60 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.47.0
+
+* feat (shell): **on a narrow screen the sidebar is a drawer, opened from a menu button in the topbar** (CA-406).
+  <br/>
+  **What was wrong.** The shell was a two-column grid, `var(--sidebar-w) 1fr`, at every width. Measured in Chromium at
+  390x844 with competence's 280px sidebar, the grid resolved to `280px 110px`, and the dashboard's heading broke after
+  two letters. Collapsing the sidebar gave back only 216px, and a phone visitor has no reason to look for that button.
+  <br/>
+  **What changed.**
+  - **Below 900px the shell is one column,** and the sidebar is fixed off the left edge, `visibility: hidden` so its
+    entries are out of the tab order.
+  - **`component-navigation-toggle.html`,** whose placeholder the framework's topbar carries first, is a menu button
+    with `aria-expanded`. It slides the sidebar in over a scrim that it teleports to `<body>`: a topbar can carry a
+    backdrop filter, which would trap a fixed scrim inside the topbar.
+  - **Opening** makes `#ti-content` `inert` and moves the focus to the active entry.
+  - **Closing:** Escape and the scrim close it and give the focus back to the button. Any request for `#ti-content`
+    closes it as it starts (`htmx:beforeRequest`), and so does `openScreen`, so a tap on an entry closes the drawer
+    before a sleeping container answers.
+  - **Widening the window** past the breakpoint closes it.
+  - **The collapsed state never applies to the drawer** (`collapsed` reads false while `navigationDrawer` is true).
+  - **The shell takes `100dvh` there.**
+  - **The drawer applies only where the page holds the button** (`.ti-application:has(.ti-navigation-toggle)`). An
+    application whose own topbar predates the button keeps the column, rather than losing navigation.
+  - `.ti-icon.menu`; the label `interface.navigation-toggle.label` (en "Menu", bg "Меню"); README → *On a narrow
+    screen*.
+  - **`test/ti-framework.navigation-drawer.test.js` (21 tests)** covers the store and the component in the sandbox,
+    the markup and its assembly into the topbar, and the stylesheet read from inside its own `@media` block. That
+    includes the guard on every rule, and the breakpoint agreeing with the script's. It catches all 16 mutations
+    tried.
+  <br/>
+  **Verified in Chromium** at 390x844 through competence, in two themes:
+  - one column with no horizontal overflow on the dashboard;
+  - the drawer opens with the focus on the active entry and the screen inert;
+  - a tap on an entry closes it and loads the screen;
+  - Escape and the scrim return the focus to the button;
+  - widening to 1280 puts the sidebar back in its column.
+* fix (shell): **the sidebar's user menu opens inside the window** (CA-408).
+  <br/>
+  **What was wrong.** The flyout placed its panel once, in the `$nextTick` after opening. Alpine's `x-show` reveals an
+  element on the next animation frame, after that tick, so the panel was measured while still `display: none`: 0x0,
+  which the clamp to the window could not hold. The user menu opens upward from the bottom edge of a button pinned to
+  the bottom of the sidebar, so it opened below the window, with sign-out in it.
+  - **Measured on 1.46.0:** at 1280x844, 112px of its 124px were off the page; at 1440x1000, 12px showed.
+  - **Inside the drawer,** the clamp also ignored the panel's own 20px `margin-left`, which put it 12px past a 390px
+    window's edge.
+  <br/>
+  **What changed.**
+  - The flyout places its panel again whenever the panel's size changes, through a `ResizeObserver` attached a tick
+    after `init`, when its ref exists. That includes the frame `x-show` reveals it in.
+  - The clamp holds the margin.
+  - **Measured after:** inside the window at 1280x844 (y=710), at 1440x1000 (y=866) and at 390x844.
+  - **`test/ti-framework.sidebar-flyout.test.js` (6 tests)** models Alpine's order, the refs arriving after `init`. It
+    catches all 5 mutations tried.
+
 ## Version 1.46.1
 
 * fix (build): **the bundled htmx and Alpine are the declared versions again** (CA-402).
