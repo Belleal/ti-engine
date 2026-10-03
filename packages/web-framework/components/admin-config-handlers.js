@@ -54,10 +54,13 @@ function adminID( request ) {
 
 // Who made a change, as a person reads it: the session user's display name, else the username. `adminID` alone is the
 // sign-in identity, which for an OpenID provider is `oauth2:<subject>`, opaque to anyone reading the history (CA-420).
+// Each is trimmed before the choice: a display name of spaces is truthy, and chosen first it recorded no name at all
+// in place of a usable username.
 function adminName( request ) {
-    const user = ( request.session && request.session.user ) ? request.session.user : null;
-    const name = user ? ( user.name || user.username ) : undefined;
-    return ( typeof name === "string" && name.trim() !== "" ) ? name.trim() : undefined;
+    const user = ( request.session && request.session.user ) ? request.session.user : {};
+    const name = ( typeof user.name === "string" ) ? user.name.trim() : "";
+    const username = ( typeof user.username === "string" ) ? user.username.trim() : "";
+    return name || username || undefined;
 }
 
 /**

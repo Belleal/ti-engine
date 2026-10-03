@@ -88,12 +88,15 @@ describe( "admin-config-handlers", () => {
         handlers.saveEditorEdit( service )( as( { name: "Boris Kostadinov", username: "boris@example.com" } ), mockRes(), () => {} );
         handlers.restoreChangeSet( service )( as( { username: "boris@example.com" } ), mockRes(), () => {} );
         handlers.applyDefaults( service )( as( { name: "  ", username: "" } ), mockRes(), () => {} );
+        // A display name of spaces is no name: the username is read in its place, not skipped over.
+        handlers.applyDefaults( service )( as( { name: "  ", username: " boris@example.com " } ), mockRes(), () => {} );
         await tick();
 
         assert.deepEqual( received.map( ( meta ) => [ meta.adminID, meta.adminName ] ), [
             [ "oauth2:admin1", "Boris Kostadinov" ],
             [ "oauth2:admin1", "boris@example.com" ],
-            [ "oauth2:admin1", undefined ]
+            [ "oauth2:admin1", undefined ],
+            [ "oauth2:admin1", "boris@example.com" ]
         ] );
     } );
 
