@@ -47,7 +47,23 @@ Internal dependencies are declared `*` — **except `web-framework` → `@ti-eng
 
 The out-of-repository consumer, `competence`, depends on `core` + `web-framework` by semver range from npm. A breaking change here therefore reaches it only when that range is bumped — which is *after* `npm-publish.yml` has published. That is the regression net this repository lost in CA-120: competence's 1060-test suite used to run in this workspace on every change.
 
-Node: the workspace root requires **`>=20.19.0`**; `core`, `web-content` and `cloudflare` require `>=20.12` (core because of native `process.loadEnvFile`, adopted in core 1.7.0); `web-framework` declares `>=20`. Develop on ≥20.19 to satisfy all of them.
+Node: **develop on Node 24, the current LTS.** `.nvmrc` names it, and `ci.yml` and `npm-publish.yml` read it from
+there through `node-version-file`, so the version is written once (CA-403). The `engines` floors are a different
+thing — what a *consumer* may run, not what this repository is developed on: the workspace root requires
+**`>=20.19.0`**; `core`, `web-content` and `cloudflare` require `>=20.12` (core because of native
+`process.loadEnvFile`, adopted in core 1.7.0); `web-framework` declares `>=20`.
+
+**A green run on another major proves less than it looks.** Node 22's runner exits 0 when a `describe` callback
+throws — it prints `✖` against the suite and still reports `fail 0` — where 24's fails the run, so a suite that
+breaks while building its fixtures passes on 22 and fails in CI (measured on 22.22.2 and 24.21.0). If `node
+--version` in a cloud session says anything but the `.nvmrc` major, the environment's setup script has not installed
+it: say so, and run the checks on the right major rather than quoting a 22 run as evidence.
+
+`.nvmrc` has two companions that cannot read it, and a move to the next LTS changes all three together: the images'
+`FROM` lines (`packages/tester/Dockerfile`, `packages/cloudflare/template/Dockerfile`) and the cloud environment's
+setup script, which installs the major into `/opt/node<major>` and puts it first on `PATH`. Node 26 enters Active LTS
+on 2026-10-28; the move is a deliberate change, not a floating `lts/*`, because CI floating while the images stay
+pinned is the drift this arrangement exists to prevent.
 
 Branches: `master` is the release branch and the PR target. Work lands on a topic branch (`feat/...`, `fix/...`)
 opened against it. A long-lived `current` integration branch was used historically and appears throughout the git
@@ -1013,6 +1029,7 @@ Work is tracked in **YouTrack Cloud** — project **`CA`** (`https://belleal.you
 - **Fields:** `Type` · `State` · `Stage` · `Priority` · `Version` (enum `v1.0.0`…) · `Shipped` (date). Delivered = `State: Verified` / `Stage: Done`; backlog = `State: Open` / `Stage: Backlog`.
 - **Going forward:** start new work as a `CA-###` card under its epic and put the ID in commit messages (e.g. `feat(web-framework): … (CA-123)`) so the GitHub integration links commit ↔ issue. The `CA` project spans both repositories now — framework work here, application work in `Belleal/competence`.
 - **Log time spent.** Update every `CA-###` task with the **time spent** on it (YouTrack work logging / time tracking, via the `log_work` MCP tool) in addition to its `State`/`Stage` transitions.
+- **The cards are the agent's to move** — Boris edits nothing in YouTrack (see `CLAUDE.md`), so a card that lags its code is a session's omission. As practised: `State: In Progress` / `Stage: Develop` when work starts; `Stage: Review` when its PR opens; a **framework** card closes as `State: Verified` / `Stage: Done` with `Shipped` once its version is on npm (`npm view @ti-engine/<package> version`); an **application** card goes to `State: Fixed` / `Stage: Staging` with `Shipped` once `main`'s CI and CD are green, and to `Stage: Done` once a release carries it to production. Each close gets a comment naming the PR, the checks and what changed.
 - **Knowledge Base:** design docs are mirrored as KB articles (sections *Competency Content* and *Design Records*, plus *Package Overview* and *Project backfill log*).
 
 **Connect the MCP** (per machine; the `mcp__youtrack__*` tools attach only at startup, so **restart Claude Code after adding**):

@@ -209,4 +209,7 @@ What made the difference on the bugs solved so far, in order of how often it mat
   merge here → confirm the version on npm (`npm view @ti-engine/web-framework version`) → bump the range in
   competence.
 - Work is tracked in **YouTrack project `CA`**, which spans both repositories: create a `CA-###` card under its
-  epic, put the ID in commit messages, and log time spent.
+  epic, put the ID in commit messages, and log time spent. **Keeping YouTrack current is the agent's job**
+  (Boris, 2026-10-03): he changes nothing there himself, so a card moves only when a session moves it. Move it
+  through every stage its code reaches, log the time, and close it with a comment saying what shipped. The stages
+  and the field quirks are in the skill.

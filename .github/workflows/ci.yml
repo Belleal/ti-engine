@@ -18,10 +18,16 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # The Node version is written once, in .nvmrc, and read from there by this job, by
+      # npm-publish.yml and by a developer's version manager. Testing on one major and developing on
+      # another is not harmless: Node 22's runner exits 0 when a describe callback throws, where 24's
+      # fails the run, so a suite that breaks while building its fixtures passed locally and failed
+      # here (CA-403). The tester image and the Cloudflare template name the same major in their FROM
+      # lines, which cannot read the file, so a move to the next LTS changes those with it.
       - name: Set up Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 24
+          node-version-file: .nvmrc
       # No npm cache: it keys off package-lock.json, which is gitignored in this repo.
       # setup-node's automatic cache also stays off by itself, because it only activates when
       # package.json declares `packageManager` / `devEngines.packageManager` and none of ours do.
