@@ -133,6 +133,31 @@ describe( "ConfigStore — restore", () => {
         await assert.rejects( store.restoreChangeSet( "does-not-exist", { adminID: "admin:1" } ) );
     } );
 
+    // CA-420: for an OpenID sign-in `adminID` is `oauth2:<subject>`, so a history holding only that cannot say who
+    // made a change. The name is recorded beside it, on all three records a reader may start from.
+    it( "records the author's display name beside the sign-in identity, and only when it is given", async () => {
+        await store.seedIfEmpty( "labels", { a: 1 } );
+        const named = await store.saveChangeSet( [ { configKey: "labels", value: { a: 2 }, expectedVersion: 1 } ], { adminID: "oauth2:abc", adminName: "  Boris Kostadinov  " } );
+
+        const current = await store.getCurrent( "labels" );
+        assert.equal( current.updatedBy, "oauth2:abc" );
+        assert.equal( current.updatedByName, "Boris Kostadinov", "trimmed" );
+        assert.equal( ( await store.getVersion( "labels", 2 ) ).adminName, "Boris Kostadinov" );
+        assert.equal( ( await store.getChangeSet( named.changeSetID ) ).adminName, "Boris Kostadinov" );
+        assert.equal( ( await store.listChangeSets() )[ 0 ].adminName, "Boris Kostadinov", "the feed a hub reads carries it" );
+
+        // A restore is a change by whoever restores it.
+        await store.restoreChangeSet( named.changeSetID, { adminID: "oauth2:def", adminName: "Elena Dimitrova" } );
+        assert.equal( ( await store.getCurrent( "labels" ) ).updatedByName, "Elena Dimitrova" );
+
+        // Without a name, or with a blank one, the records keep the shape they had: a reader falls back to the ID.
+        const unnamed = await store.saveChangeSet( [ { configKey: "labels", value: { a: 4 }, expectedVersion: 3 } ], { adminID: "oauth2:abc", adminName: "   " } );
+        const plain = await store.getCurrent( "labels" );
+        assert.equal( Object.prototype.hasOwnProperty.call( plain, "updatedByName" ), false );
+        assert.equal( Object.prototype.hasOwnProperty.call( await store.getVersion( "labels", 4 ), "adminName" ), false );
+        assert.equal( Object.prototype.hasOwnProperty.call( await store.getChangeSet( unnamed.changeSetID ), "adminName" ), false );
+    } );
+
 } );
 
 describe( "ConfigStore — change-set feed", () => {

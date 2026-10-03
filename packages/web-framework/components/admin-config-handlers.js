@@ -52,6 +52,14 @@ function adminID( request ) {
     return ( request.session && request.session.user ) ? request.session.user.userID : undefined;
 }
 
+// Who made a change, as a person reads it: the session user's display name, else the username. `adminID` alone is the
+// sign-in identity, which for an OpenID provider is `oauth2:<subject>`, opaque to anyone reading the history (CA-420).
+function adminName( request ) {
+    const user = ( request.session && request.session.user ) ? request.session.user : null;
+    const name = user ? ( user.name || user.username ) : undefined;
+    return ( typeof name === "string" && name.trim() !== "" ) ? name.trim() : undefined;
+}
+
 /**
  * @param {ConfigService} service
  * @returns {ExpressHandler}
@@ -70,7 +78,7 @@ module.exports.composeView = ( service ) => ( request, response, next ) => {
 
 module.exports.saveEditorEdit = ( service ) => ( request, response, next ) => {
     const body = request.body || {};
-    service.saveEditorEdit( request.params.editorKey, body.edited, { adminID: adminID( request ), note: body.note }, body.expectedVersions ).then( ( result ) => sendData( response, result ) ).catch( ( error ) => forward( next, error ) );
+    service.saveEditorEdit( request.params.editorKey, body.edited, { adminID: adminID( request ), adminName: adminName( request ), note: body.note }, body.expectedVersions ).then( ( result ) => sendData( response, result ) ).catch( ( error ) => forward( next, error ) );
 };
 
 module.exports.getCurrent = ( service ) => ( request, response, next ) => {
@@ -91,7 +99,7 @@ module.exports.getChange = ( service ) => ( request, response, next ) => {
 
 module.exports.restoreChangeSet = ( service ) => ( request, response, next ) => {
     const body = request.body || {};
-    service.restoreChangeSet( request.params.changeSetID, { adminID: adminID( request ), note: body.note } ).then( ( result ) => sendData( response, result ) ).catch( ( error ) => forward( next, error ) );
+    service.restoreChangeSet( request.params.changeSetID, { adminID: adminID( request ), adminName: adminName( request ), note: body.note } ).then( ( result ) => sendData( response, result ) ).catch( ( error ) => forward( next, error ) );
 };
 
 module.exports.exportBundle = ( service ) => ( request, response, next ) => {
@@ -131,5 +139,5 @@ module.exports.getDrift = ( service ) => ( request, response, next ) => {
  */
 module.exports.applyDefaults = ( service ) => ( request, response, next ) => {
     const body = request.body || {};
-    service.applyDefaults( body.configKeys, { adminID: adminID( request ), note: body.note } ).then( ( result ) => sendData( response, result ) ).catch( ( error ) => forward( next, error ) );
+    service.applyDefaults( body.configKeys, { adminID: adminID( request ), adminName: adminName( request ), note: body.note } ).then( ( result ) => sendData( response, result ) ).catch( ( error ) => forward( next, error ) );
 };

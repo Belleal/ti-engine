@@ -60,6 +60,8 @@ declare class ConfigStore {
      * @param {Array<{configKey: string, value: Object, expectedVersion: number}>} edits
      * @param {Object} meta
      * @param {string} meta.adminID
+     * @param {string} [meta.adminName] - The author's display name. Recorded beside `adminID` on the envelope
+     *     (`updatedByName`), the history entry and the change-set record (`adminName`) when given (CA-420).
      * @param {string} [meta.note]
      * @returns {Promise<{changeSetID: string, versions: Object<string, number>}>}
      * @throws {TiException.E_WEB_INVALID_REQUEST_PARAMETERS} On bad input or a version conflict (see `details`).
@@ -71,6 +73,7 @@ declare class ConfigStore {
         expectedVersion: number;
     }>, meta: {
         adminID: string;
+        adminName?: string;
         note?: string;
     }): Promise<{
         changeSetID: string;
@@ -120,12 +123,14 @@ declare class ConfigStore {
      * @param {string} changeSetID
      * @param {Object} meta
      * @param {string} meta.adminID
+     * @param {string} [meta.adminName] - The author's display name (CA-420).
      * @param {string} [meta.note]
      * @returns {Promise<{changeSetID: string, versions: Object<string, number>}>}
      * @public
      */
     restoreChangeSet(changeSetID: string, meta: {
         adminID: string;
+        adminName?: string;
         note?: string;
     }): Promise<{
         changeSetID: string;

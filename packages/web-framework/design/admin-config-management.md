@@ -144,9 +144,14 @@ This replaces the materialized per-family weights with their source:
 
 ## 6. Store data model
 
-- `config:current:{key}` → `{ value, version, updatedAt, updatedBy }`
-- `config:history:{key}` → append-only `[{ version, timestamp, adminID, note, changeSetID, snapshot } ...]`
-- `config:changeset:{id}` → `{ timestamp, adminID, note, documents: [{key, version}] }` — correlates a multi-document logical edit for unit restore.
+- `config:current:{key}` → `{ value, version, updatedAt, updatedBy, updatedByName? }`
+- `config:history:{key}` → append-only `[{ version, timestamp, adminID, adminName?, note, changeSetID, snapshot } ...]`
+- `config:changeset:{id}` → `{ timestamp, adminID, adminName?, note, documents: [{key, version}] }` — correlates a multi-document logical edit for unit restore.
+- **Who made a change** is `adminID`, the session's sign-in identity, which for an OpenID provider is `oauth2:<subject>`.
+  Since 1.49.0 (CA-420) the author's display name is recorded beside it as `adminName` (`updatedByName` on the
+  envelope): the session user's `name`, else the `username`, taken from the session and never from a request's
+  body. It is recorded only when there is one, so an entry written before 1.49.0, or by an author with neither,
+  keeps its shape, and a reader falls back to `adminID`.
 - **Restore(changeSet):** re-validate the snapshots against *current* schemas/validators → `saveChangeSet` them as new current versions (note "restored from change-set X"); never destructive.
 - **Optimistic lock:** the editor sends the versions it loaded; reject if any current version differs → UI shows a diff and lets the admin rebase.
 
