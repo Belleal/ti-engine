@@ -460,6 +460,19 @@ const configureComponentSidebarFlyout = ( configKey ) => {
             window.addEventListener( "resize", this._reflow, { passive: true } );
             window.addEventListener( "scroll", this._reflow, { passive: true } );
             window.addEventListener( TI_EVENT_CLOSE_ALL_FLYOUT, this._close );
+            // Placed again whenever the panel's size changes, and that includes the moment it appears (CA-408). Alpine's
+            // x-show reveals an element on the next animation frame, after the `$nextTick` that `open` positions it in,
+            // so that first measurement is of a panel still `display: none`: 0x0, which the clamp to the window cannot
+            // hold. The user menu sits at the bottom of the sidebar and opens upward from its button's bottom edge, so it
+            // opened below the window with sign-out in it: at 1280x844 112px of its 124px were off the page.
+            // A tick later because `init` runs before Alpine has walked into the component, so the panel's ref does
+            // not exist yet.
+            this.$nextTick( () => {
+                if ( typeof ResizeObserver === "function" && this.$refs.flyoutPanel && !this._resizeObserver ) {
+                    this._resizeObserver = new ResizeObserver( this._reflow );
+                    this._resizeObserver.observe( this.$refs.flyoutPanel );
+                }
+            } );
         },
 
         /**
@@ -472,6 +485,9 @@ const configureComponentSidebarFlyout = ( configKey ) => {
             window.removeEventListener( "resize", this._reflow );
             window.removeEventListener( "scroll", this._reflow );
             window.removeEventListener( TI_EVENT_CLOSE_ALL_FLYOUT, this._close );
+            if ( this._resizeObserver ) {
+                this._resizeObserver.disconnect();
+            }
         },
 
         /**
@@ -497,6 +513,17 @@ const configureComponentSidebarFlyout = ( configKey ) => {
                 this.$nextTick( () => {
                     this.setAria();
                     this.reposition();
+                    // Without a ResizeObserver nothing places the panel again once x-show reveals it, and this placement
+                    // measured it hidden: measured in Chromium at 1280x844, the user menu then opened at y=832 with 12px
+                    // showing (CA-408). x-show reveals in a requestAnimationFrame asked for before this tick ran, so a
+                    // frame asked for now runs after the reveal, in the same frame.
+                    if ( !this._resizeObserver ) {
+                        if ( typeof window.requestAnimationFrame === "function" ) {
+                            window.requestAnimationFrame( () => this.reposition() );
+                        } else {
+                            window.setTimeout( () => this.reposition(), 0 );
+                        }
+                    }
                     // The menu items bind their hx-* attributes via Alpine (x-bind), which HTMX does not pick up on its
                     // initial document scan — so without this the buttons close the flyout but never fire the request.
                     // Processing the panel attaches HTMX behaviour to the now-rendered buttons (idempotent on re-open).
@@ -585,8 +612,11 @@ const configureComponentSidebarFlyout = ( configKey ) => {
                 }
             }
 
+            // The panel is drawn its own `margin-left` further right than `left`, so the clamp has to hold that too. Beside
+            // a desktop sidebar there is room to spare; inside the drawer on a phone the menu overran the window by 12px.
+            const marginLeft = parseFloat( window.getComputedStyle( flyoutPanel ).marginLeft ) || 0;
             const box = tiToolbox.getVisibleBox( this.fixed );
-            const coords = tiToolbox.clampToBox( left, top, pw, ph, box, 10 );
+            const coords = tiToolbox.clampToBox( left, top, pw + marginLeft, ph, box, 10 );
 
             flyoutPanel.style.position = this.fixed ? "fixed" : "absolute";
             flyoutPanel.style.top = Math.round( coords.y ) + "px";
@@ -728,6 +758,142 @@ const configureComponentBusyIndicator = () => {
          */
         get busy() {
             return Alpine.store( "tiApplication" ).busy === true;
+        }
+
+    };
+};
+
+/**
+ * The media query below which the sidebar is a drawer (CA-406). The stylesheet's drawer block names the same width,
+ * and `test/ti-framework.navigation-drawer.test.js` holds the two together: with the stylesheet drawing a drawer at
+ * one width while this script still treated the sidebar as a column, a visitor who had collapsed it would get a drawer
+ * of bare icons, and the other way round a column stripped of its collapsed state.
+ *
+ * @constant
+ * @type {string}
+ * @private
+ */
+const NAVIGATION_DRAWER_QUERY = "(max-width: 900px)";
+
+/**
+ * What the open drawer covers, made `inert` while it is open (CA-406): `#ti-content-wrapper`, which holds the topbar
+ * and the screen in the framework's frame, and `#ti-content` on its own for a frame without that wrapper. The topbar
+ * counts as much as the screen. With the screen alone inert, Tab from the drawer's last entry went on to the menu
+ * button, which the drawer itself covers (measured in Chromium at 390x844).
+ *
+ * @constant
+ * @type {string[]}
+ * @private
+ */
+const NAVIGATION_COVERED_IDS = [ "ti-content-wrapper", "ti-content" ];
+
+/**
+ * Makes everything the open drawer covers inert, or usable again (CA-406). See {@link NAVIGATION_COVERED_IDS}.
+ *
+ * @method
+ * @param {boolean} inert
+ * @private
+ */
+const setNavigationCoveredInert = ( inert ) => {
+    NAVIGATION_COVERED_IDS.forEach( ( id ) => {
+        const element = document.getElementById( id );
+        if ( element ) {
+            element.inert = inert;
+        }
+    } );
+};
+
+/**
+ * Returns a configuration object for the navigation toggle component "component-navigation-toggle.html" (CA-406).
+ * <br/>
+ * The toggle opens and closes the sidebar drawer, and it is also what tells the shell whether there is a drawer at
+ * all: it watches the breakpoint, and the stylesheet makes the sidebar a drawer only in a page that holds it. The
+ * drawer closes on Escape, on its scrim and on any navigation into the screen; the last of those is the HTMX listener
+ * below and `openScreen`, so it holds for a screen opened from anywhere.
+ *
+ * @method
+ * @returns {Object}
+ * @public
+ */
+const configureComponentNavigationToggle = () => {
+    const tiApplication = Alpine.store( "tiApplication" );
+
+    /**
+     * @typedef {Object} TiNavigationToggle
+     */
+    return {
+
+        /**
+         * Whether the drawer is open, for the button's `aria-expanded`.
+         *
+         * @type {boolean}
+         * @public
+         */
+        get open() {
+            return tiApplication.navigationOpen === true;
+        },
+
+        /**
+         * Used to initialize the navigation toggle component.
+         *
+         * @method
+         * @public
+         */
+        init() {
+            const query = ( typeof window.matchMedia === "function" ) ? window.matchMedia( NAVIGATION_DRAWER_QUERY ) : null;
+            const follow = () => {
+                tiApplication.navigationDrawer = Boolean( query && query.matches );
+                if ( !tiApplication.navigationDrawer ) {
+                    // A window widened past the breakpoint with the drawer open would otherwise keep the screen inert
+                    // under a sidebar that is a column again.
+                    tiApplication.closeNavigation();
+                }
+            };
+            follow();
+            if ( query && typeof query.addEventListener === "function" ) {
+                query.addEventListener( "change", follow );
+            }
+            document.addEventListener( "keydown", ( event ) => {
+                if ( event.key === "Escape" && tiApplication.navigationOpen ) {
+                    this.dismiss();
+                }
+            } );
+        },
+
+        /**
+         * Used to open the drawer, or close it when it is open. Opening moves the focus into it: to the screen's own
+         * entry when the sidebar marks one active, otherwise to its first.
+         *
+         * @method
+         * @public
+         */
+        toggle() {
+            if ( tiApplication.navigationOpen ) {
+                tiApplication.closeNavigation();
+                return;
+            }
+            tiApplication.openNavigation();
+            if ( tiApplication.navigationOpen ) {
+                const entry = document.querySelector( ".ti-sidebar .ti-sidebar-item.active" ) ||
+                    document.querySelector( ".ti-sidebar a[href], .ti-sidebar button:not([disabled])" );
+                if ( entry && typeof entry.focus === "function" ) {
+                    entry.focus();
+                }
+            }
+        },
+
+        /**
+         * Used to close the drawer without navigating (Escape, the scrim). The focus returns to the toggle, since the
+         * entry that held it is hidden with the drawer.
+         *
+         * @method
+         * @public
+         */
+        dismiss() {
+            tiApplication.closeNavigation();
+            if ( this.$refs.toggle && typeof this.$refs.toggle.focus === "function" ) {
+                this.$refs.toggle.focus();
+            }
         }
 
     };
@@ -996,6 +1162,24 @@ const configureApplication = () => {
         busy: false,
 
         /**
+         * Whether the sidebar is a drawer rather than a column: the screen is narrower than the drawer's breakpoint and
+         * the topbar carries the navigation toggle (CA-406). Set by that toggle, the one part of the shell that knows
+         * both.
+         *
+         * @type {boolean}
+         * @public
+         */
+        navigationDrawer: false,
+
+        /**
+         * Whether the drawer is open. Always false while {@link navigationDrawer} is.
+         *
+         * @type {boolean}
+         * @public
+         */
+        navigationOpen: false,
+
+        /**
          * Used to initialize the web application.
          */
         init() {
@@ -1211,6 +1395,8 @@ const configureApplication = () => {
          * @public
          */
         openScreen( screen ) {
+            // A screen opened from the drawer replaces the page under it, so the drawer has done its job (CA-406).
+            this.closeNavigation();
             const [ basePath, ...queryParts ] = ( screen || "" ).split( "?" );
             const query = queryParts.length ? "?" + queryParts.join( "?" ) : "";
             if ( !basePath || !/^[\w-]+$/.test( basePath ) || !window.htmx ) {
@@ -1400,6 +1586,53 @@ const configureApplication = () => {
         },
 
         /**
+         * Opens the sidebar drawer over the screen (CA-406). Does nothing while the sidebar is a column.
+         * <br/>
+         * The state is mirrored as `ti-navigation-open` on `<html>`, which is what the stylesheet draws the drawer and
+         * its scrim from. That keeps the drawer working in an application whose own shell frame binds none of this.
+         * The topbar and the screen under the drawer are made `inert` while it is open ({@link NAVIGATION_COVERED_IDS}),
+         * so neither a keyboard nor a screen reader can wander into the page the scrim covers.
+         *
+         * @method
+         * @public
+         */
+        openNavigation() {
+            if ( !this.navigationDrawer || this.navigationOpen ) {
+                return;
+            }
+            this.navigationOpen = true;
+            document.documentElement.classList.add( "ti-navigation-open" );
+            setNavigationCoveredInert( true );
+        },
+
+        /**
+         * Closes the sidebar drawer, if it is open (CA-406). When the focus was in the drawer, it moves to the menu
+         * button.
+         *
+         * @method
+         * @public
+         */
+        closeNavigation() {
+            if ( !this.navigationOpen ) {
+                return;
+            }
+            this.navigationOpen = false;
+            document.documentElement.classList.remove( "ti-navigation-open" );
+            setNavigationCoveredInert( false );
+            // A screen chosen from the drawer hides the entry that held the focus, and the browser drops the focus to
+            // <body>: measured in Chromium, a keyboard user who opened a screen from the drawer was left there. The menu
+            // button takes it instead, the control that opens the drawer again, as Escape and the scrim already give
+            // it. Not when the window has widened past the breakpoint (`navigationDrawer` is false by then): the
+            // sidebar is a visible column again, its entry keeps the focus, and the button is hidden.
+            const sidebar = document.querySelector( ".ti-sidebar" );
+            const toggle = document.querySelector( ".ti-navigation-toggle" );
+            const focused = document.activeElement;
+            if ( this.navigationDrawer && sidebar && toggle && focused && sidebar.contains( focused ) && typeof toggle.focus === "function" ) {
+                toggle.focus();
+            }
+        },
+
+        /**
          * Toggle between daylight and glass themes.
          *
          * @method
@@ -1562,6 +1795,19 @@ document.addEventListener( "htmx:beforeSend", ( event ) => {
     }
     tiApplication._beginRequest();
     xhr.addEventListener( "loadend", () => tiApplication._endRequest(), { once: true } );
+} );
+
+/**
+ * Closes the sidebar drawer when a request for the screen starts (CA-406). The sidebar's own entries load their screen
+ * through HTMX, straight into `#ti-content`, so this is where a tap on one is heard; closing on the request rather than
+ * the swap means the drawer is not left over the old screen while a sleeping container wakes.
+ */
+document.addEventListener( "htmx:beforeRequest", ( event ) => {
+    const target = event.detail && event.detail.target;
+    const tiApplication = Alpine.store( "tiApplication" );
+    if ( target && target.id === "ti-content" && tiApplication ) {
+        tiApplication.closeNavigation();
+    }
 } );
 
 document.addEventListener( "htmx:responseError", ( event ) => {
@@ -1933,8 +2179,11 @@ document.addEventListener( "alpine:init", () => {
     Alpine.store( "tiApplication", configureApplication() );
     Alpine.store( "tiComponentsConfig", {} );
     Alpine.data( "tiApplication", () => ( {
+        // Collapsing to icons is the column's feature. A visitor who collapsed the sidebar on a wide screen would
+        // otherwise find a drawer of bare icons on a narrow one (CA-406).
         get collapsed() {
-            return Alpine.store( "tiApplication" ).collapsed;
+            const tiApplication = Alpine.store( "tiApplication" );
+            return tiApplication.collapsed && !tiApplication.navigationDrawer;
         },
         get theme() {
             return Alpine.store( "tiApplication" ).theme;
@@ -1949,6 +2198,7 @@ document.addEventListener( "alpine:init", () => {
     Alpine.data( "tiComponentSidebarNav", configureSidebarNav );
     Alpine.data( "tiComponentTopbar", configureComponentTopbar );
     Alpine.data( "tiComponentBusyIndicator", configureComponentBusyIndicator );
+    Alpine.data( "tiComponentNavigationToggle", configureComponentNavigationToggle );
     Alpine.data( "tiComponentSidebarFlyout", configureComponentSidebarFlyout );
     Alpine.data( "tiComponentNotificationBar", configureComponentNotificationBar );
     Alpine.data( "tiComponentTooltip", configureComponentTooltip );

@@ -169,6 +169,44 @@ The status line is `interface.busy-indicator.status`. As with the login screen, 
 key in its own catalogue gets the English written in the fragment. Under `prefers-reduced-motion` the hourglass appears
 but does not turn.
 
+## On a narrow screen
+
+Below 900px the shell is one column, and the sidebar is a drawer. A menu button at the start of the topbar slides it
+in over the screen, and a scrim covers the rest of the page. It closes on Escape, on the scrim, and when any screen is
+requested: the sidebar's own entries load into `#ti-content` through HTMX, and `openScreen` closes it too.
+
+- **While it is shut,** its entries are out of the tab order and the accessibility tree.
+- **While it is open,** the topbar and the screen under it are `inert` (`#ti-content-wrapper`, or `#ti-content` in a
+  frame without that wrapper), so the keyboard and a screen reader stay in the drawer. The focus moves into it: to
+  the active entry, or else the first.
+- **When it closes with the focus inside it,** on Escape, on the scrim or on a screen chosen from it, the focus goes
+  to the menu button.
+- **The collapsed state belongs to the column.** A visitor who collapsed the sidebar on a wide screen gets the full
+  drawer on a narrow one, and the collapsed column back on the wide one.
+- **Height:** the shell takes `100dvh` there, so a phone's toolbar does not hide the bottom of the screen.
+- **The topbar keeps its buttons on the page:** its subtitle is hidden there, and its title takes an ellipsis when
+  it still runs out of room.
+
+The state is `$store.tiApplication.navigationDrawer` (whether there is a drawer at all) and `navigationOpen`. The
+second is mirrored as `ti-navigation-open` on `<html>`, which is what the stylesheet draws from, so the drawer works
+whatever the application's shell frame binds. The button is a component:
+
+| Slot | Where | Framework default |
+|---|---|---|
+| `fragments/components/component-navigation-toggle.html` | wherever its placeholder is; the framework's topbar carries one, first | the menu button, which reports `aria-expanded`, and the scrim, teleported to `<body>` |
+
+**An application that ships its own `component-topbar.html` places the placeholder itself,** as a
+`<ti-component-navigation-toggle-placeholder></ti-component-navigation-toggle-placeholder>` element first in it.
+
+**Without one, nothing changes:** the stylesheet turns a sidebar into a drawer only in a page that holds the button
+(`:has()`). Such an application keeps its sidebar in the column on a phone, cramped but reachable, rather than hidden
+with nothing to open it. The same rule as for the busy indicator applies: never write that tag inside an HTML comment
+ahead of the real one.
+
+The button's name is `interface.navigation-toggle.label` ("Menu"). The 900px is written in two places, the
+stylesheet's `@media` block and `NAVIGATION_DRAWER_QUERY` in `ti-framework.js`, and
+`test/ti-framework.navigation-drawer.test.js` holds them together.
+
 ## Static asset caching
 
 Everything under `/static` is served with a `Cache-Control` policy configured by the `staticCache` block:

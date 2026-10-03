@@ -258,6 +258,11 @@ body {
     mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 5v14M5 12h14'/%3E%3C/svg%3E");
 }
 
+.ti-icon.menu {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 7h16M4 12h16M4 17h16'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 7h16M4 12h16M4 17h16'/%3E%3C/svg%3E");
+}
+
 .ti-icon.close {
     -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 6L6 18M6 6l12 12'/%3E%3C/svg%3E");
     mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 6L6 18M6 6l12 12'/%3E%3C/svg%3E");
@@ -1237,6 +1242,113 @@ html.ti-busy .ti-busy-indicator-glyph {
     clip-path: inset(50%);
     white-space: nowrap;
     border: 0;
+}
+
+/* ============================================================
+   Narrow screens — the sidebar as a drawer (CA-406)
+   ============================================================ */
+
+/*
+ * The shell's two columns do not fit a phone: measured at 390x844, a 280px sidebar left the screen 110px. Below 900px
+ * the sidebar leaves the grid and slides in over the screen from the menu button the topbar carries.
+ *
+ * Only a shell whose page holds that button becomes a drawer (`:has()`). An application whose own topbar predates the
+ * button keeps the sidebar in its column, cramped but reachable, rather than hidden with nothing to open it.
+ *
+ * The width is written twice: here, and as NAVIGATION_DRAWER_QUERY in ti-framework.js, which keeps the collapsed
+ * state out of the drawer. test/ti-framework.navigation-drawer.test.js holds the two together.
+ */
+.ti-navigation-toggle-slot {
+    display: none;
+}
+
+.ti-navigation-scrim {
+    display: none;
+}
+
+@media (max-width: 900px) {
+    .ti-application:has(.ti-navigation-toggle) {
+        grid-template-columns: minmax(0, 1fr);
+        /* The dynamic viewport. On a phone `100vh` is the height with the browser's toolbar retracted, so while the
+           toolbar shows, the bottom of every screen sits under it. */
+        height: 100dvh;
+    }
+
+    .ti-application:has(.ti-navigation-toggle) .ti-sidebar {
+        position: fixed;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 1110;
+        /* Never the whole width: the strip of screen left beside it is what says it is a drawer over the page. */
+        width: min(var(--sidebar-w), calc(100vw - 56px));
+        height: auto;
+        transform: translateX(-100%);
+        /* Hidden as well as moved, so that while it is shut its entries are out of the tab order and the accessibility
+           tree. The delay keeps it visible until it has slid out. */
+        visibility: hidden;
+        transition: transform var(--dur-base) var(--ease-out), visibility 0s linear var(--dur-base);
+    }
+
+    /* `transform: none` rather than a zero translation: any transform makes the drawer the containing block of its
+       fixed descendants, and the user menu's flyout is one, placed against the viewport. */
+    html.ti-navigation-open .ti-application:has(.ti-navigation-toggle) .ti-sidebar {
+        transform: none;
+        visibility: visible;
+        transition: transform var(--dur-base) var(--ease-out), visibility 0s;
+        box-shadow: var(--shadow-lg);
+    }
+
+    /* The drawer is open or shut. Collapsing to icons belongs to the column. */
+    .ti-application:has(.ti-navigation-toggle) .ti-sidebar-collapse-btn {
+        display: none;
+    }
+
+    .ti-navigation-toggle-slot {
+        display: inline-flex;
+        flex: 0 0 auto;
+    }
+
+    html.ti-navigation-open .ti-navigation-scrim {
+        display: block;
+        position: fixed;
+        inset: 0;
+        z-index: 1105;
+        background: rgba(0, 0, 0, 0.45);
+        /* A drag on the scrim must not scroll the screen under it. */
+        touch-action: none;
+    }
+
+    .ti-application:has(.ti-navigation-toggle) .ti-topbar {
+        gap: var(--s-3);
+        padding: 0 var(--s-4);
+    }
+
+    /* The screen's name gives way before the buttons beside it, so that a screen's own action in the topbar stays on
+       the page: measured at 390px, the title and its subtitle pushed "New cycle" off the edge. The subtitle goes,
+       and the title takes an ellipsis when it still runs out of room. Shrinking the two by weight left neither
+       readable ("Cycl…" beside "Aut…"), because the subtitle's padding and rule cannot shrink. */
+    .ti-application:has(.ti-navigation-toggle) #ti-topbar-info {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    .ti-application:has(.ti-navigation-toggle) .ti-topbar-title {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .ti-application:has(.ti-navigation-toggle) .ti-topbar-sub {
+        display: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ti-application:has(.ti-navigation-toggle) .ti-sidebar,
+    html.ti-navigation-open .ti-application:has(.ti-navigation-toggle) .ti-sidebar {
+        transition: none;
+    }
 }
 
 .ti-page {

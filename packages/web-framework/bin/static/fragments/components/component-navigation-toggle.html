@@ -1,0 +1,25 @@
+<!-- Navigation toggle (CA-406): below the drawer's breakpoint the sidebar leaves its column and slides in over the
+     screen, and this button opens it. Wider than that the button is hidden and the sidebar keeps its column.
+
+     The sidebar becomes a drawer only in a page that holds this button: an application whose topbar has no placeholder
+     for it keeps the sidebar in its column on a phone, cramped but reachable, rather than hidden with nothing to open
+     it.
+
+     The scrim is teleported to the body. A topbar can carry a backdrop filter, as the glass theme's surfaces do, and a
+     fixed element inside one is placed against that topbar rather than the viewport, so it would cover the topbar
+     alone.
+
+     The framework's topbar carries the placeholder, first in its row. An application with a topbar of its own places
+     a ti-component-navigation-toggle-placeholder element first in it; a copy of this file at the same path in its
+     static directory replaces this one. -->
+<span class="ti-navigation-toggle-slot" x-data="tiComponentNavigationToggle">
+    <button class="ti-btn icon ghost ti-navigation-toggle" type="button" x-ref="toggle"
+            x-on:click="toggle()"
+            x-bind:aria-expanded="open ? 'true' : 'false'"
+            x-text-label:aria-label="interface.navigation-toggle.label" aria-label="Menu">
+        <span class="ti-icon md menu" aria-hidden="true"></span>
+    </button>
+    <template x-teleport="body">
+        <div class="ti-navigation-scrim" x-on:click="dismiss()" aria-hidden="true"></div>
+    </template>
+</span>

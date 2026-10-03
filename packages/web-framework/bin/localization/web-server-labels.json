@@ -58,6 +58,12 @@
         "bg": "Обработва се…"
       }
     },
+    "navigation-toggle": {
+      "label": {
+        "en": "Menu",
+        "bg": "Меню"
+      }
+    },
     "topbar": {
       "profile": {
         "en": "My Profile",
