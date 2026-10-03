@@ -23,6 +23,9 @@ This document will contain the list of changes made to the framework. The format
   - **Widening the window** past the breakpoint closes it.
   - **The collapsed state never applies to the drawer** (`collapsed` reads false while `navigationDrawer` is true).
   - **The shell takes `100dvh` there.**
+  - **The topbar's buttons stay on the page.** On a narrow screen the subtitle is hidden, and the title takes an
+    ellipsis when it still runs out of room. Measured at 390px, the title and subtitle pushed a screen's own topbar
+    action ("New cycle") off the edge. Shrinking the two by weight left neither readable ("Cycl…" beside "Aut…").
   - **The drawer applies only where the page holds the button** (`.ti-application:has(.ti-navigation-toggle)`). An
     application whose own topbar predates the button keeps the column, rather than losing navigation.
   - `.ti-icon.menu`; the label `interface.navigation-toggle.label` (en "Menu", bg "Меню"); README → *On a narrow

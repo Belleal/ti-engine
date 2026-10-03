@@ -181,6 +181,8 @@ requested: the sidebar's own entries load into `#ti-content` through HTMX, and `
 - **The collapsed state belongs to the column.** A visitor who collapsed the sidebar on a wide screen gets the full
   drawer on a narrow one, and the collapsed column back on the wide one.
 - **Height:** the shell takes `100dvh` there, so a phone's toolbar does not hide the bottom of the screen.
+- **The topbar keeps its buttons on the page:** its subtitle is hidden there, and its title takes an ellipsis when
+  it still runs out of room.
 
 The state is `$store.tiApplication.navigationDrawer` (whether there is a drawer at all) and `navigationOpen`. The
 second is mirrored as `ti-navigation-open` on `<html>`, which is what the stylesheet draws from, so the drawer works

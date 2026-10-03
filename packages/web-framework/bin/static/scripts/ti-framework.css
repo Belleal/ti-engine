@@ -1323,6 +1323,25 @@ html.ti-busy .ti-busy-indicator-glyph {
         gap: var(--s-3);
         padding: 0 var(--s-4);
     }
+
+    /* The screen's name gives way before the buttons beside it, so that a screen's own action in the topbar stays on
+       the page: measured at 390px, the title and its subtitle pushed "New cycle" off the edge. The subtitle goes,
+       and the title takes an ellipsis when it still runs out of room. Shrinking the two by weight left neither
+       readable ("Cycl…" beside "Aut…"), because the subtitle's padding and rule cannot shrink. */
+    .ti-application:has(.ti-navigation-toggle) #ti-topbar-info {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    .ti-application:has(.ti-navigation-toggle) .ti-topbar-title {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .ti-application:has(.ti-navigation-toggle) .ti-topbar-sub {
+        display: none;
+    }
 }
 
 @media (prefers-reduced-motion: reduce) {

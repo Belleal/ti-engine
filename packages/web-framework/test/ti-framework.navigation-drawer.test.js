@@ -339,6 +339,15 @@ describe( "the sidebar drawer — the stylesheet", () => {
         drawer.assertDeclares( `${ SHELL } .ti-sidebar-collapse-btn`, "display", "none" );
     } );
 
+    it( "lets the screen's name give way before the topbar's buttons", () => {
+        // Measured at 390px: with a screen's own action in the topbar ("New cycle"), the title and subtitle kept their
+        // width and pushed the action off the page.
+        drawer.assertDeclares( `${ SHELL } #ti-topbar-info`, "min-width", "0" );
+        drawer.assertDeclares( `${ SHELL } .ti-topbar-title`, "text-overflow", "ellipsis" );
+        drawer.assertDeclares( `${ SHELL } .ti-topbar-title`, "overflow-x", "hidden" );
+        drawer.assertDeclares( `${ SHELL } .ti-topbar-sub`, "display", "none" );
+    } );
+
     it( "stacks the drawer over its scrim, both over the topbar and under a modal", () => {
         const drawerLayer = Number( drawer.declarations( `${ SHELL } .ti-sidebar` )[ "z-index" ] );
         const scrimLayer = Number( drawer.declarations( "html.ti-navigation-open .ti-navigation-scrim" )[ "z-index" ] );
