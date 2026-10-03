@@ -1,0 +1,8 @@
+<!-- Heading slot for the login screen's sign-in card (CA-387).
+
+     Deliberately empty. An application that wants the card titled — "Sign in", and a line on which account to use —
+     ships its own `fragments/components/component-login-card-head.html`, and the app manager's static-path search
+     resolves that in preference to this file. Its placeholder is the card's first child, so what it holds is read
+     before the sign-in controls, as it is seen.
+
+     Empty because the framework's card needs no title: its brand slot above already says what the screen is. -->

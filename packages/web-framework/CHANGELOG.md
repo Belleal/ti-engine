@@ -2,6 +2,43 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.46.0
+
+* feat (login): **a heading slot inside the sign-in card** (CA-387).
+  <br/>
+  **What was missing.** The login screen renders before sign-in, so an application reaches it only through the
+  framework's slots, and both of those sit outside the card: the brand slot above it (1.40.0, CA-179) and the extension
+  slot below it (1.36.0, CA-129). competence's sign-in, as its designer drew it, titles the card "Sign *in*" with a line
+  on which account to use, and nothing an application could ship would put that inside the card.
+  <br/>
+  **What changed.** `fragments/components/component-login-card-head.html`, the third slot, works like the other two:
+  - it is declared on the `login` descriptor;
+  - it resolves through the same reverse-order static-path search, so an application's copy wins;
+  - it ships empty, so a consumer that supplies nothing sees no change.
+
+  Its placeholder is the card's first child, before the error box and the controls, which is the order a screen
+  reader announces.
+  <br/>
+  **Rejected:** letting the application override `frame-login.html` wholesale. It needs no release, but it forks the
+  auth-method blocks, which is what the slots exist to avoid.
+* feat (login): **the Microsoft button carries Microsoft's mark and name** (CA-387). The `openid-azure` button showed
+  the old Azure "A" beside "Sign in with Azure".
+  - The people signing in know their work account as Microsoft's, and Microsoft's branding guidelines for "Sign in
+    with Microsoft" ask for its four-square logo.
+  - The button now has that logo, the fragment's own text reads "Sign in with Microsoft", and the catalogue's
+    `interface.default.login.sign-in-azure` reads "Sign In - Microsoft" and "Вход с Microsoft".
+  - The method and the label key are unchanged, so no configuration changes. An application with its own label for
+    the key keeps it.
+* docs: README → *The login screen* lists the three slots.
+* test: `test/login-card-head-slot.test.js` (7) pins the placeholder's place in the card, the declaration, the empty
+  default, an application's heading resolved inside the card, the auth-method gating, and the Microsoft button. The
+  login label sweep covers the new component. Of 6 deliberate breakages, all were caught. The suite is 781 tests
+  across 63 files.
+  <br/>
+  Checked in Chromium through competence's sign-in page, with this release's three files in its installed copy, in
+  both its languages and themes. Its heading renders as the card's first child, above the local form and the
+  provider buttons. Microsoft's logo shows on the button, nothing overflows, and the console shows no errors.
+
 ## Version 1.45.1
 
 * fix (styles): **the shell no longer bounces when a scroll reaches its end** (CA-354).

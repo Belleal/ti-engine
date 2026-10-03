@@ -39,6 +39,7 @@ const FRAGMENTS = path.join( __dirname, "..", "bin", "static", "fragments" );
 const LOGIN_FILES = [
     path.join( FRAGMENTS, "frame-login.html" ),
     path.join( FRAGMENTS, "components", "component-login-brand.html" ),
+    path.join( FRAGMENTS, "components", "component-login-card-head.html" ),
     path.join( FRAGMENTS, "components", "component-login-extra.html" )
 ];
 const labels = JSON.parse( fs.readFileSync( path.join( __dirname, "..", "bin", "localization", "web-server-labels.json" ), "utf8" ) );
