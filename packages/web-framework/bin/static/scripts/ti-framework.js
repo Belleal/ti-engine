@@ -513,6 +513,17 @@ const configureComponentSidebarFlyout = ( configKey ) => {
                 this.$nextTick( () => {
                     this.setAria();
                     this.reposition();
+                    // Without a ResizeObserver nothing places the panel again once x-show reveals it, and this placement
+                    // measured it hidden: measured in Chromium at 1280x844, the user menu then opened at y=832 with 12px
+                    // showing (CA-408). x-show reveals in a requestAnimationFrame asked for before this tick ran, so a
+                    // frame asked for now runs after the reveal, in the same frame.
+                    if ( !this._resizeObserver ) {
+                        if ( typeof window.requestAnimationFrame === "function" ) {
+                            window.requestAnimationFrame( () => this.reposition() );
+                        } else {
+                            window.setTimeout( () => this.reposition(), 0 );
+                        }
+                    }
                     // The menu items bind their hx-* attributes via Alpine (x-bind), which HTMX does not pick up on its
                     // initial document scan — so without this the buttons close the flyout but never fire the request.
                     // Processing the panel attaches HTMX behaviour to the now-rendered buttons (idempotent on re-open).
@@ -763,6 +774,34 @@ const configureComponentBusyIndicator = () => {
  * @private
  */
 const NAVIGATION_DRAWER_QUERY = "(max-width: 900px)";
+
+/**
+ * What the open drawer covers, made `inert` while it is open (CA-406): `#ti-content-wrapper`, which holds the topbar
+ * and the screen in the framework's frame, and `#ti-content` on its own for a frame without that wrapper. The topbar
+ * counts as much as the screen. With the screen alone inert, Tab from the drawer's last entry went on to the menu
+ * button, which the drawer itself covers (measured in Chromium at 390x844).
+ *
+ * @constant
+ * @type {string[]}
+ * @private
+ */
+const NAVIGATION_COVERED_IDS = [ "ti-content-wrapper", "ti-content" ];
+
+/**
+ * Makes everything the open drawer covers inert, or usable again (CA-406). See {@link NAVIGATION_COVERED_IDS}.
+ *
+ * @method
+ * @param {boolean} inert
+ * @private
+ */
+const setNavigationCoveredInert = ( inert ) => {
+    NAVIGATION_COVERED_IDS.forEach( ( id ) => {
+        const element = document.getElementById( id );
+        if ( element ) {
+            element.inert = inert;
+        }
+    } );
+};
 
 /**
  * Returns a configuration object for the navigation toggle component "component-navigation-toggle.html" (CA-406).
@@ -1551,8 +1590,8 @@ const configureApplication = () => {
          * <br/>
          * The state is mirrored as `ti-navigation-open` on `<html>`, which is what the stylesheet draws the drawer and
          * its scrim from. That keeps the drawer working in an application whose own shell frame binds none of this.
-         * The screen under the drawer is made `inert` while it is open, so neither a keyboard nor a screen reader can
-         * wander into the page the scrim covers.
+         * The topbar and the screen under the drawer are made `inert` while it is open ({@link NAVIGATION_COVERED_IDS}),
+         * so neither a keyboard nor a screen reader can wander into the page the scrim covers.
          *
          * @method
          * @public
@@ -1563,14 +1602,12 @@ const configureApplication = () => {
             }
             this.navigationOpen = true;
             document.documentElement.classList.add( "ti-navigation-open" );
-            const screen = document.getElementById( "ti-content" );
-            if ( screen ) {
-                screen.inert = true;
-            }
+            setNavigationCoveredInert( true );
         },
 
         /**
-         * Closes the sidebar drawer, if it is open (CA-406).
+         * Closes the sidebar drawer, if it is open (CA-406). When the focus was in the drawer, it moves to the menu
+         * button.
          *
          * @method
          * @public
@@ -1581,9 +1618,17 @@ const configureApplication = () => {
             }
             this.navigationOpen = false;
             document.documentElement.classList.remove( "ti-navigation-open" );
-            const screen = document.getElementById( "ti-content" );
-            if ( screen ) {
-                screen.inert = false;
+            setNavigationCoveredInert( false );
+            // A screen chosen from the drawer hides the entry that held the focus, and the browser drops the focus to
+            // <body>: measured in Chromium, a keyboard user who opened a screen from the drawer was left there. The menu
+            // button takes it instead, the control that opens the drawer again, as Escape and the scrim already give
+            // it. Not when the window has widened past the breakpoint (`navigationDrawer` is false by then): the
+            // sidebar is a visible column again, its entry keeps the focus, and the button is hidden.
+            const sidebar = document.querySelector( ".ti-sidebar" );
+            const toggle = document.querySelector( ".ti-navigation-toggle" );
+            const focused = document.activeElement;
+            if ( this.navigationDrawer && sidebar && toggle && focused && sidebar.contains( focused ) && typeof toggle.focus === "function" ) {
+                toggle.focus();
             }
         },
 

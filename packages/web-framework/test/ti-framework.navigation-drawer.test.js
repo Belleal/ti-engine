@@ -43,33 +43,41 @@ const styles = read( "scripts", "ti-framework.css" ).replace( /\/\*[\s\S]*?\*\//
 const labels = JSON.parse( fs.readFileSync( path.join( __dirname, "..", "bin", "localization", "web-server-labels.json" ), "utf8" ) );
 
 /**
- * A focusable stand-in for an element, recording whether it was given the focus.
+ * A focusable stand-in for an element, recording whether it was given the focus and becoming the document's
+ * `activeElement` when it is. Like a browser, it refuses the focus while it is inside an inert element.
  *
  * @method
+ * @param {Object} document The sandbox's document.
+ * @param {function(): boolean} [isInert] Whether an element around it is inert.
  * @returns {{focused: boolean, focus: function(): void}}
  * @private
  */
-function focusable() {
+function focusable( document, isInert = () => false ) {
     return {
         focused: false,
         focus() {
+            if ( isInert() ) {
+                return;
+            }
             this.focused = true;
+            document.activeElement = this;
         }
     };
 }
 
 /**
- * The shell in a sandbox with a window of the given width, a screen element, a sidebar whose entries can take the
- * focus, and the navigation toggle initialised as Alpine would.
+ * The shell in a sandbox with a window of the given width, the content wrapper and the screen inside it, a sidebar
+ * whose entries can take the focus, and the navigation toggle initialised as Alpine would.
  *
  * @method
  * @param {Object} [options]
  * @param {boolean} [options.narrow=true] Whether the window starts below the breakpoint.
  * @param {boolean} [options.activeEntry=true] Whether the sidebar marks an entry active.
+ * @param {boolean} [options.wrapper=true] Whether the frame has the framework's `#ti-content-wrapper`.
  * @returns {Object}
  * @private
  */
-function shell( { narrow = true, activeEntry = true } = {} ) {
+function shell( { narrow = true, activeEntry = true, wrapper = true } = {} ) {
     const { stores, components, sandbox, documentListeners } = loadTiFramework();
     const changeListeners = [];
     const query = {
@@ -88,18 +96,31 @@ function shell( { narrow = true, activeEntry = true } = {} ) {
     sandbox.htmx = { ajax: () => Promise.resolve() };
     sandbox.history = { pushState: () => {} };
 
+    const document = sandbox.document;
+    const body = { tagName: "BODY" };
+    document.activeElement = body;
     const screen = { id: "ti-content", inert: false };
-    const entries = { active: focusable(), first: focusable() };
-    sandbox.document.getElementById = ( id ) => ( id === "ti-content" ? screen : null );
-    sandbox.document.querySelector = ( selector ) => {
+    const content = wrapper ? { id: "ti-content-wrapper", inert: false } : null;
+    const entries = { active: focusable( document ), first: focusable( document ) };
+    const sidebar = { contains: ( element ) => element === entries.active || element === entries.first };
+    // The menu button sits in the topbar, inside the wrapper the open drawer makes inert.
+    const button = focusable( document, () => Boolean( content && content.inert ) );
+    document.getElementById = ( id ) => ( { "ti-content": screen, "ti-content-wrapper": content }[ id ] || null );
+    document.querySelector = ( selector ) => {
         if ( selector === ".ti-sidebar .ti-sidebar-item.active" ) {
             return activeEntry ? entries.active : null;
+        }
+        if ( selector === ".ti-sidebar" ) {
+            return sidebar;
+        }
+        if ( selector === ".ti-navigation-toggle" ) {
+            return button;
         }
         return selector.startsWith( ".ti-sidebar " ) ? entries.first : null;
     };
 
     const toggle = components.tiComponentNavigationToggle();
-    toggle.$refs = { toggle: focusable() };
+    toggle.$refs = { toggle: button };
     toggle.init();
 
     const dispatch = ( type, event ) => ( documentListeners.get( type ) || [] ).forEach( ( listener ) => listener( event ) );
@@ -107,8 +128,12 @@ function shell( { narrow = true, activeEntry = true } = {} ) {
         tiApplication: stores.tiApplication,
         frame: components.tiApplication(),
         toggle: toggle,
-        html: sandbox.document.documentElement,
+        html: document.documentElement,
+        document: document,
+        body: body,
         screen: screen,
+        content: content,
+        button: button,
         entries: entries,
         query: query,
         resize: ( matches ) => {
@@ -133,6 +158,9 @@ function isOpen( page ) {
     const open = page.tiApplication.navigationOpen;
     assert.equal( page.html.classList.contains( "ti-navigation-open" ), open, "the store and the html class disagree" );
     assert.equal( page.screen.inert, open, "the screen is inert exactly while the drawer is open" );
+    if ( page.content ) {
+        assert.equal( page.content.inert, open, "the topbar and the screen are inert exactly while the drawer is open" );
+    }
     assert.equal( page.toggle.open, open, "the button's aria-expanded reads the store" );
     return open;
 }
@@ -220,6 +248,58 @@ describe( "the sidebar drawer — the shell's state", () => {
         page.toggle.toggle();
         page.tiApplication.openScreen( "profile" );
         assert.equal( isOpen( page ), false );
+    } );
+
+    it( "makes the topbar inert with the screen, so Tab cannot reach the menu button under the drawer", () => {
+        // Measured in Chromium at 390x844 with the screen alone inert: Tab from the drawer's last entry went on to the
+        // menu button in the topbar, which the drawer itself covers.
+        const page = shell();
+        page.toggle.toggle();
+        assert.equal( page.content.inert, true );
+        assert.equal( page.screen.inert, true );
+        page.toggle.dismiss();
+        assert.equal( page.content.inert, false );
+        assert.equal( page.screen.inert, false );
+    } );
+
+    it( "still makes the screen inert in a frame without the content wrapper", () => {
+        const page = shell( { wrapper: false } );
+        page.toggle.toggle();
+        assert.equal( isOpen( page ), true );
+        page.toggle.dismiss();
+        assert.equal( isOpen( page ), false );
+    } );
+
+    it( "gives the focus to the menu button when a screen chosen from the drawer closes it", () => {
+        // Measured in Chromium: the entry that held the focus is hidden with the drawer, and the focus fell to <body>.
+        const page = shell();
+        page.toggle.toggle();
+        assert.equal( page.document.activeElement, page.entries.active );
+        page.htmx( { id: "ti-content" } );
+        assert.equal( page.document.activeElement, page.button );
+
+        const opened = shell();
+        opened.toggle.toggle();
+        opened.tiApplication.openScreen( "profile" );
+        assert.equal( opened.document.activeElement, opened.button );
+    } );
+
+    it( "leaves the focus on the sidebar when the window widens past the breakpoint", () => {
+        // The sidebar is a visible column again, and the menu button is hidden.
+        const page = shell();
+        page.toggle.toggle();
+        page.resize( false );
+        assert.equal( page.document.activeElement, page.entries.active );
+        assert.equal( page.button.focused, false );
+    } );
+
+    it( "leaves the focus where it is when it was not in the drawer", () => {
+        const page = shell();
+        page.tiApplication.openNavigation();
+        page.htmx( { id: "ti-content" } );
+        assert.equal( isOpen( page ), false );
+        assert.equal( page.document.activeElement, page.body );
+        assert.equal( page.button.focused, false );
     } );
 
     it( "keeps the collapsed state out of the drawer, and gives it back to the column", () => {

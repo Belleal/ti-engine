@@ -213,8 +213,11 @@ in over the screen, and a scrim covers the rest of the page. It closes on Escape
 requested: the sidebar's own entries load into `#ti-content` through HTMX, and `openScreen` closes it too.
 
 - **While it is shut,** its entries are out of the tab order and the accessibility tree.
-- **While it is open,** the screen under it is `inert`, and the focus moves into it: to the active entry, or else
-  the first.
+- **While it is open,** the topbar and the screen under it are `inert` (`#ti-content-wrapper`, or `#ti-content` in a
+  frame without that wrapper), so the keyboard and a screen reader stay in the drawer. The focus moves into it: to
+  the active entry, or else the first.
+- **When it closes with the focus inside it,** on Escape, on the scrim or on a screen chosen from it, the focus goes
+  to the menu button.
 - **The collapsed state belongs to the column.** A visitor who collapsed the sidebar on a wide screen gets the full
   drawer on a narrow one, and the collapsed column back on the wide one.
 - **Height:** the shell takes `100dvh` there, so a phone's toolbar does not hide the bottom of the screen.

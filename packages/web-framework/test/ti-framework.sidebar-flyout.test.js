@@ -23,7 +23,8 @@
  * clamp to the window could not hold. The user menu opens upward from the bottom edge of a button pinned to the bottom
  * of the sidebar, so it opened below the window: measured in Chromium at 1280x844, 112px of its 124px were off the
  * page. The component now places the panel again whenever its size changes, and the clamp holds the panel's own
- * margin, which inside the phone drawer (CA-406) pushed it 12px past the window's edge.
+ * margin, which inside the phone drawer (CA-406) pushed it 12px past the window's edge. In a browser without
+ * ResizeObserver it places the panel once more in the frame x-show reveals it in.
  */
 
 const { describe, it } = require( "node:test" );
@@ -87,6 +88,7 @@ function userMenu( { width = 1280, height = 844, margin = 20 } = {} ) {
     return {
         flyout: flyout,
         panel: panel,
+        sandbox: sandbox,
         observers: observers,
         // What x-show does a frame after `open`: the panel takes its size, which the observer reports.
         reveal: ( panelWidth, panelHeight ) => {
@@ -145,22 +147,45 @@ describe( "the sidebar flyout's placement", () => {
         assert.equal( menu.observers[ 0 ].disconnected, true );
     } );
 
-    it( "still opens in a browser without ResizeObserver", () => {
+    it( "asks for no extra frame when a ResizeObserver places the panel", () => {
         const menu = userMenu();
+        const frames = [];
+        menu.sandbox.requestAnimationFrame = ( callback ) => frames.push( callback );
+        menu.flyout.open();
+        assert.equal( frames.length, 0 );
+    } );
+
+    it( "places the panel inside the window in a browser without ResizeObserver, a frame after it appears", () => {
+        // Measured in Chromium at 1280x844 with ResizeObserver removed: the user menu opened at y=832, 12px showing,
+        // because nothing placed it again once x-show had revealed it.
         const bare = loadTiFramework();
-        bare.stores.tiComponentsConfig = { userProfileMenu: { placement: "right-end", offset: 0, fixed: true } };
+        bare.sandbox.innerWidth = 1280;
+        bare.sandbox.innerHeight = 844;
+        bare.sandbox.getComputedStyle = () => ( { marginLeft: "0px" } );
         bare.sandbox.CustomEvent = class {
             constructor( type ) {
                 this.type = type;
             }
         };
+        // x-show asks for its frame before the tick that placed the panel runs, so its reveal comes first in that frame.
+        const panel = { scrollWidth: 0, scrollHeight: 0, style: {} };
+        const frames = [ () => {
+            panel.scrollWidth = 243;
+            panel.scrollHeight = 124;
+        } ];
+        bare.sandbox.requestAnimationFrame = ( callback ) => frames.push( callback );
+        bare.stores.tiComponentsConfig = { userProfileMenu: { placement: "right-end", offset: 0, fixed: true } };
         const flyout = bare.components.tiComponentSidebarFlyout( "userProfileMenu" );
-        flyout.$refs = { flyoutPanel: menu.panel, flyoutButton: { getBoundingClientRect: () => ( { left: 0, right: 0, top: 0, bottom: 0, width: 0, height: 0 } ), setAttribute: () => {} } };
+        flyout.$refs = { flyoutPanel: panel, flyoutButton: { getBoundingClientRect: () => ( { left: 12, right: 267, top: 788, bottom: 832, width: 255, height: 44 } ), setAttribute: () => {} } };
         flyout.$nextTick = ( callback ) => callback();
-        bare.sandbox.getComputedStyle = () => ( { marginLeft: "0px" } );
         assert.doesNotThrow( () => flyout.init() );
         assert.doesNotThrow( () => flyout.open() );
         assert.equal( flyout.isOpen, true );
+        assert.equal( panel.style.top, "832px", "the tick still measures the hidden panel" );
+        frames.forEach( ( frame ) => frame() );
+        const top = Number.parseFloat( panel.style.top );
+        assert.equal( top + panel.scrollHeight, 832, "it ends at the button's bottom edge, as right-end asks" );
+        assert.ok( top >= 10 && top + panel.scrollHeight <= 844 - 10, `top ${ top }, bottom ${ top + panel.scrollHeight }` );
     } );
 
 } );
