@@ -460,6 +460,19 @@ const configureComponentSidebarFlyout = ( configKey ) => {
             window.addEventListener( "resize", this._reflow, { passive: true } );
             window.addEventListener( "scroll", this._reflow, { passive: true } );
             window.addEventListener( TI_EVENT_CLOSE_ALL_FLYOUT, this._close );
+            // Placed again whenever the panel's size changes, and that includes the moment it appears (CA-408). Alpine's
+            // x-show reveals an element on the next animation frame, after the `$nextTick` that `open` positions it in,
+            // so that first measurement is of a panel still `display: none`: 0x0, which the clamp to the window cannot
+            // hold. The user menu sits at the bottom of the sidebar and opens upward from its button's bottom edge, so it
+            // opened below the window with sign-out in it: at 1280x844 112px of its 124px were off the page.
+            // A tick later because `init` runs before Alpine has walked into the component, so the panel's ref does
+            // not exist yet.
+            this.$nextTick( () => {
+                if ( typeof ResizeObserver === "function" && this.$refs.flyoutPanel && !this._resizeObserver ) {
+                    this._resizeObserver = new ResizeObserver( this._reflow );
+                    this._resizeObserver.observe( this.$refs.flyoutPanel );
+                }
+            } );
         },
 
         /**
@@ -472,6 +485,9 @@ const configureComponentSidebarFlyout = ( configKey ) => {
             window.removeEventListener( "resize", this._reflow );
             window.removeEventListener( "scroll", this._reflow );
             window.removeEventListener( TI_EVENT_CLOSE_ALL_FLYOUT, this._close );
+            if ( this._resizeObserver ) {
+                this._resizeObserver.disconnect();
+            }
         },
 
         /**
@@ -585,8 +601,11 @@ const configureComponentSidebarFlyout = ( configKey ) => {
                 }
             }
 
+            // The panel is drawn its own `margin-left` further right than `left`, so the clamp has to hold that too. Beside
+            // a desktop sidebar there is room to spare; inside the drawer on a phone the menu overran the window by 12px.
+            const marginLeft = parseFloat( window.getComputedStyle( flyoutPanel ).marginLeft ) || 0;
             const box = tiToolbox.getVisibleBox( this.fixed );
-            const coords = tiToolbox.clampToBox( left, top, pw, ph, box, 10 );
+            const coords = tiToolbox.clampToBox( left, top, pw + marginLeft, ph, box, 10 );
 
             flyoutPanel.style.position = this.fixed ? "fixed" : "absolute";
             flyoutPanel.style.top = Math.round( coords.y ) + "px";
