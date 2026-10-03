@@ -133,14 +133,15 @@ On every boot, the file is read and reconciled into the running directory: an ad
 
 ## The login screen
 
-The login screen renders before sign-in, so none of an application's own fragments are in play. It has two slots an application fills by shipping a file of the same relative path in its own static directory; the static-path search is reverse-order, so the application's copy wins:
+The login screen renders before sign-in, so none of an application's own fragments are in play. It has three slots an application fills by shipping a file of the same relative path in its own static directory; the static-path search is reverse-order, so the application's copy wins:
 
 | Slot | Where | Framework default |
 |---|---|---|
 | `fragments/components/component-login-brand.html` | above the sign-in card | the framework's mark, "Welcome back" and "Sign in to continue" |
+| `fragments/components/component-login-card-head.html` | inside the sign-in card, before its controls | empty |
 | `fragments/components/component-login-extra.html` | below the sign-in card | empty |
 
-Use the brand slot to name the application and say what it is for. Use the extra slot for anything a first-time visitor should read after the sign-in controls. Neither slot can change the sign-in controls themselves; those stay the framework's, gated to the enabled methods.
+Use the brand slot to name the application and say what it is for. Use the heading slot to title the card, and say which account to sign in with. Use the extra slot for anything a first-time visitor should read after the sign-in controls. No slot can change the sign-in controls themselves; those stay the framework's, gated to the enabled methods. The Microsoft button carries Microsoft's four-square logo and reads "Sign in with Microsoft", as Microsoft's branding guidelines ask; the method is still `openid-azure`.
 
 Every string on the screen goes through `x-text-label` under `interface.default.login.*`: `welcome`, `sign-in-prompt`, `username`, `username-placeholder`, `password`, `password-placeholder`, `sign-in`, `or-continue-with`, `sign-in-google`, `sign-in-azure`, `no-sign-in-method` and `error-sign-in-failed`. An application normally points `TI_LOCALIZATION_LABELS_PATH` at its own catalogue alone, so the framework's translations never reach it. It adds the keys it wants translated to its own catalogue, and a key it leaves out renders the English text written in the fragment.
 

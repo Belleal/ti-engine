@@ -6,6 +6,11 @@
 
         <!-- Login card -->
         <div class="ti-login-card">
+            <!-- Heading slot. The framework ships this component empty; an application supplies its own
+                 `fragments/components/component-login-card-head.html` to title the card above the sign-in controls
+                 (CA-387). The brand slot sits above the card and the extension slot below it, so neither can. -->
+            <ti-component-login-card-head-placeholder></ti-component-login-card-head-placeholder>
+
             <!-- Error message -->
             <!-- The element's own text is the FALLBACK the x-text-label directive falls back to, and it has to be
                  here: this key lives in the framework's web-server-labels.json, and a consuming application
@@ -82,11 +87,17 @@
                 </a>
                 <!--/ti-auth-method-->
                 <!--ti-auth-method:openid-azure-->
+                <!-- Microsoft's four-square logo and its name, as its branding guidelines for "Sign in with
+                     Microsoft" ask (CA-387). The method is still `openid-azure`, but the people signing in know the
+                     account as Microsoft's: the old Azure "A" named a product they never see. -->
                 <a href="/login/openid-azure" class="ti-btn full">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                        <path d="M11.5 2L4 8.5l4 1-4 6.5h8l-2-4 4-1-2.5 8H20L14 2h-2.5Z" fill="#0078D4"/>
+                    <svg width="16" height="16" viewBox="0 0 21 21" fill="none" aria-hidden="true">
+                        <path d="M1 1h9v9H1Z" fill="#F25022"/>
+                        <path d="M11 1h9v9h-9Z" fill="#7FBA00"/>
+                        <path d="M1 11h9v9H1Z" fill="#00A4EF"/>
+                        <path d="M11 11h9v9h-9Z" fill="#FFB900"/>
                     </svg>
-                    <span x-text-label="interface.default.login.sign-in-azure">Sign in with Azure</span>
+                    <span x-text-label="interface.default.login.sign-in-azure">Sign in with Microsoft</span>
                 </a>
                 <!--/ti-auth-method-->
             </div>
