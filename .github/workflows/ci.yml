@@ -29,6 +29,18 @@ jobs:
       # `package-manager-cache: false` if that ever happens.
       - name: Install dependencies
         run: npm install
+      # web-framework bundles htmx and Alpine's CSP build as committed files, which its postinstall copies
+      # from node_modules on every install, as it just did. The publish job packs what is committed, with
+      # no install, so a bundled copy that this install changed is a stale one about to ship: 1.39.0 to
+      # 1.46.0 carried htmx 2.0.10 while declaring ^2.0.11 (CA-402). Both are pinned exactly, so this fails
+      # on a change that moves a pin without the regenerated files, and on nothing an upstream release does.
+      - name: Bundled browser libraries match their pinned versions
+        run: |
+          if ! git diff --quiet -- packages/web-framework/bin/static/scripts/lib/; then
+            git diff --stat -- packages/web-framework/bin/static/scripts/lib/
+            echo "::error::The bundled htmx/Alpine copies are not the pinned versions. Run npm install and commit packages/web-framework/bin/static/scripts/lib/."
+            exit 1
+          fi
       - name: Lint
         run: npx eslint .
       - name: Unit tests
