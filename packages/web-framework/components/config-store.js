@@ -108,6 +108,8 @@ class ConfigStore {
      * @param {Array<{configKey: string, value: Object, expectedVersion: number}>} edits
      * @param {Object} meta
      * @param {string} meta.adminID
+     * @param {string} [meta.adminName] - The author's display name. Recorded beside `adminID` on the envelope
+     *     (`updatedByName`), the history entry and the change-set record (`adminName`) when given (CA-420).
      * @param {string} [meta.note]
      * @returns {Promise<{changeSetID: string, versions: Object<string, number>}>}
      * @throws {TiException.E_WEB_INVALID_REQUEST_PARAMETERS} On bad input or a version conflict (see `details`).
@@ -136,6 +138,10 @@ class ConfigStore {
             const changeSetID = tools.getUUID();
             const timestamp = new Date().toISOString();
             const note = meta.note || "";
+            // The name a person reads, beside the sign-in identity: for an OpenID sign-in `adminID` is
+            // `oauth2:<subject>`, and a history that holds only that cannot say who made a change (CA-420). Recorded
+            // only when given, so an entry written without one keeps its shape and a reader falls back to the ID.
+            const adminName = ( typeof meta.adminName === "string" && meta.adminName.trim() !== "" ) ? meta.adminName.trim() : null;
             const versions = {};
             const writes = [];
             edits.forEach( ( edit, i ) => {
@@ -143,6 +149,10 @@ class ConfigStore {
                 versions[ edit.configKey ] = newVersion;
                 const envelope = { value: edit.value, version: newVersion, updatedAt: timestamp, updatedBy: meta.adminID, changeSetID: changeSetID };
                 const historyEntry = { version: newVersion, timestamp: timestamp, adminID: meta.adminID, note: note, changeSetID: changeSetID, snapshot: edit.value };
+                if ( adminName ) {
+                    envelope.updatedByName = adminName;
+                    historyEntry.adminName = adminName;
+                }
                 writes.push( this.#writeJSON( KEY_CURRENT + edit.configKey, envelope ) );
                 writes.push( this.#writeJSON( KEY_HISTORY + edit.configKey + ":" + newVersion, historyEntry ) );
             } );
@@ -153,6 +163,9 @@ class ConfigStore {
                 note: note,
                 documents: edits.map( ( edit ) => ( { configKey: edit.configKey, version: versions[ edit.configKey ] } ) )
             };
+            if ( adminName ) {
+                changeSetRecord.adminName = adminName;
+            }
             writes.push( this.#writeJSON( KEY_CHANGESET + changeSetID, changeSetRecord ) );
 
             // Settled, not merely started: the lock releases the documents when this task settles (CA-192).
@@ -220,6 +233,7 @@ class ConfigStore {
      * @param {string} changeSetID
      * @param {Object} meta
      * @param {string} meta.adminID
+     * @param {string} [meta.adminName] - The author's display name (CA-420).
      * @param {string} [meta.note]
      * @returns {Promise<{changeSetID: string, versions: Object<string, number>}>}
      * @public
@@ -235,7 +249,7 @@ class ConfigStore {
                     return { configKey: doc.configKey, value: historic ? historic.snapshot : null, expectedVersion: current ? current.version : 0 };
                 } );
             } ) ).then( ( edits ) => {
-                return this.saveChangeSet( edits, { adminID: meta.adminID, note: meta.note || ( "restored from change-set " + changeSetID ) } );
+                return this.saveChangeSet( edits, { adminID: meta.adminID, adminName: meta.adminName, note: meta.note || ( "restored from change-set " + changeSetID ) } );
             } );
         } );
     }
