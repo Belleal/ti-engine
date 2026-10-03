@@ -47,7 +47,23 @@ Internal dependencies are declared `*` — **except `web-framework` → `@ti-eng
 
 The out-of-repository consumer, `competence`, depends on `core` + `web-framework` by semver range from npm. A breaking change here therefore reaches it only when that range is bumped — which is *after* `npm-publish.yml` has published. That is the regression net this repository lost in CA-120: competence's 1060-test suite used to run in this workspace on every change.
 
-Node: the workspace root requires **`>=20.19.0`**; `core`, `web-content` and `cloudflare` require `>=20.12` (core because of native `process.loadEnvFile`, adopted in core 1.7.0); `web-framework` declares `>=20`. Develop on ≥20.19 to satisfy all of them.
+Node: **develop on Node 24, the current LTS.** `.nvmrc` names it, and `ci.yml` and `npm-publish.yml` read it from
+there through `node-version-file`, so the version is written once (CA-403). The `engines` floors are a different
+thing — what a *consumer* may run, not what this repository is developed on: the workspace root requires
+**`>=20.19.0`**; `core`, `web-content` and `cloudflare` require `>=20.12` (core because of native
+`process.loadEnvFile`, adopted in core 1.7.0); `web-framework` declares `>=20`.
+
+**A green run on another major proves less than it looks.** Node 22's runner exits 0 when a `describe` callback
+throws — it prints `✖` against the suite and still reports `fail 0` — where 24's fails the run, so a suite that
+breaks while building its fixtures passes on 22 and fails in CI (measured on 22.22.2 and 24.21.0). If `node
+--version` in a cloud session says anything but the `.nvmrc` major, the environment's setup script has not installed
+it: say so, and run the checks on the right major rather than quoting a 22 run as evidence.
+
+`.nvmrc` has two companions that cannot read it, and a move to the next LTS changes all three together: the images'
+`FROM` lines (`packages/tester/Dockerfile`, `packages/cloudflare/template/Dockerfile`) and the cloud environment's
+setup script, which installs the major into `/opt/node<major>` and puts it first on `PATH`. Node 26 enters Active LTS
+on 2026-10-28; the move is a deliberate change, not a floating `lts/*`, because CI floating while the images stay
+pinned is the drift this arrangement exists to prevent.
 
 Branches: `master` is the release branch and the PR target. Work lands on a topic branch (`feat/...`, `fix/...`)
 opened against it. A long-lived `current` integration branch was used historically and appears throughout the git
