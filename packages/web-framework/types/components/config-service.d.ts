@@ -45,6 +45,7 @@ declare class ConfigService {
      * @param {Array<{configKey: string, value: Object, expectedVersion: number}>} edits
      * @param {Object} meta
      * @param {string} meta.adminID
+     * @param {string} [meta.adminName] - The author's display name, recorded beside `adminID` (CA-420).
      * @param {string} [meta.note]
      * @returns {Promise<{ok: true, changeSetID: string, versions: Object<string, number>} | {ok: false, errors: Object<string, Array>}>}
      * @public
@@ -55,6 +56,7 @@ declare class ConfigService {
         expectedVersion: number;
     }>, meta: {
         adminID: string;
+        adminName?: string;
         note?: string;
     }): Promise<{
         ok: true;
@@ -135,12 +137,14 @@ declare class ConfigService {
      * @param {string} changeSetID
      * @param {Object} meta
      * @param {string} meta.adminID
+     * @param {string} [meta.adminName] - The author's display name, recorded beside `adminID` (CA-420).
      * @param {string} [meta.note]
      * @returns {Promise<Object>}
      * @public
      */
     restoreChangeSet(changeSetID: string, meta: {
         adminID: string;
+        adminName?: string;
         note?: string;
     }): Promise<Object>;
     /**
@@ -260,6 +264,7 @@ declare class ConfigService {
      * @param {string[]} configKeys
      * @param {Object} meta
      * @param {string} meta.adminID
+     * @param {string} [meta.adminName] - The author's display name, recorded beside `adminID` (CA-420).
      * @param {string} [meta.note]
      * @returns {Promise<{ok: true, changeSetID: string, versions: Object}|{ok: false, errors: Object}>}
      * @throws {TiException.E_WEB_INVALID_REQUEST_PARAMETERS} On bad input, an unknown key, a key with no default, or a key
@@ -268,6 +273,7 @@ declare class ConfigService {
      */
     applyDefaults(configKeys: string[], meta: {
         adminID: string;
+        adminName?: string;
         note?: string;
     }): Promise<{
         ok: true;

@@ -69,6 +69,7 @@ class ConfigService {
      * @param {Array<{configKey: string, value: Object, expectedVersion: number}>} edits
      * @param {Object} meta
      * @param {string} meta.adminID
+     * @param {string} [meta.adminName] - The author's display name, recorded beside `adminID` (CA-420).
      * @param {string} [meta.note]
      * @returns {Promise<{ok: true, changeSetID: string, versions: Object<string, number>} | {ok: false, errors: Object<string, Array>}>}
      * @public
@@ -227,6 +228,7 @@ class ConfigService {
      * @param {string} changeSetID
      * @param {Object} meta
      * @param {string} meta.adminID
+     * @param {string} [meta.adminName] - The author's display name, recorded beside `adminID` (CA-420).
      * @param {string} [meta.note]
      * @returns {Promise<Object>}
      * @public
@@ -245,7 +247,7 @@ class ConfigService {
                     value: historic ? historic.snapshot : null,
                     expectedVersion: current ? current.version : 0
                 } ) );
-            } ) ).then( ( edits ) => this.applyEdits( edits, { adminID: meta.adminID, note: meta.note || ( "restored from change-set " + changeSetID ) } ) );
+            } ) ).then( ( edits ) => this.applyEdits( edits, { adminID: meta.adminID, adminName: meta.adminName, note: meta.note || ( "restored from change-set " + changeSetID ) } ) );
         } );
     }
 
@@ -418,6 +420,7 @@ class ConfigService {
      * @param {string[]} configKeys
      * @param {Object} meta
      * @param {string} meta.adminID
+     * @param {string} [meta.adminName] - The author's display name, recorded beside `adminID` (CA-420).
      * @param {string} [meta.note]
      * @returns {Promise<{ok: true, changeSetID: string, versions: Object}|{ok: false, errors: Object}>}
      * @throws {TiException.E_WEB_INVALID_REQUEST_PARAMETERS} On bad input, an unknown key, a key with no default, or a key
@@ -454,7 +457,7 @@ class ConfigService {
                 value: this.#registry.getDefault( key ),
                 expectedVersion: currents[ index ] ? currents[ index ].version : 0
             } ) );
-            return this.applyEdits( edits, { adminID: meta.adminID, note: meta.note || "applied file defaults" } );
+            return this.applyEdits( edits, { adminID: meta.adminID, adminName: meta.adminName, note: meta.note || "applied file defaults" } );
         } );
     }
 

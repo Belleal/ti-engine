@@ -2,6 +2,27 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.49.0
+
+* feat (config-management): **a configuration change records who made it by name, not only by sign-in identity**
+  (CA-420).
+  <br/>
+  **What was missing.** The history named a change's author by `adminID`, the session's `userID`. For an OpenID
+  sign-in that is `oauth2:<subject>`. An application's history screen could show only that opaque subject, and nothing
+  in the stored entry led to a person.
+  <br/>
+  **What changed.**
+  - **The handlers** pass `adminName` with every edit, restore and apply of the file defaults. It is the session
+    user's `name`, else the `username`. It is taken from the session, never the body, as `adminID` is.
+  - **`ConfigStore#saveChangeSet`** records it on the change-set record and each history entry as `adminName`, and on
+    the current envelope as `updatedByName`. `listChangeSets`, `getChangeSet` and `listHistory` return it as stored.
+  - **When there is no name** (blank or absent), nothing is added. An entry written before 1.49.0 keeps its shape,
+    and a reader falls back to `adminID`.
+  - `design/admin-config-management.md` §6 documents the fields.
+  <br/>
+  **Tests:** 4 added, across the store, the service (an edit, a restore, applying the defaults) and the handlers. All
+  6 deliberate breakages were caught.
+
 ## Version 1.48.0
 
 * feat (localization): **the visitor chooses the interface language on the sign-in screen, and the session starts in

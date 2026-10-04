@@ -74,6 +74,32 @@ describe( "admin-config-handlers", () => {
         assert.deepEqual( res.body.data, { ok: true, changeSetID: "cs1" } );
     } );
 
+    // CA-420: the history otherwise says only who signed in, which for an OpenID provider is `oauth2:<subject>`.
+    it( "names the author from the session: the display name, else the username, never a blank", async () => {
+        const received = [];
+        const service = {
+            saveEditorEdit: ( key, edited, meta ) => { received.push( meta ); return Promise.resolve( { ok: true } ); },
+            restoreChangeSet: ( id, meta ) => { received.push( meta ); return Promise.resolve( { ok: true } ); },
+            applyDefaults: ( keys, meta ) => { received.push( meta ); return Promise.resolve( { ok: true } ); }
+        };
+        // The body cannot name an author: only the session does, as only the session supplies the ID.
+        const as = ( user ) => mockReq( { params: { editorKey: "combo", changeSetID: "cs1" }, body: { configKeys: [ "a" ], adminName: "attacker:injected" }, session: { user: Object.assign( { userID: "oauth2:admin1", roles: [ "admin" ] }, user ) } } );
+
+        handlers.saveEditorEdit( service )( as( { name: "Boris Kostadinov", username: "boris@example.com" } ), mockRes(), () => {} );
+        handlers.restoreChangeSet( service )( as( { username: "boris@example.com" } ), mockRes(), () => {} );
+        handlers.applyDefaults( service )( as( { name: "  ", username: "" } ), mockRes(), () => {} );
+        // A display name of spaces is no name: the username is read in its place, not skipped over.
+        handlers.applyDefaults( service )( as( { name: "  ", username: " boris@example.com " } ), mockRes(), () => {} );
+        await tick();
+
+        assert.deepEqual( received.map( ( meta ) => [ meta.adminID, meta.adminName ] ), [
+            [ "oauth2:admin1", "Boris Kostadinov" ],
+            [ "oauth2:admin1", "boris@example.com" ],
+            [ "oauth2:admin1", undefined ],
+            [ "oauth2:admin1", "boris@example.com" ]
+        ] );
+    } );
+
     it( "returns validation failures as data, not as an error", async () => {
         const service = { saveEditorEdit: () => Promise.resolve( { ok: false, errors: { alpha: [ { message: "bad" } ] } } ) };
         const res = mockRes();

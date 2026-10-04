@@ -166,6 +166,16 @@ describe( "ConfigService — applyDefaults", () => {
         assert.deepEqual( ( await store.getCurrent( "sets" ) ).value, { SE: [ "A" ], QE: [ "Q1" ] } );
     } );
 
+    // CA-420: applying the file defaults is a change by whoever applied them, named as an edit is.
+    it( "records the author's name on the change-set it commits", async () => {
+        await store.seedIfEmpty( "pool", { SE: [], QE: [] } );
+        await store.seedIfEmpty( "sets", { SE: [], QE: [] } );
+        const applied = await service.applyDefaults( [ "pool", "sets" ], { adminID: "oauth2:a", adminName: "Boris Kostadinov" } );
+        assert.equal( applied.ok, true );
+        assert.equal( ( await service.getChange( applied.changeSetID ) ).adminName, "Boris Kostadinov" );
+        assert.equal( ( await store.getCurrent( "sets" ) ).updatedByName, "Boris Kostadinov" );
+    } );
+
     it( "publishes a config:changed event naming every applied document", async () => {
         await store.seedIfEmpty( "pool", { SE: [], QE: [] } );
         await store.seedIfEmpty( "sets", { SE: [], QE: [] } );

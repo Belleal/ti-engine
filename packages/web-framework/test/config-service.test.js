@@ -233,6 +233,18 @@ describe( "ConfigService — restore + audit", () => {
         await assert.rejects( service.restoreChangeSet( "nope", { adminID: "admin:1" } ) );
     } );
 
+    // CA-420: a restore and an edit both name their author, so the history says who did each.
+    it( "records the author's name through an edit and a restore", async () => {
+        const edited = await service.applyEdits( [ { configKey: "alpha", value: { n: 4 }, expectedVersion: 1 } ], { adminID: "oauth2:a", adminName: "Boris Kostadinov" } );
+        assert.equal( ( await service.getChange( edited.changeSetID ) ).adminName, "Boris Kostadinov" );
+
+        const restored = await service.restoreChangeSet( edited.changeSetID, { adminID: "oauth2:b", adminName: "Elena Dimitrova" } );
+        assert.equal( ( await service.getChange( restored.changeSetID ) ).adminName, "Elena Dimitrova" );
+        // Found by ID: two change-sets written within a millisecond share a timestamp, and the feed's order between
+        // them is then not defined.
+        assert.equal( ( await service.listChanges() ).find( ( change ) => change.changeSetID === restored.changeSetID ).adminName, "Elena Dimitrova" );
+    } );
+
     it( "exposes the audit feed, per-document history, and change-set details", async () => {
         const cs = await service.applyEdits( [ { configKey: "alpha", value: { n: 7 }, expectedVersion: 1 } ], { adminID: "admin:1", note: "tweak" } );
 
