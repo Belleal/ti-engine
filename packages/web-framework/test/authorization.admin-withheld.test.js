@@ -28,6 +28,7 @@ const { describe, it } = require( "node:test" );
 const assert = require( "node:assert/strict" );
 const authorization = require( "#authorization" );
 const webHandlers = require( "#web-handlers" );
+const logger = require( "@ti-engine/core/logger" );
 const TiWebServer = require( "#web-server" );
 
 const ADMIN_EMAIL = "admin@example.com";
@@ -121,6 +122,25 @@ describe( "the per-request refresh asks the hook", () => {
 
         assert.deepEqual( result.session.user.roles, [ "admin" ], "a broken hook must not lock an administrator out" );
         assert.equal( result.nextError, undefined );
+    } );
+
+    it( "logs a throwing hook's stack, and none of its error's own fields", ( t ) => {
+        // Measured: the logger prints an error's own properties verbatim, which is where an HTTP client's error keeps
+        // its request's headers.
+        const logged = [];
+        t.mock.method( logger, "log", ( message, severity, data ) => logged.push( { message: message, data: data } ) );
+        const instance = adminInstance( () => {
+            const error = new Error( "the hook is broken" );
+            error.config = { headers: { authorization: "Bearer a-secret" } };
+            throw error;
+        } );
+
+        refresh( instance, { user: { userID: "u1", email: ADMIN_EMAIL, roles: [] } } );
+
+        assert.equal( logged.length, 1 );
+        assert.match( logged[ 0 ].message, /Could not ask whether the admin role is withheld from user 'u1'/ );
+        assert.match( logged[ 0 ].data.stack, /^Error: the hook is broken/ );
+        assert.doesNotMatch( JSON.stringify( logged[ 0 ].data ), /a-secret/ );
     } );
 
     it( "keeps the role for an answer that is not strictly true", () => {

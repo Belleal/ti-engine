@@ -21,9 +21,11 @@ This document will contain the list of changes made to the framework. The format
     withholds.
   - **A hook that throws withholds nothing.** The failure is logged and the allowlist's answer stands, so a broken hook
     cannot lock an administrator out of the access that exists to repair the application.
+  - **The log line carries the error's stack and nothing else of it.** The logger prints an error's own properties,
+    and an application's error can carry a secret there, as an HTTP client's carries its request's headers.
   <br/>
-  **Tests:** 15 added, covering `applyAdminRole`, the default, the per-request refresh and both sign-in paths. All 8
-  deliberate breakages were caught.
+  **Tests:** 16 added, covering `applyAdminRole`, the default, the per-request refresh, the log line and both sign-in
+  paths. All 9 deliberate breakages were caught.
 
 ## Version 1.49.0
 

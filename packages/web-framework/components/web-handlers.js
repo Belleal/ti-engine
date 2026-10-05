@@ -572,7 +572,9 @@ let applyAdminRoleFor = ( instance, session, request ) => {
         try {
             withheld = instance.withholdsAdminRole( session, request ) === true;
         } catch ( error ) {
-            logger.log( `Could not ask whether the admin role is withheld from user '${ session.user.userID || session.user.employeeID }'; the allowlist decides.`, logger.logSeverity.ERROR, error );
+            // The stack alone, never the error itself: the logger prints an error's own properties, and an application's
+            // error can carry a secret there, as an HTTP client's carries its request's headers.
+            logger.log( `Could not ask whether the admin role is withheld from user '${ session.user.userID || session.user.employeeID }'; the allowlist decides.`, logger.logSeverity.ERROR, { stack: error?.stack } );
         }
     }
     return authorization.applyAdminRole( session, instance.serviceConfig?.auth?.admins, withheld );
