@@ -2,6 +2,29 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.50.0
+
+* feat (authorization): **an application can run a session without the `admin` role its identity holds** (CA-433).
+  <br/>
+  **What was missing.** The allowlist role is applied after `augmentSession` at sign-in and after `refreshSession` on
+  every request, and `applyAdminRole` is authoritative in both directions. A role the application removed therefore
+  came straight back, and an application could not show an administrator what everyone else sees.
+  <br/>
+  **What changed.**
+  - **`TiWebServer#withholdsAdminRole( session, request )`**, a new overridable hook, returns `false` by default.
+    Returning `true` removes the role from an allowlisted identity.
+  - **Both sign-in paths and the per-request refresh ask it**, through one private helper in `web-handlers.js`. At
+    sign-in it sees the session `augmentSession` returned, so an application can decide there. Asked again on every
+    request, it gives the role back as soon as it answers `false`.
+  - **`applyAdminRole( session, admins, withheld )`** takes the answer as an optional third argument.
+  - **It can only withhold.** The allowlist stays the only thing that grants the role, and only a strict `true`
+    withholds.
+  - **A hook that throws withholds nothing.** The failure is logged and the allowlist's answer stands, so a broken hook
+    cannot lock an administrator out of the access that exists to repair the application.
+  <br/>
+  **Tests:** 15 added, covering `applyAdminRole`, the default, the per-request refresh and both sign-in paths. All 8
+  deliberate breakages were caught.
+
 ## Version 1.49.0
 
 * feat (config-management): **a configuration change records who made it by name, not only by sign-in identity**

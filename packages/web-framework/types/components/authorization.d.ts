@@ -22,12 +22,16 @@ declare function isAdminIdentity(user: Object, admins: string[]): boolean;
  * when it is not. Authoritative in both directions — this is the only place the role is ever granted, so it is also
  * the only place it can be taken away. Safe with a missing session; an empty or absent allowlist means nobody is an
  * administrator, which removes the role rather than preserving it. Returns the session for chaining.
+ * <br/>
+ * `withheld` removes the role from an allowlisted identity too, for a session the application has declined it for
+ * (see `TiWebServer#withholdsAdminRole`). It only ever takes away: the allowlist stays the one thing that grants.
  *
  * @param {Object} session
  * @param {string[]} [admins]
+ * @param {boolean} [withheld=false] Whether the application withholds the role from this session.
  * @returns {Object} The (possibly modified) session.
  */
-declare function applyAdminRole(session: Object, admins?: string[]): Object;
+declare function applyAdminRole(session: Object, admins?: string[], withheld?: boolean): Object;
 /**
  * @param {Object} session
  * @param {Array<string|number>} roles

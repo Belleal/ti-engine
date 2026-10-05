@@ -63,19 +63,24 @@ function isAdminIdentity( user, admins ) {
  * when it is not. Authoritative in both directions — this is the only place the role is ever granted, so it is also
  * the only place it can be taken away. Safe with a missing session; an empty or absent allowlist means nobody is an
  * administrator, which removes the role rather than preserving it. Returns the session for chaining.
+ * <br/>
+ * `withheld` removes the role from an allowlisted identity too, for a session the application has declined it for
+ * (see `TiWebServer#withholdsAdminRole`). It only ever takes away: the allowlist stays the one thing that grants.
  *
  * @param {Object} session
  * @param {string[]} [admins]
+ * @param {boolean} [withheld=false] Whether the application withholds the role from this session.
  * @returns {Object} The (possibly modified) session.
  */
-function applyAdminRole( session, admins ) {
+function applyAdminRole( session, admins, withheld = false ) {
     if ( !session || !session.user ) {
         return session;
     }
 
     const roles = Array.isArray( session.user.roles ) ? session.user.roles.slice() : [];
     const holdsRole = roles.includes( ADMIN_ROLE );
-    const isAdmin = isAdminIdentity( session.user, admins );
+    // Strictly `true`: anything else a caller passes, a truthy string included, leaves the allowlist's answer standing.
+    const isAdmin = withheld !== true && isAdminIdentity( session.user, admins );
 
     // Authoritative in BOTH directions, not additive. This is the only place the `admin` role is ever granted, so it
     // has to be the place it is taken away: while it only added, an identity removed from the allowlist kept the role
