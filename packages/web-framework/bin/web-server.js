@@ -665,6 +665,33 @@ class TiWebServer extends ServiceConsumer {
     }
 
     /**
+     * Hook for the application to run a session **without** the `admin` role its identity would otherwise hold — for
+     * example a development aid that lets an administrator see the application as everyone else sees it. Without it
+     * an application cannot do that at all: the allowlist role is applied after {@link TiWebServer#augmentSession} at
+     * sign-in and after {@link TiWebServer#refreshSession} on every request, and is authoritative in both directions,
+     * so a role the application removed came straight back. The default withholds nothing.
+     * <br/>
+     * **It can only withhold.** Returning `true` removes the role from an allowlisted identity; for anyone else it
+     * changes nothing, because the allowlist stays the only thing that grants the role. Only a strict `true` counts.
+     * <br/>
+     * **Contract.** Asked at sign-in, on the session `augmentSession` returned, and again on every request after
+     * `refreshSession`, so returning `false` restores the role on the next request. It runs on the request path: keep
+     * it synchronous and free of I/O, and decide from the session — a request carries no state of its own that should
+     * outlive it. A hook that throws withholds nothing: the failure is logged and the allowlist's answer stands, so a
+     * broken hook can never lock an administrator out of the access that exists to repair the application.
+     *
+     * @method
+     * @virtual
+     * @param {TiSession} session
+     * @param {Object} [request] Optional Express request object.
+     * @returns {boolean} `true` to withhold the `admin` role from this session.
+     * @public
+     */
+    withholdsAdminRole( session, request ) {
+        return false;
+    }
+
+    /**
      * Used to authenticate a user via the specified auth method.
      *
      * @method

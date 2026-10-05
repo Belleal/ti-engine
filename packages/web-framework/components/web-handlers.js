@@ -551,7 +551,37 @@ module.exports.resourceProtectionHandler = ( instance ) => {
 };
 
 /**
- * Handler for server-side authentication.
+ * Reconciles the session's `admin` role against the allowlist, asking the application first whether it withholds the
+ * role from this session ({@link TiWebServer#withholdsAdminRole}). The one way both sign-in paths and the per-request
+ * refresh apply the role, so the hook cannot be honoured on one and missed on another.
+ * <br/>
+ * A hook that throws withholds nothing: the allowlist's answer stands. Withholding on a failure would lock an
+ * administrator out of the access that exists to repair the application, while not withholding only shows them a role
+ * their identity already holds. An instance without the hook, such as a test double, withholds nothing either.
+ *
+ * @method
+ * @param {TiWebServer} instance
+ * @param {TiSession} session
+ * @param {Object} [request]
+ * @returns {TiSession}
+ * @private
+ */
+let applyAdminRoleFor = ( instance, session, request ) => {
+    let withheld = false;
+    if ( session && session.user && typeof instance.withholdsAdminRole === "function" ) {
+        try {
+            withheld = instance.withholdsAdminRole( session, request ) === true;
+        } catch ( error ) {
+            // The stack alone, never the error itself: the logger prints an error's own properties, and an application's
+            // error can carry a secret there, as an HTTP client's carries its request's headers.
+            logger.log( `Could not ask whether the admin role is withheld from user '${ session.user.userID || session.user.employeeID }'; the allowlist decides.`, logger.logSeverity.ERROR, { stack: error?.stack } );
+        }
+    }
+    return authorization.applyAdminRole( session, instance.serviceConfig?.auth?.admins, withheld );
+};
+
+/**
+ *Handler for server-side authentication.
  *
  * @method
  * @param {TiWebServer} instance
@@ -571,7 +601,7 @@ module.exports.authenticationHandler = ( instance ) => {
                     session.user = user.asJSON();
                     session.language = resolveSessionLanguage( user, instance, readLanguageChoice( request, instance ) );
 
-                    return authorization.applyAdminRole( instance.augmentSession( session, request ), instance.serviceConfig?.auth?.admins );
+                    return applyAdminRoleFor( instance, instance.augmentSession( session, request ), request );
                 } );
             } ).then( ( redirectTo ) => {
                 response.redirect( exceptions.httpCode.C_303, convertUriToString( redirectTo ) );
@@ -703,7 +733,7 @@ module.exports.authorizedOAuth2CallbackHandler = ( instance, authMethod ) => {
 
                 delete session.oidc;
 
-                return authorization.applyAdminRole( instance.augmentSession( session, request ), instance.serviceConfig?.auth?.admins );
+                return applyAdminRoleFor( instance, instance.augmentSession( session, request ), request );
             } );
         } ).then( ( redirectTo ) => {
             response.redirect( exceptions.httpCode.C_303, convertUriToString( redirectTo ) );
@@ -1447,7 +1477,8 @@ module.exports.webAppHandler = ( instance ) => {
 /**
  * Re-derives the session's application-owned state on each request by calling {@link TiWebServer#refreshSession},
  * then re-applies the additive `admin` allowlist role — the same order sign-in uses, so a hook that replaces
- * `session.user.roles` cannot strand an allowlisted administrator.
+ * `session.user.roles` cannot strand an allowlisted administrator. The role is withheld when
+ * {@link TiWebServer#withholdsAdminRole} says so, which this asks again on every request.
  * <br/>
  * Mounted after the static handlers and before the application routes: a session-less request (a stylesheet, the
  * health probe, the login page) never reaches the hook, and every request that can consult roles has passed through
@@ -1475,7 +1506,7 @@ module.exports.sessionRefreshHandler = ( instance ) => {
             logger.log( `Failed to refresh the session for user '${ session.user.userID || session.user.employeeID }'; continuing without application roles.`, logger.logSeverity.ERROR, error );
             session.user.roles = [];
         }
-        authorization.applyAdminRole( session, instance.serviceConfig?.auth?.admins );
+        applyAdminRoleFor( instance, session, request );
         next();
     };
 };
