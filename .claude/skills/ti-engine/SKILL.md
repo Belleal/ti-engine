@@ -1084,7 +1084,7 @@ claude mcp add --header "Authorization: Bearer <token>" --transport http youtrac
 ```
 Token: YouTrack → Profile → Account Security → New token (scope: YouTrack).
 
-**MCP gotchas:** `Shipped` stores −1 day → send the intended date **+1**; tags must **pre-exist** (no create-tag tool); **no delete** via MCP (create/update only — verify before bulk-creating); `create_issue.parentIssue` auto-creates the `subtask of` link.
+**MCP gotchas:** `Shipped` stores −1 day → send the intended date **+1**; tags must **pre-exist** (no create-tag tool); **no delete** via MCP (create/update only — verify before bulk-creating); `create_issue.parentIssue` auto-creates the `subtask of` link. **`create_issue` without a `State` files the card as `Submitted`**, YouTrack's default for a card nobody has triaged, which no convention here uses, so always send the State: `Open` for a backlog card, `In Progress` for work that starts now. 23 backlog cards had sat in `Submitted` that way until 2026-10-06 (the default measured on CA-453, filed without a State on purpose).
 
 ---
 
