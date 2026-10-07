@@ -26,11 +26,19 @@ This document will contain the list of changes made to the framework. The format
     at it, and those made from inside it, which belong to the content it is about to replace. A POST is left to
     finish.
   - **`openScreen` does the same before it pushes its URL**, so nothing older can land after it, and HTMX no longer
-    queues it behind an earlier one.
+    queues it behind an earlier one. A second `openScreen` that failed while queued used to leave the first screen
+    showing under the second's URL, with an uncaught rejection; it now leaves for `/`, as a first one does.
+  - **`openScreen` leaves for `/` only when the newest screen fails.** HTMX rejects the promise of a request it aborted
+    as it does one that failed. So, found in review, the abort above would itself have reloaded the application
+    whenever a screen was replaced while on its way: by another screen, by the same one again, or by a sidebar entry.
+    `openScreen` now goes to `/` only while its request is still the newest aimed at `#ti-content`.
   <br/>
-  **Tests:** `ti-framework.newest-screen.test.js`, 6 tests on the real script. Each of 7 deliberate breakages fails
-  it. End to end, in competence with the two fragments held back by `page.route` (the Dashboard's by 1.5 s, My
-  Scores' by 3 s), the race failed every time with 1.50.0's script and passed with this one.
+  **Tests:** `ti-framework.newest-screen.test.js`, 8 tests on the real script, its HTMX stand-in sending and rejecting
+  as HTMX 2.0.11 does. Each of 12 deliberate breakages fails it. End to end, in competence with the two fragments held
+  back by `page.route` (the Dashboard's by 1.5 s, My Scores' by 3 s), the race failed every time with 1.50.0's script
+  and passed with this one. Five more races in competence, the older screen's answer held 3 s, cover the way back to
+  `/`: 1.50.0's script got two wrong, the first version of this change reloaded the application in three, and this
+  one gets all five right, twice, including a newest screen that fails at the network and so does leave for `/`.
 
 ## Version 1.50.0
 

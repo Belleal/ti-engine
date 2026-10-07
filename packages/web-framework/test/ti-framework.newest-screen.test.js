@@ -25,6 +25,10 @@
  * - of two sidebar entries clicked in a row, the slower answer won;
  * - HTMX queued a second `openScreen` behind the first, which then started under the second's URL.
  * <br/>
+ * Aborting the older request has a cost of its own: HTMX rejects an aborted request's promise as it does a failed
+ * one's, and `openScreen` leaves for the start page when its promise is rejected. So the older screen's abort reloaded
+ * the whole application, which only the newest screen's own failure may do.
+ * <br/>
  * The real script runs in the sandbox. An HTMX request is a Node `EventTarget` standing in for its XHR, and every abort,
  * URL push and request goes into one log, so the order between them is what is asserted.
  */
@@ -35,10 +39,10 @@ const assert = require( "node:assert/strict" );
 const { loadTiFramework } = require( "./helpers/ti-framework-sandbox.js" );
 
 /**
- * The shell with a `#ti-content`, a stubbed HTMX and history, and one log of what reaches them.
+ * The shell with a `#ti-content`, a stubbed HTMX, history and location, and one log of what reaches them.
  *
  * @method
- * @returns {{tiApplication: Object, content: Object, element: function( string, boolean ): Object, send: function( Object, Object, string ): EventTarget, log: Array<Array<string>>}}
+ * @returns {{tiApplication: Object, content: Object, body: Object, element: function( string, boolean ): Object, send: function( Object, Object, string ): EventTarget, fail: function( Object ): void, log: Array<Array<string>>}}
  * @private
  */
 function shell() {
@@ -47,24 +51,55 @@ function shell() {
     const inside = new Set();
     const latest = new Map();
     const content = { id: "ti-content", name: "#ti-content", contains: ( element ) => inside.has( element ) };
+    // `openScreen`'s request names no source, so HTMX makes it from the document's body.
+    const body = { name: "body" };
+    const send = ( element, target, verb ) => {
+        const xhr = new EventTarget();
+        latest.set( element, xhr );
+        const detail = { elt: element, xhr: xhr, target: target, requestConfig: { verb: verb } };
+        ( documentListeners.get( "htmx:beforeSend" ) || [] ).forEach( ( listener ) => listener( { detail: detail } ) );
+        return xhr;
+    };
+    // As a browser ends an XHR that did not load: `abort` or `error`, then `loadend`.
+    const end = ( element, how ) => {
+        if ( latest.has( element ) ) {
+            latest.get( element ).dispatchEvent( new Event( how ) );
+            latest.get( element ).dispatchEvent( new Event( "loadend" ) );
+        }
+    };
     sandbox.document.getElementById = ( id ) => ( id === "ti-content" ? content : null );
     sandbox.htmx = {
-        // As in a browser, an aborted request ends: its XHR fires `loadend`.
         trigger: ( element, name ) => {
             log.push( [ name, element.name ] );
-            if ( name === "htmx:abort" && latest.has( element ) ) {
-                latest.get( element ).dispatchEvent( new Event( "loadend" ) );
+            if ( name === "htmx:abort" ) {
+                end( element, "abort" );
             }
         },
+        // As HTMX 2.0.11 does: the request is sent before `ajax` returns, and its promise is rejected, with no reason,
+        // when it is aborted as when it fails.
         ajax: ( verb, url ) => {
             log.push( [ "ajax", url ] );
-            return Promise.resolve();
+            const xhr = send( body, content, verb );
+            return new Promise( ( resolve, reject ) => {
+                xhr.addEventListener( "abort", () => reject() );
+                xhr.addEventListener( "error", () => reject() );
+                xhr.addEventListener( "load", () => resolve() );
+            } );
         }
     };
     sandbox.history = { pushState: ( state, title, url ) => log.push( [ "pushState", url ] ) };
+    // Leaving the shell goes into the log too, so that a test can tell it from staying.
+    sandbox.location = {
+        pathname: "/app/dashboard",
+        search: "",
+        set href( url ) {
+            log.push( [ "location", url ] );
+        }
+    };
     return {
         tiApplication: stores.tiApplication,
         content: content,
+        body: body,
         element: ( name, isInside ) => {
             const element = { name: name };
             if ( isInside ) {
@@ -72,13 +107,8 @@ function shell() {
             }
             return element;
         },
-        send: ( element, target, verb ) => {
-            const xhr = new EventTarget();
-            latest.set( element, xhr );
-            const detail = { elt: element, xhr: xhr, target: target, requestConfig: { verb: verb } };
-            ( documentListeners.get( "htmx:beforeSend" ) || [] ).forEach( ( listener ) => listener( { detail: detail } ) );
-            return xhr;
-        },
+        send: send,
+        fail: ( element ) => end( element, "error" ),
         log: log
     };
 }
@@ -92,6 +122,25 @@ function shell() {
  * @private
  */
 const aborted = ( log ) => log.filter( ( [ name ] ) => name === "htmx:abort" ).map( ( [ , element ] ) => element );
+
+/**
+ * The addresses a log records the shell leaving for, in order.
+ *
+ * @method
+ * @param {Array<Array<string>>} log
+ * @returns {Array<string>}
+ * @private
+ */
+const departures = ( log ) => log.filter( ( [ name ] ) => name === "location" ).map( ( [ , url ] ) => url );
+
+/**
+ * Waits until every promise settled so far has run its handlers.
+ *
+ * @method
+ * @returns {Promise<void>}
+ * @private
+ */
+const settled = () => new Promise( ( resolve ) => setImmediate( resolve ) );
 
 describe( "only the newest screen lands in #ti-content (CA-463)", () => {
 
@@ -111,12 +160,44 @@ describe( "only the newest screen lands in #ti-content (CA-463)", () => {
 
     it( "openScreen aborts the previous openScreen's request, which HTMX would otherwise queue the new one behind", () => {
         const page = shell();
-        const body = page.element( "body", false );
-        page.send( body, page.content, "get" );
+        page.tiApplication.openScreen( "a" );
 
         page.tiApplication.openScreen( "b" );
 
-        assert.deepEqual( page.log.slice( 0, 2 ), [ [ "htmx:abort", "body" ], [ "pushState", "/app/b" ] ] );
+        assert.deepEqual( page.log, [
+            [ "pushState", "/app/a" ],
+            [ "ajax", "/app/a" ],
+            [ "htmx:abort", "body" ],
+            [ "pushState", "/app/b" ],
+            [ "ajax", "/app/b" ]
+        ] );
+    } );
+
+    it( "a screen aborted for a newer one does not send the user to the start page", async () => {
+        const page = shell();
+        page.tiApplication.openScreen( "a" );
+        page.tiApplication.openScreen( "a" );
+        page.tiApplication.openScreen( "b" );
+        page.send( page.element( "sidebar entry", false ), page.content, "get" );
+        await settled();
+
+        assert.deepEqual( aborted( page.log ), [ "body", "body", "body" ],
+            "the same screen opened again, another screen, and a sidebar entry each aborted the screen before them" );
+        assert.deepEqual( departures( page.log ), [], "and the user stayed, on the sidebar entry's screen" );
+    } );
+
+    it( "the newest screen's own failure still sends the user to the start page, once", async () => {
+        const page = shell();
+        page.tiApplication.openScreen( "a" );
+        page.tiApplication.openScreen( "b" );
+        const topbar = page.element( "topbar", false );
+        page.send( topbar, topbar, "get" );
+
+        page.fail( page.body );
+        await settled();
+
+        assert.deepEqual( departures( page.log ), [ "/" ],
+            "for b, which failed: not for a, which b aborted, and a request landing elsewhere is no newer screen" );
     } );
 
     it( "a request aimed at #ti-content aborts every other GET still on its way there, and spares itself", () => {

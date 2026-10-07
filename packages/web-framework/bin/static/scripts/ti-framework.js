@@ -1412,8 +1412,15 @@ const configureApplication = () => {
                 window.history.pushState( null, "", screenUrl );
                 this.screenTitleOverride = "";
                 this.currentScreen = basePath;
-                window.htmx.ajax( "get", screenUrl, { target: "#ti-content", swap: "innerHTML" } ).catch( () => {
-                    window.location.href = "/";
+                const answer = window.htmx.ajax( "get", screenUrl, { target: "#ti-content", swap: "innerHTML" } );
+                // HTMX sends the request before `ajax` returns, so the newest request is now this screen's own.
+                const request = newestContentRequest;
+                answer.catch( () => {
+                    // HTMX rejects a request it aborted as it does one that failed, and a newer screen aborts this
+                    // one's (CA-463). Leaving for the start page then would throw away the screen opened since.
+                    if ( newestContentRequest === request ) {
+                        window.location.href = "/";
+                    }
                 } );
             }
         },
@@ -1821,6 +1828,16 @@ document.addEventListener( "htmx:beforeSend", ( event ) => {
 const contentRequests = new Map();
 
 /**
+ * The newest request aimed at `#ti-content`, which every older one still on its way there was aborted for (CA-463). A
+ * screen whose request fails once it is no longer the newest has been replaced, not lost: HTMX reports the abort as it
+ * does a failure.
+ *
+ * @type {XMLHttpRequest|null}
+ * @private
+ */
+let newestContentRequest = null;
+
+/**
  * Aborts every GET still in flight whose answer would land in `#ti-content`, other than the newest screen's: those aimed
  * at it, and those made from inside it, which belong to the content it is about to replace (CA-463). A POST is left to
  * finish.
@@ -1844,7 +1861,7 @@ const supersedeContentRequests = ( requester ) => {
 
 /**
  * Lets only the newest screen land: a request aimed at `#ti-content` supersedes every other one still on its way there
- * before it is sent, and every request is recorded until its XHR ends (CA-463).
+ * before it is sent, and becomes the newest; every request is recorded until its XHR ends (CA-463).
  */
 document.addEventListener( "htmx:beforeSend", ( event ) => {
     const detail = event.detail || {};
@@ -1855,6 +1872,7 @@ document.addEventListener( "htmx:beforeSend", ( event ) => {
     const content = document.getElementById( "ti-content" );
     if ( content && detail.target === content ) {
         supersedeContentRequests( detail.elt );
+        newestContentRequest = xhr;
     }
     const verb = String( ( detail.requestConfig && detail.requestConfig.verb ) || "" ).toLowerCase();
     contentRequests.set( detail.elt, { xhr: xhr, target: detail.target, verb: verb } );
