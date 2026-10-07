@@ -2,6 +2,36 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.50.1
+
+* fix (shell): **only the newest screen lands in `#ti-content`** (CA-463).
+  <br/>
+  **What was wrong.** HTMX keeps no order between requests made by different elements, and an answer lands whenever it
+  arrives. Measured in Chromium on HTMX 2.0.11:
+  - **The landing Dashboard's answer overwrote the URL of a screen opened before it arrived.** The placeholder in
+    `frame-application.html` pushes `/app/dashboard` with its answer. A screen opened through `openScreen` in the
+    meantime started under that URL, so a screen that reads its mode from the URL loaded the wrong one: competence's My
+    Scores showed the self-evaluation form. Even when the screen landed first, the late answer left `/app/dashboard` in
+    the address bar.
+  - **Of two sidebar entries clicked in a row, the slower answer won.**
+  - **HTMX queued a second `openScreen` behind the first**, and the first then started under the second's URL.
+  <br/>
+  **Why it survived.** It needs a slow first answer and a quick second action. Competence's capture tool for its
+  step-by-step guides opens a screen the moment the sign-in finishes, and met it in 2 of 13 runs. The failure was
+  pinned down only once that tool named the shot that failed and saved the page as it was.
+  <br/>
+  **What changed.**
+  - **Every HTMX request is recorded** from `htmx:beforeSend` until its XHR's `loadend`, as the busy state counts them.
+  - **A request aimed at `#ti-content` aborts every other GET still on its way there**, before it is sent: those aimed
+    at it, and those made from inside it, which belong to the content it is about to replace. A POST is left to
+    finish.
+  - **`openScreen` does the same before it pushes its URL**, so nothing older can land after it, and HTMX no longer
+    queues it behind an earlier one.
+  <br/>
+  **Tests:** `ti-framework.newest-screen.test.js`, 6 tests on the real script. Each of 7 deliberate breakages fails
+  it. End to end, in competence with the two fragments held back by `page.route` (the Dashboard's by 1.5 s, My
+  Scores' by 3 s), the race failed every time with 1.50.0's script and passed with this one.
+
 ## Version 1.50.0
 
 * feat (authorization): **an application can run a session without the `admin` role its identity holds** (CA-433).
