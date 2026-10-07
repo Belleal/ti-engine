@@ -208,6 +208,24 @@ The status line is `interface.busy-indicator.status`. As with the login screen, 
 key in its own catalogue gets the English written in the fragment. Under `prefers-reduced-motion` the hourglass appears
 but does not turn.
 
+## Only the newest screen lands
+
+HTMX keeps no order between requests made by different elements, so the shell keeps it for `#ti-content` (1.50.1):
+
+- **A request aimed at `#ti-content` aborts every other GET still on its way there** before it is sent. That covers the
+  requests aimed at it, and those made from inside it wherever they land, which belong to the content it replaces. Of
+  two sidebar entries clicked in a row, the second wins, however slowly the first answers.
+- **`openScreen` does the same before it pushes its URL.** A screen opened before the landing Dashboard has arrived is
+  not overwritten by the Dashboard's answer or by the URL that answer pushes. A second `openScreen` no longer waits
+  behind the first.
+- **Only the newest screen's failure leaves for the start page.** HTMX rejects the promise of a request it aborted as
+  it does one that failed, so `openScreen` goes to `/` only while its request is still the newest aimed at
+  `#ti-content`. A screen replaced by a newer one has not failed.
+- **A POST is left to finish**, and so is a GET that is neither aimed at `#ti-content` nor made from inside it.
+
+A screen can therefore read its URL as it starts, which `openScreen` pushes before the swap for that reason, and get
+its own.
+
 ## On a narrow screen
 
 Below 900px the shell is one column, and the sidebar is a drawer. A menu button at the start of the topbar slides it

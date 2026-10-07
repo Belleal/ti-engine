@@ -1403,13 +1403,24 @@ const configureApplication = () => {
                 window.location.href = "/";
             } else {
                 const screenUrl = "/app/" + basePath + query;
+                // Before the URL, so that nothing still on its way can land after it (CA-463). A screen opened before
+                // the landing Dashboard arrived started under `/app/dashboard`, which that fragment pushes; and HTMX
+                // queues a second `openScreen` behind the first, which then started under the second's URL.
+                supersedeContentRequests( null );
                 // Push the URL before the HTMX swap so that any Alpine component initialized
                 // during the swap (via MutationObserver microtask) already sees the correct URL.
                 window.history.pushState( null, "", screenUrl );
                 this.screenTitleOverride = "";
                 this.currentScreen = basePath;
-                window.htmx.ajax( "get", screenUrl, { target: "#ti-content", swap: "innerHTML" } ).catch( () => {
-                    window.location.href = "/";
+                const answer = window.htmx.ajax( "get", screenUrl, { target: "#ti-content", swap: "innerHTML" } );
+                // HTMX sends the request before `ajax` returns, so the newest request is now this screen's own.
+                const request = newestContentRequest;
+                answer.catch( () => {
+                    // HTMX rejects a request it aborted as it does one that failed, and a newer screen aborts this
+                    // one's (CA-463). Leaving for the start page then would throw away the screen opened since.
+                    if ( newestContentRequest === request ) {
+                        window.location.href = "/";
+                    }
                 } );
             }
         },
@@ -1795,6 +1806,83 @@ document.addEventListener( "htmx:beforeSend", ( event ) => {
     }
     tiApplication._beginRequest();
     xhr.addEventListener( "loadend", () => tiApplication._endRequest(), { once: true } );
+} );
+
+/**
+ * The HTMX requests in flight, by the element that made each one: its request, where its answer lands, and its verb
+ * (CA-463).
+ * <br/>
+ * HTMX keeps no order between requests made by different elements, and an answer lands whenever it arrives. So a
+ * screen's answer still on its way when a newer one was opened used to land after it, measured in Chromium on HTMX
+ * 2.0.11:
+ * - the landing placeholder's `/app/dashboard` pushed its URL over the screen opened before it arrived. That screen
+ *   started under the Dashboard's URL, and the address bar kept it even when the screen had landed first;
+ * - of two sidebar entries clicked in a row, the slower answer won.
+ * <br/>
+ * An entry ends on its XHR's own `loadend`, as the busy state's does, and for the same reason: `htmx:afterRequest`
+ * stops reaching the document once the element that made the request has been replaced.
+ *
+ * @type {Map<Element, {xhr: XMLHttpRequest, target: Element, verb: string}>}
+ * @private
+ */
+const contentRequests = new Map();
+
+/**
+ * The newest request aimed at `#ti-content`, which every older one still on its way there was aborted for (CA-463). A
+ * screen whose request fails once it is no longer the newest has been replaced, not lost: HTMX reports the abort as it
+ * does a failure.
+ *
+ * @type {XMLHttpRequest|null}
+ * @private
+ */
+let newestContentRequest = null;
+
+/**
+ * Aborts every GET still in flight whose answer would land in `#ti-content`, other than the newest screen's: those aimed
+ * at it, and those made from inside it, which belong to the content it is about to replace (CA-463). A POST is left to
+ * finish.
+ *
+ * @method
+ * @param {Element|null} requester - The element making the newest request, which is spared; `null` when none is made
+ *     yet.
+ * @private
+ */
+const supersedeContentRequests = ( requester ) => {
+    const content = document.getElementById( "ti-content" );
+    if ( !content || !window.htmx ) {
+        return;
+    }
+    for ( const [ element, request ] of contentRequests ) {
+        if ( element !== requester && request.verb === "get" && ( request.target === content || content.contains( element ) ) ) {
+            window.htmx.trigger( element, "htmx:abort" );
+        }
+    }
+};
+
+/**
+ * Lets only the newest screen land: a request aimed at `#ti-content` supersedes every other one still on its way there
+ * before it is sent, and becomes the newest; every request is recorded until its XHR ends (CA-463).
+ */
+document.addEventListener( "htmx:beforeSend", ( event ) => {
+    const detail = event.detail || {};
+    const xhr = detail.xhr;
+    if ( !xhr || typeof xhr.addEventListener !== "function" || !detail.elt ) {
+        return;
+    }
+    const content = document.getElementById( "ti-content" );
+    if ( content && detail.target === content ) {
+        supersedeContentRequests( detail.elt );
+        newestContentRequest = xhr;
+    }
+    const verb = String( ( detail.requestConfig && detail.requestConfig.verb ) || "" ).toLowerCase();
+    contentRequests.set( detail.elt, { xhr: xhr, target: detail.target, verb: verb } );
+    xhr.addEventListener( "loadend", () => {
+        // A newer request from the same element keeps its entry.
+        const request = contentRequests.get( detail.elt );
+        if ( request && request.xhr === xhr ) {
+            contentRequests.delete( detail.elt );
+        }
+    }, { once: true } );
 } );
 
 /**
