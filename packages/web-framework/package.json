@@ -1,6 +1,6 @@
 {
   "name": "@ti-engine/web-framework",
-  "version": "1.50.1",
+  "version": "1.50.2",
   "description": "A web-framework based on the ti-engine. It provides a customizable ready-to-use web-server microservice and a set of tools for creating web applications. NOTICE: This is still a work in progress and the full architecture, design, and functionality are not available!",
   "keywords": [
     "ti-engine",
@@ -121,15 +121,15 @@
     "#web-server-config": "./bin/web-server.json"
   },
   "dependencies": {
-    "@alpinejs/csp": "3.17.4",
-    "@ti-engine/core": ">=1.19.0",
+    "@ti-engine/core": "*",
+    "@alpinejs/csp": "^3.17.4",
     "@types/express": "^5.0.6",
     "@types/express-session": "^1.19.0",
-    "@types/node": "^26.6.2",
+    "@types/node": "^26.6.5",
     "ajv": "^8.20.0",
     "compression": "^1.8.2",
     "cookie-parser": "^1.4.7",
-    "express": "^5.2.1",
+    "express": "^5.3.0",
     "express-session": "^1.19.0",
     "helmet": "^8.3.0",
     "htmx.org": "2.0.11",

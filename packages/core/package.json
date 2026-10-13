@@ -1,6 +1,6 @@
 {
   "name": "@ti-engine/core",
-  "version": "1.19.0",
+  "version": "1.19.1",
   "description": "Microservice framework for Node.js: a Redis-backed message exchange with end-to-end call tracing, retries and tamper-evident message envelopes.",
   "keywords": [
     "microservices",
@@ -188,7 +188,7 @@
     }
   },
   "dependencies": {
-    "@types/node": "^26.6.2",
+    "@types/node": "^26.6.5",
     "ioredis": "^6.0.0",
     "lodash": "^4.18.1",
     "node-schedule": "^2.1.1"

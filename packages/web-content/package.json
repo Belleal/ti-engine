@@ -1,6 +1,6 @@
 {
   "name": "@ti-engine/web-content",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "A content-publishing engine for ti-engine sites: path-index routing, deny-by-default content visibility, SEO document rendering, feeds, and email capture, layered on @ti-engine/web-framework. NOTICE: This is a work in progress and the full architecture, design, and functionality are not yet available!",
   "keywords": [
     "cms",
@@ -219,9 +219,9 @@
     "@ti-engine/core": "*",
     "@ti-engine/web-framework": "*",
     "ajv": "^8.20.0",
-    "express": "^5.2.1",
+    "express": "^5.3.0",
     "gray-matter": "^4.0.3",
-    "markdown-it": "^15.0.0",
+    "markdown-it": "^15.0.2",
     "markdown-it-attrs": "^5.0.1",
     "markdown-it-bracketed-spans": "^1.0.3",
     "markdown-it-container": "^4.0.0",
