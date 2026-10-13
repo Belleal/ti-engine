@@ -3617,3 +3617,491 @@ html.ti-busy .ti-busy-indicator-glyph {
 .ti-chart-line-dot.tone-info.provisional {
     stroke: var(--c-series-2);
 }
+
+/* ============================================================
+   Shared components (1.51.0, CA-479)
+   Tones, stacks, meter, stat, card rows, steps, legend, dot,
+   tag variants, segmented control, filter chip, danger buttons,
+   drawer, outlined status pill, banner, kbd, sticky action bar,
+   compact empty state, sidebar counter.
+   Theme-agnostic: they read framework tokens only. They come
+   last in this file, so they extend the rules above for
+   .ti-btn, .ti-tag, .ti-status-pill and .ti-empty-state.
+   ============================================================ */
+
+:root {
+    /* Font roles the components read. An application sets its own
+       families over these. */
+    --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
+    --font-display: var(--font-sans);
+    --font-brand: var(--font-display);
+}
+
+/* ---------- Tones ----------
+   One pair of variables (--tone, --tone-soft) drives meters, legend
+   swatches, dots and icon tiles. Put a tone class on the component. */
+.tone-accent  { --tone: var(--accent);  --tone-soft: var(--accent-soft); }
+.tone-success { --tone: var(--success); --tone-soft: var(--success-soft); }
+.tone-warn    { --tone: var(--warn);    --tone-soft: var(--warn-soft); }
+.tone-danger  { --tone: var(--danger);  --tone-soft: var(--danger-soft); }
+.tone-info    { --tone: var(--info);    --tone-soft: var(--info-soft); }
+.tone-muted   { --tone: var(--muted);   --tone-soft: var(--muted-soft); }
+.tone-grade-s { --tone: var(--grade-S); --tone-soft: var(--grade-S-soft); }
+.tone-grade-r { --tone: var(--grade-R); --tone-soft: var(--grade-R-soft); }
+.tone-grade-u { --tone: var(--grade-U); --tone-soft: var(--grade-U-soft); }
+.tone-grade-n { --tone: var(--grade-N); --tone-soft: var(--grade-N-soft); }
+
+/* ---------- Layout stacks ----------
+   A flex column with one of five gaps. */
+.ti-stack-0, .ti-stack-1, .ti-stack-2, .ti-stack-3, .ti-stack-4 {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+.ti-stack-0 { gap: 2px; }
+.ti-stack-1 { gap: var(--s-1); }
+.ti-stack-2 { gap: var(--s-2); }
+.ti-stack-3 { gap: var(--s-3); }
+.ti-stack-4 { gap: var(--s-4); }
+.ti-row { display: flex; align-items: center; gap: var(--s-2); min-width: 0; }
+.ti-row.wrap { flex-wrap: wrap; }
+.ti-row.top { align-items: flex-start; }
+.ti-row-between { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); min-width: 0; }
+
+/* ---------- Meter (progress bar) ----------
+   <div class="ti-meter tone-accent"><span class="ti-meter-fill"></span></div>
+   Width: set --value (e.g. 40%) or style.width on the fill. */
+.ti-meter {
+    --ti-meter-h: 4px;
+    position: relative;
+    display: block;
+    height: var(--ti-meter-h);
+    border-radius: var(--r-pill);
+    background: var(--bg-sunken);
+    overflow: hidden;
+}
+.ti-meter.sm { --ti-meter-h: 3px; }
+.ti-meter.lg { --ti-meter-h: 6px; }
+.ti-meter-fill {
+    display: block;
+    height: 100%;
+    width: var(--value, 0%);
+    border-radius: inherit;
+    background: var(--tone, var(--accent));
+    transition: width var(--dur-slow) var(--ease-out), background-color var(--dur-base);
+}
+/* Segmented: shares of one whole (weights, coverage). .on marks the
+   highlighted share; .ti-share-N sets its relative size. */
+.ti-meter.segmented {
+    display: flex;
+    gap: 3px;
+    border-radius: 0;
+    background: transparent;
+    overflow: visible;
+}
+.ti-meter.segmented > .ti-meter-fill {
+    width: auto;
+    flex: var(--share, 1) 1 0;
+    border-radius: 0;
+    background: color-mix(in oklab, var(--tone, var(--accent)) 22%, transparent);
+}
+.ti-meter.segmented > .ti-meter-fill.on { background: var(--tone, var(--accent)); }
+.ti-meter-scale {
+    display: flex;
+    gap: 3px;
+    margin-top: 6px;
+    font-family: var(--font-mono);
+    font-size: var(--fs-xs);
+    color: var(--fg-secondary);
+    white-space: nowrap;
+}
+.ti-meter-scale > * { flex: var(--share, 1) 1 0; min-width: 0; }
+.ti-meter-scale > .on { color: var(--tone, var(--accent)); font-weight: 600; }
+/* Stacked: each label over its value, for a scale whose labels outgrow their share on one line. A long word with
+   "20%" is wider than a fifth of a 300px meter, so the one-line form overlapped its neighbour (CA-334). */
+.ti-meter-scale.stacked > * { display: flex; flex-direction: column; gap: 1px; white-space: normal; }
+.ti-meter-scale-label { font-family: var(--font-sans); overflow-wrap: anywhere; }
+.ti-meter-scale-value { font-family: var(--font-mono); }
+.ti-share-1 { --share: 1; }  .ti-share-2 { --share: 2; }  .ti-share-3 { --share: 3; }
+.ti-share-4 { --share: 4; }  .ti-share-5 { --share: 5; }  .ti-share-6 { --share: 6; }
+.ti-share-7 { --share: 7; }  .ti-share-8 { --share: 8; }  .ti-share-9 { --share: 9; }
+.ti-share-10 { --share: 10; }
+
+/* ---------- Stat ----------
+   Label / figure / sub-line. */
+.ti-stat { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.ti-stat-label {
+    font-size: var(--fs-xxs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--fg-tertiary);
+}
+.ti-stat-value {
+    font-family: var(--font-display);
+    font-size: 21px;
+    font-weight: 400;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    color: var(--fg-primary);
+    font-variant-numeric: tabular-nums;
+}
+.ti-stat-value small, .ti-stat-value.empty { font-size: inherit; color: var(--fg-tertiary); }
+.ti-stat-sub { font-size: var(--fs-sm); line-height: 1.45; color: var(--fg-secondary); }
+.ti-stat-sub strong { font-family: var(--font-mono); font-weight: 600; color: var(--accent); }
+.ti-stat.lg .ti-stat-value { font-size: var(--fs-2xl); }
+
+/* ---------- Card rows and icon tile ----------
+   Several facts, such as a deadline and a score, as rows of one card. */
+.ti-card-rows { display: flex; flex-direction: column; }
+.ti-card-row { display: flex; align-items: flex-start; gap: 14px; padding: 18px 20px; }
+.ti-card-rows > .ti-card-row + .ti-card-row { border-top: 1px solid var(--border-soft); }
+.ti-card-icon {
+    width: 40px;
+    height: 40px;
+    flex: none;
+    display: grid;
+    place-items: center;
+    border-radius: var(--r-sm);
+    background: var(--tone-soft, var(--bg-sunken));
+    color: var(--tone, var(--fg-secondary));
+}
+
+/* ---------- Steps (status track) ----------
+   <div class="ti-steps"><span class="ti-step done">Open</span>
+   <span class="ti-step-line done"></span><span class="ti-step current">In Review</span>… */
+.ti-steps { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.ti-step {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: var(--fs-sm);
+    font-weight: 500;
+    color: var(--fg-tertiary);
+    white-space: nowrap;
+}
+.ti-step::before {
+    content: "";
+    width: 14px;
+    height: 14px;
+    flex: none;
+    box-sizing: border-box;
+    border-radius: 50%;
+    border: 1.5px solid currentColor;
+    transition: border var(--dur-base), background-color var(--dur-base);
+}
+.ti-step.done { color: var(--fg-secondary); }
+.ti-step.done::before { background: var(--accent); border-color: var(--accent); }
+.ti-step.current { color: var(--fg-primary); font-weight: 600; }
+.ti-step.current::before { border: 4px solid var(--accent); background: var(--bg-surface); }
+.ti-step-line { flex: 1 1 auto; min-width: 16px; height: 1px; background: var(--border); }
+.ti-step-line.done { background: var(--accent); }
+
+/* ---------- Legend ----------
+   One swatch and label per series, for a chart, a calendar or a scale. */
+.ti-legend {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-2) var(--s-4);
+    font-size: var(--fs-sm);
+    color: var(--fg-secondary);
+}
+.ti-legend.stacked { flex-direction: column; align-items: flex-start; gap: var(--s-2); }
+.ti-legend-item { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.ti-legend-swatch {
+    width: 10px;
+    height: 10px;
+    flex: none;
+    box-sizing: border-box;
+    border-radius: 2px;
+    background: var(--tone, var(--fg-tertiary));
+}
+.ti-legend-swatch.round { border-radius: 50%; }
+.ti-legend-swatch.dashed { background: transparent; border: 1px dashed var(--tone, var(--fg-tertiary)); }
+
+/* ---------- Dot ---------- */
+.ti-dot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    flex: none;
+    border-radius: 50%;
+    background: var(--tone, var(--fg-tertiary));
+}
+.ti-dot.square { border-radius: 1px; }
+.ti-dot.hollow { background: transparent; box-shadow: inset 0 0 0 1.5px var(--fg-tertiary); }
+/* Keeps its place in a row that has nothing to mark, so the rows beside it stay aligned. */
+.ti-dot.blank { visibility: hidden; }
+
+/* ---------- Tag variants ---------- */
+.ti-tag.accent  { background: var(--accent-soft);  color: var(--accent); }
+.ti-tag.success { background: var(--success-soft); color: var(--success); }
+.ti-tag.info    { background: var(--info-soft);    color: var(--info); }
+.ti-tag.warn    { background: var(--warn-soft);    color: var(--warn); }
+.ti-tag.danger  { background: var(--danger-soft);  color: var(--danger); }
+.ti-tag.outline { background: transparent; color: var(--fg-secondary); box-shadow: inset 0 0 0 1px var(--border-strong); }
+
+/* ---------- Segmented control ----------
+   One choice among a few, each with an optional count: a filter over one list. The chosen segment is filled in the
+   accent. Each segment is a button carrying aria-pressed, which draws the choice and announces it; the group carries
+   role="group" and an accessible name. Borders collapse, so the chosen segment's accent edge shows on every side.
+   <div class="ti-segmented" role="group" aria-label="Status">
+     <button type="button" class="ti-segmented-item" aria-pressed="true">All <span class="ti-segmented-count">7</span></button>
+   </div> */
+.ti-segmented { display: inline-flex; flex: none; }
+.ti-segmented-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    height: 32px;
+    padding: 0 12px;
+    margin-left: -1px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--fg-secondary);
+    font-family: inherit;
+    font-size: var(--fs-sm);
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+}
+/* Of type, not child: an Alpine x-for's <template> is the group's first child, so :first-child never matched a button. */
+.ti-segmented-item:first-of-type { margin-left: 0; border-radius: var(--ti-button-radius) 0 0 var(--ti-button-radius); }
+.ti-segmented-item:last-of-type { border-radius: 0 var(--ti-button-radius) var(--ti-button-radius) 0; }
+.ti-segmented-item:hover { background: var(--bg-tint); color: var(--fg-primary); }
+.ti-segmented-item[aria-pressed="true"] {
+    z-index: 1;
+    border-color: var(--accent);
+    background: var(--accent);
+    color: var(--fg-on-accent);
+    font-weight: 600;
+}
+.ti-segmented-item:focus-visible { z-index: 2; outline: none; box-shadow: var(--shadow-focus); }
+.ti-segmented-count { font-family: var(--font-mono); font-size: var(--fs-xs); opacity: 0.8; }
+
+/* ---------- Filter chip ----------
+   A toggle that narrows a list to one value, such as a cycle. Chosen: an accent hairline on the accent's tint. A button
+   carrying aria-pressed; .mono for an ID. */
+.ti-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 32px;
+    padding: 0 11px;
+    border: 1px solid var(--border);
+    border-radius: var(--ti-button-radius);
+    background: transparent;
+    color: var(--fg-secondary);
+    font-family: inherit;
+    font-size: var(--fs-sm);
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+}
+.ti-chip.mono { font-family: var(--font-mono); }
+.ti-chip:hover { border-color: var(--border-strong); color: var(--fg-primary); }
+.ti-chip[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.ti-chip:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+
+/* ---------- Danger buttons ----------
+   A destructive action beside a row's main one, as text: no fill and no border, its tint on hover. The framework's
+   .danger is outlined and, written after .ghost, wins over it at equal specificity, so the pair needs its own rule.
+   And the confirmation that carries one out, filled, as the last step of its dialog. */
+.ti-btn.ghost.danger { border-color: transparent; color: var(--danger); }
+.ti-btn.ghost.danger:hover { border-color: transparent; background: var(--danger-soft); color: var(--danger); }
+.ti-btn.danger.solid { border-color: var(--danger); background: var(--danger); color: var(--fg-on-accent); }
+.ti-btn.danger.solid:hover {
+    border-color: color-mix(in oklab, var(--danger) 86%, var(--fg-primary));
+    background: color-mix(in oklab, var(--danger) 86%, var(--fg-primary));
+}
+
+/* ---------- Drawer ----------
+   A panel from the right edge for a task on one row, such as booking it or writing it up. The scrim behind it closes it,
+   as Escape does; it sits where a modal does, above the page. A head, a body that scrolls, and a foot for its actions.
+   <div class="ti-drawer-scrim" @click.self="close()" @keydown.escape.window="close()">
+     <aside class="ti-drawer" role="dialog" aria-modal="true" aria-labelledby="…">
+       <header class="ti-drawer-head">…</header><div class="ti-drawer-body">…</div><footer class="ti-drawer-foot">…</footer>
+     </aside>
+   </div> */
+.ti-drawer-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    display: flex;
+    justify-content: flex-end;
+    background: var(--bg-overlay);
+}
+/* Its own size and colour: the framework's body sets neither, so a label left unclassed inside fell to the user
+   agent's 16px black (measured on a switch's label, CA-382). */
+.ti-drawer {
+    display: flex;
+    flex-direction: column;
+    width: min(440px, 100vw);
+    height: 100%;
+    border-left: 1px solid var(--border-strong);
+    background: var(--bg-app);
+    color: var(--fg-primary);
+    font-size: var(--fs-base);
+}
+/* Wider, for a panel whose fields hold sentences rather than choices: a list of goals scrolled out of
+   view in a text field 172px wide at 440px (CA-437). Never wider than the window, as the drawer is not. */
+.ti-drawer.wide {
+    width: min(600px, 100vw);
+}
+.ti-drawer-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid var(--border);
+}
+.ti-drawer-head-text { flex: 1 1 auto; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.ti-drawer-eyebrow {
+    font-size: var(--fs-xxs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--fg-tertiary);
+}
+.ti-drawer-title { margin: 0; font-family: var(--font-display); font-size: 23px; font-weight: 400; letter-spacing: -0.01em; }
+.ti-drawer-sub { font-size: 12.5px; color: var(--fg-secondary); }
+.ti-drawer-body {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    padding: 18px 24px;
+    overflow: auto;
+    /* A scroller, so it ends its own bounce in Edge as every scroller here does (CA-354). */
+    overscroll-behavior: none;
+}
+.ti-drawer-foot {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 24px;
+    border-top: 1px solid var(--border);
+}
+
+/* ---------- Status pill, outline ----------
+   A hairline and primary text, with the state on the dot alone, for a pill that sits on an identity card rather than
+   in a list. A tone class on the pill colours the dot: <span class="ti-status-pill outline tone-accent">. */
+.ti-status-pill.outline {
+    background: transparent;
+    color: var(--fg-primary);
+    box-shadow: inset 0 0 0 1px var(--border);
+}
+.ti-status-pill.outline .dot {
+    width: 7px;
+    height: 7px;
+    background: var(--tone, var(--fg-tertiary));
+    transition: background-color 300ms;
+}
+
+/* ---------- Banner ----------
+   A tinted strip that frames the task on a screen: the text, and an optional aside such as a meter. The tone class
+   picks the tint, accent by default. The aside drops under the text when the row runs out of room. */
+.ti-banner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-4) 28px;
+    padding: 16px 20px;
+    border-radius: var(--r-md);
+    background: var(--tone-soft, var(--accent-soft));
+}
+.ti-banner-text { flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.ti-banner-title { font-size: 14px; font-weight: 600; color: var(--fg-primary); }
+.ti-banner-desc { font-size: var(--fs-base); line-height: 1.5; color: var(--fg-secondary); }
+/* 360px: at 300 a 20% share was narrower than a long label and broke it in two (measured, CA-334). */
+.ti-banner-aside { flex: 0 1 360px; min-width: 0; }
+
+/* ---------- Keyboard key ---------- */
+.ti-kbd {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 5px;
+    box-sizing: border-box;
+    border: 1px solid var(--border);
+    border-bottom-width: 2px;
+    border-radius: var(--r-xs);
+    background: var(--bg-elevated, var(--bg-surface));
+    font-family: var(--font-mono);
+    font-size: var(--fs-xs);
+    line-height: 1;
+    color: var(--fg-secondary);
+}
+
+/* ---------- Sticky action bar ----------
+   A long form's actions, stuck to the bottom of its scroller. */
+.ti-action-bar {
+    position: sticky;
+    bottom: 0;
+    z-index: 6;
+    display: flex;
+    align-items: center;
+    gap: var(--s-4);
+    padding: 14px var(--s-7);
+    background: var(--bg-app);
+    border-top: 1px solid var(--border);
+}
+.ti-action-bar-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 96px;
+    font-size: var(--fs-sm);
+    color: var(--fg-tertiary);
+}
+.ti-action-bar-actions { display: flex; align-items: center; gap: var(--s-2); margin-left: auto; }
+/* The bar covers the bottom of the scroller it is stuck to, so whatever is brought into view there has to stop above
+   it: a row the keys move to, a control Tab reaches. Measured on a graded list, a row stepped to sat under the 65px bar
+   every time (CA-337). The padding goes on the scroller: a margin on the row is clipped by the card around it, which
+   hides its overflow, so the last row of every card still sat under the bar. */
+#ti-content:has( .ti-action-bar ) {
+    scroll-padding-bottom: 96px;
+}
+
+/* ---------- Compact empty state for lists ---------- */
+.ti-empty-state.inline {
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: var(--s-2);
+    padding: var(--s-4) var(--s-5);
+    text-align: left;
+}
+.ti-empty-state.inline .ti-empty-state-icon { width: 20px; height: 20px; }
+.ti-empty-state.inline .ti-empty-state-title { font-size: var(--fs-base); font-weight: 500; }
+
+/* ---------- Sidebar item counter ---------- */
+.ti-sidebar-item-badge {
+    margin-left: auto;
+    min-width: 20px;
+    height: 18px;
+    padding: 0 6px;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--r-pill);
+    background: var(--sidebar-accent);
+    color: var(--sidebar-accent-fg, var(--fg-primary));
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    font-weight: 600;
+}
+.ti-application.collapsed .ti-sidebar-item-badge {
+    position: absolute;
+    top: 5px;
+    right: 7px;
+    min-width: 8px;
+    width: 8px;
+    height: 8px;
+    padding: 0;
+    font-size: 0;
+}

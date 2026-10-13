@@ -2,6 +2,11 @@
 
 This document contains the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.19.1
+
+* build(deps): the October dependency updates (CA-480): `@types/node` ^26.6.2 → ^26.6.5. No source changed; the
+  published declarations are regenerated and unchanged.
+
 ## Version 1.19.0
 
 * feat(tools): `tools.KeyedLock` runs tasks that touch the same keys one at a time, in the order they arrived (CA-188,

@@ -2,6 +2,26 @@
 
 This document contains the list of changes made to the ti-engine monorepo. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.3.1
+
+* build(deps): the October dependency updates (CA-480):
+  - `@eslint/json` ^2.1.0 → ^2.1.1;
+  - `eslint` ^10.10.0 → ^10.12.0;
+  - `globals` ^17.12.0 → ^17.13.0;
+  - `prettier` ^3.9.7 → ^3.9.10.
+
+  Released with core 1.19.1, web-framework 1.51.0 and web-content 0.5.2.
+
+## Version 1.3.0
+
+* build(deps): the September dependency updates. Recorded after the fact; the release carried no section of its own.
+  - `@eslint/json` ^2.0.1 → ^2.1.0;
+  - `eslint` ^10.0.0 → ^10.10.0;
+  - `globals` ^17.3.0 → ^17.12.0;
+  - `prettier` ^3.8.1 → ^3.9.7.
+  - The workspace root's `engines` field (`node >=20.19.0`) and its `allowScripts` entry for `zeromq@6.5.0` were
+    removed.
+
 ## Version 1.2.10
 
 * fix(ci): stop pinning `types` and `typeRoots` in the type-check gate. Setting them put Node's

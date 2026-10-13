@@ -40,8 +40,8 @@ const styles = fs.readFileSync( path.join( __dirname, "..", "bin", "static", "sc
 const { blocks, assertDeclares } = readCascade( styles );
 
 // The shell's scrollers, as the screens use them: the page (`.ti-page-scrollable`, or `.ti-content.pane` where a page
-// lays itself out as panes), the sidebar, and a modal's body.
-const SHELL_SCROLLERS = Object.freeze( [ ".ti-page-scrollable", ".ti-content.pane", ".ti-sidebar", ".ti-modal-body" ] );
+// lays itself out as panes), the sidebar, a modal's body, and a drawer's body (1.51.0, CA-479).
+const SHELL_SCROLLERS = Object.freeze( [ ".ti-page-scrollable", ".ti-content.pane", ".ti-sidebar", ".ti-modal-body", ".ti-drawer-body" ] );
 
 describe( "the shell does not bounce at the end of a scroll", () => {
 
