@@ -144,3 +144,11 @@ Content-Security-Policy can admit its frame.
     cache within the hour, as the sitemap's already did.
   - **Evidence.** `test/feeds.test.js` mounts the routes and requires the one policy on all three documents. It fails
     on 0.5.0, at `/robots.txt`, which has no `Cache-Control`. Web-content goes from 432 to 433 tests.
+
+## Version 0.5.2
+
+* build(deps): the October dependency updates (CA-480):
+  - `express` ^5.2.1 → ^5.3.0;
+  - `markdown-it` ^15.0.0 → ^15.0.2.
+
+  No source changed. All 433 tests pass on the new versions.

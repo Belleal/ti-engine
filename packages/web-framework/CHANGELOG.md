@@ -2,6 +2,48 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.51.0
+
+* feat(styles): **the shared components are part of `ti-framework.css`** (CA-479).
+  - **What moved.** An application built on the framework kept the components its screens are made of in its own
+    stylesheet, written theme-agnostic so that they could move here unchanged: tones, stacks, meter, stat, card rows,
+    steps, legend, dot, tag and status-pill variants, segmented control, filter chip, danger buttons, the row drawer,
+    banner, `kbd`, sticky action bar, compact empty state, and the collapsed sidebar's item counter. They are now the
+    last section of this stylesheet.
+  - **The cascade is the one they had.** They were loaded right after this file, and they now come after every rule
+    in it, including the `.ti-btn`, `.ti-tag`, `.ti-status-pill` and `.ti-empty-state` rules they extend. With the
+    comments removed, the rules are the ones that moved, with two exceptions:
+    - `.ti-sr-only` and `.ti-spacer` were already here word for word, and are not repeated.
+    - `.ti-drawer-body` gains `overscroll-behavior: none`. It scrolls, and this stylesheet requires that of every
+      scroller (CA-354). `test/ti-framework.overscroll.test.js` sweeps for scrollers and found it on the move: without
+      the declaration it would bounce in Edge, as CA-354 measured on the other scrollers.
+  - **No application's name came with them.** Their comments named the screens and labels they were measured on;
+    they now say what was measured without them.
+  - **Tests:** `test/shared-components.test.js`, 5 tests. They cover:
+    - the components are defined;
+    - they come last, after the rules they extend;
+    - every token they read is the framework's, has a fallback, or is a component's own input (`--value`,
+      `--share`, `--tone`);
+    - no rule repeats one above;
+    - no application's name or labels appear.
+
+    Two deliberate breaks fail them: a repeated `.ti-spacer`, and a token no theme defines.
+* build(deps): the October dependency updates (CA-480).
+  - `express` ^5.2.1 → ^5.3.0;
+  - `@types/node` ^26.6.2 → ^26.6.5.
+* fix(deps): **two pins the update loosened are restored** (CA-480).
+  - **`@alpinejs/csp` is `3.17.4` again, not `^3.17.4`.** The bundled copy in `bin/static/scripts/lib/` must be the
+    version installed and declared (1.46.1, CA-402). A caret lets an install take a newer Alpine than the one
+    bundled, and `test/bundled-libraries.test.js` failed on it: 2 tests, on `master` at 06a86a9. 3.17.4 is the
+    newest published, so the caret gained nothing.
+  - **`@ti-engine/core` is `>=1.19.0` again, not `*`.**
+    - The config store runs on `tools.KeyedLock`, from core 1.19.0.
+    - Every sign-in calls `localization.getSystemLanguage()`, from core 1.18.0, and against an older core that throws
+      and refuses everyone.
+    - With `*`, a consumer's lockfile could keep that older core when it installed this release.
+* build(release): 1.50.2 was never published (its publish failed for want of this section), so its changes ship
+  here.
+
 ## Version 1.50.1
 
 * fix (shell): **only the newest screen lands in `#ti-content`** (CA-463).

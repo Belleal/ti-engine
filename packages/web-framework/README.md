@@ -322,6 +322,17 @@ Content-Security-Policy. They are committed files:
   what keeps a stale copy from shipping. Releases 1.39.0 to 1.46.0 shipped htmx 2.0.10 and Alpine 3.17.3 while
   declaring `^2.0.11` and `^3.17.4`.
 
+## Shared components
+
+Since 1.51.0, `ti-framework.css` ends with the components an application builds its screens from: tones
+(`.tone-accent` … `.tone-grade-n`, which set `--tone` and `--tone-soft`), stacks (`.ti-stack-0` … `.ti-stack-4`), the
+meter (`.ti-meter`, its width from `--value`), the stat, card rows, steps, the legend, the dot, tag and status-pill
+variants, the segmented control, the filter chip (`.ti-chip`), text-style danger buttons, the row drawer
+(`.ti-drawer`), the banner, `kbd`, the sticky action bar and a compact empty state. They read only the framework's
+tokens, and `--font-sans`, `--font-mono` and `--font-display` are theirs for an application to set. They are the last
+section of the file, after the `.ti-btn`, `.ti-tag`, `.ti-status-pill` and `.ti-empty-state` rules they extend;
+`test/shared-components.test.js` holds that order, the tokens and the absence of any application's name.
+
 ## Screens that never change
 
 A screen fragment is served at an address that names the screen, not a version of it, so by default it revalidates:
