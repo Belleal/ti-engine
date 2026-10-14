@@ -511,6 +511,38 @@ describe( "forget", () => {
 
 } );
 
+describe( "a store that throws instead of rejecting", () => {
+
+    it( "rejects from drain, forget and emit, and never throws out of a background pass", async () => {
+        const service = new NotificationService();
+        service.configure( { transport: "log", sender: "no-reply@example.com" } );
+        service.setTransport( fakeTransport() );
+        service.registerNotice( "only-bg", { subject: "notice.only-bg.subject", text: "notice.only-bg.text" } );
+        service.registerEvent( "task.created", { attributes: [ "task" ] } );
+        await service.notify( { kind: "only-bg", key: "k", recipient: ANNA } );
+
+        const matchKeys = cacheStub.matchKeys;
+        const getJSON = cacheStub.getJSON;
+        cacheStub.matchKeys = () => {
+            throw new TypeError( "matchKeys is not available" );
+        };
+        cacheStub.getJSON = () => {
+            throw new TypeError( "getJSON is not available" );
+        };
+        try {
+            await assert.rejects( service.drain(), TypeError );
+            await assert.rejects( service.forget( "1001" ), TypeError );
+            await assert.rejects( service.emit( "task.created", { key: "k", recipient: ANNA, data: TASK } ), TypeError );
+            // The pass the notify above started from setImmediate: had it thrown, the process would have exited.
+            await new Promise( ( resolve ) => setImmediate( resolve ) );
+        } finally {
+            cacheStub.matchKeys = matchKeys;
+            cacheStub.getJSON = getJSON;
+        }
+    } );
+
+} );
+
 describe( "configure", () => {
 
     it( "switches the cloudflare transport off when it has no sender or no relay", () => {

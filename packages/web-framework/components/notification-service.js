@@ -407,7 +407,7 @@ class NotificationService {
         if ( this.#transport === null ) {
             return Promise.resolve( 0 );
         }
-        return configService.instance.getCurrent( CONFIG_KEY ).then( ( envelope ) => {
+        return Promise.resolve().then( () => configService.instance.getCurrent( CONFIG_KEY ) ).then( ( envelope ) => {
             const document = ( envelope && envelope.value ) ? envelope.value : null;
             if ( !document || document.enabled !== true || !Array.isArray( document.rules ) ) {
                 return 0;
@@ -480,7 +480,9 @@ class NotificationService {
             this.#drainRequested = true;
             return this.#draining;
         }
-        this.#draining = this.#drainLoop().finally( () => {
+        // Started inside a promise: a store that throws rather than rejects must not throw out of a pass started from
+        // `setImmediate` or a timer, where nothing catches it and the process exits.
+        this.#draining = Promise.resolve().then( () => this.#drainLoop() ).finally( () => {
             this.#draining = null;
         } );
         return this.#draining;
@@ -501,10 +503,10 @@ class NotificationService {
             return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_GEN_INVALID_ARGUMENT_TYPE, { reason: "invalid-recipient-id" } ) );
         }
         const prefix = digestOf( String( recipientID ) ).slice( 0, 16 ) + ":";
-        return Promise.all( [
+        return Promise.resolve().then( () => Promise.all( [
             cache.instance.matchKeys( KEY_PENDING + prefix + "*" ),
             cache.instance.matchKeys( KEY_DONE + prefix + "*" )
-        ] ).then( ( [ pending, done ] ) => {
+        ] ) ).then( ( [ pending, done ] ) => {
             const suffixes = [ ...new Set( [ ...( pending || [] ).map( ( key ) => key.slice( KEY_PENDING.length ) ), ...( done || [] ).map( ( key ) => key.slice( KEY_DONE.length ) ) ] ) ];
             return suffixes.reduce( ( chain, suffix ) => chain.then( ( removed ) => this.#lock.exclusively( suffix, () => {
                 return tools.whenAllSettled( [ cache.instance.deleteValue( KEY_PENDING + suffix ), cache.instance.deleteValue( KEY_DONE + suffix ) ] );
@@ -739,7 +741,7 @@ class NotificationService {
             return Promise.resolve( report );
         }
         let nextRetry = Infinity;
-        return cache.instance.matchKeys( KEY_PENDING + "*" ).then( ( keys ) => {
+        return Promise.resolve().then( () => cache.instance.matchKeys( KEY_PENDING + "*" ) ).then( ( keys ) => {
             const suffixes = ( keys || [] ).map( ( key ) => key.slice( KEY_PENDING.length ) );
             let processed = 0;
             return suffixes.reduce( ( chain, suffix ) => chain.then( () => {
