@@ -1,5 +1,5 @@
 export = NotificationService;
-import type { TiMailTransport, TiNoticeDefinition, TiNotificationDrainReport, TiNotificationEventDefinition, TiNotificationRecipient, TiNotificationSettings, TiNotificationsDocument, TiRenderedNotice } from "#definitions";
+import type { TiEditableNoticeText, TiMailTransport, TiNoticeDefinition, TiNoticeLayout, TiNoticeTexts, TiNotificationDrainReport, TiNotificationEventDefinition, TiNotificationRecipient, TiNotificationSettings, TiNotificationsDocument, TiRenderedNotice } from "#definitions";
 /**
  * The key of the configuration document holding the rules (§3.2 of the design record).
  *
@@ -74,14 +74,40 @@ declare class NotificationService {
     /**
      * Registers a notice an application sends. Registered at start-up, like a configuration document.
      *
+     * <br/>
+     * `placeholders` and `labels` are what an editor needs: the names the subject and the text may use, and the other
+     * labels `format` reads, each with the names it may use. Declaring them makes those texts editable through the
+     * `notifications` document, and the validator refuses an edit using a name the notice does not offer.
+     *
      * @method
      * @param {string} kind The notice's name, which rules refer to.
      * @param {TiNoticeDefinition} definition
      * @returns {NotificationService} this
-     * @throws {TiException.E_GEN_INVALID_ARGUMENT_TYPE} On a missing name or label key, or a link or format that is not a function.
+     * @throws {TiException.E_GEN_INVALID_ARGUMENT_TYPE} On a missing name or label key, a link or format that is not a function, or placeholders or labels that are not lists of names.
      * @public
      */
     registerNotice(kind: string, definition: TiNoticeDefinition): NotificationService;
+    /**
+     * Sets how a notice looks as HTML: the application's name as a wordmark at the top, its colours, and the label keys
+     * of the button that opens the link and of the footer. `null` returns to the plain layout. The button and the
+     * footer are editable like a notice's texts.
+     *
+     * @method
+     * @param {TiNoticeLayout|null} layout
+     * @returns {NotificationService} this
+     * @throws {TiException.E_GEN_INVALID_ARGUMENT_TYPE} On a colour that is not `#rgb` or `#rrggbb`, a font that is not a plain family list, or a name or label key that is not a string.
+     * @public
+     */
+    setLayout(layout: TiNoticeLayout | null): NotificationService;
+    /**
+     * Every text an editor may change: each notice's subject and text, the labels its `format` reads, and the layout's
+     * button and footer. A label two notices share is listed once, naming both, with the names either offers.
+     *
+     * @method
+     * @returns {TiEditableNoticeText[]} In registration order: per notice its subject, its text and its labels; then the layout's.
+     * @public
+     */
+    editableTexts(): TiEditableNoticeText[];
     /**
      * Registers an event an application raises, with the attributes a rule may filter it by.
      *
@@ -101,19 +127,41 @@ declare class NotificationService {
      * The validator refuses a rule naming an event or a notice that is not registered, or filtering on an attribute
      * its event does not declare, and two rules with one ID. It reads the registrations when it runs, so the document
      * may be registered before the events and notices are.
+     * <br/>
+     * The document may also hold **edited texts** (`texts`) and the **application's options** (`options`):
+     * - `texts` holds only what an administrator changed, by label key and language; every other text comes from the
+     *   shipped labels, so a release that rewords a text reaches a deployment that never edited it. The validator
+     *   refuses a key {@link NotificationService#editableTexts} does not list, a language the shipped label lacks, an
+     *   empty text, a line break where the part takes one line, and a placeholder the text does not offer.
+     * - `options` is the application's, validated by the schema it passes here, and read by
+     *   {@link NotificationService#getOptions} over the defaults it gives.
      *
      * @method
      * @param {TiNotificationsDocument} [defaults] `{ enabled: true, rules: [] }` unless stated.
      * @param {Object} [metadata] Merged into the document's editor metadata.
+     * @param {Object} [extensions]
+     * @param {Object} [extensions.options] The JSON Schema of `options`. Without it the document holds no options.
      * @returns {{schema: Object, validators: Array<function>, defaultValue: TiNotificationsDocument, metadata: Object}}
      * @public
      */
-    configDocument(defaults?: TiNotificationsDocument, metadata?: Object): {
+    configDocument(defaults?: TiNotificationsDocument, metadata?: Object, extensions?: {
+        options?: Object;
+    }): {
         schema: Object;
         validators: Array<Function>;
         defaultValue: TiNotificationsDocument;
         metadata: Object;
     };
+    /**
+     * The application's options: the stored document's over the defaults given to
+     * {@link NotificationService#configDocument}, one key at a time, so an option a release adds has its default on a
+     * deployment whose document predates it.
+     *
+     * @method
+     * @returns {Promise<Object>}
+     * @public
+     */
+    getOptions(): Promise<Object>;
     /**
      * Raises an event: every enabled rule for it whose filter the event's data passes queues its notice for the
      * recipient. The notice's key is the rule's notice joined to the event's key, so two rules for one notice send it
@@ -185,18 +233,43 @@ declare class NotificationService {
     forget(recipientID: string): Promise<number>;
     /**
      * Renders a notice for one person in their language, else the deployment's: the subject, the text with the link
-     * after it, and the same text as minimal HTML. The HTML has no remote image, no tracking pixel and no rewritten
-     * link: a notice points to the application, it does not report on whoever opens it.
+     * after it, and the same text as HTML in the layout {@link NotificationService#setLayout} set. The HTML has no
+     * remote image, no tracking pixel and no rewritten link: a notice points to the application, it does not report
+     * on whoever opens it.
+     * <br/>
+     * Each text is the edited one when `texts` holds it, else the shipped label. The dispatcher passes the document's
+     * edits; an editor passes its unsaved ones to preview them exactly as they would be sent.
+     *
+     * @method
+     * @param {string} kind A registered notice.
+     * @param {TiNotificationRecipient|{language?: string}} recipient Only the language is read.
+     * @param {Object} [data]
+     * @param {TiNoticeTexts} [texts] Edited texts, by label key and language.
+     * @returns {TiRenderedNotice}
+     * @throws {Error} With `code` `E_NOTICE_UNKNOWN` or `E_NOTICE_LABEL_MISSING`, and `transient` false.
+     * @public
+     */
+    render(kind: string, recipient: TiNotificationRecipient | {
+        language?: string;
+    }, data?: Object, texts?: TiNoticeTexts): TiRenderedNotice;
+    /**
+     * Sends one notice straight away through the transport, past the outbox and the ledger: an editor's "send me a
+     * test". Nothing records it, so it can be sent again, and it never stops the real notice of the same key. It
+     * renders with `texts` when given, else with the document's edits.
      *
      * @method
      * @param {string} kind A registered notice.
      * @param {TiNotificationRecipient} recipient
      * @param {Object} [data]
-     * @returns {TiRenderedNotice}
-     * @throws {Error} With `code` `E_NOTICE_UNKNOWN` or `E_NOTICE_LABEL_MISSING`, and `transient` false.
+     * @param {TiNoticeTexts} [texts] Edited texts to try before saving them.
+     * @returns {Promise<{messageId: string|null}>}
+     * @throws {Error} (as a rejection) With `code` `E_NOTICE_TRANSPORT_OFF` while sending is off, `E_NOTICE_UNKNOWN` or `E_NOTICE_LABEL_MISSING`, or the transport's own code.
+     * @throws {TiException.E_GEN_INVALID_ARGUMENT_TYPE} (as a rejection) For a malformed recipient.
      * @public
      */
-    render(kind: string, recipient: TiNotificationRecipient, data?: Object): TiRenderedNotice;
+    sendTest(kind: string, recipient: TiNotificationRecipient, data?: Object, texts?: TiNoticeTexts): Promise<{
+        messageId: string | null;
+    }>;
     /**
      * Whether an event's data passes a rule's filter. Every attribute the filter names must hold one of its values; an
      * empty or absent filter passes everything, and an attribute with an empty list of values passes nothing.
@@ -212,10 +285,11 @@ declare class NotificationService {
      * The JSON Schema of the `notifications` document.
      *
      * @method
+     * @param {Object|null} [optionsSchema] The application's schema of `options`; without it the document holds none.
      * @returns {Object}
      * @public
      */
-    static documentSchema(): Object;
+    static documentSchema(optionsSchema?: Object | null): Object;
 }
 declare namespace NotificationService {
     export { CONFIG_KEY };

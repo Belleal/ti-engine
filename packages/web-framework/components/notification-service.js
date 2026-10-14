@@ -26,7 +26,7 @@ const exceptions = require( "@ti-engine/core/exceptions" );
 const configService = require( "#config-service" );
 const transports = require( "#notification-transports" );
 
-/** @import { TiMailMessage, TiMailTransport, TiNoticeDefinition, TiNotificationDrainReport, TiNotificationEventDefinition, TiNotificationRecipient, TiNotificationRule, TiNotificationSettings, TiNotificationsDocument, TiRenderedNotice } from "#definitions" */
+/** @import { TiEditableNoticeText, TiMailMessage, TiMailTransport, TiNoticeDefinition, TiNoticeLayout, TiNoticeLayoutColors, TiNoticeTexts, TiNotificationDrainReport, TiNotificationEventDefinition, TiNotificationRecipient, TiNotificationRule, TiNotificationSettings, TiNotificationsDocument, TiRenderedNotice } from "#definitions" */
 /** @import { ConfigValidationIssue } from "#config-registry" */
 
 // Both are string values, not JSON documents: the D1 state store has no way to delete a document (`/v1/values/delete`
@@ -92,6 +92,35 @@ const TRANSPORT_LOG = "log";
 const TRANSPORT_CLOUDFLARE = "cloudflare";
 
 /**
+ * The colours of the e-mail layout when the application sets none: a neutral grey and white that suit any brand.
+ *
+ * @type {Readonly<TiNoticeLayoutColors>}
+ */
+const DEFAULT_COLORS = Object.freeze( {
+    brand: "#1F2328",
+    brandText: "#FFFFFF",
+    accent: "#1F2328",
+    background: "#F4F4F5",
+    surface: "#FFFFFF",
+    text: "#1F2328",
+    muted: "#6B7280",
+    border: "#E5E7EB"
+} );
+
+const DEFAULT_WORDMARK_FONT = "Georgia, 'Times New Roman', serif";
+const BODY_FONT = "-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+
+// What an application may put in a layout. A colour or a font family lands inside a `style` attribute, so anything
+// that could close the attribute or start another declaration is refused rather than escaped.
+const COLOR_PATTERN = /^#(?:[0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/;
+const FONT_PATTERN = /^[A-Za-z0-9 ,'-]+$/;
+
+// The parts of a notice an editor may change, and whether each may hold more than one line. A subject, a button and
+// a label filled into a sentence are one line; a subject with a line break is a new header to a transport that
+// writes headers.
+const TEXT_PARTS = Object.freeze( { subject: false, text: true, label: false, action: false, footer: true } );
+
+/**
  * Returns the hex SHA-256 of a string.
  *
  * @method
@@ -148,6 +177,86 @@ function fillTemplate( template, values ) {
 }
 
 /**
+ * The placeholder names a template uses, each once, in the order they first appear.
+ *
+ * @method
+ * @param {string} template
+ * @returns {string[]}
+ * @private
+ */
+function placeholdersIn( template ) {
+    return [ ...new Set( [ ...String( template ).matchAll( /\{([A-Za-z0-9_.-]+)\}/g ) ].map( ( match ) => match[ 1 ] ) ) ];
+}
+
+/**
+ * Whether a value is a list of distinct placeholder names.
+ *
+ * @method
+ * @param {*} value
+ * @returns {boolean}
+ * @private
+ */
+function isNameList( value ) {
+    return Array.isArray( value ) && value.every( ( name ) => typeof name === "string" && /^[A-Za-z0-9_.-]+$/.test( name ) );
+}
+
+/**
+ * Lays a rendered notice out as an HTML e-mail: the brand's wordmark on a band, a card holding the text and a button to
+ * the link, and a footer. Tables and inline styles, because that is what every mail client renders alike: Gmail drops
+ * a `<style>` block in some views and Outlook on Windows lays out with Word's engine. The scheme is pinned to light so
+ * a client that recolours for dark mode leaves the brand's colours alone.
+ * <br/>
+ * Nothing is fetched when it opens: no image, no font, no stylesheet. A notice points to the application; it does not
+ * report on whoever opens it.
+ *
+ * @method
+ * @param {Object} parts
+ * @param {string} parts.language
+ * @param {string} parts.subject
+ * @param {string[]} parts.paragraphs The text's paragraphs, as written: this escapes them.
+ * @param {string|null} parts.url
+ * @param {string|null} parts.action The button's label, or `null` for a plain link.
+ * @param {string|null} parts.footer
+ * @param {TiNoticeLayout|null} parts.layout
+ * @returns {string}
+ * @private
+ */
+function layoutHTML( { language, subject, paragraphs, url, action, footer, layout } ) {
+    const colors = Object.assign( {}, DEFAULT_COLORS, ( layout && layout.colors ) || {} );
+    const wordmarkFont = ( layout && layout.font ) || DEFAULT_WORDMARK_FONT;
+    const asHTML = ( paragraph ) => escapeHTML( paragraph ).replace( /\n/g, "<br>" );
+    const rows = [];
+    if ( layout && layout.name ) {
+        rows.push( `<tr><td style="background-color:${ colors.brand };border-bottom:3px solid ${ colors.accent };padding:18px 28px;font-family:${ wordmarkFont };font-size:22px;line-height:1.2;color:${ colors.brandText };">${ escapeHTML( layout.name ) }</td></tr>` );
+    }
+    const body = paragraphs.map( ( paragraph, index ) => `<p style="margin:${ index === 0 ? "0" : "16px" } 0 0;">${ asHTML( paragraph ) }</p>` );
+    if ( url && action ) {
+        body.push( `<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:24px 0 0;"><tr><td style="background-color:${ colors.brand };border-radius:3px;"><a href="${ escapeHTML( url ) }" style="display:inline-block;padding:12px 22px;font-family:${ BODY_FONT };font-size:15px;font-weight:600;line-height:1.2;color:${ colors.brandText };text-decoration:none;">${ escapeHTML( action ) }</a></td></tr></table>` );
+        body.push( `<p style="margin:16px 0 0;font-size:13px;line-height:1.5;color:${ colors.muted };word-break:break-all;"><a href="${ escapeHTML( url ) }" style="color:${ colors.muted };">${ escapeHTML( url ) }</a></p>` );
+    } else if ( url ) {
+        body.push( `<p style="margin:16px 0 0;"><a href="${ escapeHTML( url ) }" style="color:${ colors.brand };">${ escapeHTML( url ) }</a></p>` );
+    }
+    rows.push( `<tr><td style="background-color:${ colors.surface };border:1px solid ${ colors.border };${ ( layout && layout.name ) ? "border-top:0;" : "" }padding:28px;font-family:${ BODY_FONT };font-size:16px;line-height:1.55;color:${ colors.text };">\n${ body.join( "\n" ) }\n</td></tr>` );
+    if ( footer ) {
+        rows.push( `<tr><td style="padding:16px 28px 0;font-family:${ BODY_FONT };font-size:12px;line-height:1.5;color:${ colors.muted };">${ asHTML( footer ) }</td></tr>` );
+    }
+    // The first paragraph, hidden, is what a client shows beside the subject in the inbox, instead of the wordmark.
+    const preheader = paragraphs.length > 0 ? `<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">${ escapeHTML( paragraphs[ 0 ] ) }</div>\n` : "";
+    return "<!doctype html>\n"
+        + `<html lang="${ escapeHTML( language ) }">\n`
+        + `<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light"><title>${ escapeHTML( subject ) }</title></head>\n`
+        + `<body style="margin:0;padding:0;background-color:${ colors.background };">\n`
+        + preheader
+        + `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:${ colors.background };"><tr><td align="center" style="padding:24px 12px;">\n`
+        + `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:560px;">\n`
+        + rows.join( "\n" ) + "\n"
+        + "</table>\n"
+        + "</td></tr></table>\n"
+        + "</body>\n"
+        + "</html>\n";
+}
+
+/**
  * Whether a string can stand as one e-mail address in a message: something on both sides of a single `@`, and no
  * white space. A line break is the case that matters: in a transport that writes headers, it starts a new header.
  *
@@ -198,6 +307,9 @@ class NotificationService {
 
     #notices = new Map();
     #events = new Map();
+    /** @type {TiNoticeLayout|null} */
+    #layout = null;
+    #optionDefaults = {};
     #lock = new tools.KeyedLock();
     #now;
     #drainOnNotify;
@@ -318,21 +430,114 @@ class NotificationService {
     /**
      * Registers a notice an application sends. Registered at start-up, like a configuration document.
      *
+     * <br/>
+     * `placeholders` and `labels` are what an editor needs: the names the subject and the text may use, and the other
+     * labels `format` reads, each with the names it may use. Declaring them makes those texts editable through the
+     * `notifications` document, and the validator refuses an edit using a name the notice does not offer.
+     *
      * @method
      * @param {string} kind The notice's name, which rules refer to.
      * @param {TiNoticeDefinition} definition
      * @returns {NotificationService} this
-     * @throws {TiException.E_GEN_INVALID_ARGUMENT_TYPE} On a missing name or label key, or a link or format that is not a function.
+     * @throws {TiException.E_GEN_INVALID_ARGUMENT_TYPE} On a missing name or label key, a link or format that is not a function, or placeholders or labels that are not lists of names.
      * @public
      */
     registerNotice( kind, definition ) {
-        const { subject, text, link, format } = definition || {};
+        const { subject, text, link, format, placeholders, labels } = definition || {};
+        const labelsValid = labels === undefined || ( labels !== null && typeof labels === "object" && !Array.isArray( labels )
+            && Object.keys( labels ).every( ( key ) => key !== "" && isNameList( labels[ key ] ) ) );
         if ( typeof kind !== "string" || kind.trim() === "" || typeof subject !== "string" || subject === "" || typeof text !== "string" || text === ""
-            || ( link !== undefined && typeof link !== "function" ) || ( format !== undefined && typeof format !== "function" ) ) {
+            || ( link !== undefined && typeof link !== "function" ) || ( format !== undefined && typeof format !== "function" )
+            || ( placeholders !== undefined && !isNameList( placeholders ) ) || !labelsValid ) {
             throw exceptions.raise( exceptions.exceptionCode.E_GEN_INVALID_ARGUMENT_TYPE, { reason: "invalid-notice-registration", kind: kind } );
         }
-        this.#notices.set( kind, Object.freeze( { subject: subject, text: text, link: link, format: format } ) );
+        const ownLabels = {};
+        Object.keys( labels || {} ).forEach( ( key ) => {
+            ownLabels[ key ] = Object.freeze( [ ...new Set( labels[ key ] ) ] );
+        } );
+        this.#notices.set( kind, Object.freeze( {
+            subject: subject,
+            text: text,
+            link: link,
+            format: format,
+            placeholders: ( placeholders !== undefined ) ? Object.freeze( [ ...new Set( placeholders ) ] ) : null,
+            labels: Object.freeze( ownLabels )
+        } ) );
         return this;
+    }
+
+    /**
+     * Sets how a notice looks as HTML: the application's name as a wordmark at the top, its colours, and the label keys
+     * of the button that opens the link and of the footer. `null` returns to the plain layout. The button and the
+     * footer are editable like a notice's texts.
+     *
+     * @method
+     * @param {TiNoticeLayout|null} layout
+     * @returns {NotificationService} this
+     * @throws {TiException.E_GEN_INVALID_ARGUMENT_TYPE} On a colour that is not `#rgb` or `#rrggbb`, a font that is not a plain family list, or a name or label key that is not a string.
+     * @public
+     */
+    setLayout( layout ) {
+        if ( layout === null ) {
+            this.#layout = null;
+            return this;
+        }
+        const { name, colors, font, action, footer } = layout || {};
+        const invalid = ( !layout || typeof layout !== "object" )
+            || ( name !== undefined && ( typeof name !== "string" || name.trim() === "" ) )
+            || ( font !== undefined && ( typeof font !== "string" || !FONT_PATTERN.test( font ) ) )
+            || ( action !== undefined && ( typeof action !== "string" || action === "" ) )
+            || ( footer !== undefined && ( typeof footer !== "string" || footer === "" ) )
+            || ( colors !== undefined && ( !colors || typeof colors !== "object"
+                || Object.keys( colors ).some( ( role ) => !Object.prototype.hasOwnProperty.call( DEFAULT_COLORS, role ) || typeof colors[ role ] !== "string" || !COLOR_PATTERN.test( colors[ role ] ) ) ) );
+        if ( invalid ) {
+            throw exceptions.raise( exceptions.exceptionCode.E_GEN_INVALID_ARGUMENT_TYPE, { reason: "invalid-notice-layout" } );
+        }
+        this.#layout = Object.freeze( {
+            name: ( name !== undefined ) ? name.trim() : null,
+            colors: Object.freeze( Object.assign( {}, colors || {} ) ),
+            font: font || null,
+            action: action || null,
+            footer: footer || null
+        } );
+        return this;
+    }
+
+    /**
+     * Every text an editor may change: each notice's subject and text, the labels its `format` reads, and the layout's
+     * button and footer. A label two notices share is listed once, naming both, with the names either offers.
+     *
+     * @method
+     * @returns {TiEditableNoticeText[]} In registration order: per notice its subject, its text and its labels; then the layout's.
+     * @public
+     */
+    editableTexts() {
+        const byKey = new Map();
+        const add = ( key, part, notice, placeholders ) => {
+            const entry = byKey.get( key );
+            if ( !entry ) {
+                byKey.set( key, { key: key, part: part, notices: notice ? [ notice ] : [], placeholders: placeholders ? [ ...placeholders ] : null, multiline: TEXT_PARTS[ part ] } );
+                return;
+            }
+            if ( notice && !entry.notices.includes( notice ) ) {
+                entry.notices.push( notice );
+            }
+            if ( entry.placeholders !== null ) {
+                entry.placeholders = ( placeholders === null ) ? null : [ ...new Set( [ ...entry.placeholders, ...placeholders ] ) ];
+            }
+        };
+        this.#notices.forEach( ( notice, kind ) => {
+            add( notice.subject, "subject", kind, notice.placeholders );
+            add( notice.text, "text", kind, notice.placeholders );
+            Object.keys( notice.labels ).forEach( ( key ) => add( key, "label", kind, notice.labels[ key ] ) );
+        } );
+        if ( this.#layout && this.#layout.action ) {
+            add( this.#layout.action, "action", null, [] );
+        }
+        if ( this.#layout && this.#layout.footer ) {
+            add( this.#layout.footer, "footer", null, [] );
+        }
+        return [ ...byKey.values() ];
     }
 
     /**
@@ -362,24 +567,58 @@ class NotificationService {
      * The validator refuses a rule naming an event or a notice that is not registered, or filtering on an attribute
      * its event does not declare, and two rules with one ID. It reads the registrations when it runs, so the document
      * may be registered before the events and notices are.
+     * <br/>
+     * The document may also hold **edited texts** (`texts`) and the **application's options** (`options`):
+     * - `texts` holds only what an administrator changed, by label key and language; every other text comes from the
+     *   shipped labels, so a release that rewords a text reaches a deployment that never edited it. The validator
+     *   refuses a key {@link NotificationService#editableTexts} does not list, a language the shipped label lacks, an
+     *   empty text, a line break where the part takes one line, and a placeholder the text does not offer.
+     * - `options` is the application's, validated by the schema it passes here, and read by
+     *   {@link NotificationService#getOptions} over the defaults it gives.
      *
      * @method
      * @param {TiNotificationsDocument} [defaults] `{ enabled: true, rules: [] }` unless stated.
      * @param {Object} [metadata] Merged into the document's editor metadata.
+     * @param {Object} [extensions]
+     * @param {Object} [extensions.options] The JSON Schema of `options`. Without it the document holds no options.
      * @returns {{schema: Object, validators: Array<function>, defaultValue: TiNotificationsDocument, metadata: Object}}
      * @public
      */
-    configDocument( defaults = {}, metadata = {} ) {
+    configDocument( defaults = {}, metadata = {}, extensions = {} ) {
+        const optionsSchema = ( extensions && extensions.options && typeof extensions.options === "object" ) ? extensions.options : null;
         const defaultValue = {
             enabled: ( defaults && typeof defaults.enabled === "boolean" ) ? defaults.enabled : true,
             rules: ( defaults && Array.isArray( defaults.rules ) ) ? JSON.parse( JSON.stringify( defaults.rules ) ) : []
         };
+        if ( defaults && defaults.texts && typeof defaults.texts === "object" ) {
+            defaultValue.texts = JSON.parse( JSON.stringify( defaults.texts ) );
+        }
+        if ( optionsSchema && defaults && defaults.options && typeof defaults.options === "object" ) {
+            defaultValue.options = JSON.parse( JSON.stringify( defaults.options ) );
+        }
+        this.#optionDefaults = tools.deepFreeze( JSON.parse( JSON.stringify( defaultValue.options || {} ) ) );
         return {
-            schema: NotificationService.documentSchema(),
-            validators: [ ( value ) => this.#validateRules( value ) ],
+            schema: NotificationService.documentSchema( optionsSchema ),
+            validators: [ ( value ) => this.#validateDocument( value ) ],
             defaultValue: defaultValue,
             metadata: Object.assign( {}, metadata )
         };
+    }
+
+    /**
+     * The application's options: the stored document's over the defaults given to
+     * {@link NotificationService#configDocument}, one key at a time, so an option a release adds has its default on a
+     * deployment whose document predates it.
+     *
+     * @method
+     * @returns {Promise<Object>}
+     * @public
+     */
+    getOptions() {
+        return Promise.resolve().then( () => configService.instance.getCurrent( CONFIG_KEY ) ).then( ( envelope ) => {
+            const stored = ( envelope && envelope.value && envelope.value.options && typeof envelope.value.options === "object" ) ? envelope.value.options : {};
+            return Object.assign( {}, this.#optionDefaults, stored );
+        } );
     }
 
     /**
@@ -523,34 +762,107 @@ class NotificationService {
 
     /**
      * Renders a notice for one person in their language, else the deployment's: the subject, the text with the link
-     * after it, and the same text as minimal HTML. The HTML has no remote image, no tracking pixel and no rewritten
-     * link: a notice points to the application, it does not report on whoever opens it.
+     * after it, and the same text as HTML in the layout {@link NotificationService#setLayout} set. The HTML has no
+     * remote image, no tracking pixel and no rewritten link: a notice points to the application, it does not report
+     * on whoever opens it.
+     * <br/>
+     * Each text is the edited one when `texts` holds it, else the shipped label. The dispatcher passes the document's
+     * edits; an editor passes its unsaved ones to preview them exactly as they would be sent.
      *
      * @method
      * @param {string} kind A registered notice.
-     * @param {TiNotificationRecipient} recipient
+     * @param {TiNotificationRecipient|{language?: string}} recipient Only the language is read.
      * @param {Object} [data]
+     * @param {TiNoticeTexts} [texts] Edited texts, by label key and language.
      * @returns {TiRenderedNotice}
      * @throws {Error} With `code` `E_NOTICE_UNKNOWN` or `E_NOTICE_LABEL_MISSING`, and `transient` false.
      * @public
      */
-    render( kind, recipient, data = {} ) {
+    render( kind, recipient, data = {}, texts = {} ) {
         const notice = this.#notices.get( kind );
         if ( !notice ) {
             throw transports.transportError( "E_NOTICE_UNKNOWN", false, kind );
         }
         const language = ( recipient && recipient.language ) ? recipient.language : localization.getSystemLanguage();
-        const values = notice.format ? ( notice.format( data, language ) || {} ) : data;
+        const label = ( key ) => NotificationService.#label( key, language, texts );
+        const values = notice.format ? ( notice.format( data || {}, language, label ) || {} ) : ( data || {} );
         // A line break in a subject is a new header to a transport that writes headers.
-        const subject = fillTemplate( NotificationService.#label( notice.subject, language ), values ).replace( /[\r\n]+/g, " " ).trim();
-        const body = fillTemplate( NotificationService.#label( notice.text, language ), values ).replace( /\r\n?/g, "\n" ).trim();
-        const url = notice.link ? this.#linkTo( notice.link( data ) ) : null;
-        const paragraphs = body.split( /\n{2,}/ ).map( ( paragraph ) => `<p>${ escapeHTML( paragraph ).replace( /\n/g, "<br>" ) }</p>` );
+        const subject = fillTemplate( label( notice.subject ), values ).replace( /[\r\n]+/g, " " ).trim();
+        const body = fillTemplate( label( notice.text ), values ).replace( /\r\n?/g, "\n" ).trim();
+        const url = notice.link ? this.#linkTo( notice.link( data || {} ) ) : null;
+        // The layout's own texts are optional: a missing one leaves its part out rather than failing every notice.
+        const optional = ( key ) => {
+            if ( !key ) {
+                return null;
+            }
+            try {
+                return label( key ).replace( /\r\n?/g, "\n" ).trim() || null;
+            } catch {
+                return null;
+            }
+        };
+        const action = url ? optional( this.#layout && this.#layout.action ) : null;
+        const footer = optional( this.#layout && this.#layout.footer );
+        const html = layoutHTML( {
+            language: language,
+            subject: subject,
+            paragraphs: body.split( /\n{2,}/ ),
+            url: url,
+            action: action,
+            footer: footer,
+            layout: this.#layout
+        } );
+        let text = body;
         if ( url ) {
-            paragraphs.push( `<p><a href="${ escapeHTML( url ) }">${ escapeHTML( url ) }</a></p>` );
+            text += "\n\n" + ( action ? action.replace( /\n+/g, " " ) + ": " : "" ) + url;
         }
-        const html = `<!doctype html>\n<html lang="${ escapeHTML( language ) }">\n<head><meta charset="utf-8"><title>${ escapeHTML( subject ) }</title></head>\n<body>\n${ paragraphs.join( "\n" ) }\n</body>\n</html>\n`;
-        return { subject: subject, text: url ? body + "\n\n" + url : body, html: html };
+        if ( footer ) {
+            // The conventional signature delimiter, which mail clients grey out or fold away.
+            text += "\n\n-- \n" + footer;
+        }
+        return { subject: subject, text: text, html: html };
+    }
+
+    /**
+     * Sends one notice straight away through the transport, past the outbox and the ledger: an editor's "send me a
+     * test". Nothing records it, so it can be sent again, and it never stops the real notice of the same key. It
+     * renders with `texts` when given, else with the document's edits.
+     *
+     * @method
+     * @param {string} kind A registered notice.
+     * @param {TiNotificationRecipient} recipient
+     * @param {Object} [data]
+     * @param {TiNoticeTexts} [texts] Edited texts to try before saving them.
+     * @returns {Promise<{messageId: string|null}>}
+     * @throws {Error} (as a rejection) With `code` `E_NOTICE_TRANSPORT_OFF` while sending is off, `E_NOTICE_UNKNOWN` or `E_NOTICE_LABEL_MISSING`, or the transport's own code.
+     * @throws {TiException.E_GEN_INVALID_ARGUMENT_TYPE} (as a rejection) For a malformed recipient.
+     * @public
+     */
+    sendTest( kind, recipient, data = {}, texts ) {
+        if ( this.#transport === null ) {
+            return Promise.reject( transports.transportError( "E_NOTICE_TRANSPORT_OFF", false ) );
+        }
+        if ( !this.#notices.has( kind ) ) {
+            return Promise.reject( transports.transportError( "E_NOTICE_UNKNOWN", false, kind ) );
+        }
+        const invalid = this.#invalidOccurrence( "test", recipient );
+        if ( invalid ) {
+            return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_GEN_INVALID_ARGUMENT_TYPE, { reason: invalid, kind: kind } ) );
+        }
+        const transport = this.#transport;
+        const id = String( recipient.id );
+        const edits = ( texts && typeof texts === "object" ) ? Promise.resolve( texts ) : this.#storedTexts();
+        return edits.then( ( resolved ) => {
+            const message = this.#compose( { kind: kind, recipient: recipient, data: data }, resolved );
+            return transport.send( message );
+        } ).then( ( result ) => {
+            logger.log( `Test notice '${ kind }' for recipient '${ id }' sent.`, logger.logSeverity.INFO );
+            return { messageId: ( result && typeof result.messageId === "string" ) ? result.messageId : null };
+        }, ( error ) => {
+            const code = ( error && typeof error.code === "string" ) ? error.code : "E_TRANSPORT_FAILED";
+            logger.log( `Test notice '${ kind }' for recipient '${ id }' failed with '${ code }'.`, logger.logSeverity.WARNING );
+            throw error;
+        } );
     }
 
     /* Static interface */
@@ -580,54 +892,69 @@ class NotificationService {
      * The JSON Schema of the `notifications` document.
      *
      * @method
+     * @param {Object|null} [optionsSchema] The application's schema of `options`; without it the document holds none.
      * @returns {Object}
      * @public
      */
-    static documentSchema() {
+    static documentSchema( optionsSchema = null ) {
+        const properties = {
+            enabled: { type: "boolean" },
+            rules: {
+                type: "array",
+                items: {
+                    type: "object",
+                    additionalProperties: false,
+                    required: [ "id", "event", "notice" ],
+                    properties: {
+                        id: { type: "string", minLength: 1 },
+                        event: { type: "string", minLength: 1 },
+                        notice: { type: "string", minLength: 1 },
+                        enabled: { type: "boolean" },
+                        when: { type: "object", additionalProperties: { type: "array", items: { type: "string" } } }
+                    }
+                }
+            },
+            texts: {
+                type: "object",
+                additionalProperties: { type: "object", additionalProperties: { type: "string" } }
+            }
+        };
+        if ( optionsSchema && typeof optionsSchema === "object" ) {
+            properties.options = optionsSchema;
+        }
         return {
             type: "object",
             additionalProperties: false,
             required: [ "enabled", "rules" ],
-            properties: {
-                enabled: { type: "boolean" },
-                rules: {
-                    type: "array",
-                    items: {
-                        type: "object",
-                        additionalProperties: false,
-                        required: [ "id", "event", "notice" ],
-                        properties: {
-                            id: { type: "string", minLength: 1 },
-                            event: { type: "string", minLength: 1 },
-                            notice: { type: "string", minLength: 1 },
-                            enabled: { type: "boolean" },
-                            when: { type: "object", additionalProperties: { type: "array", items: { type: "string" } } }
-                        }
-                    }
-                }
-            }
+            properties: properties
         };
     }
 
     /**
-     * Looks a label up in a language, then in the deployment's. A notice with a missing text is not sent with the
-     * catalogue's not-found placeholder in it.
+     * Looks a text up in a language, then in the deployment's: in each, the edited text first, then the shipped label.
+     * A notice with a missing text is not sent with the catalogue's not-found placeholder in it.
      *
      * @method
      * @param {string} key
      * @param {string} language
+     * @param {TiNoticeTexts} [texts]
      * @returns {string}
      * @throws {Error} With `code` `E_NOTICE_LABEL_MISSING`.
      */
-    static #label( key, language ) {
-        let value = localization.getLabel( key, language, null );
-        if ( typeof value !== "string" ) {
-            value = localization.getLabel( key, localization.getSystemLanguage(), null );
+    static #label( key, language, texts = {} ) {
+        const edited = ( lang ) => {
+            const entry = ( texts && Object.prototype.hasOwnProperty.call( texts, key ) ) ? texts[ key ] : null;
+            const value = ( entry && typeof entry === "object" && Object.prototype.hasOwnProperty.call( entry, lang ) ) ? entry[ lang ] : null;
+            return ( typeof value === "string" && value.trim() !== "" ) ? value : null;
+        };
+        const system = localization.getSystemLanguage();
+        for ( const lang of ( language === system ) ? [ language ] : [ language, system ] ) {
+            const value = edited( lang ) || localization.getLabel( key, lang, null );
+            if ( typeof value === "string" ) {
+                return value;
+            }
         }
-        if ( typeof value !== "string" ) {
-            throw transports.transportError( "E_NOTICE_LABEL_MISSING", false, key );
-        }
-        return value;
+        throw transports.transportError( "E_NOTICE_LABEL_MISSING", false, key );
     }
 
     /* Private interface */
@@ -748,7 +1075,14 @@ class NotificationService {
             return Promise.resolve( report );
         }
         let nextRetry = Infinity;
-        return Promise.resolve().then( () => cache.instance.matchKeys( KEY_PENDING + "*" ) ).then( ( keys ) => {
+        let texts = {};
+        // The edited texts are read once a pass, not once a notice: a pass may send a thousand. An edit saved during a
+        // pass reaches the next one, and every notice still queued is rendered then, so an edit reaches mail already
+        // queued before it.
+        return this.#storedTexts().then( ( stored ) => {
+            texts = stored;
+            return cache.instance.matchKeys( KEY_PENDING + "*" );
+        } ).then( ( keys ) => {
             const suffixes = ( keys || [] ).map( ( key ) => key.slice( KEY_PENDING.length ) );
             // A hint for a notice no longer queued goes, so the hints never outgrow the outbox.
             const queued = new Set( suffixes );
@@ -764,7 +1098,7 @@ class NotificationService {
                     nextRetry = Math.min( nextRetry, dueAt );
                     return undefined;
                 }
-                return this.#dispatch( suffix, now ).then( ( outcome ) => {
+                return this.#dispatch( suffix, now, texts ).then( ( outcome ) => {
                     if ( outcome.status === "retrying" ) {
                         this.#retryHints.set( suffix, outcome.retryAt );
                     } else {
@@ -803,9 +1137,10 @@ class NotificationService {
      * @method
      * @param {string} suffix
      * @param {number} now
+     * @param {TiNoticeTexts} texts The document's edited texts.
      * @returns {Promise<{status: string, retryAt?: number, code?: string}>}
      */
-    #dispatch( suffix, now ) {
+    #dispatch( suffix, now, texts ) {
         return this.#lock.exclusively( suffix, () => cache.instance.getValue( KEY_PENDING + suffix ).then( ( pending ) => {
             if ( !pending || typeof pending !== "object" ) {
                 return { status: "gone" };
@@ -820,7 +1155,7 @@ class NotificationService {
                 }
                 let message;
                 try {
-                    message = this.#compose( pending );
+                    message = this.#compose( pending, texts );
                 } catch ( error ) {
                     return this.#finish( suffix, pending, "failed", { code: ( error && error.code ) ? error.code : "E_NOTICE_RENDER_FAILED" } );
                 }
@@ -887,10 +1222,11 @@ class NotificationService {
      *
      * @method
      * @param {Object} pending
+     * @param {TiNoticeTexts} [texts] The document's edited texts.
      * @returns {TiMailMessage}
      */
-    #compose( pending ) {
-        const rendered = this.render( pending.kind, pending.recipient, pending.data || {} );
+    #compose( pending, texts = {} ) {
+        const rendered = this.render( pending.kind, pending.recipient, pending.data || {}, texts );
         const to = pending.recipient.name ? { email: pending.recipient.email, name: pending.recipient.name } : pending.recipient.email;
         const message = { to: to, subject: rendered.subject, text: rendered.text, html: rendered.html };
         if ( this.#sender !== null ) {
@@ -961,7 +1297,75 @@ class NotificationService {
     }
 
     /**
-     * The semantic validator of the `notifications` document.
+     * The edited texts of the stored document, or none.
+     *
+     * @method
+     * @returns {Promise<TiNoticeTexts>}
+     */
+    #storedTexts() {
+        return Promise.resolve().then( () => configService.instance.getCurrent( CONFIG_KEY ) ).then( ( envelope ) => {
+            const texts = ( envelope && envelope.value ) ? envelope.value.texts : null;
+            return ( texts && typeof texts === "object" ) ? texts : {};
+        } );
+    }
+
+    /**
+     * The semantic validator of the `notifications` document: its rules, then its edited texts.
+     *
+     * @method
+     * @param {TiNotificationsDocument} value
+     * @returns {ConfigValidationIssue[]}
+     */
+    #validateDocument( value ) {
+        return this.#validateRules( value ).concat( this.#validateTexts( value ) );
+    }
+
+    /**
+     * Refuses an edited text that would not render as the editor showed it: a key nothing reads, a language the
+     * shipped label lacks, an empty text, a line break in a part that takes one line, or a placeholder the text does
+     * not offer, which would reach the reader as the braces themselves.
+     *
+     * @method
+     * @param {TiNotificationsDocument} value
+     * @returns {ConfigValidationIssue[]}
+     */
+    #validateTexts( value ) {
+        const issues = [];
+        const texts = ( value && value.texts && typeof value.texts === "object" ) ? value.texts : {};
+        const editable = new Map( this.editableTexts().map( ( entry ) => [ entry.key, entry ] ) );
+        Object.keys( texts ).forEach( ( key ) => {
+            const entry = editable.get( key );
+            if ( !entry ) {
+                issues.push( { path: `.texts.${ key }`, message: `Text '${ key }' is not a notice text.`, code: "notifications.unknown-text" } );
+                return;
+            }
+            const languages = ( texts[ key ] && typeof texts[ key ] === "object" ) ? texts[ key ] : {};
+            Object.keys( languages ).forEach( ( language ) => {
+                const at = `.texts.${ key }.${ language }`;
+                const text = languages[ language ];
+                if ( typeof localization.getLabel( key, language, null ) !== "string" ) {
+                    issues.push( { path: at, message: `Text '${ key }' has no '${ language }' version to edit.`, code: "notifications.unknown-language" } );
+                    return;
+                }
+                if ( typeof text !== "string" || text.trim() === "" ) {
+                    issues.push( { path: at, message: `Text '${ key }' in '${ language }' is empty.`, code: "notifications.empty-text" } );
+                    return;
+                }
+                if ( !entry.multiline && /[\r\n]/.test( text ) ) {
+                    issues.push( { path: at, message: `Text '${ key }' in '${ language }' must be one line.`, code: "notifications.multiline-text" } );
+                }
+                if ( entry.placeholders !== null ) {
+                    placeholdersIn( text ).filter( ( name ) => !entry.placeholders.includes( name ) ).forEach( ( name ) => {
+                        issues.push( { path: at, message: `Text '${ key }' in '${ language }' uses '{${ name }}', which it does not offer.`, code: "notifications.unknown-placeholder" } );
+                    } );
+                }
+            } );
+        } );
+        return issues;
+    }
+
+    /**
+     * The rules' part of the validator.
      *
      * @method
      * @param {TiNotificationsDocument} value

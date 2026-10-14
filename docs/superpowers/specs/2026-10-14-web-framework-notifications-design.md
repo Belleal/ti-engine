@@ -4,10 +4,10 @@
 | --- | --- |
 | **Date** | 2026-10-14 |
 | **Packages** | `packages/web-framework`, `packages/cloudflare` |
-| **Status** | Approved by Boris on 2026-10-14, with notices raised by configurable rules over events (§3.2). Implemented in web-framework 1.52.0 and cloudflare 0.5.0; what implementation settled is in §9. |
-| **Version target** | web-framework `1.52.0`, cloudflare `0.5.0` |
+| **Status** | Approved by Boris on 2026-10-14, with notices raised by configurable rules over events (§3.2). Implemented in web-framework 1.52.0 and cloudflare 0.5.0; what implementation settled is in §9. Edited texts, application options and a branded HTML layout followed in web-framework 1.53.0 (§10). |
+| **Version target** | web-framework `1.52.0`, cloudflare `0.5.0`; web-framework `1.53.0` for §10 |
 | **Author** | Boris Kostadinov (with Claude) |
-| **Tracking** | YouTrack [`CA-486`](https://belleal.youtrack.cloud/issue/CA-486) (framework), [`CA-487`](https://belleal.youtrack.cloud/issue/CA-487) (the first application to adopt it), under [`CA-485`](https://belleal.youtrack.cloud/issue/CA-485) |
+| **Tracking** | YouTrack [`CA-486`](https://belleal.youtrack.cloud/issue/CA-486) (framework), [`CA-487`](https://belleal.youtrack.cloud/issue/CA-487) (the first application to adopt it), [`CA-490`](https://belleal.youtrack.cloud/issue/CA-490) (§10), under [`CA-485`](https://belleal.youtrack.cloud/issue/CA-485) |
 
 ---
 
@@ -287,3 +287,54 @@ The application decides what an event means and who receives it. The rules decid
   one, `400` for a malformed message and `503 E_MAIL_BINDING_MISSING`, permanent, for a deployment without the binding.
 - **No application seams on `TiWebAppManager`.** An application imports `/notifications` and `/jobs` directly; the
   manager only registers the `notifications` document, as it does any other.
+
+## 10. Edited texts, application options and the HTML layout (1.53.0)
+
+Boris, 2026-10-14, once the first e-mail had reached him from staging: "let's create the admin screen to manage these
+things? Also, we could enhance the sent emails with some branding (i.e., and html email)?" The screen is the
+application's (CA-488). What it needs from the framework is below; the framework still names no application.
+
+- **Edited texts live in the `notifications` document**, under `texts`: `{ "<label key>": { "<language>": "<text>" } }`.
+  - **Why there.** A notice's texts were labels read through core's catalogue, which holds the file the process
+    started with, so a word changed only with a release. The document is already versioned, audited and restorable,
+    already read by the dispatcher, and already the screen's to edit. A second document was rejected: two histories
+    for one screen, and a restore of one could leave rules and texts from different moments.
+  - **Keyed by label key, not by notice.** One rule then covers a subject, a text, a label a notice's `format` reads
+    (a task's name, a "due" phrase) and the layout's button and footer. A label two notices share is edited once.
+  - **Only edits are stored.** The rest is the shipped label, so a release rewording a text reaches a deployment that
+    never edited it. Storing every text was rejected: it froze them at the release that first wrote the document,
+    which is the defect an application's stored labels document had until it learned to merge over the shipped ones.
+  - **What may be edited is declared, not discovered.** `registerNotice( kind, { placeholders, labels } )` names the
+    placeholders the subject and the text may use, and the other labels `format` reads with theirs. `editableTexts()`
+    lists all of it for an editor. `format( data, language, label )` gets a `label( key )` honouring the edits.
+  - **The validator refuses what would not render as shown:** a key nothing reads, a language the shipped label lacks
+    (so an edit cannot add a language the deployment never had), an empty text, a line break in a one-line part (a
+    subject's is a new header to a transport that writes headers), and a placeholder the text does not offer, which
+    would reach the reader as the braces. An application adds its own rules as further validators: the first one
+    refuses a full stop after a Bulgarian date, which already ends in "г.".
+  - **An edit reaches mail already queued.** A notice is rendered when it is sent, and the dispatcher reads the edits
+    once a pass. Read once a notice, a pass of 1,000 would have cost 1,000 more store calls.
+- **Application options live there too**, under `options`, in the schema the application passes to `configDocument`.
+  `getOptions()` reads them over the defaults one key at a time. The first is the reminder window (Boris: "Yes, on
+  the screen"), which was a file setting read at start. Without a schema the document holds no options, so an
+  application that declares none sees no change.
+- **The HTML layout** (`setLayout( { name, colors, font, action, footer } )`). Boris chose "Wordmark, no images":
+  - the name as a wordmark on a band of the brand colour, a rule in the accent colour under it;
+  - a card with the text, a button to the link, and the address under the button for a client that hides it;
+  - a footer under the card, and the first paragraph as a hidden preheader, so the inbox shows the message rather
+    than the wordmark.
+  - **Tables and inline styles**, because Gmail drops a `<style>` block in some views and Outlook on Windows renders
+    with Word. `color-scheme: light`, so a client recolouring for dark mode leaves the brand alone.
+  - **Nothing is fetched when it opens.** An image was the alternative, and rejected: Outlook hides it until allowed,
+    and every open would request it from the application, telling it who opened what and when. That is the tracking
+    1.52.0 ruled out.
+  - **A colour must be `#rgb` or `#rrggbb` and a font a plain family list**, refused otherwise: both land inside a
+    `style` attribute, where escaping would not stop a value that closes the declaration.
+  - **The plain text** ends with the button's label and the link, and the footer under the `-- ` delimiter. A missing
+    button or footer label drops that part instead of failing every notice.
+- **Preview and test send.** `render( kind, recipient, data, texts )` takes draft texts, so an editor previews unsaved
+  edits exactly as they would be sent. `sendTest( kind, recipient, data, texts )` sends one through the transport, past
+  the outbox and the ledger: nothing records it, so it never stops the real notice of the same key.
+- **Not done:** a delivery status (what is queued, what failed). Counting failures means reading every ledger entry
+  of the retention period, one store call each on D1, for a panel. It waits for a ledger index or for someone to
+  need it.
