@@ -5,6 +5,41 @@ This document contains the list of changes made to the cloudflare package. The f
 A rule added to or widened in the probe filter applies to every application the moment it takes the release, so every
 such change is called out here.
 
+## Version 0.5.0
+
+The Cloudflare end of web-framework 1.52.0's notifications and scheduled jobs (CA-486). Design:
+`docs/superpowers/specs/2026-10-14-web-framework-notifications-design.md`, §3.5.
+
+* feat(container): **the mail relay.** `outboundByHost( { …, mail: { binding: "EMAIL" } } )` answers
+  `POST /v1/mail/send` (`MAIL_PATH`) at the state address by sending the posted message through the Worker's
+  `send_email` binding. The container holds no credential and reaches no new host: the binding is the authentication,
+  as it is for the state.
+  - One call is one message to one person: only `from`, `to`, `subject`, `text`, `html` and `replyTo` reach the
+    binding, a list of recipients is refused, and `cc`, `bcc` and headers are dropped.
+  - It answers `200 { messageId }`, or `{ code, transient }`. Email Service's `E_RATE_LIMIT_EXCEEDED`,
+    `E_DAILY_LIMIT_EXCEEDED`, `E_DELIVERY_FAILED` and `E_INTERNAL_SERVER_ERROR` are transient (`503`); every other
+    code is permanent (`422`). An error without a code is taken for the runtime's and is transient. A malformed
+    message is `400 E_MAIL_INVALID`, and a deployment without the binding `503 E_MAIL_BINDING_MISSING`, both permanent.
+  - Who may be written to is the binding's own configuration (`allowed_destination_addresses`), which is where a
+    staging environment keeps itself from mailing real people. Nothing here logs the message.
+* feat(container): **`PLATFORM_SETTINGS` gains `TI_WEB_NOTIFY_RELAY_URL`**, `http://11.0.0.1/v1/mail/send`, for every
+  application. It changes every application's container the moment it takes the release, and does nothing until the
+  application chooses the `cloudflare` transport.
+* feat(worker): **`createWorker( { …, jobs: true } )`** also posts `/_ti/jobs/run` (`JOBS_PATH`) to the container on
+  the schedule, waking it if it sleeps, for an application whose web-framework jobs trigger is `route`. With a sweep,
+  both run to the end on every tick, and the first failure, such as the container answering anything but a success,
+  is what the cron's log reports. Without `jobs`, the schedule is the sweep alone, exactly as before.
+* feat(worker): **`/_ti/` is answered `404` from the internet**, like a probe: neither the application's hook nor the
+  container sees it. web-framework keeps the prefix for calls from its own Worker, and its jobs route is outside
+  sign-in. The check ignores case and a trailing slash, because Express routes match `/_TI/JOBS/RUN/` too. It applies
+  with or without `jobs`.
+* docs(template): `wrangler.jsonc` shows the `send_email` binding, commented, and the Worker says how to turn on the
+  relay and the jobs. Neither is on by default: `jobs: true` against a container whose trigger is not `route` would
+  fail every tick.
+* test: **20 new tests; the suite is 184, all passing.** The relay against a fake binding, every documented code
+  among them; the schedule calling the container, with and without a sweep, and failing visibly; six requests under the
+  reserved prefix, in its spellings and methods, never reaching the hook or the container, and a path that only begins like it passing through.
+
 ## Version 0.4.0
 
 The template for the next application (CA-371). Two applications learned the rest of their Cloudflare edge by hand,

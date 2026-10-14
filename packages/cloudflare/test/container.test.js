@@ -30,7 +30,7 @@ const path = require( "node:path" );
 const { pathToFileURL } = require( "node:url" );
 const {
     STATE_ADDRESS, CONTAINER_PORT, PLATFORM_SETTINGS, containerEnvironment, IDENTITY_PROVIDER_HOSTS,
-    INTERCEPTED_HTTPS_SETTINGS, allowedHosts, sleepAfter, createBroker, containerSetup, outboundByHost
+    INTERCEPTED_HTTPS_SETTINGS, allowedHosts, sleepAfter, createBroker, containerSetup, outboundByHost, MAIL_PATH
 } = require( "#container" );
 
 const realFetch = globalThis.fetch;
@@ -75,6 +75,7 @@ describe( "container — the platform", () => {
             TI_MEMORY_CACHE_PROVIDER: "http",
             TI_MEMORY_CACHE_STATE_URL: "http://11.0.0.1",
             TI_MEMORY_CACHE_REQUIRED_CAPABILITIES: "json-documents,atomic-json-edit",
+            TI_WEB_NOTIFY_RELAY_URL: "http://11.0.0.1/v1/mail/send",
             TI_MESSAGE_EXCHANGE_ENABLED: "false",
             TI_SERVICE_HEALTH_CHECK_ENABLED: "false",
             TI_AUDITING_LOG_USES_JSON: "true"
@@ -619,6 +620,129 @@ describe( "container — the Worker's answers at the state address", () => {
     for ( const [ name, options ] of refusals ) {
         it( `refuses ${ name }`, () => {
             assert.throws( () => outboundByHost( options ), TypeError );
+        } );
+    }
+
+} );
+
+describe( "container — the mail relay (CA-486)", () => {
+
+    const MESSAGE = Object.freeze( {
+        from: { email: "no-reply@example.com", name: "Example" },
+        to: "anna@example.com",
+        subject: "Нова задача",
+        text: "Текст",
+        html: "<p>Текст</p>"
+    } );
+
+    const post = ( body, method = "POST" ) => new Request( `http://${ STATE_ADDRESS }${ MAIL_PATH }`, method === "POST" ? { method: method, body: typeof body === "string" ? body : JSON.stringify( body ) } : { method: method } );
+
+    // Stands in for a `send_email` binding: records each message and answers as told.
+    function emailStub( answer ) {
+        const sent = [];
+        return { sent: sent, send: async ( message ) => {
+            sent.push( message );
+            return answer ? answer( message ) : { messageId: "cf-" + sent.length };
+        } };
+    }
+
+    const relayWith = ( mail = {} ) => outboundByHost( { state: () => async () => new Response( "the state service", { status: 404 } ), mail: mail } )[ STATE_ADDRESS ];
+
+    it( "is where the platform tells every container to post", () => {
+        assert.equal( MAIL_PATH, "/v1/mail/send" );
+        assert.equal( PLATFORM_SETTINGS.TI_WEB_NOTIFY_RELAY_URL, `http://${ STATE_ADDRESS }${ MAIL_PATH }` );
+    } );
+
+    it( "sends the message through the EMAIL binding and answers its message ID", async () => {
+        const email = emailStub();
+        const response = await relayWith()( post( MESSAGE ), { EMAIL: email } );
+        assert.equal( response.status, 200 );
+        assert.deepEqual( await response.json(), { messageId: "cf-1" } );
+        assert.deepEqual( email.sent, [ MESSAGE ] );
+    } );
+
+    it( "sends through the binding it is told", async () => {
+        const email = emailStub();
+        const response = await relayWith( { binding: "NOTIFY" } )( post( MESSAGE ), { NOTIFY: email, EMAIL: emailStub() } );
+        assert.equal( response.status, 200 );
+        assert.equal( email.sent.length, 1 );
+    } );
+
+    it( "passes the message's own fields and nothing else: no copy to anyone", async () => {
+        const email = emailStub();
+        await relayWith()( post( Object.assign( {}, MESSAGE, { replyTo: "help@example.com", cc: "boss@example.com", bcc: [ "x@example.com" ], headers: { "X-Evil": "1" } } ) ), { EMAIL: email } );
+        assert.deepEqual( Object.keys( email.sent[ 0 ] ).sort(), [ "from", "html", "replyTo", "subject", "text", "to" ] );
+    } );
+
+    it( "refuses a message to more than one person, or without what it needs", async () => {
+        const email = emailStub();
+        for ( const body of [
+            Object.assign( {}, MESSAGE, { to: [ "a@example.com", "b@example.com" ] } ),
+            Object.assign( {}, MESSAGE, { to: undefined } ),
+            Object.assign( {}, MESSAGE, { from: undefined } ),
+            Object.assign( {}, MESSAGE, { subject: undefined } ),
+            Object.assign( {}, MESSAGE, { text: undefined, html: undefined } ),
+            "not json"
+        ] ) {
+            const response = await relayWith()( post( body ), { EMAIL: email } );
+            assert.equal( response.status, 400 );
+            assert.deepEqual( await response.json(), { code: "E_MAIL_INVALID", transient: false } );
+        }
+        assert.equal( email.sent.length, 0 );
+    } );
+
+    it( "maps every documented failure to its code and whether to try again", async () => {
+        const codes = {
+            E_RATE_LIMIT_EXCEEDED: true,
+            E_DAILY_LIMIT_EXCEEDED: true,
+            E_DELIVERY_FAILED: true,
+            E_INTERNAL_SERVER_ERROR: true,
+            E_RECIPIENT_SUPPRESSED: false,
+            E_SENDER_NOT_VERIFIED: false,
+            E_SENDER_DOMAIN_NOT_AVAILABLE: false,
+            E_RECIPIENT_NOT_ALLOWED: false,
+            E_FIELD_MISSING: false,
+            E_TOO_MANY_RECIPIENTS: false,
+            E_CONTENT_TOO_LARGE: false
+        };
+        for ( const [ code, transient ] of Object.entries( codes ) ) {
+            const email = emailStub( () => {
+                throw Object.assign( new Error( code ), { code: code } );
+            } );
+            const response = await relayWith()( post( MESSAGE ), { EMAIL: email } );
+            assert.equal( response.status, transient ? 503 : 422, code );
+            assert.deepEqual( await response.json(), { code: code, transient: transient } );
+        }
+    } );
+
+    it( "takes a failure without a code for the runtime's, worth another try", async () => {
+        const email = emailStub( () => {
+            throw new Error( "network" );
+        } );
+        const response = await relayWith()( post( MESSAGE ), { EMAIL: email } );
+        assert.deepEqual( await response.json(), { code: "E_INTERNAL_SERVER_ERROR", transient: true } );
+    } );
+
+    it( "gives up a message when the deployment has no binding", async () => {
+        const response = await relayWith()( post( MESSAGE ), {} );
+        assert.equal( response.status, 503 );
+        assert.deepEqual( await response.json(), { code: "E_MAIL_BINDING_MISSING", transient: false } );
+    } );
+
+    it( "answers only POST", async () => {
+        const response = await relayWith()( post( MESSAGE, "GET" ), { EMAIL: emailStub() } );
+        assert.equal( response.status, 405 );
+    } );
+
+    it( "leaves the path to the state service without a mail binding", async () => {
+        const handler = outboundByHost( { state: () => async ( request ) => Response.json( { path: new URL( request.url ).pathname } ) } )[ STATE_ADDRESS ];
+        const response = await handler( post( MESSAGE ), { DB: {}, EMAIL: emailStub() } );
+        assert.deepEqual( await response.json(), { path: MAIL_PATH } );
+    } );
+
+    for ( const [ name, mail ] of [ [ "mail options that are not an object", true ], [ "an unknown mail option", { to: "x" } ], [ "a binding that is not a name", { binding: "" } ] ] ) {
+        it( `refuses ${ name }`, () => {
+            assert.throws( () => outboundByHost( { state: () => async () => new Response( null ), mail: mail } ), TypeError );
         } );
     }
 
