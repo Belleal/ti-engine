@@ -1092,7 +1092,7 @@ acted on). What follows is only what is specific to *this* repository's gates.
   (0.1.0).
 - **Provenance validates `repository.url`.** A package whose manifest lacks a `repository` block fails to publish with a `422` (this is what caught `tester` 1.3.3). A new package needs `repository` (with `directory`), `bugs` and `homepage` matching the others.
 - Actions in every workflow are **pinned to commit SHAs** with the version as a trailing comment; Dependabot's `github-actions` ecosystem keeps them current.
-- Dependabot scans from the workspace root only — with npm workspaces that already reaches every `packages/*/package.json` — and its **version updates target `current`**, so bumps arrive through the normal release pull request. Security updates always target the default branch regardless.
+- Dependabot scans from the workspace root only — with npm workspaces that already reaches every `packages/*/package.json` — and its **version updates target `master`**, like its security updates. They used to target `current`; once that branch was deleted, no version update arrived until CA-484 dropped `target-branch`, so never name a branch that is not certain to outlive the config. **Its pull requests cannot merge as they stand:** `cla.yml`'s allowlist holds `Belleal` alone, and the bot cannot sign `CLA.md`. A bump is taken into a pull request authored as the maintainer instead, as competence does.
 
 ---
 
