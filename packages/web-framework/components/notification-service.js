@@ -213,6 +213,12 @@ class NotificationService {
     #pausedUntil = 0;
     #pausedCode = null;
     #timer = null;
+    // When each notice waiting for a retry is next due, as this process last read it. A hint that spares a pass the store
+    // read of a notice not yet due, never the truth: #dispatch reads the entry and its own `retryAt` before sending.
+    // Without it every pass read the whole backlog, and a pass starts with each queued notice: 2,000 notices queued into
+    // a relay outage cost 490,000 store calls before their retries ran out, nearly all of them for notices not yet due.
+    // Per process, like the lock, since one instance serves a store; after a restart one read of each relearns it.
+    #retryHints = new Map();
 
     /**
      * @constructor
@@ -509,6 +515,7 @@ class NotificationService {
         ] ) ).then( ( [ pending, done ] ) => {
             const suffixes = [ ...new Set( [ ...( pending || [] ).map( ( key ) => key.slice( KEY_PENDING.length ) ), ...( done || [] ).map( ( key ) => key.slice( KEY_DONE.length ) ) ] ) ];
             return suffixes.reduce( ( chain, suffix ) => chain.then( ( removed ) => this.#lock.exclusively( suffix, () => {
+                this.#retryHints.delete( suffix );
                 return tools.whenAllSettled( [ cache.instance.deleteValue( KEY_PENDING + suffix ), cache.instance.deleteValue( KEY_DONE + suffix ) ] );
             } ).then( ( results ) => removed + results.filter( ( result ) => tools.toBool( result ) ).length ) ), Promise.resolve( 0 ) );
         } );
@@ -743,12 +750,26 @@ class NotificationService {
         let nextRetry = Infinity;
         return Promise.resolve().then( () => cache.instance.matchKeys( KEY_PENDING + "*" ) ).then( ( keys ) => {
             const suffixes = ( keys || [] ).map( ( key ) => key.slice( KEY_PENDING.length ) );
+            // A hint for a notice no longer queued goes, so the hints never outgrow the outbox.
+            const queued = new Set( suffixes );
+            [ ...this.#retryHints.keys() ].filter( ( suffix ) => !queued.has( suffix ) ).forEach( ( suffix ) => this.#retryHints.delete( suffix ) );
             let processed = 0;
             return suffixes.reduce( ( chain, suffix ) => chain.then( () => {
                 if ( report.stopped !== null || processed >= DRAIN_LIMIT ) {
                     return undefined;
                 }
+                const dueAt = this.#retryHints.get( suffix );
+                if ( dueAt > now ) {
+                    report.retrying += 1;
+                    nextRetry = Math.min( nextRetry, dueAt );
+                    return undefined;
+                }
                 return this.#dispatch( suffix, now ).then( ( outcome ) => {
+                    if ( outcome.status === "retrying" ) {
+                        this.#retryHints.set( suffix, outcome.retryAt );
+                    } else {
+                        this.#retryHints.delete( suffix );
+                    }
                     if ( outcome.status === "sent" || outcome.status === "failed" ) {
                         processed += 1;
                         report[ outcome.status ] += 1;

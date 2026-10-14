@@ -61,12 +61,13 @@ E-mail notices and scheduled jobs, as a capability any application configures (C
 * feat(web-config-env): `TI_WEB_PUBLIC_URL`, `TI_WEB_NOTIFY_TRANSPORT`, `TI_WEB_NOTIFY_SENDER`,
   `TI_WEB_NOTIFY_SENDER_NAME`, `TI_WEB_NOTIFY_REPLY_TO`, `TI_WEB_NOTIFY_RELAY_URL`, `TI_WEB_JOBS_TRIGGER` and
   `TI_WEB_JOBS_BEHIND_WORKER`, over the new `publicUrl`, `notifications` and `jobs` settings in `web-server.json`.
-* test: **64 new tests; the suite is 951, all passing.**
-  - `notification-service.test.js` (34): queuing once, also for two calls at one moment; retries and their limit; the
+* test: **66 new tests; the suite is 953, all passing.**
+  - `notification-service.test.js` (36): queuing once, also for two calls at one moment; retries and their limit; the
     daily-limit and rate-limit pauses; permanent failures; a crash between the ledger and the outbox; a store failure,
     and a store that throws instead of rejecting, which must never throw out of a pass started from a timer, where it
     would end the process; a missing text; one pass at a time; rendering, escaping and links; rules, filters and the
-    validator; `forget`; and no `@` in any line logged across the file. Removing the lock fails the concurrency test, and treating the daily
+    validator; `forget`; a notice waiting for its retry read once rather than on every pass, also after a restart;
+    and no `@` in any line logged across the file. Removing the lock fails the concurrency test, and treating the daily
     limit as an ordinary failure fails both pause tests.
   - `job-scheduler.test.js` (10), `notification-transports.test.js` (6), and three server files run real servers, one
     each because a process holds one service instance: the trigger rule (4), the route (3) and the timer (2). Five

@@ -237,6 +237,65 @@ describe( "the dispatcher", () => {
         assert.equal( entry.value.attempts, 5 );
     } );
 
+    it( "reads a notice waiting for its retry once, and not again on every pass until it is due", async () => {
+        // CodeRabbit on #198: every pass read every waiting notice, and a pass starts with each notice queued.
+        const transport = fakeTransport( Array( 20 ).fill( "E_DELIVERY_FAILED" ) );
+        const service = serviceWith( transport );
+        for ( let index = 0; index < 20; index++ ) {
+            await service.notify( { kind: "task-new", key: "k" + index, recipient: ANNA, data: TASK } );
+        }
+        const reads = [];
+        const getValue = cacheStub.getValue;
+        cacheStub.getValue = function ( key ) {
+            if ( key.startsWith( "ti:notify:pending:" ) ) {
+                reads.push( key );
+            }
+            return getValue.call( this, key );
+        };
+        try {
+            assert.equal( ( await service.drain() ).retrying, 20 );
+            assert.equal( reads.length, 20, "each read once, to try it" );
+            reads.length = 0;
+            for ( let pass = 0; pass < 5; pass++ ) {
+                assert.deepEqual( await service.drain(), { sent: 0, failed: 0, retrying: 20, stopped: null } );
+            }
+            assert.equal( reads.length, 0, "a notice not yet due was read again" );
+
+            service.clock.now += 60 * 1000;
+            assert.equal( ( await service.drain() ).sent, 20 );
+            assert.equal( reads.length, 20 );
+        } finally {
+            cacheStub.getValue = getValue;
+        }
+    } );
+
+    it( "learns a waiting notice's retry time again after a restart, from one read of it", async () => {
+        const clock = { now: Date.UTC( 2026, 9, 14, 9, 0 ) };
+        const before = serviceWith( fakeTransport( [ "E_DELIVERY_FAILED" ] ), clock );
+        await before.notify( { kind: "task-new", key: "k", recipient: ANNA, data: TASK } );
+        await before.drain();
+
+        // A new process over the same store: it has no hints, and the store's entry says when the notice is due.
+        const transport = fakeTransport();
+        const after = serviceWith( transport, clock );
+        let reads = 0;
+        const getValue = cacheStub.getValue;
+        cacheStub.getValue = function ( key ) {
+            reads += key.startsWith( "ti:notify:pending:" ) ? 1 : 0;
+            return getValue.call( this, key );
+        };
+        try {
+            assert.equal( ( await after.drain() ).retrying, 1 );
+            assert.equal( ( await after.drain() ).retrying, 1 );
+            assert.equal( reads, 1 );
+            assert.equal( transport.sent.length, 0, "sent before it was due" );
+            clock.now += 60 * 1000;
+            assert.equal( ( await after.drain() ).sent, 1 );
+        } finally {
+            cacheStub.getValue = getValue;
+        }
+    } );
+
     it( "records a permanent failure at once and does not retry it", async () => {
         const transport = fakeTransport( [ "E_RECIPIENT_SUPPRESSED" ] );
         const service = serviceWith( transport );

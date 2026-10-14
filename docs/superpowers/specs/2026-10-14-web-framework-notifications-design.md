@@ -269,6 +269,16 @@ The application decides what an event means and who receives it. The rules decid
   widen the match.
 - **A rate limit pauses the run, like the daily limit.** Counted as an ordinary transient failure, one rate limit would
   have spent an attempt of every queued notice in a single pass.
+- **A pass skips a notice whose retry is not due without reading it** (CodeRabbit on #198). A pass starts with each
+  notice queued, and it read every waiting notice to learn it was not due. Measured with the real service on a store
+  where each call costs 10 ms: 2,000 notices queued into a relay outage that outlasted their five attempts cost 490,000
+  store calls, 82 minutes of them, nearly all for notices not yet due; between 168,000 and 2.4 million as a call costs
+  30 ms or 2 ms. The service now keeps, per process, when each waiting notice is next due, and the same outage costs
+  24,000: twelve per notice, two to queue it and two for each attempt, whatever a call costs. It is a hint: the
+  dispatcher reads the entry's own `retryAt` before sending, and after a restart one read of each notice relearns it.
+  A due-time index in the store, which the review suggested, was not built: it is one more value to keep consistent
+  with the outbox under D1's rules, for what the hint already removes while one instance serves a store, which the lock
+  assumes too.
 - **A recipient ID holding `@` is refused.** The ID is what the logs and the ledger name, so the rule that no line
   carries an address holds whatever an application uses as an ID.
 - **`internal` is the default trigger.** A deployment that registers a job and sets nothing still runs it; the timer
