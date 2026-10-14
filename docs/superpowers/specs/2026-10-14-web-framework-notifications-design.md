@@ -4,7 +4,7 @@
 | --- | --- |
 | **Date** | 2026-10-14 |
 | **Packages** | `packages/web-framework`, `packages/cloudflare` |
-| **Status** | Proposed, awaiting approval. No code yet. |
+| **Status** | Approved by Boris on 2026-10-14, with notices raised by configurable rules over events (§3.2). Being implemented. |
 | **Version target** | web-framework `1.52.0`, cloudflare `0.5.0` |
 | **Author** | Boris Kostadinov (with Claude) |
 | **Tracking** | YouTrack [`CA-486`](https://belleal.youtrack.cloud/issue/CA-486) (framework), [`CA-487`](https://belleal.youtrack.cloud/issue/CA-487) (the first application to adopt it), under [`CA-485`](https://belleal.youtrack.cloud/issue/CA-485) |
@@ -65,18 +65,24 @@ when to raise them.
 
 ## 3. The capability
 
-Three parts in web-framework and two in cloudflare. The application touches four calls:
-`registerNotification`, `notify`, `registerJob` and, optionally, `setNotificationTransport`.
+Four parts in web-framework and two in cloudflare. An application declares the **events** it can raise and the
+**notices** it can send. A configuration document holds the **rules** that join the two: which event, filtered by
+which of its attributes, sends which notice. Boris, approving the design: "let's make this configurable - i.e.,
+event-based thing". Which tasks notify is a rule, so changing it is an edit, not a release.
 
 ### 3.1 Notices (`@ti-engine/web-framework/notifications`)
 
-- **`registerNotification( kind, { subject, text, link? } )`.** Registered at start-up, like a config document.
+Everything below hangs off one frozen singleton, `NotificationService.instance`, exported as
+`@ti-engine/web-framework/notifications`.
+
+- **`registerNotice( kind, { subject, text, link? } )`.** Registered at start-up, like a config document.
   - `subject` and `text` are **label keys**, rendered per recipient language with `{placeholder}` substitution from the
     notice's data, through core's `getLabel( label, language )`.
   - `link( data )` returns a path, which is joined to the deployment's public base URL.
   - The HTML part is the text, escaped, in a fixed minimal template. It has no remote images, no tracking pixel and no
     link rewriting. A notice is a pointer to the application, not a report.
-- **`notify( { kind, key, recipient, data } )`.**
+- **`notify( { kind, key, recipient, data } )`.** This is the low-level send. An application normally calls `emit`
+  (§3.2) and lets the rules choose the notice.
   - **`recipient`** is `{ id, email, name?, language? }`. `language` falls back to the deployment's.
   - **It resolves once the notice is in the outbox,** not once it is delivered, so a request handler never waits on mail.
   - **It is idempotent per `key`.** A key already queued or already sent is a no-op that resolves `false`. The
@@ -84,42 +90,74 @@ Three parts in web-framework and two in cloudflare. The application touches four
     notice, such as a write and a nightly catch-up, therefore send it once.
   - **It never throws for a delivery failure.** It throws only for a malformed call, such as an unknown kind or a
     missing key or address.
-- **The outbox and the sent ledger** live in the state store under `ti:notify:` prefixes, written under a `KeyedLock`
-  per key.
-  - A ledger entry holds the kind, the time and the provider's message ID. It holds no address and no rendered text.
-  - Entries expire after a retention period (default 180 days), which bounds the store and what an erasure has to find.
+- **The outbox and the sent ledger** live in the state store, under two prefixes per notice, named by a SHA-256 of
+  its key:
+  - `ti:notify:pending:<hash>` holds what sending needs: the kind, the recipient, the data and the attempts so far.
+  - `ti:notify:done:<hash>` is the ledger entry, written once the notice is sent or given up. It holds the kind, the
+    recipient's ID, the outcome, the time and the provider's message ID. It holds no address and no rendered text.
+  - `notify` reads both under a `KeyedLock` on the hash, and writes the pending entry only if neither exists.
+  - The dispatcher lists only the pending prefix. That list stays as short as the backlog, while the done entries pile
+    up for as long as they are kept.
+  - Done entries expire after a retention period (default 180 days), which bounds the store and what an erasure has to
+    find.
   - `forget( recipientID )` removes a person's queued notices and ledger entries, for an application's erasure path.
 - **The dispatcher** drains the outbox in the background after each `notify` and on every job tick.
   - It works one message at a time, up to a cap per run.
   - A transient failure (rate limit, provider error) is retried with backoff, up to a few attempts.
   - A permanent failure (suppressed recipient, unverified sender) is recorded and not retried.
   - The daily limit stops the run, and the next tick resumes it.
-  - **Delivery is at least once.** The ledger entry is written straight after the provider accepts, so a crash between
-    the two can resend one notice. A notice that informs tolerates that; a missing one is worse.
+  - **Delivery is at least once.** The done entry is written straight after the provider accepts, and the pending entry
+    is removed after it. A crash between the provider accepting and the done entry being written resends one notice. A
+    notice that informs tolerates that; a missing one is worse. A pending entry whose done entry exists is removed
+    without sending.
 - **Logging never carries an address or a rendered text.** A line names the kind, the recipient's ID and the outcome.
   This is the rule the first application already enforces with a test on `@` in its logs.
-- **Settings.**
-  - **Deployment settings come from the environment:**
-    - `TI_WEB_NOTIFY_TRANSPORT`: `off` (the default), `log` or `cloudflare`;
-    - `TI_WEB_NOTIFY_SENDER`: the from address and name;
-    - `TI_WEB_NOTIFY_REPLY_TO`: optional;
-    - `TI_WEB_PUBLIC_URL`: the base for links. It is already needed wherever a URL leaves the request that made it.
-  - **What an administrator switches lives in a config document**, `notifications`, which the framework registers when
-    the capability is on: `{ enabled, kinds: { <kind>: { enabled } } }`. It has its own editor in the config hub and is
-    drift-tracked, so a release that adds a kind reaches a seeded deployment through the drift panel.
+- **Deployment settings** live in the server configuration, under `notifications` and `jobs`. As every other setting
+  does, each can be overridden from the environment (`web-config-env.js`):
+  - `TI_WEB_NOTIFY_TRANSPORT`: `off` (the default), `log` or `cloudflare`;
+  - `TI_WEB_NOTIFY_SENDER` and `TI_WEB_NOTIFY_SENDER_NAME`: the from address and its display name;
+  - `TI_WEB_NOTIFY_REPLY_TO`: optional;
+  - `TI_WEB_NOTIFY_RELAY_URL`: where the `cloudflare` transport posts. The cloudflare package sets it for every
+    container, to `http://11.0.0.1/v1/mail/send`;
+  - `TI_WEB_PUBLIC_URL`: the base for links in a notice. A notice is rendered outside any request, so the base cannot
+    be taken from one.
 
-### 3.2 Transports
+### 3.2 Events and rules
+
+- **`registerEvent( name, { attributes } )`.** It names an event the application raises and the attributes a rule may
+  filter on, for example `task.created` with `task`.
+- **`emit( name, { key, recipient, data } )`.**
+  - It reads the rules, picks every enabled rule for the event whose filter the data passes, and calls `notify` for
+    each. The notice's key is the rule's notice joined to the event's key, so two rules for the same notice still send
+    it once.
+  - It resolves to the number of notices queued. It never throws for delivery, and throws for an unregistered event.
+- **The rules are a configuration document, `notifications`.** The framework defines its schema and its semantic
+  validator, and the application supplies the default it seeds: `notifications.configDocument( { rules } )` returns
+  the definition to pass to `registerConfigDocument`.
+  - Its shape is `{ enabled, rules: [ { id, event, notice, when, enabled } ] }`.
+  - `when` maps an attribute to the values that pass, for example `{ "task": [ "self-evaluation" ] }`. An empty or
+    absent `when` passes everything.
+  - The validator refuses a rule that names an unregistered event or notice, or an attribute its event does not
+    declare.
+  - The document is drift-tracked, so a release that changes the default rules reaches a seeded deployment through the
+    drift panel, as any document does.
+  - An application may also give it an editor on its configuration screen.
+- **The rules are read from the store on every `emit`**, through the config service. At a few thousand events a
+  cycle that costs less than a cache would, and an edit takes effect at once.
+
+### 3.3 Transports
 
 - **The interface:** `send( { from, to, subject, text, html, replyTo } )` resolves to `{ messageId }`, or rejects with
   `{ code, transient }`.
 - **`log`** records that a notice would have gone, with no address. It is meant for development, tests and any
   environment that must not mail people.
-- **`cloudflare`** POSTs the message to `http://11.0.0.1/v1/mail/send`, the channel the state service already uses. The
-  Worker answers from its `send_email` binding (§3.4), so there is no token and no new allowed host.
+- **`cloudflare`** POSTs the message to `TI_WEB_NOTIFY_RELAY_URL`, which on the platform is
+  `http://11.0.0.1/v1/mail/send`, the channel the state service already uses. The Worker answers from its `send_email`
+  binding (§3.5), so there is no token and no new allowed host.
 - **`setNotificationTransport( transport )`** lets an application bring its own transport, such as SMTP or Microsoft
   Graph, without the framework depending on either.
 
-### 3.3 Scheduled jobs
+### 3.4 Scheduled jobs
 
 - **`registerJob( name, { every, at?, run } )`.**
   - `every` is `"hour"` or `"day"`; `at` is `"HH:MM"` in UTC, for a daily job.
@@ -129,13 +167,16 @@ Three parts in web-framework and two in cloudflare. The application touches four
   twice must be harmless, which `notify`'s keys make true for notices.
 - **Two triggers, chosen by `TI_WEB_JOBS_TRIGGER`:**
   - **`route`:** `POST /_ti/jobs/run` runs the due jobs and answers `204`. It is outside sign-in, and meant to be
-    reachable only from the Worker, which refuses the path from the internet (§3.4). The framework refuses to start a
+    reachable only from the Worker, which refuses the path from the internet (§3.5). The framework refuses to start a
     `route` trigger unless the deployment says it sits behind such a Worker (`TI_WEB_JOBS_BEHIND_WORKER=true`), so a
     directly exposed server cannot be made to run jobs by a stranger.
+  - **The route is mounted after the start-up gate and before the session.** The gate means it waits for the
+    application to finish starting. Being before the session means it needs no cookie and no CSRF token, which the
+    Worker's request cannot carry.
   - **`internal`:** an in-process timer every 15 minutes calls `runDueJobs`, for a deployment without a Worker.
 - **Both assume one instance,** as the lock already does.
 
-### 3.4 cloudflare (`@ti-engine/cloudflare`)
+### 3.5 cloudflare (`@ti-engine/cloudflare`)
 
 - **`outboundByHost( { state, brokers, mail } )`.**
   - `mail: { binding: "EMAIL" }` answers `POST /v1/mail/send` on `STATE_ADDRESS` by calling the binding's `send`.
@@ -153,13 +194,16 @@ Three parts in web-framework and two in cloudflare. The application touches four
 
 ## 4. What an application does
 
-1. Registers its notice kinds, with label keys in every language it ships.
-2. Calls `notify` where its own rules say a notice is due, after the write that made it due has settled. It does not
-   call it under a write lock.
+1. Registers its events and its notices, with label keys in every language it ships, and the `notifications`
+   document with its default rules.
+2. Calls `emit` where something happens that a rule may want to hear about, after the write that made it happen has
+   settled. It does not call it under a write lock.
 3. Registers a job for anything that becomes due with the passing of time, such as an approaching deadline.
 4. Sets the environment (transport, sender, public URL, trigger) and, on Cloudflare, the `send_email` binding and the
    cron.
 5. Calls `forget( id )` from its erasure path, if it has one.
+
+The application decides what an event means and who receives it. The rules decide whether it becomes an e-mail.
 
 ## 5. Rejected
 
@@ -187,6 +231,7 @@ Three parts in web-framework and two in cloudflare. The application touches four
 ## 7. Tests and delivery
 
 - **web-framework:**
+  - rules: matching, filters, disabled rules, and the validator's refusals;
   - rendering per language;
   - idempotency under two concurrent `notify` calls on one key;
   - retries and their limits;
@@ -203,8 +248,9 @@ Three parts in web-framework and two in cloudflare. The application touches four
   - the skill updated;
   - CHANGELOG sections for web-framework 1.52.0 and cloudflare 0.5.0.
 
-## 8. Open questions
+## 8. Settled while designing
 
-- **`TI_WEB_PUBLIC_URL`:** whether the framework already derives a public base URL somewhere it can reuse, rather than
-  adding a setting. To check during implementation.
-- **The retention period for ledger entries:** 180 days is proposed, long enough to span a cycle.
+- **`TI_WEB_PUBLIC_URL` is a setting of its own.** The framework derives a base URL only from a request
+  (`getBaseUrl`), and a notice raised by a job has none. The OpenID callback holds the public origin, but it belongs to
+  one provider and is absent under local sign-in.
+- **Done entries are kept 180 days**, long enough to span a cycle.
