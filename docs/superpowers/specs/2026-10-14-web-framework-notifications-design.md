@@ -4,7 +4,7 @@
 | --- | --- |
 | **Date** | 2026-10-14 |
 | **Packages** | `packages/web-framework`, `packages/cloudflare` |
-| **Status** | Approved by Boris on 2026-10-14, with notices raised by configurable rules over events (§3.2). Being implemented. |
+| **Status** | Approved by Boris on 2026-10-14, with notices raised by configurable rules over events (§3.2). Implemented in web-framework 1.52.0 and cloudflare 0.5.0; what implementation settled is in §9. |
 | **Version target** | web-framework `1.52.0`, cloudflare `0.5.0` |
 | **Author** | Boris Kostadinov (with Claude) |
 | **Tracking** | YouTrack [`CA-486`](https://belleal.youtrack.cloud/issue/CA-486) (framework), [`CA-487`](https://belleal.youtrack.cloud/issue/CA-487) (the first application to adopt it), under [`CA-485`](https://belleal.youtrack.cloud/issue/CA-485) |
@@ -90,8 +90,8 @@ Everything below hangs off one frozen singleton, `NotificationService.instance`,
     notice, such as a write and a nightly catch-up, therefore send it once.
   - **It never throws for a delivery failure.** It throws only for a malformed call, such as an unknown kind or a
     missing key or address.
-- **The outbox and the sent ledger** live in the state store, under two prefixes per notice, named by a SHA-256 of
-  its key:
+- **The outbox and the sent ledger** live in the state store as values, under two prefixes per notice, named by a
+  digest of the recipient's ID and a SHA-256 of the key (§9):
   - `ti:notify:pending:<hash>` holds what sending needs: the kind, the recipient, the data and the attempts so far.
   - `ti:notify:done:<hash>` is the ledger entry, written once the notice is sent or given up. It holds the kind, the
     recipient's ID, the outcome, the time and the provider's message ID. It holds no address and no rendered text.
@@ -103,9 +103,9 @@ Everything below hangs off one frozen singleton, `NotificationService.instance`,
   - `forget( recipientID )` removes a person's queued notices and ledger entries, for an application's erasure path.
 - **The dispatcher** drains the outbox in the background after each `notify` and on every job tick.
   - It works one message at a time, up to a cap per run.
-  - A transient failure (rate limit, provider error) is retried with backoff, up to a few attempts.
+  - A transient failure (a provider error) is retried after 1, 5, 15 and 60 minutes, five attempts in all.
   - A permanent failure (suppressed recipient, unverified sender) is recorded and not retried.
-  - The daily limit stops the run, and the next tick resumes it.
+  - The daily limit stops the run until the next UTC day, and a rate limit for a minute. Neither counts an attempt.
   - **Delivery is at least once.** The done entry is written straight after the provider accepts, and the pending entry
     is removed after it. A crash between the provider accepting and the done entry being written resends one notice. A
     notice that informs tolerates that; a missing one is worse. A pending entry whose done entry exists is removed
@@ -165,7 +165,7 @@ Everything below hangs off one frozen singleton, `NotificationService.instance`,
 - **`runDueJobs( now )`** runs each job whose period has passed since its last run, one at a time. The last run is
   recorded in the store (`ti:jobs:last:<name>`). A failing job is logged and does not stop the others. A job that runs
   twice must be harmless, which `notify`'s keys make true for notices.
-- **Two triggers, chosen by `TI_WEB_JOBS_TRIGGER`:**
+- **Two triggers, chosen by `TI_WEB_JOBS_TRIGGER`,** `internal` unless stated, or `off`:
   - **`route`:** `POST /_ti/jobs/run` runs the due jobs and answers `204`. It is outside sign-in, and meant to be
     reachable only from the Worker, which refuses the path from the internet (§3.5). The framework refuses to start a
     `route` trigger unless the deployment says it sits behind such a Worker (`TI_WEB_JOBS_BEHIND_WORKER=true`), so a
@@ -188,7 +188,8 @@ Everything below hangs off one frozen singleton, `NotificationService.instance`,
 - **`createWorker( { …, jobs: true } )`.**
   - `scheduled` also sends `POST /_ti/jobs/run` to the container through its binding, waking it if it sleeps, beside the
     existing sweep.
-  - `fetch` answers `404` to that path from the internet before the request reaches the container.
+  - `fetch` answers `404` to anything under `/_ti/` from the internet before the request reaches the container,
+    without case and with or without a trailing slash, since Express routes match either way.
   - How often the cron fires stays in the application's wrangler file.
 - **The template's `wrangler.jsonc`** gains a commented `send_email` binding and the cron line.
 
@@ -254,3 +255,25 @@ The application decides what an event means and who receives it. The rules decid
   (`getBaseUrl`), and a notice raised by a job has none. The OpenID callback holds the public origin, but it belongs to
   one provider and is absent under local sign-in.
 - **Done entries are kept 180 days**, long enough to span a cycle.
+
+## 9. Settled while implementing
+
+- **Values, not JSON documents.** The outbox, the ledger and a job's last run are string values. D1's state service has
+  no way to delete a document: `/v1/values/delete` reaches `state_values` alone, where Redis's `DEL` removes any key.
+  An outbox written with `setJSON` could be emptied on Redis and never on D1. A value also takes its expiry in the write
+  that stores it. The in-memory test store now behaves like D1 here, so a component relying on deleting a document
+  fails in the tests. That D1 cannot delete a document at all is core's to decide, and is not changed here.
+- **The recipient is part of the key.** Entries are `ti:notify:pending:<16 hex of SHA-256 of the ID>:<SHA-256 of the
+  key>`. `forget( id )` then matches one prefix and reads nothing, where a key of the notice alone meant reading every
+  ledger entry of the retention period to find a person's. Digests, so an ID or key holding `*`, `?` or `[` cannot
+  widen the match.
+- **A rate limit pauses the run, like the daily limit.** Counted as an ordinary transient failure, one rate limit would
+  have spent an attempt of every queued notice in a single pass.
+- **A recipient ID holding `@` is refused.** The ID is what the logs and the ledger name, so the rule that no line
+  carries an address holds whatever an application uses as an ID.
+- **`internal` is the default trigger.** A deployment that registers a job and sets nothing still runs it; the timer
+  starts only when there is a job or a transport, and never holds the process open.
+- **The relay answers with a status that says the outcome:** `200`, `503` for a transient code, `422` for a permanent
+  one, `400` for a malformed message and `503 E_MAIL_BINDING_MISSING`, permanent, for a deployment without the binding.
+- **No application seams on `TiWebAppManager`.** An application imports `/notifications` and `/jobs` directly; the
+  manager only registers the `notifications` document, as it does any other.
