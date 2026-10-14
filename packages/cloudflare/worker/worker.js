@@ -43,7 +43,26 @@ const { forContainer } = require( "./forwarding.js" );
  * @type {string[]}
  * @private
  */
-const WORKER_OPTIONS = Object.freeze( [ "getContainer", "binding", "probes", "edge", "finish", "sweep", "database" ] );
+const WORKER_OPTIONS = Object.freeze( [ "getContainer", "binding", "probes", "edge", "finish", "sweep", "database", "jobs" ] );
+
+/**
+ * The path web-framework runs the due jobs on when its trigger is `route` (CA-486). The Worker's schedule posts to it,
+ * and nobody else may: the route is outside sign-in.
+ *
+ * @type {string}
+ * @public
+ */
+const JOBS_PATH = "/_ti/jobs/run";
+
+/**
+ * The prefix web-framework keeps for calls from its own Worker. A request from the internet for anything under it is
+ * answered `404` here. Compared without case and without a trailing slash, because Express routes match either way: a
+ * request for `/_TI/JOBS/RUN/` reaches the same handler.
+ *
+ * @type {string}
+ * @private
+ */
+const RESERVED_PREFIX = "/_ti/";
 
 /**
  * What the application's hooks are given besides the request.
@@ -60,7 +79,7 @@ const WORKER_OPTIONS = Object.freeze( [ "getContainer", "binding", "probes", "ed
  * @typedef {Object} Worker
  * @property {(request: Request, env: Object, ctx: { waitUntil: (promise: Promise<*>) => void }) => Promise<Response>} fetch
  * @property {(controller: *, env: Object, ctx: { waitUntil: (promise: Promise<*>) => void }) => Promise<void>} [scheduled]
- * Present only with a `sweep`.
+ * Present only with a `sweep` or `jobs`.
  */
 
 /**
@@ -106,6 +125,35 @@ function kindOf( value ) {
 }
 
 /**
+ * @param {string} pathname
+ * @returns {boolean} Whether the path is under the prefix web-framework keeps for its own Worker.
+ * @private
+ */
+function isReserved( pathname ) {
+    return ( pathname.toLowerCase() + "/" ).startsWith( RESERVED_PREFIX );
+}
+
+/**
+ * Asks the container to run its due jobs, waking it if it sleeps, and fails when it does not answer that it did, so a
+ * missed tick shows in the cron's own log.
+ *
+ * @param {{ fetch: (request: Request) => Promise<Response> }} container
+ * @returns {Promise<void>}
+ * @throws {Error} If the container answers anything but a success.
+ * @private
+ */
+async function runJobs( container ) {
+    // The host is not looked at: the request goes to the container through its binding, never over the network.
+    const response = await container.fetch( new Request( `http://container${ JOBS_PATH }`, { method: "POST" } ) );
+    if ( response.body !== null ) {
+        await response.body.cancel();
+    }
+    if ( response.ok === false ) {
+        throw new Error( `createWorker: the container answered ${ response.status } to ${ JOBS_PATH }.` );
+    }
+}
+
+/**
  * Takes what one of the application's hooks answered, when it is a response. A hook with a branch that returns nothing
  * answers `undefined`, and read as a response it failed on `.status`; an object that is not a response failed later
  * still, in the runtime. Neither named the hook.
@@ -141,7 +189,8 @@ function answerOf( hook, answer ) {
  *
  * A request is decided in this order:
  * 1. A scanner's probe is answered `404` here, for any method, by {@link module:probes.probeResponse}. Neither the
- *    application's hook nor the container sees it, so it never wakes the container or holds it awake.
+ *    application's hook nor the container sees it, so it never wakes the container or holds it awake. So is a request
+ *    for anything under `/_ti/`, which web-framework keeps for calls from this Worker, such as {@link JOBS_PATH}.
  * 2. The application's `edge` hook, when it has one, gets the request as the Worker received it, and `origin`, which
  *    sends it to the container. It may answer without calling `origin`, as an edge cache does on a hit, or call it
  *    once and work on the answer, as timing does.
@@ -165,6 +214,9 @@ function answerOf( hook, answer ) {
  * @param {(database: *) => Promise<*>} [options.sweep] Sweeps expired state on the Worker's schedule, such as core's
  * `sweepExpired`. Without it, the Worker has no `scheduled` handler.
  * @param {string} [options.database] The database binding the sweep is given: `DB` unless stated.
+ * @param {boolean} [options.jobs] On the Worker's schedule, also post {@link JOBS_PATH} to the container, for an
+ * application whose web-framework jobs trigger is `route` (CA-486). The cron's times are the application's wrangler
+ * file's.
  * @returns {Worker} Frozen.
  * @throws {TypeError} If an option is malformed. A request fails with one when a hook answers with something other than
  * a response, naming the hook.
@@ -179,7 +231,7 @@ function createWorker( options ) {
             throw new TypeError( `createWorker: '${ key }' is not an option. The options are ${ WORKER_OPTIONS.join( ", " ) }.` );
         }
     }
-    const { getContainer, binding = "CONTAINER", probes = {}, edge, finish, sweep, database } = options;
+    const { getContainer, binding = "CONTAINER", probes = {}, edge, finish, sweep, database, jobs = false } = options;
     if ( typeof getContainer !== "function" ) {
         throw new TypeError( "createWorker: 'getContainer' must be @cloudflare/containers' getContainer." );
     }
@@ -194,6 +246,9 @@ function createWorker( options ) {
     if ( database !== undefined && ( sweep === undefined || isBindingName( database ) === false ) ) {
         throw new TypeError( `createWorker: 'database' must be the name of the binding the sweep is given, and only with a sweep: ${ JSON.stringify( database ) }` );
     }
+    if ( typeof jobs !== "boolean" ) {
+        throw new TypeError( `createWorker: 'jobs' must be true or false, when given: ${ JSON.stringify( jobs ) }` );
+    }
     const isProbe = createProbeFilter( probes );
     const swept = ( database === undefined ) ? "DB" : database;
 
@@ -202,7 +257,7 @@ function createWorker( options ) {
             const url = new URL( request.url );
             const context = Object.freeze( { env: env, ctx: ctx, url: url } );
             let response;
-            if ( isProbe( url.pathname, url.search ) === true ) {
+            if ( isProbe( url.pathname, url.search ) === true || isReserved( url.pathname ) === true ) {
                 response = probeResponse();
             } else {
                 const origin = () => getContainer( env[ binding ] ).fetch( forContainer( request ) );
@@ -214,14 +269,30 @@ function createWorker( options ) {
             return answerOf( "finish", await finish( response, context ) );
         }
     };
-    if ( sweep !== undefined ) {
+    if ( sweep !== undefined || jobs === true ) {
         worker.scheduled = async ( controller, env, ctx ) => {
-            ctx.waitUntil( sweep( env[ swept ] ) );
+            if ( jobs === false ) {
+                ctx.waitUntil( sweep( env[ swept ] ) );
+                return;
+            }
+            const tasks = [];
+            if ( sweep !== undefined ) {
+                tasks.push( Promise.resolve().then( () => sweep( env[ swept ] ) ) );
+            }
+            tasks.push( runJobs( getContainer( env[ binding ] ) ) );
+            // Both run to the end, whichever fails first, and the first failure is what the cron reports.
+            ctx.waitUntil( Promise.allSettled( tasks ).then( ( outcomes ) => {
+                const failure = outcomes.find( ( outcome ) => outcome.status === "rejected" );
+                if ( failure !== undefined ) {
+                    throw failure.reason;
+                }
+            } ) );
         };
     }
     return Object.freeze( worker );
 }
 
 module.exports = {
+    JOBS_PATH: JOBS_PATH,
     createWorker: createWorker
 };

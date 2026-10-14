@@ -26,7 +26,7 @@
 
 const { describe, it } = require( "node:test" );
 const assert = require( "node:assert/strict" );
-const { createWorker } = require( "#worker" );
+const { createWorker, JOBS_PATH } = require( "#worker" );
 
 const CONNECTING = "203.0.113.7";
 
@@ -292,6 +292,79 @@ describe( "worker — the scheduled sweep", () => {
 
 } );
 
+describe( "worker — the scheduled jobs (CA-486)", () => {
+
+    it( "posts the jobs path to the container on the schedule, and waits for its answer", async () => {
+        const container = containerStub( () => new Response( null, { status: 204 } ) );
+        const worker = createWorker( { getContainer: container.getContainer, jobs: true } );
+        const ctx = contextStub();
+        await worker.scheduled( {}, ENV, ctx );
+        await Promise.all( ctx.waited );
+        assert.equal( container.received.length, 1 );
+        assert.equal( container.received[ 0 ].method, "POST" );
+        assert.equal( new URL( container.received[ 0 ].url ).pathname, JOBS_PATH );
+        assert.deepEqual( container.namespaces, [ ENV.CONTAINER ] );
+    } );
+
+    it( "sweeps and runs the jobs on one schedule, each to the end when the other fails", async () => {
+        const swept = [];
+        const container = containerStub( () => new Response( "starting", { status: 503 } ) );
+        const worker = createWorker( { getContainer: container.getContainer, jobs: true, sweep: async ( database ) => swept.push( database ) } );
+        const ctx = contextStub();
+        await worker.scheduled( {}, ENV, ctx );
+        await assert.rejects( Promise.all( ctx.waited ), /503/ );
+        assert.deepEqual( swept, [ ENV.DB ] );
+        assert.equal( container.received.length, 1 );
+    } );
+
+    it( "has a scheduled handler with jobs alone", () => {
+        assert.deepEqual( Object.keys( createWorker( { getContainer: containerStub().getContainer, jobs: true } ) ).sort(), [ "fetch", "scheduled" ] );
+        assert.deepEqual( Object.keys( createWorker( { getContainer: containerStub().getContainer, jobs: false } ) ), [ "fetch" ] );
+    } );
+
+    it( "answers 404 to the framework's reserved paths from the internet, however they are spelled, and never reaches the container", async () => {
+        const container = containerStub();
+        let hooked = 0;
+        const worker = createWorker( {
+            getContainer: container.getContainer,
+            jobs: true,
+            edge: ( request, origin ) => {
+                hooked += 1;
+                return origin();
+            },
+            finish: ( response ) => {
+                const finished = new Response( response.body, response );
+                finished.headers.set( "x-finished", "yes" );
+                return finished;
+            }
+        } );
+        for ( const [ method, pathname ] of [ [ "POST", JOBS_PATH ], [ "GET", JOBS_PATH ], [ "POST", "/_TI/JOBS/RUN/" ], [ "POST", "/_ti/jobs/run/" ], [ "POST", "/_ti/anything" ], [ "GET", "/_ti" ] ] ) {
+            const response = await worker.fetch( new Request( `https://app.example.com${ pathname }`, { method: method, headers: { "cf-connecting-ip": CONNECTING } } ), ENV, contextStub() );
+            assert.equal( response.status, 404, `${ method } ${ pathname }` );
+            assert.equal( response.headers.get( "x-finished" ), "yes" );
+        }
+        assert.equal( hooked, 0 );
+        assert.equal( container.received.length, 0 );
+    } );
+
+    it( "refuses the reserved paths without jobs too", async () => {
+        const container = containerStub();
+        const worker = createWorker( { getContainer: container.getContainer } );
+        const response = await worker.fetch( new Request( `https://app.example.com${ JOBS_PATH }`, { method: "POST" } ), ENV, contextStub() );
+        assert.equal( response.status, 404 );
+        assert.equal( container.received.length, 0 );
+    } );
+
+    it( "still sends the container a path that only begins like the reserved prefix", async () => {
+        const container = containerStub();
+        const worker = createWorker( { getContainer: container.getContainer } );
+        const response = await worker.fetch( new Request( "https://app.example.com/_tips", { headers: { "cf-connecting-ip": CONNECTING } } ), ENV, contextStub() );
+        assert.equal( response.status, 200 );
+        assert.equal( container.received.length, 1 );
+    } );
+
+} );
+
 describe( "worker — refusals, when the Worker's module loads", () => {
 
     const getContainer = containerStub().getContainer;
@@ -310,6 +383,7 @@ describe( "worker — refusals, when the Worker's module loads", () => {
         [ "an edge hook that is not a function", { getContainer: getContainer, edge: "cache" } ],
         [ "a finishing that is not a function", { getContainer: getContainer, finish: {} } ],
         [ "a sweep that is not a function", { getContainer: getContainer, sweep: true } ],
+        [ "jobs that are not true or false", { getContainer: getContainer, jobs: "yes" } ],
         [ "probe options the filter cannot honour", { getContainer: getContainer, probes: { disable: [ "everything" ] } } ]
     ];
 

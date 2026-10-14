@@ -207,4 +207,45 @@ describe( "applyWebConfigEnvOverrides", () => {
 
     } );
 
+    describe( "notifications, the public URL and the jobs trigger (CA-486)", () => {
+
+        it( "sets each notification setting, trimmed, creating the block when absent", () => {
+            const config = applyWebConfigEnvOverrides( {}, {
+                TI_WEB_NOTIFY_TRANSPORT: " cloudflare ",
+                TI_WEB_NOTIFY_SENDER: "no-reply@example.com",
+                TI_WEB_NOTIFY_SENDER_NAME: "Example",
+                TI_WEB_NOTIFY_REPLY_TO: "help@example.com",
+                TI_WEB_NOTIFY_RELAY_URL: "http://11.0.0.1/v1/mail/send"
+            } );
+            assert.deepEqual( config.notifications, {
+                transport: "cloudflare",
+                sender: "no-reply@example.com",
+                senderName: "Example",
+                replyTo: "help@example.com",
+                relayUrl: "http://11.0.0.1/v1/mail/send"
+            } );
+        } );
+
+        it( "keeps the configured notification settings it does not override", () => {
+            const config = applyWebConfigEnvOverrides( { notifications: { transport: "off", retentionDays: 90 } }, { TI_WEB_NOTIFY_TRANSPORT: "log" } );
+            assert.deepEqual( config.notifications, { transport: "log", retentionDays: 90 } );
+        } );
+
+        it( "sets the public URL", () => {
+            assert.equal( applyWebConfigEnvOverrides( {}, { TI_WEB_PUBLIC_URL: "https://app.example.com " } ).publicUrl, "https://app.example.com" );
+        } );
+
+        it( "sets the jobs trigger, lower-cased, and whether the server is behind a Worker, as a bool", () => {
+            const config = applyWebConfigEnvOverrides( { jobs: { trigger: "internal", behindWorker: false } }, { TI_WEB_JOBS_TRIGGER: "Route", TI_WEB_JOBS_BEHIND_WORKER: "true" } );
+            assert.deepEqual( config.jobs, { trigger: "route", behindWorker: true } );
+            assert.equal( applyWebConfigEnvOverrides( { jobs: { behindWorker: true } }, { TI_WEB_JOBS_BEHIND_WORKER: "false" } ).jobs.behindWorker, false );
+        } );
+
+        it( "leaves all of them untouched when the variables are absent", () => {
+            const config = { publicUrl: "https://a.example", notifications: { transport: "log" }, jobs: { trigger: "off" } };
+            assert.deepEqual( applyWebConfigEnvOverrides( JSON.parse( JSON.stringify( config ) ), {} ), config );
+        } );
+
+    } );
+
 } );

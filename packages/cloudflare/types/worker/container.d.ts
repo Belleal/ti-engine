@@ -1,6 +1,7 @@
 declare const _exports: {
     STATE_ADDRESS: string;
     CONTAINER_PORT: number;
+    MAIL_PATH: string;
     PLATFORM_SETTINGS: Record<string, string>;
     containerEnvironment: typeof containerEnvironment;
     IDENTITY_PROVIDER_HOSTS: Record<string, string[]>;
@@ -221,9 +222,13 @@ declare function containerSetup(options: {
  * ```js
  * ApplicationContainer.outboundByHost = outboundByHost( {
  *     state: ( database ) => createD1StateService( database ),
- *     brokers: [ siteverify ]
+ *     brokers: [ siteverify ],
+ *     mail: { binding: "EMAIL" }
  * } );
  * ```
+ *
+ * With `mail`, the Worker also answers `POST` {@link MAIL_PATH} by sending the message through that `send_email`
+ * binding (CA-486), which is where web-framework's `cloudflare` notification transport posts.
  *
  * Set it on the class the Worker exports. `@cloudflare/containers` keeps these handlers under the name of the class
  * they are set on, and looks them up by the name of the class a container runs as. Set on a parent class, they would
@@ -238,6 +243,8 @@ declare function containerSetup(options: {
  * database binding, such as `( database ) => createD1StateService( database )`.
  * @param {string} [options.database] The database binding's name: `DB` unless stated.
  * @param {Broker[]} [options.brokers] The calls the Worker makes for the container, each on a path of its own.
+ * @param {{ binding?: string }} [options.mail] Relays the container's messages through a `send_email` binding:
+ * `EMAIL` unless stated. Without it, {@link MAIL_PATH} is the state service's, which does not know it.
  * @returns {Object<string, (request: Request, env: Object) => Promise<Response>>} Keyed by {@link STATE_ADDRESS} alone.
  * @throws {TypeError} If an option is malformed.
  * @public
@@ -246,4 +253,7 @@ declare function outboundByHost(options: {
     state: (database: any) => (request: Request) => Promise<Response>;
     database?: string;
     brokers?: Broker[];
+    mail?: {
+        binding?: string;
+    };
 }): Record<string, (request: Request, env: Object) => Promise<Response>>;

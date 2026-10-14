@@ -64,6 +64,16 @@ const STATE_ADDRESS = "11.0.0.1";
 const CONTAINER_PORT = 3000;
 
 /**
+ * The path the container posts a message to, at the state address, for the Worker to send through its `send_email`
+ * binding (CA-486). Under `/v1/`, beside the state protocol, because the relay is the platform's own and not an
+ * application's broker, which can never claim a path there.
+ *
+ * @type {string}
+ * @public
+ */
+const MAIL_PATH = "/v1/mail/send";
+
+/**
  * What a ti-engine application on Cloudflare is, applied over whatever the Worker's variables say. No variable can turn
  * the container into a Redis deployment, move its port, or send its state anywhere but the Worker.
  *
@@ -82,6 +92,9 @@ const PLATFORM_SETTINGS = Object.freeze( {
     TI_MEMORY_CACHE_STATE_URL: `http://${ STATE_ADDRESS }`,
     // Declared, so a service that could not apply an edit atomically is refused at boot, not found out by a lost write.
     TI_MEMORY_CACHE_REQUIRED_CAPABILITIES: "json-documents,atomic-json-edit",
+    // Where web-framework's `cloudflare` notification transport posts a message (CA-486). Set for every container, so
+    // an application only chooses the transport; the relay answers only where `outboundByHost` is given a `mail` binding.
+    TI_WEB_NOTIFY_RELAY_URL: `http://${ STATE_ADDRESS }${ MAIL_PATH }`,
 
     // One instance with nothing to talk to. Off, it also removes the only consumer of the cache primitives the HTTP
     // provider does not implement.
@@ -218,7 +231,33 @@ const SLEEP_AFTER_SETTING_OPTIONS = Object.freeze( [ "setting", "fallback" ] );
  * @type {string[]}
  * @private
  */
-const OUTBOUND_OPTIONS = Object.freeze( [ "state", "database", "brokers" ] );
+const OUTBOUND_OPTIONS = Object.freeze( [ "state", "database", "brokers", "mail" ] );
+
+/**
+ * The options of {@link outboundByHost}'s `mail`.
+ *
+ * @type {string[]}
+ * @private
+ */
+const MAIL_OPTIONS = Object.freeze( [ "binding" ] );
+
+/**
+ * The codes of Cloudflare Email Service that mean "try again later". Every other code is permanent: the message, as
+ * it is, will never be accepted.
+ *
+ * @type {string[]}
+ * @private
+ */
+const MAIL_TRANSIENT_CODES = Object.freeze( [ "E_RATE_LIMIT_EXCEEDED", "E_DAILY_LIMIT_EXCEEDED", "E_DELIVERY_FAILED", "E_INTERNAL_SERVER_ERROR" ] );
+
+/**
+ * The fields of a message the relay passes to the binding. Anything else the container sends is dropped, `cc` and
+ * `bcc` among them: one call is one message to one person.
+ *
+ * @type {string[]}
+ * @private
+ */
+const MAIL_FIELDS = Object.freeze( [ "from", "to", "subject", "text", "html", "replyTo" ] );
 
 /**
  * @param {*} value
@@ -585,6 +624,80 @@ function containerSetup( options ) {
 
 /**
  * @param {*} value
+ * @returns {boolean} Whether the value is one address: a string, or `{ email, name? }`. Never a list.
+ * @private
+ */
+function isOneAddress( value ) {
+    if ( typeof value === "string" ) {
+        return value.trim() !== "";
+    }
+    return isPlainObject( value ) && typeof value.email === "string" && value.email.trim() !== "" && ( value.name === undefined || typeof value.name === "string" );
+}
+
+/**
+ * A JSON answer to the container.
+ *
+ * @param {number} status
+ * @param {Object} body
+ * @returns {Response}
+ * @private
+ */
+function mailAnswer( status, body ) {
+    return new Response( JSON.stringify( body ), { status: status, headers: { "content-type": "application/json" } } );
+}
+
+/**
+ * Sends one message the container posted, through the Worker's `send_email` binding, and answers in the shape
+ * web-framework's relay transport reads: `200 { messageId }`, or `{ code, transient }` with a status that says which.
+ * <br/>
+ * Which senders and recipients may be used is the binding's own configuration, in the application's wrangler file: a
+ * staging environment keeps itself from mailing real people with `allowed_destination_addresses`, not with code here.
+ * Nothing here logs the message: it holds an address and the notice's text.
+ *
+ * @param {Request} request
+ * @param {Object} env
+ * @param {string} bindingName
+ * @returns {Promise<Response>}
+ * @private
+ */
+async function relayMail( request, env, bindingName ) {
+    if ( request.method !== "POST" ) {
+        return new Response( null, { status: 405, headers: { "allow": "POST" } } );
+    }
+    const binding = isPlainObject( env ) ? env[ bindingName ] : undefined;
+    if ( binding === null || typeof binding !== "object" || typeof binding.send !== "function" ) {
+        // A deployment without the binding. Retrying cannot add it, so the notice is given up rather than kept.
+        return mailAnswer( 503, { code: "E_MAIL_BINDING_MISSING", transient: false } );
+    }
+    let posted;
+    try {
+        posted = await request.json();
+    } catch {
+        posted = null;
+    }
+    if ( isPlainObject( posted ) === false || isOneAddress( posted.to ) === false || isOneAddress( posted.from ) === false || typeof posted.subject !== "string"
+        || ( typeof posted.text !== "string" && typeof posted.html !== "string" ) || ( posted.replyTo !== undefined && isOneAddress( posted.replyTo ) === false ) ) {
+        return mailAnswer( 400, { code: "E_MAIL_INVALID", transient: false } );
+    }
+    const message = {};
+    for ( const field of MAIL_FIELDS ) {
+        if ( posted[ field ] !== undefined ) {
+            message[ field ] = posted[ field ];
+        }
+    }
+    try {
+        const result = await binding.send( message );
+        return mailAnswer( 200, { messageId: ( result && typeof result.messageId === "string" ) ? result.messageId : "" } );
+    } catch ( error ) {
+        // An error without a code is the runtime's, not the service's verdict on the message: worth another try.
+        const code = ( error && typeof error.code === "string" && error.code !== "" ) ? error.code : "E_INTERNAL_SERVER_ERROR";
+        const transient = MAIL_TRANSIENT_CODES.includes( code );
+        return mailAnswer( transient ? 503 : 422, { code: code, transient: transient } );
+    }
+}
+
+/**
+ * @param {*} value
  * @returns {boolean} Whether the value is a broker, as {@link createBroker} makes one.
  * @private
  */
@@ -600,9 +713,13 @@ function isBroker( value ) {
  * ```js
  * ApplicationContainer.outboundByHost = outboundByHost( {
  *     state: ( database ) => createD1StateService( database ),
- *     brokers: [ siteverify ]
+ *     brokers: [ siteverify ],
+ *     mail: { binding: "EMAIL" }
  * } );
  * ```
+ *
+ * With `mail`, the Worker also answers `POST` {@link MAIL_PATH} by sending the message through that `send_email`
+ * binding (CA-486), which is where web-framework's `cloudflare` notification transport posts.
  *
  * Set it on the class the Worker exports. `@cloudflare/containers` keeps these handlers under the name of the class
  * they are set on, and looks them up by the name of the class a container runs as. Set on a parent class, they would
@@ -617,13 +734,15 @@ function isBroker( value ) {
  * database binding, such as `( database ) => createD1StateService( database )`.
  * @param {string} [options.database] The database binding's name: `DB` unless stated.
  * @param {Broker[]} [options.brokers] The calls the Worker makes for the container, each on a path of its own.
+ * @param {{ binding?: string }} [options.mail] Relays the container's messages through a `send_email` binding:
+ * `EMAIL` unless stated. Without it, {@link MAIL_PATH} is the state service's, which does not know it.
  * @returns {Object<string, (request: Request, env: Object) => Promise<Response>>} Keyed by {@link STATE_ADDRESS} alone.
  * @throws {TypeError} If an option is malformed.
  * @public
  */
 function outboundByHost( options ) {
     checkOptions( "outboundByHost", options, OUTBOUND_OPTIONS );
-    const { state, database = "DB", brokers = [] } = options;
+    const { state, database = "DB", brokers = [], mail } = options;
     if ( typeof state !== "function" ) {
         throw new TypeError( "outboundByHost: 'state' must build the state service over the database binding, such as ( database ) => createD1StateService( database )." );
     }
@@ -633,6 +752,13 @@ function outboundByHost( options ) {
     if ( Array.isArray( brokers ) === false || brokers.some( ( broker ) => isBroker( broker ) === false ) ) {
         throw new TypeError( "outboundByHost: 'brokers' must be a list of brokers, as createBroker makes them." );
     }
+    if ( mail !== undefined ) {
+        checkOptions( "outboundByHost: 'mail'", mail, MAIL_OPTIONS );
+        if ( mail.binding !== undefined && ( typeof mail.binding !== "string" || mail.binding.trim() === "" ) ) {
+            throw new TypeError( `outboundByHost: 'mail.binding' must be the send_email binding's name: ${ JSON.stringify( mail.binding ) }` );
+        }
+    }
+    const mailBinding = ( mail === undefined ) ? null : ( mail.binding || "EMAIL" );
     const paths = brokers.map( ( broker ) => broker.path );
     if ( new Set( paths ).size !== paths.length ) {
         throw new TypeError( `outboundByHost: no two brokers can answer the same path: ${ JSON.stringify( paths ) }` );
@@ -654,6 +780,9 @@ function outboundByHost( options ) {
 
     return Object.freeze( {
         [ STATE_ADDRESS ]: ( request, env ) => {
+            if ( mailBinding !== null && new URL( request.url ).pathname === MAIL_PATH ) {
+                return relayMail( request, env, mailBinding );
+            }
             const broker = brokers.find( ( candidate ) => candidate.matches( request ) === true );
             if ( broker !== undefined ) {
                 return broker.forward( request );
@@ -666,6 +795,7 @@ function outboundByHost( options ) {
 module.exports = {
     STATE_ADDRESS: STATE_ADDRESS,
     CONTAINER_PORT: CONTAINER_PORT,
+    MAIL_PATH: MAIL_PATH,
     PLATFORM_SETTINGS: PLATFORM_SETTINGS,
     containerEnvironment: containerEnvironment,
     IDENTITY_PROVIDER_HOSTS: IDENTITY_PROVIDER_HOSTS,

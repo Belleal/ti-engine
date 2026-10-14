@@ -55,10 +55,19 @@
     }
   ],
 
-  // When the Worker sweeps expired state: daily, at 04:00 UTC.
+  // When the Worker sweeps expired state: daily, at 04:00 UTC. With `jobs: true` in the Worker, the same schedule runs
+  // web-framework's scheduled jobs; a job due every hour needs a cron every hour.
   "triggers": {
     "crons": [ "0 4 * * *" ]
   },
+
+  // To send e-mail through Cloudflare Email Service, from a domain onboarded to it: a `send_email` binding, given to
+  // `outboundByHost( { mail: { binding: "EMAIL" } } )` in the Worker, and `TI_WEB_NOTIFY_TRANSPORT=cloudflare` with
+  // `TI_WEB_NOTIFY_SENDER` in `vars`. The binding decides who may be written to: on staging, list the testers'
+  // addresses in `allowed_destination_addresses` so it cannot mail anyone else.
+  // "send_email": [
+  //   { "name": "EMAIL", "allowed_sender_addresses": [ "no-reply@example.com" ] }
+  // ],
 
   // Plain settings, as strings: `TI_*` for the framework, `APP_*` for the application. A deploy applies these. A
   // secret never goes here: `npx wrangler secret put <NAME>`.

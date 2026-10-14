@@ -2,6 +2,79 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.52.0
+
+E-mail notices and scheduled jobs, as a capability any application configures (CA-486). Design:
+`docs/superpowers/specs/2026-10-14-web-framework-notifications-design.md`.
+
+* feat(notifications): **`@ti-engine/web-framework/notifications`**, notices raised by configurable rules over events.
+  - **Why here.** The first application to want e-mail asked for a notice when a person gets a task and one when its
+    deadline is close. Who is told what is that application's rule; how a notice is sent, sent once, and kept out of
+    the logs is not, so it lives here and an application configures it.
+  - **Events, notices and rules.** An application registers its notices (`registerNotice( kind, { subject, text,
+    link, format } )`, label keys with `{placeholder}`s) and the events it raises (`registerEvent( name,
+    { attributes } )`). The `notifications` configuration document holds the rules joining them, `{ enabled, rules:
+    [ { id, event, notice, when, enabled } ] }`, and `configDocument( defaults, metadata )` builds its definition, so
+    which events send mail is an edit on the configuration screen, not a release. Its validator refuses a rule that
+    names an unregistered event or notice, filters on an attribute its event does not declare, or repeats an ID.
+  - **`emit( name, { key, recipient, data } )`** queues the notice of every enabled rule whose filter passes, keyed by
+    the notice joined to the event's key; **`notify( { kind, key, recipient, data } )`** queues one directly. Both
+    resolve once the notice is in the outbox, never wait on mail, and queue a key only once: the pending entry and the
+    ledger entry are read and written under a `KeyedLock` on the key, so a write and a nightly catch-up raising one
+    notice send it once.
+  - **Stored as values, not JSON documents.** On D1, `/v1/values/delete` reaches `state_values` alone, and nothing
+    deletes a document: an outbox written with `setJSON` could never be emptied there. A value also takes its expiry in
+    the write that stores it. Keys are `ti:notify:pending:` and `ti:notify:done:`, then a digest of the recipient's ID
+    and one of the key, so `forget( id )` finds a person's entries with one key match and reads nothing.
+  - **The dispatcher** sends one notice at a time, up to 1000 a pass, after each queued notice and on every job tick.
+    A transient failure is retried after 1, 5, 15 and 60 minutes, then recorded as failed; a permanent one is recorded
+    at once. A daily limit pauses sending until the next UTC day and a rate limit for a minute, neither spending an
+    attempt: spent, one limit would burn every queued notice's attempts in a single pass. The ledger entry is written
+    before the pending entry is removed, so delivery is at least once, and a pending entry found with a ledger entry
+    is removed unsent. Ledger entries expire after 180 days (`notifications.retentionDays`).
+  - **Nothing logs an address or a rendered text.** A line names the kind, the recipient's ID and the outcome, and a
+    recipient ID holding `@` is refused for that reason. The ledger holds the kind, the ID, the outcome, the time and
+    the provider's message ID.
+  - **Rendering** is in the recipient's language, else the deployment's, falls back to the deployment's for a missing
+    text, and gives up a notice whose text is missing in both rather than send the catalogue's placeholder. A line
+    break never reaches a subject. The HTML is the text, escaped, with the link: no remote image, no tracking pixel.
+    A link is a path joined to `TI_WEB_PUBLIC_URL`; a whole URL or `//host` from an application's `link` is dropped.
+* feat(notifications): **two transports, and a seam for more.** `log` sends nothing and records only the message's
+  length. `cloudflare` posts the message to `TI_WEB_NOTIFY_RELAY_URL`, which `@ti-engine/cloudflare` 0.5.0 sets to the
+  Worker's relay at the state address, so the container holds no credential. `setTransport( transport )` takes an
+  application's own. `off` is the default, and with it nothing is queued, so switching sending on later releases no
+  backlog of stale notices. A `cloudflare` transport without a sender or a relay URL is reported and switched off.
+* feat(jobs): **`@ti-engine/web-framework/jobs`**, application code on a schedule. `registerJob( name, { every: "hour"
+  | "day", at: "HH:MM", run } )`; a tick runs each job whose period, in UTC, began since it last ran, records it only
+  once it finished, and logs a failing one without stopping the others. Two ticks at once run a job once.
+* feat(web-server): **what triggers the jobs** (`TI_WEB_JOBS_TRIGGER`).
+  - `internal`, the default: a tick once the instance has started and every 15 minutes, only when there is a job or a
+    transport, on a timer that never holds the process open.
+  - `route`: `POST /_ti/jobs/run` runs a tick and answers `204` once it finished, so the request keeps a sleeping
+    container awake. It is mounted after the start-up gate and before the session, because the scheduler's request
+    carries no cookie and no CSRF token. **The server refuses to be constructed with it** unless
+    `TI_WEB_JOBS_BEHIND_WORKER=true` states that a Worker refuses the path from the internet: the route is outside
+    sign-in.
+  - `off`.
+
+  A tick is `runJobTick()`: the due jobs, then a dispatcher pass.
+* feat(web-config-env): `TI_WEB_PUBLIC_URL`, `TI_WEB_NOTIFY_TRANSPORT`, `TI_WEB_NOTIFY_SENDER`,
+  `TI_WEB_NOTIFY_SENDER_NAME`, `TI_WEB_NOTIFY_REPLY_TO`, `TI_WEB_NOTIFY_RELAY_URL`, `TI_WEB_JOBS_TRIGGER` and
+  `TI_WEB_JOBS_BEHIND_WORKER`, over the new `publicUrl`, `notifications` and `jobs` settings in `web-server.json`.
+* test: **66 new tests; the suite is 953, all passing.**
+  - `notification-service.test.js` (36): queuing once, also for two calls at one moment; retries and their limit; the
+    daily-limit and rate-limit pauses; permanent failures; a crash between the ledger and the outbox; a store failure,
+    and a store that throws instead of rejecting, which must never throw out of a pass started from a timer, where it
+    would end the process; a missing text; one pass at a time; rendering, escaping and links; rules, filters and the
+    validator; `forget`; a notice waiting for its retry read once rather than on every pass, also after a restart;
+    and no `@` in any line logged across the file. Removing the lock fails the concurrency test, and treating the daily
+    limit as an ordinary failure fails both pause tests.
+  - `job-scheduler.test.js` (10), `notification-transports.test.js` (6), and three server files run real servers, one
+    each because a process holds one service instance: the trigger rule (4), the route (3) and the timer (2). Five
+    more cover the new environment variables.
+  - The in-memory test store now keeps values with their expiry apart from documents, and its `deleteValue` removes a
+    value and never a document, as D1's does, so a component that relies on deleting a document fails here first.
+
 ## Version 1.51.0
 
 * feat(styles): **the shared components are part of `ti-framework.css`** (CA-479).

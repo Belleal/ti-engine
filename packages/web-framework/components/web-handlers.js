@@ -789,6 +789,27 @@ module.exports.healthHandler = () => {
 };
 
 /**
+ * Handler for the route a scheduler outside the process calls to run the due jobs (`POST /_ti/jobs/run`, CA-486). It
+ * answers `204` only once the tick has finished, so the request keeps a container that sleeps between requests awake
+ * for the whole of it.
+ * <br/>
+ * It is mounted before the session, because the caller can carry no cookie and no CSRF token, and only when the
+ * deployment says it sits behind a Worker that refuses the path from the internet (`TiWebServer.resolveJobsTrigger`).
+ *
+ * @method
+ * @param {function(): Promise<*>} runTick
+ * @returns {ExpressHandler}
+ * @public
+ */
+module.exports.jobsRunHandler = ( runTick ) => {
+    return ( request, response, next ) => {
+        Promise.resolve().then( () => runTick() ).then( () => {
+            response.status( exceptions.httpCode.C_204 ).end();
+        } ).catch( next );
+    };
+};
+
+/**
  * The longest description a `Server-Timing` metric carries. A description names a place, not a document.
  *
  * @type {number}

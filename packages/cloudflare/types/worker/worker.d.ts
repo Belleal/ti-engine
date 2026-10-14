@@ -1,4 +1,5 @@
 declare const _exports: {
+    JOBS_PATH: string;
     createWorker: typeof createWorker;
 };
 export = _exports;
@@ -23,7 +24,7 @@ export type Worker = {
         waitUntil: (promise: Promise<any>) => void;
     }) => Promise<Response>;
     /**
-     * Present only with a `sweep`.
+     * Present only with a `sweep` or `jobs`.
      */
     scheduled?: (controller: any, env: Object, ctx: {
         waitUntil: (promise: Promise<any>) => void;
@@ -43,7 +44,8 @@ export type Worker = {
  *
  * A request is decided in this order:
  * 1. A scanner's probe is answered `404` here, for any method, by {@link module:probes.probeResponse}. Neither the
- *    application's hook nor the container sees it, so it never wakes the container or holds it awake.
+ *    application's hook nor the container sees it, so it never wakes the container or holds it awake. So is a request
+ *    for anything under `/_ti/`, which web-framework keeps for calls from this Worker, such as {@link JOBS_PATH}.
  * 2. The application's `edge` hook, when it has one, gets the request as the Worker received it, and `origin`, which
  *    sends it to the container. It may answer without calling `origin`, as an edge cache does on a hit, or call it
  *    once and work on the answer, as timing does.
@@ -67,6 +69,9 @@ export type Worker = {
  * @param {(database: *) => Promise<*>} [options.sweep] Sweeps expired state on the Worker's schedule, such as core's
  * `sweepExpired`. Without it, the Worker has no `scheduled` handler.
  * @param {string} [options.database] The database binding the sweep is given: `DB` unless stated.
+ * @param {boolean} [options.jobs] On the Worker's schedule, also post {@link JOBS_PATH} to the container, for an
+ * application whose web-framework jobs trigger is `route` (CA-486). The cron's times are the application's wrangler
+ * file's.
  * @returns {Worker} Frozen.
  * @throws {TypeError} If an option is malformed. A request fails with one when a hook answers with something other than
  * a response, naming the hook.
@@ -85,4 +90,5 @@ declare function createWorker(options: {
     finish?: (response: Response, context: WorkerContext) => (Response | Promise<Response>);
     sweep?: (database: any) => Promise<any>;
     database?: string;
+    jobs?: boolean;
 }): Worker;

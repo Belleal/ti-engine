@@ -53,6 +53,18 @@ export type SettingsStaticCache = {
      */
     immutablePaths: string[];
 };
+export type SettingsJobs = {
+    /**
+     * What runs the due jobs: a timer in this process every 15 minutes, a
+     * `POST /_ti/jobs/run` from a scheduler outside it, or nothing. `TI_WEB_JOBS_TRIGGER`.
+     */
+    trigger: "internal" | "route" | "off";
+    /**
+     * That the server is reachable only through a Worker which refuses `/_ti/jobs/run`
+     * from the internet. Required for `route`. `TI_WEB_JOBS_BEHIND_WORKER`.
+     */
+    behindWorker: boolean;
+};
 export type SettingsCookies = {
     secret: string;
     path: string;
@@ -62,12 +74,12 @@ export type SettingsCookies = {
 };
 export type ApiInventory = Record<string, Record<string, ServiceAddress>>;
 import type { TiAuthMethod, TiTokenEndpointAuthMethod } from "#auth-manager";
-import type { TiSession } from "#definitions";
+import type { TiJobsReport, TiNotificationDrainReport, TiSession } from "#definitions";
 import type User from "#user";
 import type TiWebAppManager from "#web-app-manager";
 import type { ServiceAddress, ServiceConfiguration } from "@ti-engine/core/definitions";
 /** @import { TiAuthMethod, TiTokenEndpointAuthMethod } from "#auth-manager" */
-/** @import { TiSession } from "#definitions" */
+/** @import { TiJobsReport, TiNotificationDrainReport, TiNotificationSettings, TiSession } from "#definitions" */
 /** @import User from "#user" */
 /** @import TiWebAppManager from "#web-app-manager" */
 /** @import { ServiceAddress, ServiceConfiguration } from "@ti-engine/core/definitions" */
@@ -236,6 +248,19 @@ declare class TiWebServer extends ServiceConsumer {
      * @public
      */
     onStop(): Promise<any>;
+    /**
+     * Runs one tick of the scheduler: every due job, then a pass of the notification dispatcher, so that what the jobs
+     * queued, and what earlier passes left to retry, goes out in the same tick. The `route` and `internal` triggers call
+     * it; an application may too. It never rejects for a job that failed, which is logged instead.
+     *
+     * @method
+     * @returns {Promise<{jobs: TiJobsReport, notifications: TiNotificationDrainReport}>}
+     * @public
+     */
+    runJobTick(): Promise<{
+        jobs: TiJobsReport;
+        notifications: TiNotificationDrainReport;
+    }>;
     /**
      * Used to report health status of the service instance for external monitoring.
      * This is a scheduled job that will be executed at SERVICE_HEALTH_CHECK_INTERVAL time.
@@ -454,6 +479,20 @@ declare class TiWebServer extends ServiceConsumer {
      * @public
      */
     addUnprotectedRoute(pattern: string | RegExp): TiWebServer;
+    /**
+     * Decides what triggers the scheduled jobs (CA-486). `route` is refused unless the deployment states that it sits
+     * behind a Worker that refuses the path from the internet: the route is outside sign-in, and a server reached
+     * directly would let a stranger run the jobs. Absent, the trigger is `internal`.
+     *
+     * @method
+     * @param {SettingsJobs} [jobs]
+     * @returns {{trigger: "internal"|"route"|"off", error: string|null}}
+     * @public
+     */
+    static resolveJobsTrigger(jobs?: SettingsJobs): {
+        trigger: "internal" | "route" | "off";
+        error: string | null;
+    };
     /**
      * Resolves the configured `languages` into the codes a visitor may choose between (CA-410): each trimmed and
      * lowercased, duplicates dropped, and a code core's `localizationLanguage` does not know left out with a warning.

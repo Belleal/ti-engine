@@ -36,6 +36,8 @@ const authMethod = require( "#auth-manager" ).authMethod;
 const authorization = require( "#authorization" );
 const adminConfigHandlers = require( "#admin-config-handlers" );
 const configService = require( "#config-service" );
+const notificationService = require( "#notification-service" );
+const jobScheduler = require( "#job-scheduler" );
 const applyWebConfigEnvOverrides = require( "#web-config-env" );
 const localization = require( "@ti-engine/core/localization" );
 
@@ -48,12 +50,18 @@ const localization = require( "@ti-engine/core/localization" );
  * @property {SettingsAuth} auth
  * @property {SettingsCookies} cookies
  * @property {string} host
+ * @property {SettingsJobs} [jobs] How the scheduled jobs are triggered (CA-486).
  * @property {TiLocalizationLanguage} [language] The language a session starts in when its user carries none. Unset, it is
  *           the deployment's own — `TI_LOCALIZATION_LANGUAGE` as core resolved it — rather than a fixed default.
  * @property {TiLocalizationLanguage[]} [languages] The languages a visitor may choose between on the sign-in screen
  *           (CA-410), overridable with `TI_WEB_LANGUAGES`. Unset, only the deployment's language is offered.
+ * @property {TiNotificationSettings} [notifications] How notices are sent (CA-486), less `publicUrl`, which is a setting of
+ *           its own.
  * @property {number} port
  * @property {string} publicPath
+ * @property {string} [publicUrl] The deployment's public base URL, such as `https://app.example.com`, overridable with
+ *           `TI_WEB_PUBLIC_URL`. A notice links to the application from it, because a notice is rendered outside any
+ *           request and cannot take the base from one.
  * @property {number} requestTimeout
  * @property {SettingsStaticCache} staticCache
  * @property {string} tlsCertPath
@@ -108,6 +116,14 @@ const localization = require( "@ti-engine/core/localization" );
  */
 
 /**
+ * @typedef {Object} SettingsJobs
+ * @property {"internal"|"route"|"off"} trigger What runs the due jobs: a timer in this process every 15 minutes, a
+ *           `POST /_ti/jobs/run` from a scheduler outside it, or nothing. `TI_WEB_JOBS_TRIGGER`.
+ * @property {boolean} behindWorker That the server is reachable only through a Worker which refuses `/_ti/jobs/run`
+ *           from the internet. Required for `route`. `TI_WEB_JOBS_BEHIND_WORKER`.
+ */
+
+/**
  * @typedef {Object} SettingsCookies
  * @property {string} secret
  * @property {string} path
@@ -123,7 +139,7 @@ const localization = require( "@ti-engine/core/localization" );
 const webServerConfig = require( "#web-server-config" );
 
 /** @import { TiAuthMethod, TiTokenEndpointAuthMethod } from "#auth-manager" */
-/** @import { TiSession } from "#definitions" */
+/** @import { TiJobsReport, TiNotificationDrainReport, TiNotificationSettings, TiSession } from "#definitions" */
 /** @import User from "#user" */
 /** @import TiWebAppManager from "#web-app-manager" */
 /** @import { ServiceAddress, ServiceConfiguration } from "@ti-engine/core/definitions" */
@@ -165,6 +181,21 @@ const RE_LABELS_BUNDLE_UNPROTECTED = /^\/app\/labels\/[0-9a-f]{16}$/;
 const RE_LANGUAGE_CHOICE_UNPROTECTED = /^\/language\/[a-z]{2}$/i;
 
 /**
+ * The path a scheduler outside the process posts to, to run the due jobs (CA-486). Under `/_ti/`, a prefix the framework
+ * keeps for itself, so that it cannot meet an application's own route.
+ *
+ * @type {string}
+ */
+const JOBS_ROUTE = "/_ti/jobs/run";
+
+/**
+ * How often the `internal` trigger runs a tick, in milliseconds. A daily job falls due within this of its time.
+ *
+ * @type {number}
+ */
+const JOBS_INTERVAL = 15 * 60 * 1000;
+
+/**
  * Brotli quality for responses compressed on the fly. The default of `compression` (4) is kept deliberately and stated
  * here so it is not "improved": quality 11 costs tens of milliseconds of CPU on a 400 KB script, paid on every request
  * that is not already cached — and on a container, CPU time is what is billed.
@@ -199,6 +230,8 @@ class TiWebServer extends ServiceConsumer {
     #allowedHosts = [];
     #unprotectedRoutes = [];
     #offeredLanguages = [];
+    #jobsTrigger = "off";
+    #jobsTimer = null;
     #webAppManager;
     #authManager;
 
@@ -228,6 +261,16 @@ class TiWebServer extends ServiceConsumer {
         const offered = TiWebServer.resolveOfferedLanguages( this.serviceConfig.languages );
         offered.warnings.forEach( ( warning ) => logger.log( warning, logger.logSeverity.WARNING ) );
         this.#offeredLanguages = Object.freeze( offered.languages );
+
+        // Refused here rather than at the first tick: a `route` trigger on a server the internet can reach would let
+        // anyone run the jobs (CA-486).
+        const jobs = TiWebServer.resolveJobsTrigger( this.serviceConfig.jobs );
+        if ( jobs.error ) {
+            logger.log( jobs.error, logger.logSeverity.ERROR );
+            throw exceptions.raise( exceptions.exceptionCode.E_GEN_INVALID_ARGUMENT_TYPE, { setting: "jobs", detail: jobs.error } );
+        }
+        this.#jobsTrigger = jobs.trigger;
+        notificationService.instance.configure( Object.assign( {}, this.serviceConfig.notifications, { publicUrl: this.serviceConfig.publicUrl } ) );
 
         // If there is a web application configuration, create the web application manager:
         if ( this.serviceConfig.application ) {
@@ -365,6 +408,8 @@ class TiWebServer extends ServiceConsumer {
         return super.start().then( () => {
             this.#startup = Object.freeze( { state: "started", settled: settled } );
             settle();
+            // Once the application has started, so every job it registers is known to the first tick.
+            this.#startJobsTimer();
         } ).catch( ( error ) => {
             // A held request is refused rather than served: the instance exits on a failed start (start-instance), and
             // until it does, nothing it would answer with can be trusted.
@@ -476,6 +521,12 @@ class TiWebServer extends ServiceConsumer {
                 // session, so a held request neither reads nor touches it.
                 this.#webServer.use( webHandlers.startupGateHandler( this ) );
 
+                // The jobs route (CA-486). After the gate, so a tick waits for the application to finish starting;
+                // before the session, because the scheduler's request carries no cookie and no CSRF token.
+                if ( this.#jobsTrigger === "route" ) {
+                    this.#webServer.post( JOBS_ROUTE, webHandlers.jobsRunHandler( () => this.runJobTick() ) );
+                }
+
                 // Then the session, and everything that depends on it:
                 this.#webServer.use( express.json( { limit: "1mb" } ) );
                 this.#webServer.use( express.urlencoded( { extended: false, limit: "100kb" } ) );
@@ -566,6 +617,10 @@ class TiWebServer extends ServiceConsumer {
     onStop() {
         return new Promise( ( resolve, reject ) => {
             this.#isShuttingDown = true;
+            if ( this.#jobsTimer !== null ) {
+                clearInterval( this.#jobsTimer );
+                this.#jobsTimer = null;
+            }
 
             super.onStop().then( () => {
                 return this.#endListening( this.#netServer );
@@ -575,6 +630,21 @@ class TiWebServer extends ServiceConsumer {
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
             } );
+        } );
+    }
+
+    /**
+     * Runs one tick of the scheduler: every due job, then a pass of the notification dispatcher, so that what the jobs
+     * queued, and what earlier passes left to retry, goes out in the same tick. The `route` and `internal` triggers call
+     * it; an application may too. It never rejects for a job that failed, which is logged instead.
+     *
+     * @method
+     * @returns {Promise<{jobs: TiJobsReport, notifications: TiNotificationDrainReport}>}
+     * @public
+     */
+    runJobTick() {
+        return jobScheduler.instance.runDueJobs( new Date() ).then( ( jobs ) => {
+            return notificationService.instance.drain().then( ( notifications ) => ( { jobs: jobs, notifications: notifications } ) );
         } );
     }
 
@@ -999,6 +1069,28 @@ class TiWebServer extends ServiceConsumer {
     }
 
     /**
+     * Decides what triggers the scheduled jobs (CA-486). `route` is refused unless the deployment states that it sits
+     * behind a Worker that refuses the path from the internet: the route is outside sign-in, and a server reached
+     * directly would let a stranger run the jobs. Absent, the trigger is `internal`.
+     *
+     * @method
+     * @param {SettingsJobs} [jobs]
+     * @returns {{trigger: "internal"|"route"|"off", error: string|null}}
+     * @public
+     */
+    static resolveJobsTrigger( jobs ) {
+        const settings = _.isObjectLike( jobs ) ? jobs : {};
+        const trigger = ( settings.trigger === undefined || settings.trigger === null || settings.trigger === "" ) ? "internal" : String( settings.trigger ).trim().toLowerCase();
+        if ( ![ "internal", "route", "off" ].includes( trigger ) ) {
+            return { trigger: "off", error: `Unknown jobs trigger '${ trigger }' (TI_WEB_JOBS_TRIGGER): expected 'internal', 'route' or 'off'.` };
+        }
+        if ( trigger === "route" && settings.behindWorker !== true ) {
+            return { trigger: "off", error: `The jobs trigger 'route' needs the server behind a Worker that refuses ${ JOBS_ROUTE } from the internet; set TI_WEB_JOBS_BEHIND_WORKER=true once it is.` };
+        }
+        return { trigger: trigger, error: null };
+    }
+
+    /**
      * Resolves the configured `languages` into the codes a visitor may choose between (CA-410): each trimmed and
      * lowercased, duplicates dropped, and a code core's `localizationLanguage` does not know left out with a warning.
      * Pure, like {@link TiWebServer.resolveStaticCachePolicy}: the caller logs the warnings.
@@ -1223,6 +1315,26 @@ class TiWebServer extends ServiceConsumer {
     }
 
     /* Private interface */
+
+    /**
+     * Starts the `internal` trigger: a tick now, then one every {@link JOBS_INTERVAL}. Only when there is something to
+     * run, a job or a notice to send, and never holding the process open.
+     *
+     * @method
+     */
+    #startJobsTimer() {
+        if ( this.#jobsTrigger !== "internal" || this.#jobsTimer !== null || ( !jobScheduler.instance.hasJobs && !notificationService.instance.isEnabled ) ) {
+            return;
+        }
+        const tick = () => {
+            this.runJobTick().catch( ( error ) => {
+                logger.log( "A scheduled jobs tick failed.", logger.logSeverity.ERROR, error );
+            } );
+        };
+        this.#jobsTimer = setInterval( tick, JOBS_INTERVAL );
+        this.#jobsTimer.unref();
+        setImmediate( tick );
+    }
 
     /**
      * Used to start listening for requests on the specified port and host and on the specified server.

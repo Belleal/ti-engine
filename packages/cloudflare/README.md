@@ -153,7 +153,9 @@ The pieces it is built from are exported too, for a class that needs them on the
 - the state capabilities the framework requires;
 - no message exchange and no health heartbeat, since one container has nothing to talk to and a heartbeat is a
   billed D1 write every second;
-- JSON logs, which Cloudflare records as one event per entry.
+- JSON logs, which Cloudflare records as one event per entry;
+- `TI_WEB_NOTIFY_RELAY_URL` at `MAIL_PATH` on the state address, where web-framework's `cloudflare` notification
+  transport posts a message for the Worker to send. An application only chooses that transport.
 
 The state is reached at an address, not a hostname, because a container without the internet gets no DNS.
 
@@ -216,14 +218,45 @@ A broker's path cannot be under `/v1/`, where the state protocol is, so the two 
 
 ### The answers at the state address
 
-`outboundByHost( { state, database, brokers } )` is the container class's `outboundByHost`: each broker's call on its
-own path, and the state service for everything else.
+`outboundByHost( { state, database, brokers, mail } )` is the container class's `outboundByHost`: the mail relay,
+each broker's call on its own path, and the state service for everything else.
 
 - `state( database )` builds the state service over the database binding, such as
   `( database ) => createD1StateService( database )`. It is built the first time it is needed, and again only for
   another binding.
 - `database` is the binding's name: `DB` unless stated.
 - `brokers` are the calls the Worker makes for the container, no two on the same path.
+- `mail: { binding }` relays the container's messages through a `send_email` binding: `EMAIL` unless stated. Without
+  it, `MAIL_PATH` is left to the state service, which does not know it.
+
+### The mail relay
+
+With `mail`, the Worker answers `POST /v1/mail/send` (`MAIL_PATH`) by sending the posted message through its
+`send_email` binding, so the container holds no credential: the binding is the authentication, as it is for the
+state. web-framework's `cloudflare` notification transport is what posts there.
+
+- One message is one call to one recipient. Of what the container posts, only `from`, `to`, `subject`, `text`,
+  `html` and `replyTo` reach the binding; a list of recipients, `cc` or `bcc` is refused or dropped.
+- It answers `200 { messageId }`, or `{ code, transient }`: Email Service's `E_RATE_LIMIT_EXCEEDED`,
+  `E_DAILY_LIMIT_EXCEEDED`, `E_DELIVERY_FAILED` and `E_INTERNAL_SERVER_ERROR` are transient (`503`), every other code
+  permanent (`422`). A malformed message is `400 E_MAIL_INVALID`, and a deployment without the binding
+  `503 E_MAIL_BINDING_MISSING`, both permanent.
+- Which senders and recipients may be used is the binding's own configuration, in the application's wrangler file.
+  That is where a staging environment keeps itself from mailing real people, with `allowed_destination_addresses`.
+- Nothing here logs the message: it holds an address and a notice's text.
+
+```js
+ApplicationContainer.outboundByHost = outboundByHost( {
+    state: ( database ) => createD1StateService( database ),
+    mail: { binding: "EMAIL" }
+} );
+```
+
+```jsonc
+"send_email": [
+    { "name": "EMAIL", "allowed_sender_addresses": [ "no-reply@example.com" ] }
+]
+```
 
 Set it on the class the Worker exports, under the name `wrangler.jsonc` gives it. `@cloudflare/containers` keeps a
 class's outbound handlers under the name of the class they are set on, and looks them up by the name of the class a
@@ -232,10 +265,11 @@ container runs as. Set on a parent class, they would never be found: the contain
 ## The Worker
 
 `@ti-engine/cloudflare/worker` assembles the Worker's handlers. `createWorker( options )` returns its `fetch` and,
-with a `sweep`, its `scheduled`, for the module's default export. Every request is decided in this order:
+with a `sweep` or `jobs`, its `scheduled`, for the module's default export. Every request is decided in this order:
 
 1. A scanner's probe is answered `404` there and then, for any method. Neither the application's hook nor the
-   container sees it, so it never wakes the container or holds it awake.
+   container sees it, so it never wakes the container or holds it awake. So is anything under `/_ti/`, the prefix
+   web-framework keeps for calls from this Worker, however its case or trailing slash is written.
 2. The application's `edge` hook, when it has one, gets the request as the Worker received it, `origin`, and a
    context of `env`, `ctx` and the parsed `url`. Calling `origin()` sends the request to the container. The hook may
    answer without calling it, as an edge cache does on a hit, or call it once and work on the answer, as timing does.
@@ -264,6 +298,12 @@ export default createWorker( {
 | `finish` | `( response, context )`, applied to every response |
 | `sweep` | `( database )`, run on the Worker's schedule, such as core's `sweepExpired` |
 | `database` | The binding the sweep is given: `DB` unless stated |
+| `jobs` | `true` also posts `JOBS_PATH` (`/_ti/jobs/run`) to the container on the schedule, waking it if it sleeps |
+
+With `jobs`, the schedule runs web-framework's scheduled jobs: set `TI_WEB_JOBS_TRIGGER=route` and
+`TI_WEB_JOBS_BEHIND_WORKER=true` for the container, and the cron's times in the wrangler file. The sweep and the jobs
+both run to the end on each tick, and a failure of either, such as the container answering anything but a success,
+is what the cron's log reports.
 
 An unknown option, or one that is not what it should be, throws a `TypeError` when the module loads. A hook that
 answers with something other than a `Response`, such as a branch that returns nothing or a plain object, fails the

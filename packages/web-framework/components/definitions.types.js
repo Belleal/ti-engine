@@ -110,3 +110,131 @@
  * @property {string} url Where the catalogue is served: `/app/labels/<hash>`, answered `immutable` for this hash.
  * @property {string} body The serialized label tree.
  */
+
+/**
+ * One e-mail address, with the name shown beside it.
+ *
+ * @typedef {Object} TiMailAddress
+ * @property {string} email
+ * @property {string} [name]
+ */
+
+/**
+ * A message as a transport sends it: one recipient, a plain-text part and an HTML part.
+ *
+ * @typedef {Object} TiMailMessage
+ * @property {string|TiMailAddress} [from] Absent when no sender is configured; a transport may supply its own.
+ * @property {string|TiMailAddress} to
+ * @property {string} subject
+ * @property {string} text
+ * @property {string} html
+ * @property {string} [replyTo]
+ */
+
+/**
+ * What sends a {@link TiMailMessage}. `send` resolves to `{ messageId }` once the provider has accepted the message,
+ * or rejects with an error carrying a `code` and, optionally, `transient`: `true` when trying again later may succeed.
+ * Without `transient`, the code decides: Cloudflare Email Service's rate-limit, daily-limit, delivery and internal
+ * codes are transient, and every other code is permanent.
+ *
+ * @typedef {Object} TiMailTransport
+ * @property {string} name
+ * @property {(message: TiMailMessage) => Promise<{messageId: string}>} send
+ */
+
+/**
+ * The person a notice is for.
+ *
+ * @typedef {Object} TiNotificationRecipient
+ * @property {string} id The application's ID for the person. It is what the logs and the ledger name, so it must
+ *           never be an address: an ID holding `@` is refused.
+ * @property {string} email
+ * @property {string} [name] Shown beside the address.
+ * @property {TiLocalizationLanguage} [language] The deployment's language unless stated.
+ */
+
+/**
+ * A notice an application sends.
+ *
+ * @typedef {Object} TiNoticeDefinition
+ * @property {string} subject The label key of the subject, with `{name}` placeholders.
+ * @property {string} text The label key of the text, with `{name}` placeholders. A blank line starts a paragraph.
+ * @property {(data: Object) => string} [link] The path the notice links to, joined to the public URL.
+ * @property {(data: Object, language: TiLocalizationLanguage) => Object} [format] The values the placeholders read, in
+ *           the recipient's language. Without it, they read the notice's data as given.
+ */
+
+/**
+ * An event an application raises.
+ *
+ * @typedef {Object} TiNotificationEventDefinition
+ * @property {string[]} [attributes] The data attributes a rule may filter the event by.
+ */
+
+/**
+ * A rule of the `notifications` document: when this event's data passes this filter, send this notice.
+ *
+ * @typedef {Object} TiNotificationRule
+ * @property {string} id
+ * @property {string} event A registered event.
+ * @property {string} notice A registered notice.
+ * @property {Object<string, string[]>} [when] For each attribute, the values that pass. Empty or absent passes all.
+ * @property {boolean} [enabled] `false` keeps the rule without applying it.
+ */
+
+/**
+ * The `notifications` configuration document.
+ *
+ * @typedef {Object} TiNotificationsDocument
+ * @property {boolean} enabled `false` stops every rule.
+ * @property {TiNotificationRule[]} rules
+ */
+
+/**
+ * The deployment's notification settings: the `notifications` section of the server configuration, and its public URL.
+ *
+ * @typedef {Object} TiNotificationSettings
+ * @property {"off"|"log"|"cloudflare"} [transport] `TI_WEB_NOTIFY_TRANSPORT`; `off` unless stated.
+ * @property {string} [sender] `TI_WEB_NOTIFY_SENDER`, the from address.
+ * @property {string} [senderName] `TI_WEB_NOTIFY_SENDER_NAME`.
+ * @property {string} [replyTo] `TI_WEB_NOTIFY_REPLY_TO`.
+ * @property {string} [relayUrl] `TI_WEB_NOTIFY_RELAY_URL`, where the `cloudflare` transport posts.
+ * @property {number} [retentionDays] How long a ledger entry is kept; 180 unless stated.
+ * @property {string} [publicUrl] `TI_WEB_PUBLIC_URL`, the base of every link in a notice.
+ */
+
+/**
+ * A notice rendered for one person.
+ *
+ * @typedef {Object} TiRenderedNotice
+ * @property {string} subject
+ * @property {string} text The text, with the link after it.
+ * @property {string} html
+ */
+
+/**
+ * What one dispatcher run did.
+ *
+ * @typedef {Object} TiNotificationDrainReport
+ * @property {number} sent
+ * @property {number} failed Given up: a permanent failure, or the last attempt.
+ * @property {number} retrying Waiting for a later attempt.
+ * @property {string|null} stopped The provider's code that paused sending, or `null`.
+ */
+
+/**
+ * A scheduled job.
+ *
+ * @typedef {Object} TiJobDefinition
+ * @property {"hour"|"day"} every
+ * @property {string} [at] For a daily job, the time of day it falls due, `HH:MM` in UTC; `00:00` unless stated.
+ * @property {(context: {now: Date}) => (Promise<*>|*)} run
+ */
+
+/**
+ * What one tick of the scheduler did.
+ *
+ * @typedef {Object} TiJobsReport
+ * @property {string[]} ran
+ * @property {string[]} failed
+ */

@@ -78,11 +78,14 @@ export class ApplicationContainer extends Container {
 }
 
 // The container's requests to the state address, answered from the database bound as `DB`. Set on the class itself,
-// when this module loads: the library looks the handlers up by the name of the class a container runs as.
+// when this module loads: the library looks the handlers up by the name of the class a container runs as. To send
+// e-mail, add `mail: { binding: "EMAIL" }` with the `send_email` binding `wrangler.jsonc` describes.
 ApplicationContainer.outboundByHost = outboundByHost( { state: ( database ) => createD1StateService( database ) } );
 
 /**
  * The Worker: a probe answered first, then the container. The schedule is housekeeping: reads already hide an expired
- * row, but a table nobody prunes grows without bound, and D1 bills by rows read.
+ * row, but a table nobody prunes grows without bound, and D1 bills by rows read. For an application with scheduled
+ * jobs, add `jobs: true` here and set `TI_WEB_JOBS_TRIGGER=route` and `TI_WEB_JOBS_BEHIND_WORKER=true` in `vars`: the
+ * schedule then also wakes the container to run them.
  */
 export default createWorker( { getContainer: getContainer, sweep: sweepExpired } );
