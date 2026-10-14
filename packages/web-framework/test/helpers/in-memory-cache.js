@@ -17,9 +17,15 @@
 
 /**
  * Minimal in-memory stand-in for `@ti-engine/core/cache`'s Redis(JSON)-backed store, sufficient for the access
- * patterns the web-framework `ConfigStore` exercises: whole-document `getJSON`/`setJSON` at the `$` root,
- * key-pattern listing via `matchKeys`, and `deleteValue`. `getJSON` returns results inside an array wrapper to
- * match RedisJSON's behaviour for a `$` path query. Extend this helper if a later component needs more.
+ * patterns the web-framework components exercise: whole-document `getJSON`/`setJSON` at the `$` root, string values
+ * with an optional expiry (`setValue`/`getValue`), key-pattern listing via `matchKeys`, and `deleteValue`. `getJSON`
+ * returns results inside an array wrapper to match RedisJSON's behaviour for a `$` path query. Extend this helper if a
+ * later component needs more.
+ * <br/>
+ * Where the two real stores differ, this one behaves like the stricter. `deleteValue` removes a value and never a
+ * JSON document, as on D1, whose `/v1/values/delete` reaches `state_values` alone: code that needs to delete what it
+ * stored must store a value, and a test against this store fails if it does not. Documents live in `storage`, values in
+ * `values`, each value as `{ value, expiration }` with the expiry in seconds as it was given.
  */
 
 function clone( value ) {
@@ -29,6 +35,9 @@ function clone( value ) {
 class InMemoryCache {
     constructor() {
         this.storage = {};
+        this.values = {};
+        // The clock the expiries are measured against; a test can replace it.
+        this.now = () => Date.now();
     }
 
     get isOperational() {
@@ -56,9 +65,23 @@ class InMemoryCache {
         return Promise.resolve( [ clone( this.storage[ key ] ) ] );
     }
 
+    setValue( key, value, expiration ) {
+        // As both real stores do: a falsy value is not written.
+        if ( value ) {
+            this.values[ key ] = { value: clone( value ), expiration: expiration, expiresAt: expiration ? this.now() + expiration * 1000 : null };
+        }
+        return Promise.resolve( value );
+    }
+
+    getValue( key ) {
+        const entry = this.#liveValue( key );
+        // `undefined` for an absent key, as both real stores answer.
+        return Promise.resolve( entry ? clone( entry.value ) : undefined );
+    }
+
     deleteValue( key ) {
-        const existed = Object.prototype.hasOwnProperty.call( this.storage, key );
-        delete this.storage[ key ];
+        const existed = this.#liveValue( key ) !== null;
+        delete this.values[ key ];
         return Promise.resolve( existed ? 1 : 0 );
     }
 
@@ -66,7 +89,18 @@ class InMemoryCache {
         // Translate a Redis glob (only `*` is used by the store) into a regex.
         const escaped = pattern.replace( /[.+?^${}()|[\]\\]/g, "\\$&" ).replace( /\*/g, ".*" );
         const re = new RegExp( "^" + escaped + "$" );
-        return Promise.resolve( Object.keys( this.storage ).filter( ( k ) => re.test( k ) ) );
+        const live = Object.keys( this.values ).filter( ( k ) => this.#liveValue( k ) !== null );
+        return Promise.resolve( [ ...Object.keys( this.storage ), ...live ].filter( ( k ) => re.test( k ) ) );
+    }
+
+    #liveValue( key ) {
+        if ( !Object.prototype.hasOwnProperty.call( this.values, key ) ) return null;
+        const entry = this.values[ key ];
+        if ( entry.expiresAt !== null && entry.expiresAt <= this.now() ) {
+            delete this.values[ key ];
+            return null;
+        }
+        return entry;
     }
 }
 

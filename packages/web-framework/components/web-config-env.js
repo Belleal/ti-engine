@@ -24,7 +24,7 @@ const tools = require( "@ti-engine/core/tools" );
  * Each override is applied ONLY when its environment variable is defined, so an absent variable leaves the
  * configured/default value untouched (fully backward compatible). This gives ti-engine web servers 12-factor,
  * container-friendly control over network binding, TLS, the session cookie secret, the enabled authentication
- * methods, the admin allowlist, the local auth users file path, the trusted request origins, the `/static` cache policy, whether responses carry `Server-Timing`, and the languages a visitor may choose, without editing config files. Note `TI_WEB_AUTH_METHODS`,
+ * methods, the admin allowlist, the local auth users file path, the trusted request origins, the `/static` cache policy, whether responses carry `Server-Timing`, the languages a visitor may choose, the public URL, how notifications are sent and how scheduled jobs are triggered, without editing config files. Note `TI_WEB_AUTH_METHODS`,
  * `TI_WEB_AUTH_ADMINS`, `TI_WEB_TRUSTED_ORIGINS`, `TI_WEB_STATIC_IMMUTABLE_PATHS` and `TI_WEB_LANGUAGES` fully REPLACE their config arrays (`auth.enabledMethods` / `auth.admins` / `trustedOrigins` / `staticCache.immutablePaths` / `languages`) rather than
  * merging — the config-file merge is by-index and cannot cleanly override an array.
  *
@@ -110,6 +110,33 @@ function applyWebConfigEnvOverrides( config, env = process.env ) {
     if ( env.TI_WEB_LANGUAGES !== undefined ) {
         // CA-410. Validated by TiWebServer.resolveOfferedLanguages, which is where a code core does not know is reported.
         config.languages = env.TI_WEB_LANGUAGES.split( "," ).map( ( code ) => code.trim() ).filter( ( code ) => code.length > 0 );
+    }
+    if ( env.TI_WEB_PUBLIC_URL !== undefined ) {
+        // The base of a link in a notice (CA-486). A notice is rendered outside any request, so it cannot be taken from one.
+        config.publicUrl = env.TI_WEB_PUBLIC_URL.trim();
+    }
+    // The notification settings (CA-486), each a string the notification service validates when it is configured.
+    const notifySettings = {
+        TI_WEB_NOTIFY_TRANSPORT: "transport",
+        TI_WEB_NOTIFY_SENDER: "sender",
+        TI_WEB_NOTIFY_SENDER_NAME: "senderName",
+        TI_WEB_NOTIFY_REPLY_TO: "replyTo",
+        TI_WEB_NOTIFY_RELAY_URL: "relayUrl"
+    };
+    Object.keys( notifySettings ).forEach( ( variable ) => {
+        if ( env[ variable ] !== undefined ) {
+            config.notifications = config.notifications || {};
+            config.notifications[ notifySettings[ variable ] ] = env[ variable ].trim();
+        }
+    } );
+    if ( env.TI_WEB_JOBS_TRIGGER !== undefined ) {
+        // Validated by TiWebServer.resolveJobsTrigger, which refuses to start on a value it does not know.
+        config.jobs = config.jobs || {};
+        config.jobs.trigger = env.TI_WEB_JOBS_TRIGGER.trim().toLowerCase();
+    }
+    if ( env.TI_WEB_JOBS_BEHIND_WORKER !== undefined ) {
+        config.jobs = config.jobs || {};
+        config.jobs.behindWorker = tools.toBool( env.TI_WEB_JOBS_BEHIND_WORKER );
     }
     return config;
 }

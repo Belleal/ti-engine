@@ -1,6 +1,6 @@
 {
   "name": "@ti-engine/web-framework",
-  "version": "1.51.0",
+  "version": "1.52.0",
   "description": "A web-framework based on the ti-engine. It provides a customizable ready-to-use web-server microservice and a set of tools for creating web applications. NOTICE: This is still a work in progress and the full architecture, design, and functionality are not available!",
   "keywords": [
     "ti-engine",
@@ -39,6 +39,14 @@
     "./definitions": {
       "types": "./types/components/definitions.types.d.ts",
       "default": "./components/definitions.types.js"
+    },
+    "./jobs": {
+      "types": "./types/components/job-scheduler.d.ts",
+      "default": "./components/job-scheduler.js"
+    },
+    "./notifications": {
+      "types": "./types/components/notification-service.d.ts",
+      "default": "./components/notification-service.js"
     }
   },
   "imports": {
@@ -86,9 +94,21 @@
       "types": "./types/components/fragment-fingerprint.d.ts",
       "default": "./components/fragment-fingerprint.js"
     },
+    "#job-scheduler": {
+      "types": "./types/components/job-scheduler.d.ts",
+      "default": "./components/job-scheduler.js"
+    },
     "#local-user-directory": {
       "types": "./types/components/local-user-directory.d.ts",
       "default": "./components/local-user-directory.js"
+    },
+    "#notification-service": {
+      "types": "./types/components/notification-service.d.ts",
+      "default": "./components/notification-service.js"
+    },
+    "#notification-transports": {
+      "types": "./types/components/notification-transports.d.ts",
+      "default": "./components/notification-transports.js"
     },
     "#session-store": {
       "types": "./types/components/session-store.d.ts",

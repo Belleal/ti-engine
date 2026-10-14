@@ -5,6 +5,7 @@ export declare var authenticationHandler: (instance: TiWebServer) => ExpressHand
 export declare var authorizedOAuth2CallbackHandler: (instance: TiWebServer, authMethod: TiAuthMethod) => ExpressHandler;
 export declare var logoutHandler: () => ExpressHandler;
 export declare var healthHandler: () => ExpressHandler;
+export declare var jobsRunHandler: (runTick: Function) => ExpressHandler;
 export declare var serverTimingHandler: (instance: TiWebServer) => ExpressHandler;
 export declare var timedHandler: (name: string, handler: ExpressHandler) => ExpressHandler;
 export declare var userInformationHandler: () => ExpressHandler;

@@ -28,6 +28,9 @@ The web server configuration (host, port, TLS, cookies, etc.) is normally provid
 * `TI_WEB_STATIC_IMMUTABLE_PATHS` (comma-separated) **replaces** `staticCache.immutablePaths`. An explicitly empty value means *no long-lived paths*.
 * `TI_WEB_SERVER_TIMING` (`true`/`false`) overrides `serverTiming`: whether every response says, in a `Server-Timing` header, where its time went in the process. Off by default. See [Timing a response](#timing-a-response).
 * `TI_WEB_LANGUAGES` (comma-separated) **replaces** `languages`: the interface languages a visitor may choose between on the sign-in screen. See [Choosing the language on the sign-in screen](#choosing-the-language-on-the-sign-in-screen).
+* `TI_WEB_PUBLIC_URL` overrides `publicUrl`, the deployment's public base URL, which every link in a notice starts from. See [E-mail notices](#e-mail-notices).
+* `TI_WEB_NOTIFY_TRANSPORT` (`off`/`log`/`cloudflare`), `TI_WEB_NOTIFY_SENDER`, `TI_WEB_NOTIFY_SENDER_NAME`, `TI_WEB_NOTIFY_REPLY_TO` and `TI_WEB_NOTIFY_RELAY_URL` override the `notifications` settings: how notices are sent, and from whom. Off by default.
+* `TI_WEB_JOBS_TRIGGER` (`internal`/`route`/`off`) and `TI_WEB_JOBS_BEHIND_WORKER` (`true`/`false`) override the `jobs` settings: what runs the scheduled jobs. See [Scheduled jobs](#scheduled-jobs).
 
 OpenID Connect providers are configured with their own variables — `TI_AZURE_AUTH_CLIENT_ID` / `TI_AZURE_AUTH_CLIENT_SECRET` / `TI_AZURE_AUTH_CALLBACK_URL` / `TI_AZURE_AUTH_DISCOVERY_URL` / `TI_AZURE_AUTH_ALLOWED_DOMAINS`, and the `TI_GCLOUD_AUTH_*` equivalents. `…_ALLOWED_DOMAINS` (comma-separated) **replaces** the provider's `allowedDomains`: see [Which domains may sign in through which provider](#which-domains-may-sign-in-through-which-provider). A callback URL may be given either as the full absolute URL registered with the provider (`https://your-host/login/azure-callback`) or as a path (`/login/azure-callback`): the server always listens on the path, while the `redirect_uri` sent to the provider is the absolute value verbatim if one was configured, and otherwise assembled from the request's forwarded protocol/host.
 
@@ -404,6 +407,83 @@ signed its user out. An application needs no change; whatever its `onStart` chai
   (`E_GEN_SERVICE_STARTING`). A navigation gets that as text rather than the redirect to `/` other errors get.
 * `TiWebServer#startup` says where the instance is: `{ state: "starting" | "started" | "failed", settled }`. An
   instance started through `onStart()` directly, as a test might, has no state and is never held.
+
+## E-mail notices
+
+`@ti-engine/web-framework/notifications` sends an application's notices by e-mail, each at most once. The application
+says what its notices are and when its events happen; a configuration document says which events send which notice.
+
+```js
+const notifications = require( "@ti-engine/web-framework/notifications" ).instance;
+
+notifications
+    .registerNotice( "task-new", {
+        subject: "notice.task-new.subject",            // label keys, with {placeholders}
+        text: "notice.task-new.text",
+        link: ( data ) => "/app/tasks/" + data.taskID, // a path, joined to TI_WEB_PUBLIC_URL
+        format: ( data, language ) => ( { task: getLabel( "task." + data.task, language ), date: data.date } )
+    } )
+    .registerEvent( "task.created", { attributes: [ "task" ] } );
+
+// In the web application manager: the rules, with this application's defaults, editable and drift-tracked.
+this.registerConfigDocument( "notifications", notifications.configDocument( {
+    enabled: true,
+    rules: [ { id: "new-task", event: "task.created", notice: "task-new", when: { task: [ "review" ] } } ]
+} ) );
+
+// After the write that created the task has settled, never under a write lock:
+await notifications.emit( "task.created", { key: "review:" + taskID + ":" + ownerID, recipient: { id: ownerID, email: owner.email }, data: { task: "review", taskID, date } } );
+```
+
+* **Rules.** `{ enabled, rules: [ { id, event, notice, when, enabled } ] }`. `when` maps an attribute to the values that
+  pass; an empty or absent `when` passes everything. The validator refuses a rule naming an event or notice that is not
+  registered, or an attribute its event does not declare. `enabled: false` on the document stops every rule.
+* **Once per key.** `emit` queues each matching rule's notice under `<notice>:<key>`, and `notify( { kind, key,
+  recipient, data } )` queues one directly. A key already queued or sent is not queued again, so a write and a nightly
+  catch-up raising one notice send it once. Both resolve once the notice is in the outbox, never on delivery.
+* **The outbox and the ledger** are values in the state store, under `ti:notify:pending:` and `ti:notify:done:`.
+  Ledger entries hold the kind, the recipient's ID, the outcome and the time, never an address or a text, and expire
+  after `notifications.retentionDays` (180). `forget( recipientID )` removes a person's entries, for an erasure path.
+* **Sending** is one message at a time, after each queued notice and on every job tick. A transient failure is
+  retried after 1, 5, 15 and 60 minutes, then given up; a permanent one is given up at once. A daily limit pauses
+  sending until the next UTC day, a rate limit for a minute. Delivery is at least once: a crash between the provider
+  accepting and the ledger entry repeats one notice.
+* **Transports.** `off` (the default) queues nothing. `log` sends nothing and logs that it would have. `cloudflare`
+  posts to `TI_WEB_NOTIFY_RELAY_URL`, which `@ti-engine/cloudflare` sets to its Worker's relay, and needs
+  `TI_WEB_NOTIFY_SENDER`. `setTransport( { name, send } )` takes an application's own: `send( message )` resolves to
+  `{ messageId }` or rejects with an error carrying `code` and, optionally, `transient`.
+* **No log line carries an address or a rendered text**, and a recipient ID holding `@` is refused, because the ID is
+  what the logs name.
+* **Rendering.** In the recipient's `language`, else the deployment's. The HTML is the text, escaped, and the link: no
+  remote image, no tracking pixel. `render( kind, recipient, data )` shows what would be sent.
+
+## Scheduled jobs
+
+`@ti-engine/web-framework/jobs` runs application code on a schedule: anything that becomes due with the passing of
+time, such as a deadline coming close, which no request would otherwise notice.
+
+```js
+require( "@ti-engine/web-framework/jobs" ).instance.registerJob( "deadline-reminders", {
+    every: "day",          // or "hour"
+    at: "04:00",           // UTC, for a daily job
+    run: ( { now } ) => remindOfDeadlines( now )
+} );
+```
+
+A tick runs each job whose period began since it last ran, one at a time, then a pass of the notification dispatcher.
+A job is recorded as run only once it finished; one that fails is logged, stops no other, and runs again on the next
+tick, so a job must be harmless to run twice. `TI_WEB_JOBS_TRIGGER` decides what ticks:
+
+* `internal` (the default): a timer in the process, once the instance has started and every 15 minutes, only when a
+  job or a transport is there to run. It never holds the process open, so it suits a server that stays up.
+* `route`: `POST /_ti/jobs/run` runs a tick and answers `204` when it has finished. It is outside sign-in, so **the
+  server refuses to start with it** unless `TI_WEB_JOBS_BEHIND_WORKER=true` says a Worker refuses the path from the
+  internet, as `@ti-engine/cloudflare`'s does. Its `createWorker( { jobs: true } )` posts it on the Worker's cron,
+  waking a container that sleeps between requests.
+* `off`.
+
+Both triggers assume one instance, as the configuration store's lock does. `runJobTick()` on the server runs a tick
+on demand.
 
 ## When a request fails
 
