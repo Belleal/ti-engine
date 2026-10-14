@@ -160,8 +160,57 @@
  * @property {string} subject The label key of the subject, with `{name}` placeholders.
  * @property {string} text The label key of the text, with `{name}` placeholders. A blank line starts a paragraph.
  * @property {(data: Object) => string} [link] The path the notice links to, joined to the public URL.
- * @property {(data: Object, language: TiLocalizationLanguage) => Object} [format] The values the placeholders read, in
- *           the recipient's language. Without it, they read the notice's data as given.
+ * @property {(data: Object, language: TiLocalizationLanguage, label: (key: string) => string) => Object} [format] The
+ *           values the placeholders read, in the recipient's language. Without it, they read the notice's data as
+ *           given. A label it reads through `label` honours an administrator's edit of it; one read straight from the
+ *           catalogue does not.
+ * @property {string[]} [placeholders] The names the subject and the text may use. Declared, they make both editable
+ *           through the `notifications` document, and an edit using another name is refused.
+ * @property {Object<string, string[]>} [labels] The other label keys `format` reads, each with the names it may use.
+ *           Each becomes editable as well.
+ */
+
+/**
+ * Edited notice texts, by label key and then language: `{ "notice.task-new.subject": { "bg": "…" } }`. Only what an
+ * administrator changed is held; every other text is the shipped label.
+ *
+ * @typedef {Record<string, Record<string, string>>} TiNoticeTexts
+ */
+
+/**
+ * One text an editor may change.
+ *
+ * @typedef {Object} TiEditableNoticeText
+ * @property {string} key The label key.
+ * @property {"subject"|"text"|"label"|"action"|"footer"} part Where it is first read.
+ * @property {string[]} notices The notices that use it; none for the layout's button and footer.
+ * @property {string[]|null} placeholders The names every use of it offers, or `null` when none declared any.
+ * @property {boolean} multiline Whether it may hold a line break: only when every use of it may.
+ */
+
+/**
+ * The colours of the e-mail layout, each `#rgb` or `#rrggbb`.
+ *
+ * @typedef {Object} TiNoticeLayoutColors
+ * @property {string} [brand] The wordmark's band and the button.
+ * @property {string} [brandText] The wordmark and the button's label.
+ * @property {string} [accent] The rule under the band.
+ * @property {string} [background] Around the card.
+ * @property {string} [surface] The card.
+ * @property {string} [text]
+ * @property {string} [muted] The footer and the link under the button.
+ * @property {string} [border] The card's edge.
+ */
+
+/**
+ * How a notice looks as HTML.
+ *
+ * @typedef {Object} TiNoticeLayout
+ * @property {string} [name] The application's name, set as a wordmark at the top. Without it there is no band.
+ * @property {TiNoticeLayoutColors} [colors]
+ * @property {string} [font] The wordmark's font family list, such as `Georgia, serif`. Nothing is loaded for it.
+ * @property {string} [action] The label key of the button that opens the link. Without it the link stands alone.
+ * @property {string} [footer] The label key of the line under the card.
  */
 
 /**
@@ -188,6 +237,8 @@
  * @typedef {Object} TiNotificationsDocument
  * @property {boolean} enabled `false` stops every rule.
  * @property {TiNotificationRule[]} rules
+ * @property {TiNoticeTexts} [texts] What an administrator changed of the notices' texts.
+ * @property {Object} [options] The application's own settings, in the schema it gives `configDocument`.
  */
 
 /**
@@ -208,7 +259,8 @@
  *
  * @typedef {Object} TiRenderedNotice
  * @property {string} subject
- * @property {string} text The text, with the link after it.
+ * @property {string} text The text, with the link after it (introduced by the layout's button label, when it has
+ *           one) and the layout's footer under a signature delimiter.
  * @property {string} html
  */
 

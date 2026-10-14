@@ -421,9 +421,18 @@ notifications
         subject: "notice.task-new.subject",            // label keys, with {placeholders}
         text: "notice.task-new.text",
         link: ( data ) => "/app/tasks/" + data.taskID, // a path, joined to TI_WEB_PUBLIC_URL
-        format: ( data, language ) => ( { task: getLabel( "task." + data.task, language ), date: data.date } )
+        // `label` honours an administrator's edit of the labels it reads; the values fill the placeholders.
+        format: ( data, language, label ) => ( { task: label( "task." + data.task ), date: data.date } ),
+        placeholders: [ "task", "date" ],              // what the subject and the text may use
+        labels: { "task.review": [] }                  // the other labels `format` reads, each editable
     } )
-    .registerEvent( "task.created", { attributes: [ "task" ] } );
+    .registerEvent( "task.created", { attributes: [ "task" ] } )
+    .setLayout( {                                      // how the HTML looks: a wordmark, colours, a button, a footer
+        name: "Example",
+        colors: { brand: "#6E1F2E", brandText: "#FBF8F2", accent: "#A8864B" },
+        action: "notice.action",                       // label keys: "Open Example", "Sent automatically."
+        footer: "notice.footer"
+    } );
 
 // In the web application manager: the rules, with this application's defaults, editable and drift-tracked.
 this.registerConfigDocument( "notifications", notifications.configDocument( {
@@ -454,8 +463,21 @@ await notifications.emit( "task.created", { key: "review:" + taskID + ":" + owne
   `{ messageId }` or rejects with an error carrying `code` and, optionally, `transient`.
 * **No log line carries an address or a rendered text**, and a recipient ID holding `@` is refused, because the ID is
   what the logs name.
-* **Rendering.** In the recipient's `language`, else the deployment's. The HTML is the text, escaped, and the link: no
-  remote image, no tracking pixel. `render( kind, recipient, data )` shows what would be sent.
+* **Rendering.** In the recipient's `language`, else the deployment's. The HTML is laid out by `setLayout`: the
+  name as a wordmark on a band, the text in a card, a button to the link with the address under it, and the footer.
+  Tables and inline styles, the colour scheme pinned to light, and nothing fetched when it opens: no image, font or
+  stylesheet, no tracking pixel. A colour must be `#rgb` or `#rrggbb`. The plain text ends with the button's label and
+  the link, and the footer under `-- `. `render( kind, recipient, data, texts )` shows what would be sent, with draft
+  texts if given.
+* **Edited texts.** The document's optional `texts`, `{ "<label key>": { "<language>": "<text>" } }`, wins over the
+  shipped label, and holds only what was edited, so a release that rewords a text reaches a deployment that never
+  touched it. `editableTexts()` lists what may be edited, with the placeholders each may use. The validator refuses an
+  unknown key or language, an empty text, a line break where the part takes one line, and a placeholder the text does
+  not offer. An edit reaches notices already queued, since a notice is rendered when it is sent.
+* **Options.** `configDocument( defaults, metadata, { options: schema } )` lets the document hold the application's
+  own settings, validated by its schema. `getOptions()` reads them over the defaults, one key at a time.
+* **A test send.** `sendTest( kind, recipient, data, texts )` sends one rendered notice through the transport, past the
+  outbox and the ledger, so nothing records it and it never stops the real one.
 
 ## Scheduled jobs
 

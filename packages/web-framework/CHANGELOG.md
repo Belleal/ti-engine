@@ -2,6 +2,56 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.53.0
+
+What an application needs to give administrators a screen for its e-mails, and to send them as branded HTML (CA-490).
+Design: §10 of `docs/superpowers/specs/2026-10-14-web-framework-notifications-design.md`.
+
+* feat(notifications): **edited texts, live.** The `notifications` document takes an optional `texts` map, `{ "<label
+  key>": { "<language>": "<text>" } }`, and a notice is rendered from it first, then from the shipped labels.
+  - **Why in the document.** A notice's texts were labels read through core's catalogue, which knows only the file the
+    process started with, so changing a word took a commit and a release. The document is already versioned, audited
+    and restorable, and the dispatcher already reads it.
+  - **Only edits are stored.** A text nobody edited is the shipped label, so a release that rewords one reaches a
+    deployment that never touched it. A copy of every text would have frozen them at the version that wrote it, which
+    is what happened to an application's stored labels document before it learned to merge.
+  - **What may be edited** is what `editableTexts()` lists: each notice's subject and text, the labels its `format`
+    reads (declared with the notice as `labels`), and the layout's button and footer. `format( data, language, label )`
+    gets a `label( key )` that honours an edit; a label read straight from the catalogue does not. A key read in more
+    than one place is held to the strictest of its uses: one line if any use takes one, and only the names every use
+    offers, since one edit reaches all of them.
+  - **The validator refuses an edit that would not render as shown:** a key nothing reads, a language the shipped
+    label lacks, an empty text, a line break in a subject, a button or a label, and a placeholder the text does not
+    offer (`registerNotice( kind, { placeholders } )`), which would reach the reader as the braces themselves.
+  - **An edit reaches mail already queued**, because a notice is rendered when it is sent. The dispatcher reads the
+    edits once a pass, not once a notice.
+* feat(notifications): **application options.** `configDocument( defaults, metadata, { options: schema } )` lets the
+  document hold the application's own settings under `options`, validated by its schema; without a schema the document
+  holds none. `getOptions()` reads the stored options over the defaults one key at a time, so an option a release adds
+  has its default on a deployment whose document predates it.
+* feat(notifications): **a branded HTML layout.** `setLayout( { name, colors, font, action, footer } )`.
+  - **The e-mail.** The name as a wordmark on a band in the brand colour, with a rule under it. A card holds the text,
+    then a button to the link, with the address repeated under it for a client that hides the button. A footer sits
+    under the card. The first paragraph is a hidden preheader, so the inbox shows the message, not the wordmark.
+  - **Built for mail clients.** Tables and inline styles, because Gmail drops a `<style>` block in some views and
+    Outlook on Windows lays out with Word's engine. The colour scheme is pinned to light, so a client that recolours
+    for dark mode leaves the brand alone.
+  - **Nothing is fetched when it opens:** no image, font or stylesheet, and no address but the notice's own link. A
+    test holds that. A colour must be `#rgb` or `#rrggbb` and a font a plain family list, because both land inside a
+    `style` attribute.
+  - **The plain text** ends with the button's label and the link (`Open the app: https://…`) and the footer under a
+    signature delimiter. Without a layout, both parts are as before, less the old bare `<p>` markup.
+  - A missing button or footer label leaves that part out rather than failing every notice.
+* feat(notifications): **`sendTest( kind, recipient, data, texts )`** sends one rendered notice straight through the
+  transport, past the outbox and the ledger, for an editor's "send me a test". Nothing records it, so it never stops
+  the real notice of the same key. It renders with the draft texts given, else the stored ones, and refuses with
+  `E_NOTICE_TRANSPORT_OFF` while sending is off. `render( kind, recipient, data, texts )` takes draft texts too, so a
+  preview shows unsaved edits exactly as they would be sent.
+
+Tests: 15 new in `notification-service.test.js` (968 in the package). Three of the new guards were each removed in
+turn and their test failed: rendering a queued notice without the stored edits, the colour pattern, and the one-line
+rule.
+
 ## Version 1.52.0
 
 E-mail notices and scheduled jobs, as a capability any application configures (CA-486). Design:

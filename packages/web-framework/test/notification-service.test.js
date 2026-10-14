@@ -42,7 +42,9 @@ const LABELS = {
     "notice.task-new.text": { en: "You have a new task: {task}.\n\nIt is due on {date}.", bg: "Имате нова задача: {task}.\n\nСрокът е {date}." },
     "notice.only-bg.subject": { bg: "Само на български" },
     "notice.only-bg.text": { bg: "Текст" },
-    "notice.task-name.self-evaluation": { en: "self-evaluation", bg: "самооценка" }
+    "notice.task-name.self-evaluation": { en: "self-evaluation", bg: "самооценка" },
+    "notice.layout.action": { en: "Open the app", bg: "Отворете приложението" },
+    "notice.layout.footer": { en: "Sent automatically; replies are not read.", bg: "Изпратено автоматично." }
 };
 
 const originalGetLabel = localization.getLabel;
@@ -422,7 +424,7 @@ describe( "render", () => {
         assert.equal( bg.subject, "Нова задача: самооценка до 28.10.2026" );
         assert.equal( bg.text, "Имате нова задача: самооценка.\n\nСрокът е 28.10.2026.\n\nhttps://app.example.com/app/tasks/E-7" );
         assert.match( bg.html, /^<!doctype html>\n<html lang="bg">/ );
-        assert.match( bg.html, /<p><a href="https:\/\/app\.example\.com\/app\/tasks\/E-7">/ );
+        assert.match( bg.html, /<a href="https:\/\/app\.example\.com\/app\/tasks\/E-7" style="[^"]*">https:\/\/app\.example\.com\/app\/tasks\/E-7<\/a>/ );
 
         const en = service.render( "task-new", BORIS, TASK );
         assert.equal( en.subject, "New task: self-evaluation by 28.10.2026" );
@@ -549,6 +551,237 @@ describe( "events and rules", () => {
         assert.notEqual( definition.defaultValue.rules, RULES.rules, "the default shares the caller's array" );
         assert.equal( definition.metadata.path, "bin/config/notifications.json" );
         assert.deepEqual( service.configDocument().defaultValue, { enabled: true, rules: [] } );
+    } );
+
+} );
+
+describe( "edited texts", () => {
+
+    // A notice declaring what an editor may change: its placeholders, and the label its format reads through `label`.
+    function editableService( transport = fakeTransport() ) {
+        const service = serviceWith( transport );
+        service.registerNotice( "task-new", {
+            subject: "notice.task-new.subject",
+            text: "notice.task-new.text",
+            link: ( data ) => "/app/tasks/" + data.evaluationID,
+            format: ( data, language, label ) => ( { task: label( "notice.task-name." + data.task ), date: data.date } ),
+            placeholders: [ "task", "date" ],
+            labels: { "notice.task-name.self-evaluation": [] }
+        } );
+        return service;
+    }
+
+    const registryFor = ( service ) => {
+        const registry = new ConfigRegistry();
+        registry.register( "notifications", service.configDocument( { enabled: true, rules: [] } ) );
+        return registry;
+    };
+    const codesOf = async ( registry, texts ) => ( await registry.validate( "notifications", { enabled: true, rules: [], texts: texts } ) ).errors.map( ( issue ) => issue.code ).sort();
+
+    it( "renders an edited text in its own language, and the shipped label everywhere else", () => {
+        const service = editableService();
+        const texts = { "notice.task-new.subject": { bg: "Задача за Вас: {task}" } };
+        assert.equal( service.render( "task-new", ANNA, TASK, texts ).subject, "Задача за Вас: самооценка" );
+        assert.equal( service.render( "task-new", BORIS, TASK, texts ).subject, "New task: self-evaluation by 28.10.2026", "English keeps its shipped text" );
+        assert.equal( service.render( "task-new", ANNA, TASK, texts ).text.startsWith( "Имате нова задача" ), true, "the text was not edited" );
+        assert.equal( service.render( "task-new", ANNA, TASK, { "notice.task-new.subject": { bg: "   " } } ).subject, "Нова задача: самооценка до 28.10.2026", "a blank edit is no edit" );
+    } );
+
+    it( "gives format a label that honours an edit of the labels it reads", () => {
+        const service = editableService();
+        const texts = { "notice.task-name.self-evaluation": { bg: "самооценката си" } };
+        assert.equal( service.render( "task-new", ANNA, TASK, texts ).subject, "Нова задача: самооценката си до 28.10.2026" );
+    } );
+
+    it( "lists every editable text once, with the names each may use", () => {
+        const service = editableService();
+        service.setLayout( { name: "Example", action: "notice.layout.action", footer: "notice.layout.footer" } );
+        const listed = service.editableTexts();
+        assert.deepEqual( listed.map( ( entry ) => [ entry.key, entry.part, entry.notices, entry.placeholders, entry.multiline ] ), [
+            [ "notice.task-new.subject", "subject", [ "task-new" ], [ "task", "date" ], false ],
+            [ "notice.task-new.text", "text", [ "task-new" ], [ "task", "date" ], true ],
+            [ "notice.task-name.self-evaluation", "label", [ "task-new" ], [], false ],
+            [ "notice.only-bg.subject", "subject", [ "only-bg" ], null, false ],
+            [ "notice.only-bg.text", "text", [ "only-bg" ], null, true ],
+            [ "notice.layout.action", "action", [], [], false ],
+            [ "notice.layout.footer", "footer", [], [], true ]
+        ] );
+    } );
+
+    // One edit is read wherever its key is. Keeping the first registration's rule let a line break through to a subject
+    // sharing a text's key, and a union of the names let one notice's name reach the other's reader as its braces.
+    it( "holds a key read in more than one place to the strictest of its uses", async () => {
+        const service = editableService();
+        service.registerNotice( "task-due", {
+            subject: "notice.task-new.text",
+            text: "notice.only-bg.text",
+            link: ( data ) => "/app/tasks/" + data.evaluationID,
+            format: ( data, language, label ) => ( { task: label( "notice.task-name." + data.task ), n: 3 } ),
+            placeholders: [ "task" ],
+            labels: { "notice.task-name.self-evaluation": [ "n" ] }
+        } );
+        const listed = new Map( service.editableTexts().map( ( entry ) => [ entry.key, entry ] ) );
+        assert.deepEqual( [ "notice.task-new.text", "notice.only-bg.text", "notice.task-name.self-evaluation" ].map( ( key ) => {
+            const entry = listed.get( key );
+            return [ key, entry.part, entry.notices, entry.placeholders, entry.multiline ];
+        } ), [
+            [ "notice.task-new.text", "text", [ "task-new", "task-due" ], [ "task" ], false ],
+            [ "notice.only-bg.text", "text", [ "only-bg", "task-due" ], [ "task" ], true ],
+            [ "notice.task-name.self-evaluation", "label", [ "task-new", "task-due" ], [], false ]
+        ] );
+        const registry = registryFor( service );
+        assert.deepEqual( await codesOf( registry, { "notice.task-new.text": { bg: "Задача: {task}.\n\nОще една." } } ), [ "notifications.multiline-text" ], "a subject reads it too" );
+        assert.deepEqual( await codesOf( registry, { "notice.task-new.text": { bg: "Задача: {task} до {date}" } } ), [ "notifications.unknown-placeholder" ], "task-due fills no date" );
+        assert.deepEqual( await codesOf( registry, { "notice.task-name.self-evaluation": { bg: "самооценка ({n})" } } ), [ "notifications.unknown-placeholder" ], "task-new fills no n" );
+        assert.deepEqual( await codesOf( registry, { "notice.only-bg.text": { bg: "Всяко {name} минава" } } ), [ "notifications.unknown-placeholder" ], "a use declaring names restricts one that declared none" );
+        assert.deepEqual( await codesOf( registry, { "notice.only-bg.text": { bg: "Задача: {task}.\n\nОще една." } } ), [], "both uses take paragraphs and fill the task" );
+    } );
+
+    it( "has a validator that refuses an edit the notice would not render as shown", async () => {
+        const service = editableService();
+        const registry = registryFor( service );
+        assert.deepEqual( await codesOf( registry, { "notice.task-new.text": { bg: "Задача: {task}.\n\nСрок: {date}" } } ), [] );
+        assert.deepEqual( await codesOf( registry, { "notice.unknown": { bg: "x" } } ), [ "notifications.unknown-text" ] );
+        assert.deepEqual( await codesOf( registry, { "notice.only-bg.subject": { en: "Only in English" } } ), [ "notifications.unknown-language" ], "the shipped label has no English" );
+        assert.deepEqual( await codesOf( registry, { "notice.task-new.subject": { bg: "  " } } ), [ "notifications.empty-text" ] );
+        assert.deepEqual( await codesOf( registry, { "notice.task-new.subject": { bg: "Нова\nзадача" } } ), [ "notifications.multiline-text" ] );
+        assert.deepEqual( await codesOf( registry, { "notice.task-new.subject": { bg: "За {name}: {task} {deadline}" } } ), [ "notifications.unknown-placeholder", "notifications.unknown-placeholder" ] );
+        assert.deepEqual( await codesOf( registry, { "notice.task-name.self-evaluation": { bg: "{task}" } } ), [ "notifications.unknown-placeholder" ], "a label offering no name" );
+        assert.deepEqual( await codesOf( registry, { "notice.only-bg.text": { bg: "Всяко {name} минава" } } ), [], "a notice that declared no placeholders is not checked" );
+        assert.equal( ( await registry.validate( "notifications", { enabled: true, rules: [], texts: { "notice.task-new.subject": { bg: 7 } } } ) ).valid, false, "the schema" );
+    } );
+
+    it( "sends a notice queued before an edit with the edit, because a notice is rendered when it is sent", async () => {
+        const transport = fakeTransport();
+        const service = editableService( transport );
+        await service.notify( { kind: "task-new", key: "k", recipient: ANNA, data: TASK } );
+        await seedRules( { enabled: true, rules: [], texts: { "notice.task-new.subject": { bg: "Редактирано: {task}" } } } );
+        await service.drain();
+        assert.equal( transport.sent[ 0 ].subject, "Редактирано: самооценка" );
+    } );
+
+    it( "keeps sending the shipped text to a deployment that never edited it", async () => {
+        const transport = fakeTransport();
+        const service = editableService( transport );
+        await seedRules( { enabled: true, rules: [] } );
+        await service.notify( { kind: "task-new", key: "k", recipient: ANNA, data: TASK } );
+        await service.drain();
+        assert.equal( transport.sent[ 0 ].subject, "Нова задача: самооценка до 28.10.2026" );
+    } );
+
+} );
+
+describe( "options", () => {
+
+    const OPTIONS = Object.freeze( { type: "object", additionalProperties: false, properties: { reminderDays: { type: "integer", minimum: 1, maximum: 30 }, digest: { type: "boolean" } } } );
+
+    it( "validates the application's options by its schema, and holds none without one", async () => {
+        const service = serviceWith( fakeTransport() );
+        const registry = new ConfigRegistry();
+        const definition = service.configDocument( { enabled: true, rules: [], options: { reminderDays: 3 } }, {}, { options: OPTIONS } );
+        assert.deepEqual( definition.defaultValue.options, { reminderDays: 3 } );
+        registry.register( "notifications", definition );
+        assert.equal( ( await registry.validate( "notifications", { enabled: true, rules: [], options: { reminderDays: 5 } } ) ).valid, true );
+        assert.equal( ( await registry.validate( "notifications", { enabled: true, rules: [], options: { reminderDays: 0 } } ) ).valid, false );
+        assert.equal( ( await registry.validate( "notifications", { enabled: true, rules: [], options: { other: 1 } } ) ).valid, false );
+
+        const plain = new ConfigRegistry();
+        plain.register( "notifications", serviceWith( fakeTransport() ).configDocument( { enabled: true, rules: [], options: { reminderDays: 3 } } ) );
+        assert.equal( ( await plain.validate( "notifications", { enabled: true, rules: [], options: {} } ) ).valid, false, "no schema, no options" );
+    } );
+
+    it( "reads the stored options over the defaults, one key at a time", async () => {
+        const service = serviceWith( fakeTransport() );
+        service.configDocument( { enabled: true, rules: [], options: { reminderDays: 3, digest: false } }, {}, { options: OPTIONS } );
+        assert.deepEqual( await service.getOptions(), { reminderDays: 3, digest: false }, "nothing stored" );
+        await seedRules( { enabled: true, rules: [], options: { reminderDays: 5 } } );
+        assert.deepEqual( await service.getOptions(), { reminderDays: 5, digest: false }, "an option the stored document predates keeps its default" );
+    } );
+
+} );
+
+describe( "the layout", () => {
+
+    const CLARET = Object.freeze( { name: "Example & Co", colors: { brand: "#6E1F2E", brandText: "#FBF8F2", accent: "#A8864B" }, font: "Georgia, serif", action: "notice.layout.action", footer: "notice.layout.footer" } );
+
+    it( "sets the brand as a wordmark, the link as a button with the address under it, and the footer", () => {
+        const service = serviceWith( fakeTransport() );
+        service.setLayout( CLARET );
+        const { html, text } = service.render( "task-new", ANNA, TASK );
+        assert.match( html, /<td style="background-color:#6E1F2E;border-bottom:3px solid #A8864B;[^"]*font-family:Georgia, serif;[^"]*color:#FBF8F2;">Example &amp; Co<\/td>/ );
+        assert.match( html, /<a href="https:\/\/app\.example\.com\/app\/tasks\/E-7" style="display:inline-block;[^"]*">Отворете приложението<\/a>/ );
+        assert.equal( ( html.match( /href="https:\/\/app\.example\.com\/app\/tasks\/E-7"/g ) || [] ).length, 2, "the button, and the address for a client that hides it" );
+        assert.match( html, />Изпратено автоматично\.<\/td>/ );
+        assert.match( html, /<meta name="color-scheme" content="light">/ );
+        assert.match( html, /<div style="display:none;[^"]*">Имате нова задача: самооценка\.<\/div>/, "the first paragraph as the inbox preview" );
+        assert.equal( text, "Имате нова задача: самооценка.\n\nСрокът е 28.10.2026.\n\nОтворете приложението: https://app.example.com/app/tasks/E-7\n\n-- \nИзпратено автоматично." );
+    } );
+
+    it( "fetches nothing when it opens: no image, stylesheet, font or remote address but the notice's own link", () => {
+        const service = serviceWith( fakeTransport() );
+        service.setLayout( CLARET );
+        const { html } = service.render( "task-new", ANNA, TASK );
+        assert.doesNotMatch( html, /<img|<link|<script|<style|src=|url\(|@import/i );
+        const addresses = [ ...html.matchAll( /https?:\/\/[^"<\s]+/g ) ].map( ( match ) => match[ 0 ] );
+        assert.deepEqual( [ ...new Set( addresses ) ], [ "https://app.example.com/app/tasks/E-7" ] );
+    } );
+
+    it( "leaves the band out without a name, the button out without its label, and the text as it was", () => {
+        const service = serviceWith( fakeTransport() );
+        const plain = service.render( "task-new", ANNA, TASK );
+        assert.doesNotMatch( plain.html, /border-bottom:3px/ );
+        assert.doesNotMatch( plain.html, /display:inline-block/ );
+        assert.equal( plain.text, "Имате нова задача: самооценка.\n\nСрокът е 28.10.2026.\n\nhttps://app.example.com/app/tasks/E-7" );
+
+        service.setLayout( { name: "Example", action: "notice.layout.missing", footer: "notice.layout.missing" } );
+        const unlabelled = service.render( "task-new", ANNA, TASK );
+        assert.doesNotMatch( unlabelled.html, /display:inline-block/, "a missing label is no button, not a failed notice" );
+        assert.equal( unlabelled.text, plain.text );
+    } );
+
+    it( "refuses a colour or a font that could break out of the style it lands in", () => {
+        const service = serviceWith( fakeTransport() );
+        assert.throws( () => service.setLayout( { colors: { brand: "red;background:url(https://x.example/p.png)" } } ) );
+        assert.throws( () => service.setLayout( { colors: { brand: "#6E1F2E\"" } } ) );
+        assert.throws( () => service.setLayout( { colors: { shadow: "#000000" } } ), "an unknown colour role" );
+        assert.throws( () => service.setLayout( { font: "Georgia; color:red" } ) );
+        assert.throws( () => service.setLayout( { name: "" } ) );
+        assert.doesNotThrow( () => service.setLayout( null ) );
+    } );
+
+} );
+
+describe( "sendTest", () => {
+
+    it( "sends one rendered notice with the draft texts, past the outbox and the ledger, so it never stops the real one", async () => {
+        const transport = fakeTransport();
+        const service = serviceWith( transport );
+        const result = await service.sendTest( "task-new", ANNA, TASK, { "notice.task-new.subject": { bg: "Проба: {task}" } } );
+        assert.deepEqual( result, { messageId: "m-1" } );
+        assert.equal( transport.sent[ 0 ].subject, "Проба: самооценка" );
+        assert.deepEqual( transport.sent[ 0 ].to, { email: ANNA.email, name: ANNA.name } );
+        assert.equal( Object.keys( cacheStub.values ).length, 0, "nothing queued, nothing in the ledger" );
+        assert.equal( await service.notify( { kind: "task-new", key: "k", recipient: ANNA, data: TASK } ), true );
+    } );
+
+    it( "renders with the stored edits when given no draft", async () => {
+        const transport = fakeTransport();
+        const service = serviceWith( transport );
+        await seedRules( { enabled: true, rules: [], texts: { "notice.task-new.subject": { bg: "Съхранено: {task}" } } } );
+        await service.sendTest( "task-new", ANNA, TASK );
+        assert.equal( transport.sent[ 0 ].subject, "Съхранено: самооценка" );
+    } );
+
+    it( "refuses while sending is off, for an unknown notice and for a malformed recipient, and passes a transport's failure on", async () => {
+        const off = new NotificationService( { drainOnNotify: false } );
+        off.registerNotice( "task-new", { subject: "notice.task-new.subject", text: "notice.task-new.text" } );
+        await assert.rejects( off.sendTest( "task-new", ANNA, TASK ), { code: "E_NOTICE_TRANSPORT_OFF" } );
+
+        const service = serviceWith( fakeTransport( [ "E_RECIPIENT_SUPPRESSED" ] ) );
+        await assert.rejects( service.sendTest( "task-gone", ANNA, TASK ), { code: "E_NOTICE_UNKNOWN" } );
+        await assert.rejects( service.sendTest( "task-new", { id: "a@b", email: ANNA.email }, TASK ) );
+        await assert.rejects( service.sendTest( "task-new", ANNA, TASK ), { code: "E_RECIPIENT_SUPPRESSED" } );
+        assert.equal( logLines.some( ( line ) => line.includes( "Test notice 'task-new' for recipient '1001' failed with 'E_RECIPIENT_SUPPRESSED'" ) ), true );
     } );
 
 } );
