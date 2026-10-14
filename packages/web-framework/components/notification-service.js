@@ -505,7 +505,8 @@ class NotificationService {
 
     /**
      * Every text an editor may change: each notice's subject and text, the labels its `format` reads, and the layout's
-     * button and footer. A label two notices share is listed once, naming both, with the names either offers.
+     * button and footer. A key read in more than one place is listed once, naming every notice that reads it, and
+     * held to the strictest of its uses: one line if any use takes one, and only the names every use offers.
      *
      * @method
      * @returns {TiEditableNoticeText[]} In registration order: per notice its subject, its text and its labels; then the layout's.
@@ -522,8 +523,13 @@ class NotificationService {
             if ( notice && !entry.notices.includes( notice ) ) {
                 entry.notices.push( notice );
             }
-            if ( entry.placeholders !== null ) {
-                entry.placeholders = ( placeholders === null ) ? null : [ ...new Set( [ ...entry.placeholders, ...placeholders ] ) ];
+            // One edit is read in every place the key is, so it is held to the strictest of them. Keeping the first
+            // registration's rule let a line break through to a subject sharing a text's key (a new header to a
+            // transport that writes headers), and a union of the names let one notice's name reach another's reader
+            // as its braces. A use that declared no names restricts nothing.
+            entry.multiline = entry.multiline && TEXT_PARTS[ part ];
+            if ( placeholders ) {
+                entry.placeholders = ( entry.placeholders === null ) ? [ ...placeholders ] : entry.placeholders.filter( ( name ) => placeholders.includes( name ) );
             }
         };
         this.#notices.forEach( ( notice, kind ) => {

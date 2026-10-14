@@ -101,7 +101,8 @@ declare class NotificationService {
     setLayout(layout: TiNoticeLayout | null): NotificationService;
     /**
      * Every text an editor may change: each notice's subject and text, the labels its `format` reads, and the layout's
-     * button and footer. A label two notices share is listed once, naming both, with the names either offers.
+     * button and footer. A key read in more than one place is listed once, naming every notice that reads it, and
+     * held to the strictest of its uses: one line if any use takes one, and only the names every use offers.
      *
      * @method
      * @returns {TiEditableNoticeText[]} In registration order: per notice its subject, its text and its labels; then the layout's.

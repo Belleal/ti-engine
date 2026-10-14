@@ -608,6 +608,35 @@ describe( "edited texts", () => {
         ] );
     } );
 
+    // One edit is read wherever its key is. Keeping the first registration's rule let a line break through to a subject
+    // sharing a text's key, and a union of the names let one notice's name reach the other's reader as its braces.
+    it( "holds a key read in more than one place to the strictest of its uses", async () => {
+        const service = editableService();
+        service.registerNotice( "task-due", {
+            subject: "notice.task-new.text",
+            text: "notice.only-bg.text",
+            link: ( data ) => "/app/tasks/" + data.evaluationID,
+            format: ( data, language, label ) => ( { task: label( "notice.task-name." + data.task ), n: 3 } ),
+            placeholders: [ "task" ],
+            labels: { "notice.task-name.self-evaluation": [ "n" ] }
+        } );
+        const listed = new Map( service.editableTexts().map( ( entry ) => [ entry.key, entry ] ) );
+        assert.deepEqual( [ "notice.task-new.text", "notice.only-bg.text", "notice.task-name.self-evaluation" ].map( ( key ) => {
+            const entry = listed.get( key );
+            return [ key, entry.part, entry.notices, entry.placeholders, entry.multiline ];
+        } ), [
+            [ "notice.task-new.text", "text", [ "task-new", "task-due" ], [ "task" ], false ],
+            [ "notice.only-bg.text", "text", [ "only-bg", "task-due" ], [ "task" ], true ],
+            [ "notice.task-name.self-evaluation", "label", [ "task-new", "task-due" ], [], false ]
+        ] );
+        const registry = registryFor( service );
+        assert.deepEqual( await codesOf( registry, { "notice.task-new.text": { bg: "Задача: {task}.\n\nОще една." } } ), [ "notifications.multiline-text" ], "a subject reads it too" );
+        assert.deepEqual( await codesOf( registry, { "notice.task-new.text": { bg: "Задача: {task} до {date}" } } ), [ "notifications.unknown-placeholder" ], "task-due fills no date" );
+        assert.deepEqual( await codesOf( registry, { "notice.task-name.self-evaluation": { bg: "самооценка ({n})" } } ), [ "notifications.unknown-placeholder" ], "task-new fills no n" );
+        assert.deepEqual( await codesOf( registry, { "notice.only-bg.text": { bg: "Всяко {name} минава" } } ), [ "notifications.unknown-placeholder" ], "a use declaring names restricts one that declared none" );
+        assert.deepEqual( await codesOf( registry, { "notice.only-bg.text": { bg: "Задача: {task}.\n\nОще една." } } ), [], "both uses take paragraphs and fill the task" );
+    } );
+
     it( "has a validator that refuses an edit the notice would not render as shown", async () => {
         const service = editableService();
         const registry = registryFor( service );
@@ -618,7 +647,7 @@ describe( "edited texts", () => {
         assert.deepEqual( await codesOf( registry, { "notice.task-new.subject": { bg: "Нова\nзадача" } } ), [ "notifications.multiline-text" ] );
         assert.deepEqual( await codesOf( registry, { "notice.task-new.subject": { bg: "За {name}: {task} {deadline}" } } ), [ "notifications.unknown-placeholder", "notifications.unknown-placeholder" ] );
         assert.deepEqual( await codesOf( registry, { "notice.task-name.self-evaluation": { bg: "{task}" } } ), [ "notifications.unknown-placeholder" ], "a label offering no name" );
-        assert.deepEqual( await codesOf( registry, { "notice.only-bg.text": { bg: "Всяко {име} минава" } } ), [], "a notice that declared no placeholders is not checked" );
+        assert.deepEqual( await codesOf( registry, { "notice.only-bg.text": { bg: "Всяко {name} минава" } } ), [], "a notice that declared no placeholders is not checked" );
         assert.equal( ( await registry.validate( "notifications", { enabled: true, rules: [], texts: { "notice.task-new.subject": { bg: 7 } } } ) ).valid, false, "the schema" );
     } );
 

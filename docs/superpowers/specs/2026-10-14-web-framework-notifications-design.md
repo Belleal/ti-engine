@@ -300,7 +300,8 @@ application's (CA-488). What it needs from the framework is below; the framework
     already read by the dispatcher, and already the screen's to edit. A second document was rejected: two histories
     for one screen, and a restore of one could leave rules and texts from different moments.
   - **Keyed by label key, not by notice.** One rule then covers a subject, a text, a label a notice's `format` reads
-    (a task's name, a "due" phrase) and the layout's button and footer. A label two notices share is edited once.
+    (a task's name, a "due" phrase) and the layout's button and footer. A label two notices share is edited once,
+    so it is held to the strictest of its uses: one line if any use takes one, and only the names every use fills.
   - **Only edits are stored.** The rest is the shipped label, so a release rewording a text reaches a deployment that
     never edited it. Storing every text was rejected: it froze them at the release that first wrote the document,
     which is the defect an application's stored labels document had until it learned to merge over the shipped ones.

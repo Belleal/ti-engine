@@ -17,7 +17,9 @@ Design: §10 of `docs/superpowers/specs/2026-10-14-web-framework-notifications-d
     is what happened to an application's stored labels document before it learned to merge.
   - **What may be edited** is what `editableTexts()` lists: each notice's subject and text, the labels its `format`
     reads (declared with the notice as `labels`), and the layout's button and footer. `format( data, language, label )`
-    gets a `label( key )` that honours an edit; a label read straight from the catalogue does not.
+    gets a `label( key )` that honours an edit; a label read straight from the catalogue does not. A key read in more
+    than one place is held to the strictest of its uses: one line if any use takes one, and only the names every use
+    offers, since one edit reaches all of them.
   - **The validator refuses an edit that would not render as shown:** a key nothing reads, a language the shipped
     label lacks, an empty text, a line break in a subject, a button or a label, and a placeholder the text does not
     offer (`registerNotice( kind, { placeholders } )`), which would reach the reader as the braces themselves.

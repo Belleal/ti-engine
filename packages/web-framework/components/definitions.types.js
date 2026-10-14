@@ -182,10 +182,10 @@
  *
  * @typedef {Object} TiEditableNoticeText
  * @property {string} key The label key.
- * @property {"subject"|"text"|"label"|"action"|"footer"} part
+ * @property {"subject"|"text"|"label"|"action"|"footer"} part Where it is first read.
  * @property {string[]} notices The notices that use it; none for the layout's button and footer.
- * @property {string[]|null} placeholders The names it may use, or `null` when its notice declared none.
- * @property {boolean} multiline Whether it may hold a line break.
+ * @property {string[]|null} placeholders The names every use of it offers, or `null` when none declared any.
+ * @property {boolean} multiline Whether it may hold a line break: only when every use of it may.
  */
 
 /**
