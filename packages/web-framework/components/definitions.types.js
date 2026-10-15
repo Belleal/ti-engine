@@ -139,7 +139,14 @@
  *
  * @typedef {Object} TiMailTransport
  * @property {string} name
- * @property {(message: TiMailMessage) => Promise<{messageId: string}>} send
+ * @property {(message: TiMailMessage) => Promise<{messageId: string}>} send Rejects with a {@link TiMailTransportError}.
+ */
+
+/**
+ * How a transport says a message was not sent: an `Error` carrying the provider's code, and whether trying again may
+ * succeed. The dispatcher retries a transient failure with backoff and gives up a permanent one at once.
+ *
+ * @typedef {Error & {code: string, transient: boolean}} TiMailTransportError
  */
 
 /**
@@ -274,6 +281,22 @@
  * @property {number} failed Given up: a permanent failure, or the last attempt.
  * @property {number} retrying Waiting for a later attempt.
  * @property {string|null} stopped The provider's code that paused sending, or `null`.
+ */
+
+/**
+ * A time of day in UTC, as a daily job falls due at.
+ *
+ * @typedef {Object} TiJobTimeOfDay
+ * @property {number} hours 0 to 23.
+ * @property {number} minutes 0 to 59.
+ */
+
+/**
+ * What decides when a registered job is due: its period, and for a daily job the time of day it falls due.
+ *
+ * @typedef {Object} TiJobSchedule
+ * @property {"hour"|"day"} every
+ * @property {TiJobTimeOfDay|null} at `null` for an hourly job.
  */
 
 /**

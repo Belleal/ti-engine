@@ -22,7 +22,7 @@ const tools = require( "@ti-engine/core/tools" );
 const logger = require( "@ti-engine/core/logger" );
 const exceptions = require( "@ti-engine/core/exceptions" );
 
-/** @import { TiJobDefinition, TiJobsReport } from "#definitions" */
+/** @import { TiJobDefinition, TiJobSchedule, TiJobTimeOfDay, TiJobsReport } from "#definitions" */
 
 // + job name → `{ at }`, the moment the job last finished. A value, so it can be read and replaced on either store.
 const KEY_LAST_RUN = "ti:jobs:last:";
@@ -131,7 +131,7 @@ class JobScheduler {
      * day runs on that first tick rather than waiting a day.
      *
      * @method
-     * @param {{every: string, at: ?{hours: number, minutes: number}}} job
+     * @param {TiJobSchedule} job
      * @param {number} lastRun Milliseconds, or `NaN` when it never ran.
      * @param {Date} now
      * @returns {boolean}
@@ -145,7 +145,7 @@ class JobScheduler {
      * The moment the period holding `now` began, in milliseconds.
      *
      * @method
-     * @param {{every: string, at: ?{hours: number, minutes: number}}} job
+     * @param {TiJobSchedule} job
      * @param {Date} now
      * @returns {number}
      * @public
@@ -166,7 +166,7 @@ class JobScheduler {
      *
      * @method
      * @param {*} value
-     * @returns {{hours: number, minutes: number}|null}
+     * @returns {TiJobTimeOfDay|null}
      * @public
      */
     static parseTimeOfDay( value ) {

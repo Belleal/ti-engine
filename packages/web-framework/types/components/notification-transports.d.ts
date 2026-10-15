@@ -6,7 +6,7 @@ declare const _exports: {
     createRelayTransport: typeof createRelayTransport;
 };
 export = _exports;
-import type { TiMailTransport } from "#definitions";
+import type { TiMailTransport, TiMailTransportError } from "#definitions";
 /**
  * Builds a transport failure in the shape the dispatcher reads.
  *
@@ -14,13 +14,10 @@ import type { TiMailTransport } from "#definitions";
  * @param {string} code
  * @param {boolean} [transient] When absent, decided from {@link TRANSIENT_CODES}.
  * @param {string} [detail]
- * @returns {Error & {code: string, transient: boolean}}
+ * @returns {TiMailTransportError}
  * @public
  */
-declare function transportError(code: string, transient?: boolean, detail?: string): Error & {
-    code: string;
-    transient: boolean;
-};
+declare function transportError(code: string, transient?: boolean, detail?: string): TiMailTransportError;
 /**
  * A transport that sends nothing and records that it would have. For development, tests and any environment that must
  * not mail people. The line names the subject's length rather than the subject, and never the address: a rendered

@@ -19,7 +19,7 @@
 
 const logger = require( "@ti-engine/core/logger" );
 
-/** @import { TiMailMessage, TiMailTransport } from "#definitions" */
+/** @import { TiMailMessage, TiMailTransport, TiMailTransportError } from "#definitions" */
 
 /**
  * The provider codes that mean "try again later" rather than "this message will never go". They are Cloudflare Email
@@ -53,7 +53,7 @@ const RELAY_TIMEOUT = 30000;
  * @param {string} code
  * @param {boolean} [transient] When absent, decided from {@link TRANSIENT_CODES}.
  * @param {string} [detail]
- * @returns {Error & {code: string, transient: boolean}}
+ * @returns {TiMailTransportError}
  * @public
  */
 function transportError( code, transient, detail ) {

@@ -26,6 +26,7 @@
 const { describe, it, before, beforeEach, after } = require( "node:test" );
 const assert = require( "node:assert/strict" );
 const logger = require( "@ti-engine/core/logger" );
+const tools = require( "@ti-engine/core/tools" );
 const exceptions = require( "@ti-engine/core/exceptions" );
 const localization = require( "@ti-engine/core/localization" );
 const { installInMemoryCache } = require( "./helpers/in-memory-cache" );
@@ -42,7 +43,7 @@ const LABELS = {
     "notice.task-new.text": { en: "You have a new task: {task}.\n\nIt is due on {date}.", bg: "Имате нова задача: {task}.\n\nСрокът е {date}." },
     "notice.only-bg.subject": { bg: "Само на български" },
     "notice.only-bg.text": { bg: "Текст" },
-    "notice.task-name.self-evaluation": { en: "self-evaluation", bg: "самооценка" },
+    "notice.task-name.review": { en: "review", bg: "преглед" },
     "notice.layout.action": { en: "Open the app", bg: "Отворете приложението" },
     "notice.layout.footer": { en: "Sent automatically; replies are not read.", bg: "Изпратено автоматично." }
 };
@@ -58,8 +59,11 @@ before( () => {
         return ( entry && entry[ language ] !== undefined ) ? entry[ language ] : fallback;
     };
     localization.getSystemLanguage = () => "bg";
-    logger.log = ( message ) => {
-        logLines.push( String( message ) );
+    // The details too, as the logger writes them: an error by its every property. A line whose message is clean can
+    // still carry an address in what is logged with it.
+    logger.log = ( message, severity, details ) => {
+        const written = ( details instanceof Error ) ? tools.errorToJSON( details ) : details;
+        logLines.push( String( message ) + ( ( written === undefined ) ? "" : " " + JSON.stringify( written ) ) );
     };
 } );
 
@@ -102,7 +106,7 @@ function serviceWith( transport, clock = { now: Date.UTC( 2026, 9, 14, 9, 0 ) } 
     service.registerNotice( "task-new", {
         subject: "notice.task-new.subject",
         text: "notice.task-new.text",
-        link: ( data ) => "/app/tasks/" + data.evaluationID,
+        link: ( data ) => "/app/tasks/" + data.itemID,
         format: ( data, language ) => ( { task: localization.getLabel( "notice.task-name." + data.task, language ), date: data.date } )
     } );
     service.registerNotice( "only-bg", { subject: "notice.only-bg.subject", text: "notice.only-bg.text" } );
@@ -111,7 +115,7 @@ function serviceWith( transport, clock = { now: Date.UTC( 2026, 9, 14, 9, 0 ) } 
     return service;
 }
 
-const TASK = Object.freeze( { task: "self-evaluation", evaluationID: "E-7", date: "28.10.2026" } );
+const TASK = Object.freeze( { task: "review", itemID: "I-7", date: "28.10.2026" } );
 
 const pendingKeys = () => Object.keys( cacheStub.values ).filter( ( key ) => key.startsWith( "ti:notify:pending:" ) );
 const doneEntries = () => Object.keys( cacheStub.values ).filter( ( key ) => key.startsWith( "ti:notify:done:" ) ).map( ( key ) => cacheStub.values[ key ] );
@@ -421,13 +425,13 @@ describe( "render", () => {
     it( "renders in the recipient's language, else the deployment's, with the link after the text", () => {
         const service = serviceWith( fakeTransport() );
         const bg = service.render( "task-new", ANNA, TASK );
-        assert.equal( bg.subject, "Нова задача: самооценка до 28.10.2026" );
-        assert.equal( bg.text, "Имате нова задача: самооценка.\n\nСрокът е 28.10.2026.\n\nhttps://app.example.com/app/tasks/E-7" );
+        assert.equal( bg.subject, "Нова задача: преглед до 28.10.2026" );
+        assert.equal( bg.text, "Имате нова задача: преглед.\n\nСрокът е 28.10.2026.\n\nhttps://app.example.com/app/tasks/I-7" );
         assert.match( bg.html, /^<!doctype html>\n<html lang="bg">/ );
-        assert.match( bg.html, /<a href="https:\/\/app\.example\.com\/app\/tasks\/E-7" style="[^"]*">https:\/\/app\.example\.com\/app\/tasks\/E-7<\/a>/ );
+        assert.match( bg.html, /<a href="https:\/\/app\.example\.com\/app\/tasks\/I-7" style="[^"]*">https:\/\/app\.example\.com\/app\/tasks\/I-7<\/a>/ );
 
         const en = service.render( "task-new", BORIS, TASK );
-        assert.equal( en.subject, "New task: self-evaluation by 28.10.2026" );
+        assert.equal( en.subject, "New task: review by 28.10.2026" );
     } );
 
     it( "falls back to the deployment's language for a text missing in the recipient's", () => {
@@ -437,7 +441,7 @@ describe( "render", () => {
 
     it( "escapes the HTML and keeps a line break out of the subject", () => {
         const service = serviceWith( fakeTransport() );
-        const rendered = service.render( "task-new", BORIS, { task: "self-evaluation", evaluationID: "E-7", date: "<b>soon</b>\r\nBcc: x" } );
+        const rendered = service.render( "task-new", BORIS, { task: "review", itemID: "I-7", date: "<b>soon</b>\r\nBcc: x" } );
         assert.equal( rendered.subject.includes( "\n" ), false );
         assert.equal( rendered.subject.includes( "\r" ), false );
         assert.equal( rendered.html.includes( "<b>" ), false );
@@ -446,7 +450,7 @@ describe( "render", () => {
 
     it( "leaves a placeholder with no value as written", () => {
         const service = serviceWith( fakeTransport() );
-        assert.equal( service.render( "task-new", BORIS, { task: "self-evaluation", evaluationID: "E-7" } ).subject, "New task: self-evaluation by {date}" );
+        assert.equal( service.render( "task-new", BORIS, { task: "review", itemID: "I-7" } ).subject, "New task: review by {date}" );
     } );
 
     it( "links only to a path under the public URL", () => {
@@ -480,8 +484,8 @@ describe( "events and rules", () => {
     const RULES = Object.freeze( {
         enabled: true,
         rules: [
-            { id: "new-self", event: "task.created", notice: "task-new", when: { task: [ "self-evaluation" ] } },
-            { id: "new-self-again", event: "task.created", notice: "task-new", when: { task: [ "self-evaluation", "peer-feedback" ] } },
+            { id: "new-review", event: "task.created", notice: "task-new", when: { task: [ "review" ] } },
+            { id: "new-review-again", event: "task.created", notice: "task-new", when: { task: [ "review", "approval" ] } },
             { id: "disabled", event: "task.created", notice: "only-bg", enabled: false }
         ]
     } );
@@ -489,15 +493,15 @@ describe( "events and rules", () => {
     it( "queues the notice of every enabled rule whose filter passes, once per notice", async () => {
         const service = serviceWith( fakeTransport() );
         await seedRules( RULES );
-        assert.equal( await service.emit( "task.created", { key: "self-evaluation:E-7:1001", recipient: ANNA, data: TASK } ), 1 );
+        assert.equal( await service.emit( "task.created", { key: "review:I-7:1001", recipient: ANNA, data: TASK } ), 1 );
         assert.equal( pendingKeys().length, 1 );
-        assert.equal( await service.emit( "task.created", { key: "self-evaluation:E-7:1001", recipient: ANNA, data: TASK } ), 0 );
+        assert.equal( await service.emit( "task.created", { key: "review:I-7:1001", recipient: ANNA, data: TASK } ), 0 );
     } );
 
     it( "queues nothing for data no filter passes", async () => {
         const service = serviceWith( fakeTransport() );
         await seedRules( RULES );
-        assert.equal( await service.emit( "task.created", { key: "k", recipient: ANNA, data: { task: "manager-review" } } ), 0 );
+        assert.equal( await service.emit( "task.created", { key: "k", recipient: ANNA, data: { task: "sign-off" } } ), 0 );
         assert.equal( await service.emit( "task.created", { key: "k", recipient: ANNA, data: {} } ), 0 );
     } );
 
@@ -563,10 +567,10 @@ describe( "edited texts", () => {
         service.registerNotice( "task-new", {
             subject: "notice.task-new.subject",
             text: "notice.task-new.text",
-            link: ( data ) => "/app/tasks/" + data.evaluationID,
+            link: ( data ) => "/app/tasks/" + data.itemID,
             format: ( data, language, label ) => ( { task: label( "notice.task-name." + data.task ), date: data.date } ),
             placeholders: [ "task", "date" ],
-            labels: { "notice.task-name.self-evaluation": [] }
+            labels: { "notice.task-name.review": [] }
         } );
         return service;
     }
@@ -581,16 +585,16 @@ describe( "edited texts", () => {
     it( "renders an edited text in its own language, and the shipped label everywhere else", () => {
         const service = editableService();
         const texts = { "notice.task-new.subject": { bg: "Задача за Вас: {task}" } };
-        assert.equal( service.render( "task-new", ANNA, TASK, texts ).subject, "Задача за Вас: самооценка" );
-        assert.equal( service.render( "task-new", BORIS, TASK, texts ).subject, "New task: self-evaluation by 28.10.2026", "English keeps its shipped text" );
+        assert.equal( service.render( "task-new", ANNA, TASK, texts ).subject, "Задача за Вас: преглед" );
+        assert.equal( service.render( "task-new", BORIS, TASK, texts ).subject, "New task: review by 28.10.2026", "English keeps its shipped text" );
         assert.equal( service.render( "task-new", ANNA, TASK, texts ).text.startsWith( "Имате нова задача" ), true, "the text was not edited" );
-        assert.equal( service.render( "task-new", ANNA, TASK, { "notice.task-new.subject": { bg: "   " } } ).subject, "Нова задача: самооценка до 28.10.2026", "a blank edit is no edit" );
+        assert.equal( service.render( "task-new", ANNA, TASK, { "notice.task-new.subject": { bg: "   " } } ).subject, "Нова задача: преглед до 28.10.2026", "a blank edit is no edit" );
     } );
 
     it( "gives format a label that honours an edit of the labels it reads", () => {
         const service = editableService();
-        const texts = { "notice.task-name.self-evaluation": { bg: "самооценката си" } };
-        assert.equal( service.render( "task-new", ANNA, TASK, texts ).subject, "Нова задача: самооценката си до 28.10.2026" );
+        const texts = { "notice.task-name.review": { bg: "прегледа си" } };
+        assert.equal( service.render( "task-new", ANNA, TASK, texts ).subject, "Нова задача: прегледа си до 28.10.2026" );
     } );
 
     it( "lists every editable text once, with the names each may use", () => {
@@ -600,7 +604,7 @@ describe( "edited texts", () => {
         assert.deepEqual( listed.map( ( entry ) => [ entry.key, entry.part, entry.notices, entry.placeholders, entry.multiline ] ), [
             [ "notice.task-new.subject", "subject", [ "task-new" ], [ "task", "date" ], false ],
             [ "notice.task-new.text", "text", [ "task-new" ], [ "task", "date" ], true ],
-            [ "notice.task-name.self-evaluation", "label", [ "task-new" ], [], false ],
+            [ "notice.task-name.review", "label", [ "task-new" ], [], false ],
             [ "notice.only-bg.subject", "subject", [ "only-bg" ], null, false ],
             [ "notice.only-bg.text", "text", [ "only-bg" ], null, true ],
             [ "notice.layout.action", "action", [], [], false ],
@@ -615,24 +619,24 @@ describe( "edited texts", () => {
         service.registerNotice( "task-due", {
             subject: "notice.task-new.text",
             text: "notice.only-bg.text",
-            link: ( data ) => "/app/tasks/" + data.evaluationID,
+            link: ( data ) => "/app/tasks/" + data.itemID,
             format: ( data, language, label ) => ( { task: label( "notice.task-name." + data.task ), n: 3 } ),
             placeholders: [ "task" ],
-            labels: { "notice.task-name.self-evaluation": [ "n" ] }
+            labels: { "notice.task-name.review": [ "n" ] }
         } );
         const listed = new Map( service.editableTexts().map( ( entry ) => [ entry.key, entry ] ) );
-        assert.deepEqual( [ "notice.task-new.text", "notice.only-bg.text", "notice.task-name.self-evaluation" ].map( ( key ) => {
+        assert.deepEqual( [ "notice.task-new.text", "notice.only-bg.text", "notice.task-name.review" ].map( ( key ) => {
             const entry = listed.get( key );
             return [ key, entry.part, entry.notices, entry.placeholders, entry.multiline ];
         } ), [
             [ "notice.task-new.text", "text", [ "task-new", "task-due" ], [ "task" ], false ],
             [ "notice.only-bg.text", "text", [ "only-bg", "task-due" ], [ "task" ], true ],
-            [ "notice.task-name.self-evaluation", "label", [ "task-new", "task-due" ], [], false ]
+            [ "notice.task-name.review", "label", [ "task-new", "task-due" ], [], false ]
         ] );
         const registry = registryFor( service );
         assert.deepEqual( await codesOf( registry, { "notice.task-new.text": { bg: "Задача: {task}.\n\nОще една." } } ), [ "notifications.multiline-text" ], "a subject reads it too" );
         assert.deepEqual( await codesOf( registry, { "notice.task-new.text": { bg: "Задача: {task} до {date}" } } ), [ "notifications.unknown-placeholder" ], "task-due fills no date" );
-        assert.deepEqual( await codesOf( registry, { "notice.task-name.self-evaluation": { bg: "самооценка ({n})" } } ), [ "notifications.unknown-placeholder" ], "task-new fills no n" );
+        assert.deepEqual( await codesOf( registry, { "notice.task-name.review": { bg: "преглед ({n})" } } ), [ "notifications.unknown-placeholder" ], "task-new fills no n" );
         assert.deepEqual( await codesOf( registry, { "notice.only-bg.text": { bg: "Всяко {name} минава" } } ), [ "notifications.unknown-placeholder" ], "a use declaring names restricts one that declared none" );
         assert.deepEqual( await codesOf( registry, { "notice.only-bg.text": { bg: "Задача: {task}.\n\nОще една." } } ), [], "both uses take paragraphs and fill the task" );
     } );
@@ -646,7 +650,7 @@ describe( "edited texts", () => {
         assert.deepEqual( await codesOf( registry, { "notice.task-new.subject": { bg: "  " } } ), [ "notifications.empty-text" ] );
         assert.deepEqual( await codesOf( registry, { "notice.task-new.subject": { bg: "Нова\nзадача" } } ), [ "notifications.multiline-text" ] );
         assert.deepEqual( await codesOf( registry, { "notice.task-new.subject": { bg: "За {name}: {task} {deadline}" } } ), [ "notifications.unknown-placeholder", "notifications.unknown-placeholder" ] );
-        assert.deepEqual( await codesOf( registry, { "notice.task-name.self-evaluation": { bg: "{task}" } } ), [ "notifications.unknown-placeholder" ], "a label offering no name" );
+        assert.deepEqual( await codesOf( registry, { "notice.task-name.review": { bg: "{task}" } } ), [ "notifications.unknown-placeholder" ], "a label offering no name" );
         assert.deepEqual( await codesOf( registry, { "notice.only-bg.text": { bg: "Всяко {name} минава" } } ), [], "a notice that declared no placeholders is not checked" );
         assert.equal( ( await registry.validate( "notifications", { enabled: true, rules: [], texts: { "notice.task-new.subject": { bg: 7 } } } ) ).valid, false, "the schema" );
     } );
@@ -657,7 +661,7 @@ describe( "edited texts", () => {
         await service.notify( { kind: "task-new", key: "k", recipient: ANNA, data: TASK } );
         await seedRules( { enabled: true, rules: [], texts: { "notice.task-new.subject": { bg: "Редактирано: {task}" } } } );
         await service.drain();
-        assert.equal( transport.sent[ 0 ].subject, "Редактирано: самооценка" );
+        assert.equal( transport.sent[ 0 ].subject, "Редактирано: преглед" );
     } );
 
     it( "keeps sending the shipped text to a deployment that never edited it", async () => {
@@ -666,7 +670,7 @@ describe( "edited texts", () => {
         await seedRules( { enabled: true, rules: [] } );
         await service.notify( { kind: "task-new", key: "k", recipient: ANNA, data: TASK } );
         await service.drain();
-        assert.equal( transport.sent[ 0 ].subject, "Нова задача: самооценка до 28.10.2026" );
+        assert.equal( transport.sent[ 0 ].subject, "Нова задача: преглед до 28.10.2026" );
     } );
 
 } );
@@ -772,28 +776,28 @@ describe( "the scheduled pass (sendEveryHours)", () => {
 
 describe( "the layout", () => {
 
-    const CLARET = Object.freeze( { name: "Example & Co", colors: { brand: "#6E1F2E", brandText: "#FBF8F2", accent: "#A8864B" }, font: "Georgia, serif", action: "notice.layout.action", footer: "notice.layout.footer" } );
+    const LAYOUT = Object.freeze( { name: "Example & Co", colors: { brand: "#123456", brandText: "#FFFFFF", accent: "#ABCDEF" }, font: "Georgia, serif", action: "notice.layout.action", footer: "notice.layout.footer" } );
 
     it( "sets the brand as a wordmark, the link as a button with the address under it, and the footer", () => {
         const service = serviceWith( fakeTransport() );
-        service.setLayout( CLARET );
+        service.setLayout( LAYOUT );
         const { html, text } = service.render( "task-new", ANNA, TASK );
-        assert.match( html, /<td style="background-color:#6E1F2E;border-bottom:3px solid #A8864B;[^"]*font-family:Georgia, serif;[^"]*color:#FBF8F2;">Example &amp; Co<\/td>/ );
-        assert.match( html, /<a href="https:\/\/app\.example\.com\/app\/tasks\/E-7" style="display:inline-block;[^"]*">Отворете приложението<\/a>/ );
-        assert.equal( ( html.match( /href="https:\/\/app\.example\.com\/app\/tasks\/E-7"/g ) || [] ).length, 2, "the button, and the address for a client that hides it" );
+        assert.match( html, /<td style="background-color:#123456;border-bottom:3px solid #ABCDEF;[^"]*font-family:Georgia, serif;[^"]*color:#FFFFFF;">Example &amp; Co<\/td>/ );
+        assert.match( html, /<a href="https:\/\/app\.example\.com\/app\/tasks\/I-7" style="display:inline-block;[^"]*">Отворете приложението<\/a>/ );
+        assert.equal( ( html.match( /href="https:\/\/app\.example\.com\/app\/tasks\/I-7"/g ) || [] ).length, 2, "the button, and the address for a client that hides it" );
         assert.match( html, />Изпратено автоматично\.<\/td>/ );
         assert.match( html, /<meta name="color-scheme" content="light">/ );
-        assert.match( html, /<div style="display:none;[^"]*">Имате нова задача: самооценка\.<\/div>/, "the first paragraph as the inbox preview" );
-        assert.equal( text, "Имате нова задача: самооценка.\n\nСрокът е 28.10.2026.\n\nОтворете приложението: https://app.example.com/app/tasks/E-7\n\n-- \nИзпратено автоматично." );
+        assert.match( html, /<div style="display:none;[^"]*">Имате нова задача: преглед\.<\/div>/, "the first paragraph as the inbox preview" );
+        assert.equal( text, "Имате нова задача: преглед.\n\nСрокът е 28.10.2026.\n\nОтворете приложението: https://app.example.com/app/tasks/I-7\n\n-- \nИзпратено автоматично." );
     } );
 
     it( "fetches nothing when it opens: no image, stylesheet, font or remote address but the notice's own link", () => {
         const service = serviceWith( fakeTransport() );
-        service.setLayout( CLARET );
+        service.setLayout( LAYOUT );
         const { html } = service.render( "task-new", ANNA, TASK );
         assert.doesNotMatch( html, /<img|<link|<script|<style|src=|url\(|@import/i );
         const addresses = [ ...html.matchAll( /https?:\/\/[^"<\s]+/g ) ].map( ( match ) => match[ 0 ] );
-        assert.deepEqual( [ ...new Set( addresses ) ], [ "https://app.example.com/app/tasks/E-7" ] );
+        assert.deepEqual( [ ...new Set( addresses ) ], [ "https://app.example.com/app/tasks/I-7" ] );
     } );
 
     it( "leaves the band out without a name, the button out without its label, and the text as it was", () => {
@@ -801,7 +805,7 @@ describe( "the layout", () => {
         const plain = service.render( "task-new", ANNA, TASK );
         assert.doesNotMatch( plain.html, /border-bottom:3px/ );
         assert.doesNotMatch( plain.html, /display:inline-block/ );
-        assert.equal( plain.text, "Имате нова задача: самооценка.\n\nСрокът е 28.10.2026.\n\nhttps://app.example.com/app/tasks/E-7" );
+        assert.equal( plain.text, "Имате нова задача: преглед.\n\nСрокът е 28.10.2026.\n\nhttps://app.example.com/app/tasks/I-7" );
 
         service.setLayout( { name: "Example", action: "notice.layout.missing", footer: "notice.layout.missing" } );
         const unlabelled = service.render( "task-new", ANNA, TASK );
@@ -812,7 +816,7 @@ describe( "the layout", () => {
     it( "refuses a colour or a font that could break out of the style it lands in", () => {
         const service = serviceWith( fakeTransport() );
         assert.throws( () => service.setLayout( { colors: { brand: "red;background:url(https://x.example/p.png)" } } ) );
-        assert.throws( () => service.setLayout( { colors: { brand: "#6E1F2E\"" } } ) );
+        assert.throws( () => service.setLayout( { colors: { brand: "#123456\"" } } ) );
         assert.throws( () => service.setLayout( { colors: { shadow: "#000000" } } ), "an unknown colour role" );
         assert.throws( () => service.setLayout( { font: "Georgia; color:red" } ) );
         assert.throws( () => service.setLayout( { name: "" } ) );
@@ -828,7 +832,7 @@ describe( "sendTest", () => {
         const service = serviceWith( transport );
         const result = await service.sendTest( "task-new", ANNA, TASK, { "notice.task-new.subject": { bg: "Проба: {task}" } } );
         assert.deepEqual( result, { messageId: "m-1" } );
-        assert.equal( transport.sent[ 0 ].subject, "Проба: самооценка" );
+        assert.equal( transport.sent[ 0 ].subject, "Проба: преглед" );
         assert.deepEqual( transport.sent[ 0 ].to, { email: ANNA.email, name: ANNA.name } );
         assert.equal( Object.keys( cacheStub.values ).length, 0, "nothing queued, nothing in the ledger" );
         assert.equal( await service.notify( { kind: "task-new", key: "k", recipient: ANNA, data: TASK } ), true );
@@ -839,7 +843,7 @@ describe( "sendTest", () => {
         const service = serviceWith( transport );
         await seedRules( { enabled: true, rules: [], texts: { "notice.task-new.subject": { bg: "Съхранено: {task}" } } } );
         await service.sendTest( "task-new", ANNA, TASK );
-        assert.equal( transport.sent[ 0 ].subject, "Съхранено: самооценка" );
+        assert.equal( transport.sent[ 0 ].subject, "Съхранено: преглед" );
     } );
 
     it( "refuses while sending is off, for an unknown notice and for a malformed recipient, and passes a transport's failure on", async () => {
@@ -917,6 +921,36 @@ describe( "configure", () => {
         assert.equal( service.isEnabled, true );
         service.configure( { transport: "carrier-pigeon" } );
         assert.equal( service.isEnabled, false );
+    } );
+
+} );
+
+describe( "a store that fails a write", () => {
+
+    it( "logs that the notice stays queued, never the entry the store was writing (CA-496 review)", async () => {
+        const service = serviceWith( fakeTransport( [ "E_DELIVERY_FAILED" ] ) );
+        await service.notify( { kind: "task-new", key: "k", recipient: ANNA, data: TASK } );
+        const originalSet = cacheStub.setValue;
+        // ioredis attaches the command it failed on to a reply error, arguments and all: here the retry's pending entry.
+        cacheStub.setValue = ( key, value, ...rest ) => {
+            if ( key.startsWith( "ti:notify:pending:" ) ) {
+                const error = new Error( "OOM command not allowed when used memory > 'maxmemory'." );
+                error.name = "ReplyError";
+                error.command = { name: "set", args: [ key, JSON.stringify( value ) ] };
+                return Promise.reject( exceptions.raise( error ) );
+            }
+            return originalSet.call( cacheStub, key, value, ...rest );
+        };
+        const before = logLines.length;
+        try {
+            await service.drain();
+        } finally {
+            cacheStub.setValue = originalSet;
+        }
+        const lines = logLines.slice( before ).filter( ( line ) => line.includes( "could not be processed" ) );
+        assert.equal( lines.length, 1 );
+        assert.equal( lines[ 0 ].includes( "@" ), false, "the pending entry holds the recipient's address" );
+        assert.match( lines[ 0 ], /"code":/, "the line still says what failed" );
     } );
 
 } );

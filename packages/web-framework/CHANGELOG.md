@@ -21,6 +21,22 @@ How often waiting e-mail is sent, chosen per deployment (CA-496). Design: §11 o
   * **Behaviour change for the `internal` trigger**, which ticks every 15 minutes. With the default interval, waiting
     notices are now tried once an hour rather than every quarter hour. Notices queued by a write still go at once.
     Set `sendEveryHours` per deployment.
+* fix(notifications): **a failure is logged by its kind and code alone.** Three lines logged the whole error: a
+  dispatcher pass that failed, a queued notice the store could not process, and the new scheduled pass's record.
+  * **The leak.** A store error can carry the write it failed on. ioredis attaches the command and its arguments to a
+    reply error, and the logger writes every property it is given. So a pending entry the store refused to write, on
+    an out-of-memory or read-only Redis, put its recipient's address in the log. That breaks this module's own rule
+    that nothing here logs an address.
+  * **Missed by the tests.** The test of that rule read only each line's message, never the details.
+  * **Now.** Those lines carry `{ name, code }`, and the test reads the details too, with a reproduction: an
+    ioredis-shaped error on the pending entry's write.
+* test(notifications): **the fixtures name no application's domain.** The notice tests used one consumer's task kinds,
+  record field and brand colours. They now use neutral ones, as does the README's `setLayout` example.
+* docs(notifications): **typedefs.** `TiMailTransportError` is the shape a transport rejects with. `TiJobTimeOfDay` and
+  `TiJobSchedule` replace the shapes written inline in the job scheduler. The retention default is explained without
+  reference to any one application.
+
+Tests: 7 new (976 in the package).
 
 ## Version 1.53.0
 
@@ -68,7 +84,7 @@ Design: §10 of `docs/superpowers/specs/2026-10-14-web-framework-notifications-d
   `E_NOTICE_TRANSPORT_OFF` while sending is off. `render( kind, recipient, data, texts )` takes draft texts too, so a
   preview shows unsaved edits exactly as they would be sent.
 
-Tests: 15 new in `notification-service.test.js` (968 in the package). Three of the new guards were each removed in
+Tests: 16 new in `notification-service.test.js` (969 in the package). Three of the new guards were each removed in
 turn and their test failed: rendering a queued notice without the stored edits, the colour pattern, and the one-line
 rule.
 

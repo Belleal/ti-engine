@@ -429,7 +429,7 @@ notifications
     .registerEvent( "task.created", { attributes: [ "task" ] } )
     .setLayout( {                                      // how the HTML looks: a wordmark, colours, a button, a footer
         name: "Example",
-        colors: { brand: "#6E1F2E", brandText: "#FBF8F2", accent: "#A8864B" },
+        colors: { brand: "#123456", brandText: "#FFFFFF", accent: "#ABCDEF" },
         action: "notice.action",                       // label keys: "Open Example", "Sent automatically."
         footer: "notice.footer"
     } );

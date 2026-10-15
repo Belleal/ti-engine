@@ -366,4 +366,3 @@ same screen … And for this deployment I want it to check and send pending emai
   across midnight, and the cron that delivers the ticks cannot be edited from inside the application anyway.
 - **The `internal` trigger** ticks every 15 minutes, so with the default a waiting notice now goes once an hour there
   instead of every quarter. A write's own notices are unaffected.
-

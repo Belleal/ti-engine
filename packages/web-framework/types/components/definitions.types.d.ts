@@ -148,9 +148,16 @@ export type TiMailMessage = {
 };
 export type TiMailTransport = {
     name: string;
+    /**
+     * Rejects with a {@link TiMailTransportError}.
+     */
     send: (message: TiMailMessage) => Promise<{
         messageId: string;
     }>;
+};
+export type TiMailTransportError = Error & {
+    code: string;
+    transient: boolean;
 };
 export type TiNotificationRecipient = {
     /**
@@ -371,6 +378,23 @@ export type TiNotificationDrainReport = {
      */
     stopped: string | null;
 };
+export type TiJobTimeOfDay = {
+    /**
+     * 0 to 23.
+     */
+    hours: number;
+    /**
+     * 0 to 59.
+     */
+    minutes: number;
+};
+export type TiJobSchedule = {
+    every: "hour" | "day";
+    /**
+     * `null` for an hourly job.
+     */
+    at: TiJobTimeOfDay | null;
+};
 export type TiJobDefinition = {
     every: "hour" | "day";
     /**
@@ -498,7 +522,13 @@ export type TiJobsReport = {
  *
  * @typedef {Object} TiMailTransport
  * @property {string} name
- * @property {(message: TiMailMessage) => Promise<{messageId: string}>} send
+ * @property {(message: TiMailMessage) => Promise<{messageId: string}>} send Rejects with a {@link TiMailTransportError}.
+ */
+/**
+ * How a transport says a message was not sent: an `Error` carrying the provider's code, and whether trying again may
+ * succeed. The dispatcher retries a transient failure with backoff and gives up a permanent one at once.
+ *
+ * @typedef {Error & {code: string, transient: boolean}} TiMailTransportError
  */
 /**
  * The person a notice is for.
@@ -621,6 +651,20 @@ export type TiJobsReport = {
  * @property {number} failed Given up: a permanent failure, or the last attempt.
  * @property {number} retrying Waiting for a later attempt.
  * @property {string|null} stopped The provider's code that paused sending, or `null`.
+ */
+/**
+ * A time of day in UTC, as a daily job falls due at.
+ *
+ * @typedef {Object} TiJobTimeOfDay
+ * @property {number} hours 0 to 23.
+ * @property {number} minutes 0 to 59.
+ */
+/**
+ * What decides when a registered job is due: its period, and for a daily job the time of day it falls due.
+ *
+ * @typedef {Object} TiJobSchedule
+ * @property {"hour"|"day"} every
+ * @property {TiJobTimeOfDay|null} at `null` for an hourly job.
  */
 /**
  * A scheduled job.

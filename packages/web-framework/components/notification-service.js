@@ -63,8 +63,9 @@ const DEFAULT_SEND_EVERY_HOURS = 1;
 const CONFIG_KEY = "notifications";
 
 /**
- * How long a ledger entry is kept, in days, unless the deployment says otherwise: long enough to span an appraisal
- * cycle, so a notice is not sent again by a catch-up that runs after its entry has gone.
+ * How long a ledger entry is kept, in days, unless the deployment says otherwise: half a year, longer than the period
+ * an application's catch-up is expected to look back over, so a notice is not sent again by one that runs after its
+ * entry has gone. An application whose catch-up looks further back sets `retentionDays` to match.
  *
  * @type {number}
  */
@@ -106,6 +107,22 @@ const DRAIN_LIMIT = 1000;
  * @type {number}
  */
 const MAX_TIMER = 2147483647;
+
+/**
+ * What a log line may carry of a failure: its kind and its code, never its message or its data. A store error can carry
+ * the write it failed on: ioredis attaches the command and its arguments to a reply error, so a failed write of a
+ * pending entry held the recipient's address, and the logger writes every property of an error it is given.
+ *
+ * @method
+ * @param {*} error
+ * @returns {{name: (string|null), code: (string|number|null)}}
+ * @private
+ */
+function loggableError( error ) {
+    const name = ( error && typeof error.name === "string" ) ? error.name : null;
+    const code = ( error && ( typeof error.code === "string" || typeof error.code === "number" ) ) ? error.code : null;
+    return { name: name, code: code };
+}
 
 const TRANSPORT_OFF = "off";
 const TRANSPORT_LOG = "log";
@@ -805,7 +822,7 @@ class NotificationService {
                 return null;
             }
             return this.drain().then( ( report ) => Promise.resolve().then( () => cache.instance.setValue( KEY_LAST_PASS, { at: moment.toISOString() } ) ).then( () => report, ( error ) => {
-                logger.log( "The scheduled notification pass could not be recorded; the next tick passes again.", logger.logSeverity.WARNING, error );
+                logger.log( "The scheduled notification pass could not be recorded; the next tick passes again.", logger.logSeverity.WARNING, loggableError( error ) );
                 return report;
             } ) );
         } );
@@ -1126,7 +1143,7 @@ class NotificationService {
      */
     #drainInBackground() {
         this.drain().catch( ( error ) => {
-            logger.log( "Notifications: a dispatcher pass failed.", logger.logSeverity.ERROR, error );
+            logger.log( "Notifications: a dispatcher pass failed.", logger.logSeverity.ERROR, loggableError( error ) );
         } );
     }
 
@@ -1210,7 +1227,7 @@ class NotificationService {
                     }
                 }, ( error ) => {
                     // The store failed around one notice. It stays queued, and the next pass tries it again.
-                    logger.log( "Notifications: a queued notice could not be processed; it stays queued.", logger.logSeverity.ERROR, error );
+                    logger.log( "Notifications: a queued notice could not be processed; it stays queued.", logger.logSeverity.ERROR, loggableError( error ) );
                 } );
             } ), Promise.resolve() );
         } ).then( () => {
