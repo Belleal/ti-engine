@@ -453,10 +453,12 @@ await notifications.emit( "task.created", { key: "review:" + taskID + ":" + owne
 * **The outbox and the ledger** are values in the state store, under `ti:notify:pending:` and `ti:notify:done:`.
   Ledger entries hold the kind, the recipient's ID, the outcome and the time, never an address or a text, and expire
   after `notifications.retentionDays` (180). `forget( recipientID )` removes a person's entries, for an erasure path.
-* **Sending** is one message at a time, after each queued notice and on every job tick. A transient failure is
-  retried after 1, 5, 15 and 60 minutes, then given up; a permanent one is given up at once. A daily limit pauses
-  sending until the next UTC day, a rate limit for a minute. Delivery is at least once: a crash between the provider
-  accepting and the ledger entry repeats one notice.
+* **Sending** is one message at a time, after each queued notice, and on a job tick once in each interval of the
+  document's `sendEveryHours`: 1, 2, 3, 4, 6, 8, 12 or 24, counted from midnight UTC, every hour when absent
+  (`getSendEveryHours()`). That pass is what sends a notice still waiting: a transient failure is retried after 1, 5,
+  15 and 60 minutes, then given up, and a permanent one is given up at once. A daily limit pauses sending until the
+  next UTC day, a rate limit for a minute. Delivery is at least once: a crash between the provider accepting and the
+  ledger entry repeats one notice.
 * **Transports.** `off` (the default) queues nothing. `log` sends nothing and logs that it would have. `cloudflare`
   posts to `TI_WEB_NOTIFY_RELAY_URL`, which `@ti-engine/cloudflare` sets to its Worker's relay, and needs
   `TI_WEB_NOTIFY_SENDER`. `setTransport( { name, send } )` takes an application's own: `send( message )` resolves to
@@ -492,7 +494,8 @@ require( "@ti-engine/web-framework/jobs" ).instance.registerJob( "deadline-remin
 } );
 ```
 
-A tick runs each job whose period began since it last ran, one at a time, then a pass of the notification dispatcher.
+A tick runs each job whose period began since it last ran, one at a time, then the notification dispatcher's pass
+when its interval is due (`sendDue( now )`).
 A job is recorded as run only once it finished; one that fails is logged, stops no other, and runs again on the next
 tick, so a job must be harmless to run twice. `TI_WEB_JOBS_TRIGGER` decides what ticks:
 

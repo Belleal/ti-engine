@@ -1,6 +1,20 @@
 export = NotificationService;
 import type { TiEditableNoticeText, TiMailTransport, TiNoticeDefinition, TiNoticeLayout, TiNoticeTexts, TiNotificationDrainReport, TiNotificationEventDefinition, TiNotificationRecipient, TiNotificationSettings, TiNotificationsDocument, TiRenderedNotice } from "#definitions";
 /**
+ * The intervals a job tick may send what the outbox holds at, in hours: the `notifications` document's
+ * `sendEveryHours`. Each divides a day, so the passes fall at the same hours of every day, counted from midnight UTC.
+ *
+ * @type {ReadonlyArray<number>}
+ */
+declare const SEND_INTERVALS: ReadonlyArray<number>;
+/**
+ * The interval when the document names none: every hour, so a notice waiting for a retry waits an hour at most where
+ * the ticks come that often.
+ *
+ * @type {number}
+ */
+declare const DEFAULT_SEND_EVERY_HOURS: number;
+/**
  * The key of the configuration document holding the rules (§3.2 of the design record).
  *
  * @type {string}
@@ -15,7 +29,8 @@ declare const CONFIG_KEY: string;
  * one notice directly.
  * <br/>
  * A queued notice waits in an outbox in the state store until the dispatcher sends it, after the write that queued it
- * and on every job tick. A ledger entry records it once sent or given up, so the same key is never sent twice: two
+ * and on a job tick once in each interval the document's `sendEveryHours` sets ({@link NotificationService#sendDue}).
+ * A ledger entry records it once sent or given up, so the same key is never sent twice: two
  * paths raising one notice, a write and a nightly catch-up, send it once. Delivery is at least once: the ledger entry is
  * written after the provider accepts, so a crash between the two repeats one notice.
  * <br/>
@@ -136,6 +151,8 @@ declare class NotificationService {
      *   empty text, a line break where the part takes one line, and a placeholder the text does not offer.
      * - `options` is the application's, validated by the schema it passes here, and read by
      *   {@link NotificationService#getOptions} over the defaults it gives.
+     * - `sendEveryHours` is how often a job tick sends what the outbox holds, one of {@link SEND_INTERVALS}, read by
+     *   {@link NotificationService#getSendEveryHours}; every hour when the document names none.
      *
      * @method
      * @param {TiNotificationsDocument} [defaults] `{ enabled: true, rules: [] }` unless stated.
@@ -163,6 +180,16 @@ declare class NotificationService {
      * @public
      */
     getOptions(): Promise<Object>;
+    /**
+     * How often a job tick sends what the outbox holds, in hours: the stored document's `sendEveryHours`, or
+     * {@link DEFAULT_SEND_EVERY_HOURS} when it names none or cannot be read. Read on every tick, so an edit counts from
+     * the next one.
+     *
+     * @method
+     * @returns {Promise<number>} One of {@link SEND_INTERVALS}.
+     * @public
+     */
+    getSendEveryHours(): Promise<number>;
     /**
      * Raises an event: every enabled rule for it whose filter the event's data passes queues its notice for the
      * recipient. The notice's key is the rule's notice joined to the event's key, so two rules for one notice send it
@@ -221,6 +248,21 @@ declare class NotificationService {
      * @public
      */
     drain(): Promise<TiNotificationDrainReport>;
+    /**
+     * A job tick's pass over the outbox: {@link NotificationService#drain}, once in each interval of
+     * `sendEveryHours` hours. A tick inside an interval already passed sends nothing, so a deployment chooses how often
+     * a notice waiting for a retry, or left over from a pass that hit its limit, is tried, whatever its ticks' pace: a
+     * Worker's cron or the internal timer. A notice queued by a write is still sent straight after it.
+     * <br/>
+     * The interval is recorded when its pass has finished. A store that cannot be read is not a reason to hold mail
+     * back, so the pass runs; one that cannot be written loses only the record, and the next tick passes again.
+     *
+     * @method
+     * @param {Date} [now] The tick's moment; the current time unless stated.
+     * @returns {Promise<TiNotificationDrainReport|null>} The pass's report, or `null` when this interval had its pass.
+     * @public
+     */
+    sendDue(now?: Date): Promise<TiNotificationDrainReport | null>;
     /**
      * Removes every queued notice and ledger entry of one person, for an application's erasure path. A notice being
      * sent at that moment is finished first, so its ledger entry is removed too rather than written after the erasure.
@@ -283,6 +325,17 @@ declare class NotificationService {
      */
     static passes(when?: Record<string, string[]>, data?: Object): boolean;
     /**
+     * The moment the interval of `hours` hours holding `now` began, in milliseconds: intervals count from midnight UTC,
+     * so with 6 they begin at 00:00, 06:00, 12:00 and 18:00 UTC.
+     *
+     * @method
+     * @param {number} hours One of {@link SEND_INTERVALS}.
+     * @param {Date} now
+     * @returns {number}
+     * @public
+     */
+    static intervalStart(hours: number, now: Date): number;
+    /**
      * The JSON Schema of the `notifications` document.
      *
      * @method
@@ -294,6 +347,8 @@ declare class NotificationService {
 }
 declare namespace NotificationService {
     export { CONFIG_KEY };
+    export { SEND_INTERVALS };
+    export { DEFAULT_SEND_EVERY_HOURS };
     export var _a: Readonly<NotificationService>;
     export { _a as instance };
 }

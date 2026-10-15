@@ -239,6 +239,8 @@
  * @property {TiNotificationRule[]} rules
  * @property {TiNoticeTexts} [texts] What an administrator changed of the notices' texts.
  * @property {Object} [options] The application's own settings, in the schema it gives `configDocument`.
+ * @property {number} [sendEveryHours] How often a job tick sends what the outbox holds, in hours: 1, 2, 3, 4, 6, 8,
+ * 12 or 24, counted from midnight UTC. Every hour when absent.
  */
 
 /**

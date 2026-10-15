@@ -2,6 +2,26 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.54.0
+
+How often waiting e-mail is sent, chosen per deployment (CA-496). Design: §11 of
+`docs/superpowers/specs/2026-10-14-web-framework-notifications-design.md`.
+
+* feat(notifications): **`sendEveryHours` in the `notifications` document.**
+  * **Choices.** 1, 2, 3, 4, 6, 8, 12 or 24 hours, every hour when the document names none.
+  * **When.** A job tick sends what the outbox holds once in each interval, counted from midnight UTC.
+  * **Why.** A notice queued by a write was always sent straight after it. Everything still waiting, though, went only
+    on a job tick: a retry after a transient failure, a pass cut short by its limit, a rate limit. On Cloudflare the
+    only tick is the Worker's cron, which the template set to once a day, so a retry due in a minute waited up to a
+    day.
+  * **New API.** `getSendEveryHours()` reads the setting, and `sendDue( now )` is the tick's pass. `runJobTick()` now
+    returns `notifications: null` on a tick inside an interval that has already had its pass.
+  * **Store failures.** A record that cannot be read does not hold mail back: the pass runs. One that cannot be written
+    is logged, and the next tick passes again.
+  * **Behaviour change for the `internal` trigger**, which ticks every 15 minutes. With the default interval, waiting
+    notices are now tried once an hour rather than every quarter hour. Notices queued by a write still go at once.
+    Set `sendEveryHours` per deployment.
+
 ## Version 1.53.0
 
 What an application needs to give administrators a screen for its e-mails, and to send them as branded HTML (CA-490).

@@ -700,6 +700,76 @@ describe( "options", () => {
 
 } );
 
+describe( "the scheduled pass (sendEveryHours)", () => {
+
+    const at = ( hours, minutes = 0 ) => new Date( Date.UTC( 2026, 9, 14, hours, minutes ) );
+    const queue = ( service, key ) => service.notify( { kind: "task-new", key: key, recipient: ANNA, data: TASK } );
+
+    it( "passes once an hour unless the document says otherwise: a tick inside the hour sends nothing", async () => {
+        const transport = fakeTransport();
+        const service = serviceWith( transport );
+        await queue( service, "a" );
+        assert.deepEqual( await service.sendDue( at( 10, 5 ) ), { sent: 1, failed: 0, retrying: 0, stopped: null } );
+        await queue( service, "b" );
+        assert.equal( await service.sendDue( at( 10, 59 ) ), null, "the hour had its pass" );
+        assert.equal( transport.sent.length, 1 );
+        assert.deepEqual( await service.sendDue( at( 11, 0 ) ), { sent: 1, failed: 0, retrying: 0, stopped: null } );
+        assert.equal( transport.sent.length, 2 );
+    } );
+
+    it( "takes the interval from the document, its intervals counted from midnight UTC", async () => {
+        await seedRules( { enabled: true, rules: [], sendEveryHours: 6 } );
+        const service = serviceWith( fakeTransport() );
+        assert.equal( await service.getSendEveryHours(), 6 );
+        assert.notEqual( await service.sendDue( at( 5, 59 ) ), null, "the first tick passes" );
+        assert.notEqual( await service.sendDue( at( 6, 0 ) ), null, "06:00 begins an interval" );
+        assert.equal( await service.sendDue( at( 11, 59 ) ), null );
+        assert.notEqual( await service.sendDue( at( 12, 0 ) ), null );
+        assert.equal( NotificationService.intervalStart( 24, at( 23, 30 ) ), Date.UTC( 2026, 9, 14 ) );
+        assert.equal( NotificationService.intervalStart( 8, at( 23, 30 ) ), Date.UTC( 2026, 9, 14, 16 ) );
+    } );
+
+    it( "is every hour for a document that names no interval, or one it does not offer", async () => {
+        const service = serviceWith( fakeTransport() );
+        assert.equal( await service.getSendEveryHours(), 1, "nothing stored" );
+        await seedRules( { enabled: true, rules: [], sendEveryHours: 5 } );
+        assert.equal( await service.getSendEveryHours(), 1, "5 does not divide a day" );
+        assert.deepEqual( NotificationService.SEND_INTERVALS, [ 1, 2, 3, 4, 6, 8, 12, 24 ] );
+    } );
+
+    it( "validates the interval, and seeds it only when the application gives one", async () => {
+        const service = serviceWith( fakeTransport() );
+        const registry = new ConfigRegistry();
+        registry.register( "notifications", service.configDocument( { enabled: true, rules: [] } ) );
+        assert.equal( ( await registry.validate( "notifications", { enabled: true, rules: [], sendEveryHours: 12 } ) ).valid, true );
+        for ( const value of [ 5, 0, 48, "6", 1.5 ] ) {
+            assert.equal( ( await registry.validate( "notifications", { enabled: true, rules: [], sendEveryHours: value } ) ).valid, false, JSON.stringify( value ) );
+        }
+        assert.equal( "sendEveryHours" in service.configDocument( { enabled: true, rules: [] } ).defaultValue, false );
+        assert.equal( service.configDocument( { enabled: true, rules: [], sendEveryHours: 4 } ).defaultValue.sendEveryHours, 4 );
+        assert.equal( "sendEveryHours" in service.configDocument( { enabled: true, rules: [], sendEveryHours: 7 } ).defaultValue, false );
+    } );
+
+    it( "passes when its record cannot be read, and only logs a record it could not write", async () => {
+        const transport = fakeTransport();
+        const service = serviceWith( transport );
+        const originalGet = cacheStub.getValue;
+        const originalSet = cacheStub.setValue;
+        cacheStub.getValue = ( key ) => key === "ti:notify:last-pass" ? Promise.reject( new Error( "store down" ) ) : originalGet.call( cacheStub, key );
+        cacheStub.setValue = ( key, ...rest ) => key === "ti:notify:last-pass" ? Promise.reject( new Error( "store down" ) ) : originalSet.call( cacheStub, key, ...rest );
+        try {
+            await queue( service, "a" );
+            assert.equal( ( await service.sendDue( at( 10, 5 ) ) ).sent, 1, "mail is not held back for a record" );
+            assert.notEqual( await service.sendDue( at( 10, 6 ) ), null, "with no record, the next tick passes again" );
+            assert.ok( logLines.some( ( line ) => line.includes( "could not be recorded" ) ) );
+        } finally {
+            cacheStub.getValue = originalGet;
+            cacheStub.setValue = originalSet;
+        }
+    } );
+
+} );
+
 describe( "the layout", () => {
 
     const CLARET = Object.freeze( { name: "Example & Co", colors: { brand: "#6E1F2E", brandText: "#FBF8F2", accent: "#A8864B" }, font: "Georgia, serif", action: "notice.layout.action", footer: "notice.layout.footer" } );
