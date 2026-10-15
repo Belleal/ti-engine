@@ -10,10 +10,14 @@ How often waiting e-mail is sent, chosen per deployment (CA-496). Design: §11 o
 * feat(notifications): **`sendEveryHours` in the `notifications` document.**
   * **Choices.** 1, 2, 3, 4, 6, 8, 12 or 24 hours, every hour when the document names none.
   * **When.** A job tick sends what the outbox holds once in each interval, counted from midnight UTC.
-  * **Why.** A notice queued by a write was always sent straight after it. Everything still waiting, though, went only
-    on a job tick: a retry after a transient failure, a pass cut short by its limit, a rate limit. On Cloudflare the
-    only tick is the Worker's cron, which the template set to once a day, so a retry due in a minute waited up to a
-    day.
+  * **Why.** A notice queued by a write was always sent straight after it, and while the process runs the
+    dispatcher's own timer retries a failure on its backoff. What nothing else wakes waits for a job tick: a retry that
+    falls due after the process has slept, or what a pass left at its limit. On Cloudflare a container sleeps a few
+    minutes after its last request, and the only tick is the Worker's cron, which the template set to once a day, so
+    such a notice waited up to a day.
+  * **Not a cap.** The interval bounds how long a waiting notice waits; it never holds back a write's notices or the
+    dispatcher's own retries, which would only make mail later.
+  * **Overlapping ticks pass once.** The check and the record are one step under a lock.
   * **New API.** `getSendEveryHours()` reads the setting, and `sendDue( now )` is the tick's pass. `runJobTick()` now
     returns `notifications: null` on a tick inside an interval that has already had its pass.
   * **Store failures.** A record that cannot be read does not hold mail back: the pass runs. One that cannot be written
@@ -32,11 +36,12 @@ How often waiting e-mail is sent, chosen per deployment (CA-496). Design: §11 o
     ioredis-shaped error on the pending entry's write.
 * test(notifications): **the fixtures name no application's domain.** The notice tests used one consumer's task kinds,
   record field and brand colours. They now use neutral ones, as does the README's `setLayout` example.
-* docs(notifications): **typedefs.** `TiMailTransportError` is the shape a transport rejects with. `TiJobTimeOfDay` and
+* docs(notifications): **typedefs.** `TiMailTransportError` is the shape a transport rejects with, `transient`
+  optional as the dispatcher reads it. `TiJobTimeOfDay` and
   `TiJobSchedule` replace the shapes written inline in the job scheduler. The retention default is explained without
   reference to any one application.
 
-Tests: 7 new (976 in the package).
+Tests: 8 new (977 in the package).
 
 ## Version 1.53.0
 

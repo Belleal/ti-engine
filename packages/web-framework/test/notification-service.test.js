@@ -721,6 +721,16 @@ describe( "the scheduled pass (sendEveryHours)", () => {
         assert.equal( transport.sent.length, 2 );
     } );
 
+    it( "passes once when two ticks overlap in one interval", async () => {
+        const transport = fakeTransport();
+        const service = serviceWith( transport );
+        await queue( service, "a" );
+        // Both read the record before either writes it, unless the check and the record are one step.
+        const outcomes = await Promise.all( [ service.sendDue( at( 10, 5 ) ), service.sendDue( at( 10, 5 ) ) ] );
+        assert.equal( outcomes.filter( ( outcome ) => outcome === null ).length, 1, "the second tick found the first one's pass" );
+        assert.equal( transport.sent.length, 1 );
+    } );
+
     it( "takes the interval from the document, its intervals counted from midnight UTC", async () => {
         await seedRules( { enabled: true, rules: [], sendEveryHours: 6 } );
         const service = serviceWith( fakeTransport() );

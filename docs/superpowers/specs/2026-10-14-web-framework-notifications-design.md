@@ -346,10 +346,16 @@ application's (CA-488). What it needs from the framework is below; the framework
 Boris, 2026-10-15: "the email send scheduler triggers once per 24 hours? I want this to be configurable - from the
 same screen … And for this deployment I want it to check and send pending emails once per hour."
 
-- **What was daily.** A notice queued by a write was always sent straight after it. What waited was everything else:
-  a retry after a transient failure, a pass cut off by its limit, a rate limit, the daily quota. That went on a job
-  tick, and on Cloudflare the only tick is the Worker's cron, `0 4 * * *` in the template and in the first
-  application. So a retry due in a minute waited up to a day, whatever §3.2's backoff said.
+- **What was daily.** A notice queued by a write was always sent straight after it, and while the process runs the
+  dispatcher's own timer retries a failure at 1, 5, 15 and 60 minutes. What nothing else wakes waits for a job tick: a
+  retry that falls due after the process has slept, what a pass left at its limit, the daily quota. On Cloudflare a
+  container sleeps minutes after its last request, its timers with it, and the only tick is the Worker's cron,
+  `0 4 * * *` in the template and in the first application. So a failure with no traffic after it had its 15- and
+  60-minute retries wait up to a day.
+- **The interval bounds the wait; it is not a cap on sending.** The dispatcher's retry timer and a write's notices are
+  not held to it (CodeRabbit asked for the timer to be, on review): holding them would only make mail later, and the
+  setting exists to make it sooner. Two ticks that overlap pass once: the check and the record are one step under a
+  lock, as the job scheduler's ticks are.
 - **The interval is the document's `sendEveryHours`:** 1, 2, 3, 4, 6, 8, 12 or 24 hours, every hour when absent. Each
   divides a day, so the passes fall at the same UTC hours every day, counted from midnight. `sendDue( now )` drains
   once in each interval and records the moment in the store (`ti:notify:last-pass`), and `runJobTick` calls it where

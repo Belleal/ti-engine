@@ -250,12 +250,17 @@ declare class NotificationService {
     drain(): Promise<TiNotificationDrainReport>;
     /**
      * A job tick's pass over the outbox: {@link NotificationService#drain}, once in each interval of
-     * `sendEveryHours` hours. A tick inside an interval already passed sends nothing, so a deployment chooses how often
-     * a notice waiting for a retry, or left over from a pass that hit its limit, is tried, whatever its ticks' pace: a
-     * Worker's cron or the internal timer. A notice queued by a write is still sent straight after it.
+     * `sendEveryHours` hours. A tick inside an interval already passed sends nothing.
      * <br/>
-     * The interval is recorded when its pass has finished. A store that cannot be read is not a reason to hold mail
-     * back, so the pass runs; one that cannot be written loses only the record, and the next tick passes again.
+     * The interval bounds how long a waiting notice waits when nothing else wakes the dispatcher: a retry that falls due
+     * after the process has slept, such as a container a Worker wakes only for requests and ticks, or what a pass left
+     * at its limit. It is not a cap on sending: a notice queued by a write is sent straight after it, and while the
+     * process runs the dispatcher's own timer retries on the backoff (1, 5, 15 and 60 minutes). Holding those to the
+     * interval would only make mail later.
+     * <br/>
+     * The check and the record are one step under a lock, so two ticks that overlap pass once. The interval is recorded
+     * when its pass has finished. A store that cannot be read is not a reason to hold mail back, so the pass runs; one
+     * that cannot be written loses only the record, and the next tick passes again.
      *
      * @method
      * @param {Date} [now] The tick's moment; the current time unless stated.

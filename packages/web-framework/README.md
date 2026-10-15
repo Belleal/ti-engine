@@ -455,8 +455,9 @@ await notifications.emit( "task.created", { key: "review:" + taskID + ":" + owne
   after `notifications.retentionDays` (180). `forget( recipientID )` removes a person's entries, for an erasure path.
 * **Sending** is one message at a time, after each queued notice, and on a job tick once in each interval of the
   document's `sendEveryHours`: 1, 2, 3, 4, 6, 8, 12 or 24, counted from midnight UTC, every hour when absent
-  (`getSendEveryHours()`). That pass is what sends a notice still waiting: a transient failure is retried after 1, 5,
-  15 and 60 minutes, then given up, and a permanent one is given up at once. A daily limit pauses sending until the
+  (`getSendEveryHours()`). A transient failure is retried after 1, 5, 15 and 60 minutes on the dispatcher's own timer
+  while the process runs, then given up, and a permanent one is given up at once; the interval bounds how long a
+  notice waits when the process has slept through its retry, and holds back nothing. A daily limit pauses sending until the
   next UTC day, a rate limit for a minute. Delivery is at least once: a crash between the provider accepting and the
   ledger entry repeats one notice.
 * **Transports.** `off` (the default) queues nothing. `log` sends nothing and logs that it would have. `cloudflare`

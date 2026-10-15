@@ -144,9 +144,10 @@
 
 /**
  * How a transport says a message was not sent: an `Error` carrying the provider's code, and whether trying again may
- * succeed. The dispatcher retries a transient failure with backoff and gives up a permanent one at once.
+ * succeed. The dispatcher retries a transient failure with backoff and gives up a permanent one at once; without
+ * `transient`, it decides from the code.
  *
- * @typedef {Error & {code: string, transient: boolean}} TiMailTransportError
+ * @typedef {Error & {code: string, transient?: boolean}} TiMailTransportError
  */
 
 /**
