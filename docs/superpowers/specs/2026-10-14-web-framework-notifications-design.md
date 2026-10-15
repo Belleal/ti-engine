@@ -370,5 +370,6 @@ same screen … And for this deployment I want it to check and send pending emai
   depends on nothing. An hourly wake costs little: the container sleeps again after the application's sleep timer.
 - **Rejected: a free cron expression in the document.** Only intervals that divide a day keep "every N hours" true
   across midnight, and the cron that delivers the ticks cannot be edited from inside the application anyway.
-- **The `internal` trigger** ticks every 15 minutes, so with the default a waiting notice now goes once an hour there
-  instead of every quarter. A write's own notices are unaffected.
+- **The `internal` trigger** ticks every 15 minutes, so with the default, what a pass left behind (at its limit, or
+  around a store failure) now waits up to an hour there instead of a quarter. That process does not sleep, so retries
+  keep the dispatcher's timer, and a write's own notices are unaffected.

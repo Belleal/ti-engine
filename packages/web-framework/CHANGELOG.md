@@ -22,9 +22,9 @@ How often waiting e-mail is sent, chosen per deployment (CA-496). Design: §11 o
     returns `notifications: null` on a tick inside an interval that has already had its pass.
   * **Store failures.** A record that cannot be read does not hold mail back: the pass runs. One that cannot be written
     is logged, and the next tick passes again.
-  * **Behaviour change for the `internal` trigger**, which ticks every 15 minutes. With the default interval, waiting
-    notices are now tried once an hour rather than every quarter hour. Notices queued by a write still go at once.
-    Set `sendEveryHours` per deployment.
+  * **Behaviour change for the `internal` trigger**, which ticks every 15 minutes. With the default interval, what a
+    pass left behind (at its limit, or around a store failure) now waits up to an hour rather than a quarter. That
+    process does not sleep, so retries keep the dispatcher's timer, and notices queued by a write still go at once.
 * fix(notifications): **a failure is logged by its kind and code alone.** Three lines logged the whole error: a
   dispatcher pass that failed, a queued notice the store could not process, and the new scheduled pass's record.
   * **The leak.** A store error can carry the write it failed on. ioredis attaches the command and its arguments to a
