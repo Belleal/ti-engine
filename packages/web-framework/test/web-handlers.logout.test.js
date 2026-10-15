@@ -104,8 +104,10 @@ describe( "signing out (CA-498)", () => {
         assert.equal( await ( await fetch( base + "/who", { headers: { cookie: cookie } } ) ).text(), "nobody" );
     } );
 
-    it( "reads only htmx's own marker, and answers a request without a session the same way", async () => {
+    it( "reads htmx's own marker as the session check does, and answers a request without a session the same way", async () => {
+        // One rule for what an htmx request is: the one resourceProtectionHandler uses for an ended session.
         assert.equal( ( await signOut( "", { "HX-Request": "false" } ) ).status, 303 );
+        assert.equal( ( await signOut( "", { "HX-Request": "TRUE" } ) ).status, 204 );
         const response = await signOut( "", { "HX-Request": "true" } );
         assert.equal( response.status, 204 );
         assert.equal( response.headers.get( "hx-redirect" ), "/" );

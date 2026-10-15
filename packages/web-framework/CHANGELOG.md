@@ -15,13 +15,15 @@ This document will contain the list of changes made to the framework. The format
   * **Why it survived.** Nothing failed. Sign-out worked and the sign-in page appeared; the only sign was one red line
     in the console. Measured in Chromium on an application built on this framework: `GET /app/load-task-list` answered
     401 on every sign-out.
-  * **Now.** A sign-out made by htmx (`HX-Request: true`) is answered `204` with `HX-Redirect: /`, which htmx turns into
-    a page load. The session is destroyed exactly as before. A sign-out that is not htmx's, such as a plain form, still
-    gets the `303` the browser follows itself.
+  * **Now.** A sign-out made by htmx is answered `204` with `HX-Redirect: /`, which htmx turns into a page load. It is
+    the answer `resourceProtectionHandler` already gives an htmx request whose session has ended, and the request is
+    told apart by the same `isHtmxRequest`. The session is destroyed exactly as before. A sign-out that is not htmx's,
+    such as a plain form, still gets the `303` the browser follows itself.
   * **Measured** on the same application with the patched handler, in Chromium: `/logout 204`, then a fresh page;
     no 401, an empty console, the sign-in form shown, and a store with `user: null`, not authenticated.
 
-Tests: 4 new (981 in the package), in `web-handlers.logout.test.js`. The two htmx cases fail on 1.54.0's handler.
+Tests: 4 new (981 in the package), in `web-handlers.logout.test.js`. The two htmx cases fail on 1.54.0's handler, and
+one fails if the handler tells htmx apart by any rule but the session check's.
 
 ## Version 1.54.0
 

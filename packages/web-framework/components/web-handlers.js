@@ -748,10 +748,11 @@ module.exports.authorizedOAuth2CallbackHandler = ( instance, authMethod ) => {
 /**
  * Handler for server-side logout. The session is destroyed, and the browser is sent to `/` in a page load of its own.
  * <br/>
- * A sign-out made by htmx - the user menu's - is answered `204` with `HX-Redirect: /`, which htmx turns into a page load.
- * A `303` would be followed inside htmx's request and the sign-in page swapped into the signed-in one, so that page never
- * ended: its store kept the signed-out user, and its components' watchers asked for data with no session (CA-498). Any
- * other sign-out, such as a plain form, gets the `303` the browser follows itself.
+ * A sign-out made by htmx - the user menu's - is answered `204` with `HX-Redirect: /`, which htmx turns into a page load,
+ * as {@link module.exports.resourceProtectionHandler} answers an htmx request whose session has ended. A `303` would be
+ * followed inside htmx's request and the sign-in page swapped into the signed-in one, so that page never ended: its
+ * store kept the signed-out user, and its components' watchers asked for data with no session (CA-498). Any other
+ * sign-out, such as a plain form, gets the `303` the browser follows itself.
  *
  * @method
  * @returns {ExpressHandler}
@@ -760,11 +761,12 @@ module.exports.authorizedOAuth2CallbackHandler = ( instance, authMethod ) => {
 module.exports.logoutHandler = () => {
     return ( request, response, next ) => {
         const done = ( error ) => {
-            if ( request.get( "HX-Request" ) === "true" ) {
-                response.set( "HX-Redirect", "/" ).status( exceptions.httpCode.C_204 ).end();
-                return;
+            if ( isHtmxRequest( request ) ) {
+                response.set( "HX-Redirect", "/" );
+                response.status( exceptions.httpCode.C_204 ).end();
+            } else {
+                response.redirect( exceptions.httpCode.C_303, "/" );
             }
-            response.redirect( exceptions.httpCode.C_303, "/" );
         };
         if ( request.session ) {
             request.session.destroy( done );

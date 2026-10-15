@@ -371,8 +371,9 @@ npm test    # node --test — 244 tests / 58 suites: 24 test files, plus the fiv
 **Public exports** (`package.json` `exports`) — **eight**: `./config-management` (config-service), `./web-application` (web-app-manager), `./web-server`, `./authorization`, `./config-drift`, `./definitions`, and since 1.52.0 `./notifications` and `./jobs`. `./authorization`, `./config-drift` and `./definitions` are easy to forget and a consumer does import them: competence reaches for `./authorization` and `./config-drift` directly. Anything not on this list fails with `ERR_PACKAGE_PATH_NOT_EXPORTED`, so **adding a module a consumer needs means adding its `exports` entry** — that is the API surface, and changing it is a breaking change for every consumer.
 
 **Since the skill's last sync (1.25.1 → 1.54.1):**
-- **Sign-out is a page load** (1.54.1, CA-498). `logoutHandler` answers an htmx sign-out (`HX-Request: true`, the user
-  menu's) `204` with `HX-Redirect: /`, and anything else `303 → /`. A 303 is followed inside htmx's request and the
+- **Sign-out is a page load** (1.54.1, CA-498). `logoutHandler` answers an htmx sign-out (the user menu's) `204` with
+  `HX-Redirect: /`, as `resourceProtectionHandler` answers an htmx request whose session has ended, through the same
+  `isHtmxRequest`; anything else gets `303 → /`. A 303 is followed inside htmx's request and the
   sign-in page swapped into the signed-in one, which then never ended: its store kept the signed-out user and
   `isAuthenticated: true`, and a removed component's `$watch` still fired as the sign-in page set its screen, asking
   for data with no session (a 401 in the console on every sign-out, measured in Chromium). Anything that should not
