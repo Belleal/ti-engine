@@ -2,6 +2,27 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.54.1
+
+* fix(auth): **signing out loads the page, so nothing of the signed-in one is left in memory** (CA-498).
+  * **What was wrong.** The user menu signs out with an htmx `POST /logout`, and `logoutHandler` answered `303 → /`.
+    htmx followed the redirect inside its own request and swapped the sign-in page into the signed-in one, so that
+    page never ended.
+    * The store still held the signed-out user, with `configuration.auth.isAuthenticated: true` and
+      `isInitialized: true`.
+    * A component's watcher, removed with the old page, still fired 43 ms later, when the sign-in page set its screen,
+      and asked for data with no session.
+  * **Why it survived.** Nothing failed. Sign-out worked and the sign-in page appeared; the only sign was one red line
+    in the console. Measured in Chromium on an application built on this framework: `GET /app/load-task-list` answered
+    401 on every sign-out.
+  * **Now.** A sign-out made by htmx (`HX-Request: true`) is answered `204` with `HX-Redirect: /`, which htmx turns into
+    a page load. The session is destroyed exactly as before. A sign-out that is not htmx's, such as a plain form, still
+    gets the `303` the browser follows itself.
+  * **Measured** on the same application with the patched handler, in Chromium: `/logout 204`, then a fresh page;
+    no 401, an empty console, the sign-in form shown, and a store with `user: null`, not authenticated.
+
+Tests: 4 new (981 in the package), in `web-handlers.logout.test.js`. The two htmx cases fail on 1.54.0's handler.
+
 ## Version 1.54.0
 
 How often waiting e-mail is sent, chosen per deployment (CA-496). Design: §11 of
