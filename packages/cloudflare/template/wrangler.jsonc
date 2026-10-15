@@ -55,10 +55,12 @@
     }
   ],
 
-  // When the Worker sweeps expired state: daily, at 04:00 UTC. With `jobs: true` in the Worker, the same schedule runs
-  // web-framework's scheduled jobs; a job due every hour needs a cron every hour.
+  // When the Worker sweeps expired state, and with `jobs: true` in the Worker, ticks web-framework's scheduled jobs:
+  // every hour, on the hour. Hourly is the shortest interval the `notifications` document's `sendEveryHours` offers, so
+  // a slower cron would hold waiting e-mail back whatever that says; a daily job still runs once a day at its own time.
+  // Each tick wakes a container that sleeps.
   "triggers": {
-    "crons": [ "0 4 * * *" ]
+    "crons": [ "0 * * * *" ]
   },
 
   // To send e-mail through Cloudflare Email Service, from a domain onboarded to it: a `send_email` binding, given to
