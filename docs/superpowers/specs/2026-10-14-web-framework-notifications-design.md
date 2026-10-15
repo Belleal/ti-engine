@@ -101,7 +101,8 @@ Everything below hangs off one frozen singleton, `NotificationService.instance`,
   - Done entries expire after a retention period (default 180 days), which bounds the store and what an erasure has to
     find.
   - `forget( recipientID )` removes a person's queued notices and ledger entries, for an application's erasure path.
-- **The dispatcher** drains the outbox in the background after each `notify` and on every job tick.
+- **The dispatcher** drains the outbox in the background after each `notify` and on a job tick, once per interval of
+  the document's `sendEveryHours` since 1.54.0 (§11).
   - It works one message at a time, up to a cap per run.
   - A transient failure (a provider error) is retried after 1, 5, 15 and 60 minutes, five attempts in all.
   - A permanent failure (suppressed recipient, unverified sender) is recorded and not retried.
@@ -339,3 +340,36 @@ application's (CA-488). What it needs from the framework is below; the framework
 - **Not done:** a delivery status (what is queued, what failed). Counting failures means reading every ledger entry
   of the retention period, one store call each on D1, for a panel. It waits for a ledger index or for someone to
   need it.
+
+## 11. How often waiting e-mail is sent (1.54.0, CA-496)
+
+Boris, 2026-10-15: "the email send scheduler triggers once per 24 hours? I want this to be configurable - from the
+same screen … And for this deployment I want it to check and send pending emails once per hour."
+
+- **What was daily.** A notice queued by a write was always sent straight after it, and while the process runs the
+  dispatcher's own timer retries a failure at 1, 5, 15 and 60 minutes. What nothing else wakes waits for a job tick: a
+  retry that falls due after the process has slept, what a pass left at its limit, the daily quota. On Cloudflare a
+  container sleeps minutes after its last request, its timers with it, and the only tick is the Worker's cron,
+  `0 4 * * *` in the template and in the first application. So a failure with no traffic after it had its 15- and
+  60-minute retries wait up to a day.
+- **The interval bounds the wait; it is not a cap on sending.** The dispatcher's retry timer and a write's notices are
+  not held to it (CodeRabbit asked for the timer to be, on review): holding them would only make mail later, and the
+  setting exists to make it sooner. Two ticks that overlap pass once: the check and the record are one step under a
+  lock, as the job scheduler's ticks are.
+- **The interval is the document's `sendEveryHours`:** 1, 2, 3, 4, 6, 8, 12 or 24 hours, every hour when absent. Each
+  divides a day, so the passes fall at the same UTC hours every day, counted from midnight. `sendDue( now )` drains
+  once in each interval and records the moment in the store (`ti:notify:last-pass`), and `runJobTick` calls it where
+  it called `drain()`. An edit counts from the next tick, as the texts and options do.
+- **The cron is the floor.** It is the application's wrangler file's, so no document can make it fire more often. The
+  template's is now hourly, the shortest interval offered. A daily job still runs once a day at its own time: the job
+  scheduler records each job's own period.
+- **A store that cannot be read does not hold mail back:** the pass runs. A record that cannot be written is logged,
+  and the next tick passes again. Sending twice in an hour costs nothing; not sending for a day was the defect.
+- **Rejected: letting the Worker read the interval and skip waking the container.** It would save the wakes a longer
+  interval makes pointless, but the cloudflare package would then read web-framework's configuration store, and it
+  depends on nothing. An hourly wake costs little: the container sleeps again after the application's sleep timer.
+- **Rejected: a free cron expression in the document.** Only intervals that divide a day keep "every N hours" true
+  across midnight, and the cron that delivers the ticks cannot be edited from inside the application anyway.
+- **The `internal` trigger** ticks every 15 minutes, so with the default, what a pass left behind (at its limit, or
+  around a store failure) now waits up to an hour there instead of a quarter. That process does not sleep, so retries
+  keep the dispatcher's timer, and a write's own notices are unaffected.

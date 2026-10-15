@@ -1,5 +1,5 @@
 export = JobScheduler;
-import type { TiJobDefinition, TiJobsReport } from "#definitions";
+import type { TiJobDefinition, TiJobSchedule, TiJobTimeOfDay, TiJobsReport } from "#definitions";
 /**
  * Application code run on a schedule: something that becomes due with the passing of time, such as a deadline coming
  * close, and that nobody's request would otherwise notice.
@@ -51,47 +51,32 @@ declare class JobScheduler {
      * day runs on that first tick rather than waiting a day.
      *
      * @method
-     * @param {{every: string, at: ?{hours: number, minutes: number}}} job
+     * @param {TiJobSchedule} job
      * @param {number} lastRun Milliseconds, or `NaN` when it never ran.
      * @param {Date} now
      * @returns {boolean}
      * @public
      */
-    static isDue(job: {
-        every: string;
-        at: {
-            hours: number;
-            minutes: number;
-        } | null;
-    }, lastRun: number, now: Date): boolean;
+    static isDue(job: TiJobSchedule, lastRun: number, now: Date): boolean;
     /**
      * The moment the period holding `now` began, in milliseconds.
      *
      * @method
-     * @param {{every: string, at: ?{hours: number, minutes: number}}} job
+     * @param {TiJobSchedule} job
      * @param {Date} now
      * @returns {number}
      * @public
      */
-    static periodStart(job: {
-        every: string;
-        at: {
-            hours: number;
-            minutes: number;
-        } | null;
-    }, now: Date): number;
+    static periodStart(job: TiJobSchedule, now: Date): number;
     /**
      * Reads a time of day written `HH:MM`, 24-hour.
      *
      * @method
      * @param {*} value
-     * @returns {{hours: number, minutes: number}|null}
+     * @returns {TiJobTimeOfDay|null}
      * @public
      */
-    static parseTimeOfDay(value: any): {
-        hours: number;
-        minutes: number;
-    } | null;
+    static parseTimeOfDay(value: any): TiJobTimeOfDay | null;
 }
 declare namespace JobScheduler {
     var _a: Readonly<JobScheduler>;

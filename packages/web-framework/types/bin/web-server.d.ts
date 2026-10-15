@@ -249,17 +249,19 @@ declare class TiWebServer extends ServiceConsumer {
      */
     onStop(): Promise<any>;
     /**
-     * Runs one tick of the scheduler: every due job, then a pass of the notification dispatcher, so that what the jobs
-     * queued, and what earlier passes left to retry, goes out in the same tick. The `route` and `internal` triggers call
-     * it; an application may too. It never rejects for a job that failed, which is logged instead.
+     * Runs one tick of the scheduler: every due job, then the notification dispatcher's scheduled pass, which sends
+     * what earlier passes left to retry once in each interval the `notifications` document's `sendEveryHours` sets
+     * (CA-496). What the jobs queue goes out as they queue it, as a write's notices do. The `route` and `internal`
+     * triggers call it; an application may too. It never rejects for a job that failed, which is logged instead.
      *
      * @method
-     * @returns {Promise<{jobs: TiJobsReport, notifications: TiNotificationDrainReport}>}
+     * @returns {Promise<{jobs: TiJobsReport, notifications: TiNotificationDrainReport|null}>} `notifications` is `null`
+     * on a tick inside an interval that had its pass.
      * @public
      */
     runJobTick(): Promise<{
         jobs: TiJobsReport;
-        notifications: TiNotificationDrainReport;
+        notifications: TiNotificationDrainReport | null;
     }>;
     /**
      * Used to report health status of the service instance for external monitoring.

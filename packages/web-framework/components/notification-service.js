@@ -35,6 +35,30 @@ const transports = require( "#notification-transports" );
 const KEY_PENDING = "ti:notify:pending:";
 const KEY_DONE = "ti:notify:done:";
 
+// `{ at }`, the moment the last scheduled pass began: a tick inside the same interval sends nothing. A value, as the job
+// scheduler's records are, so it can be read and replaced on either store.
+const KEY_LAST_PASS = "ti:notify:last-pass";
+
+// The lock key the scheduled pass holds from its check to its record, so two ticks that overlap pass once. Not a notice's
+// key, which is two hex digests joined by a colon.
+const LOCK_SCHEDULED_PASS = "scheduled-pass";
+
+/**
+ * The intervals a job tick may send what the outbox holds at, in hours: the `notifications` document's
+ * `sendEveryHours`. Each divides a day, so the passes fall at the same hours of every day, counted from midnight UTC.
+ *
+ * @type {ReadonlyArray<number>}
+ */
+const SEND_INTERVALS = Object.freeze( [ 1, 2, 3, 4, 6, 8, 12, 24 ] );
+
+/**
+ * The interval when the document names none: every hour, so a notice waiting for a retry waits an hour at most where
+ * the ticks come that often.
+ *
+ * @type {number}
+ */
+const DEFAULT_SEND_EVERY_HOURS = 1;
+
 /**
  * The key of the configuration document holding the rules (§3.2 of the design record).
  *
@@ -43,8 +67,9 @@ const KEY_DONE = "ti:notify:done:";
 const CONFIG_KEY = "notifications";
 
 /**
- * How long a ledger entry is kept, in days, unless the deployment says otherwise: long enough to span an appraisal
- * cycle, so a notice is not sent again by a catch-up that runs after its entry has gone.
+ * How long a ledger entry is kept, in days, unless the deployment says otherwise: half a year, longer than the period
+ * an application's catch-up is expected to look back over, so a notice is not sent again by one that runs after its
+ * entry has gone. An application whose catch-up looks further back sets `retentionDays` to match.
  *
  * @type {number}
  */
@@ -86,6 +111,22 @@ const DRAIN_LIMIT = 1000;
  * @type {number}
  */
 const MAX_TIMER = 2147483647;
+
+/**
+ * What a log line may carry of a failure: its kind and its code, never its message or its data. A store error can carry
+ * the write it failed on: ioredis attaches the command and its arguments to a reply error, so a failed write of a
+ * pending entry held the recipient's address, and the logger writes every property of an error it is given.
+ *
+ * @method
+ * @param {*} error
+ * @returns {{name: (string|null), code: (string|number|null)}}
+ * @private
+ */
+function loggableError( error ) {
+    const name = ( error && typeof error.name === "string" ) ? error.name : null;
+    const code = ( error && ( typeof error.code === "string" || typeof error.code === "number" ) ) ? error.code : null;
+    return { name: name, code: code };
+}
 
 const TRANSPORT_OFF = "off";
 const TRANSPORT_LOG = "log";
@@ -291,7 +332,8 @@ function nextUTCMidnight( now ) {
  * one notice directly.
  * <br/>
  * A queued notice waits in an outbox in the state store until the dispatcher sends it, after the write that queued it
- * and on every job tick. A ledger entry records it once sent or given up, so the same key is never sent twice: two
+ * and on a job tick once in each interval the document's `sendEveryHours` sets ({@link NotificationService#sendDue}).
+ * A ledger entry records it once sent or given up, so the same key is never sent twice: two
  * paths raising one notice, a write and a nightly catch-up, send it once. Delivery is at least once: the ledger entry is
  * written after the provider accepts, so a crash between the two repeats one notice.
  * <br/>
@@ -581,6 +623,8 @@ class NotificationService {
      *   empty text, a line break where the part takes one line, and a placeholder the text does not offer.
      * - `options` is the application's, validated by the schema it passes here, and read by
      *   {@link NotificationService#getOptions} over the defaults it gives.
+     * - `sendEveryHours` is how often a job tick sends what the outbox holds, one of {@link SEND_INTERVALS}, read by
+     *   {@link NotificationService#getSendEveryHours}; every hour when the document names none.
      *
      * @method
      * @param {TiNotificationsDocument} [defaults] `{ enabled: true, rules: [] }` unless stated.
@@ -601,6 +645,9 @@ class NotificationService {
         }
         if ( optionsSchema && defaults && defaults.options && typeof defaults.options === "object" ) {
             defaultValue.options = JSON.parse( JSON.stringify( defaults.options ) );
+        }
+        if ( defaults && SEND_INTERVALS.includes( defaults.sendEveryHours ) ) {
+            defaultValue.sendEveryHours = defaults.sendEveryHours;
         }
         this.#optionDefaults = tools.deepFreeze( JSON.parse( JSON.stringify( defaultValue.options || {} ) ) );
         return {
@@ -625,6 +672,22 @@ class NotificationService {
             const stored = ( envelope && envelope.value && envelope.value.options && typeof envelope.value.options === "object" ) ? envelope.value.options : {};
             return Object.assign( {}, this.#optionDefaults, stored );
         } );
+    }
+
+    /**
+     * How often a job tick sends what the outbox holds, in hours: the stored document's `sendEveryHours`, or
+     * {@link DEFAULT_SEND_EVERY_HOURS} when it names none or cannot be read. Read on every tick, so an edit counts from
+     * the next one.
+     *
+     * @method
+     * @returns {Promise<number>} One of {@link SEND_INTERVALS}.
+     * @public
+     */
+    getSendEveryHours() {
+        return Promise.resolve().then( () => configService.instance.getCurrent( CONFIG_KEY ) ).then( ( envelope ) => {
+            const stored = ( envelope && envelope.value ) ? envelope.value.sendEveryHours : undefined;
+            return SEND_INTERVALS.includes( stored ) ? stored : DEFAULT_SEND_EVERY_HOURS;
+        }, () => DEFAULT_SEND_EVERY_HOURS );
     }
 
     /**
@@ -737,6 +800,41 @@ class NotificationService {
             this.#draining = null;
         } );
         return this.#draining;
+    }
+
+    /**
+     * A job tick's pass over the outbox: {@link NotificationService#drain}, once in each interval of
+     * `sendEveryHours` hours. A tick inside an interval already passed sends nothing.
+     * <br/>
+     * The interval bounds how long a waiting notice waits when nothing else wakes the dispatcher: a retry that falls due
+     * after the process has slept, such as a container a Worker wakes only for requests and ticks, or what a pass left
+     * at its limit. It is not a cap on sending: a notice queued by a write is sent straight after it, and while the
+     * process runs the dispatcher's own timer retries on the backoff (1, 5, 15 and 60 minutes). Holding those to the
+     * interval would only make mail later.
+     * <br/>
+     * The check and the record are one step under a lock, so two ticks that overlap pass once. The interval is recorded
+     * when its pass has finished. A store that cannot be read is not a reason to hold mail back, so the pass runs; one
+     * that cannot be written loses only the record, and the next tick passes again.
+     *
+     * @method
+     * @param {Date} [now] The tick's moment; the current time unless stated.
+     * @returns {Promise<TiNotificationDrainReport|null>} The pass's report, or `null` when this interval had its pass.
+     * @public
+     */
+    sendDue( now = new Date( this.#now() ) ) {
+        const moment = new Date( now.getTime() );
+        return this.#lock.exclusively( LOCK_SCHEDULED_PASS, () => Promise.all( [
+            this.getSendEveryHours(),
+            Promise.resolve().then( () => cache.instance.getValue( KEY_LAST_PASS ) ).then( ( last ) => ( last && typeof last.at === "string" ) ? Date.parse( last.at ) : NaN, () => NaN )
+        ] ).then( ( [ hours, lastPass ] ) => {
+            if ( Number.isFinite( lastPass ) && lastPass >= NotificationService.intervalStart( hours, moment ) ) {
+                return null;
+            }
+            return this.drain().then( ( report ) => Promise.resolve().then( () => cache.instance.setValue( KEY_LAST_PASS, { at: moment.toISOString() } ) ).then( () => report, ( error ) => {
+                logger.log( "The scheduled notification pass could not be recorded; the next tick passes again.", logger.logSeverity.WARNING, loggableError( error ) );
+                return report;
+            } ) );
+        } ) );
     }
 
     /**
@@ -895,6 +993,20 @@ class NotificationService {
     }
 
     /**
+     * The moment the interval of `hours` hours holding `now` began, in milliseconds: intervals count from midnight UTC,
+     * so with 6 they begin at 00:00, 06:00, 12:00 and 18:00 UTC.
+     *
+     * @method
+     * @param {number} hours One of {@link SEND_INTERVALS}.
+     * @param {Date} now
+     * @returns {number}
+     * @public
+     */
+    static intervalStart( hours, now ) {
+        return Date.UTC( now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), Math.floor( now.getUTCHours() / hours ) * hours );
+    }
+
+    /**
      * The JSON Schema of the `notifications` document.
      *
      * @method
@@ -923,7 +1035,8 @@ class NotificationService {
             texts: {
                 type: "object",
                 additionalProperties: { type: "object", additionalProperties: { type: "string" } }
-            }
+            },
+            sendEveryHours: { type: "integer", enum: [ ...SEND_INTERVALS ] }
         };
         if ( optionsSchema && typeof optionsSchema === "object" ) {
             properties.options = optionsSchema;
@@ -1039,7 +1152,7 @@ class NotificationService {
      */
     #drainInBackground() {
         this.drain().catch( ( error ) => {
-            logger.log( "Notifications: a dispatcher pass failed.", logger.logSeverity.ERROR, error );
+            logger.log( "Notifications: a dispatcher pass failed.", logger.logSeverity.ERROR, loggableError( error ) );
         } );
     }
 
@@ -1123,7 +1236,7 @@ class NotificationService {
                     }
                 }, ( error ) => {
                     // The store failed around one notice. It stays queued, and the next pass tries it again.
-                    logger.log( "Notifications: a queued notice could not be processed; it stays queued.", logger.logSeverity.ERROR, error );
+                    logger.log( "Notifications: a queued notice could not be processed; it stays queued.", logger.logSeverity.ERROR, loggableError( error ) );
                 } );
             } ), Promise.resolve() );
         } ).then( () => {
@@ -1413,4 +1526,6 @@ class NotificationService {
 const instance = new NotificationService();
 module.exports = NotificationService;
 NotificationService.CONFIG_KEY = CONFIG_KEY;
+NotificationService.SEND_INTERVALS = SEND_INTERVALS;
+NotificationService.DEFAULT_SEND_EVERY_HOURS = DEFAULT_SEND_EVERY_HOURS;
 NotificationService.instance = Object.freeze( instance );

@@ -2,6 +2,47 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.54.0
+
+How often waiting e-mail is sent, chosen per deployment (CA-496). Design: §11 of
+`docs/superpowers/specs/2026-10-14-web-framework-notifications-design.md`.
+
+* feat(notifications): **`sendEveryHours` in the `notifications` document.**
+  * **Choices.** 1, 2, 3, 4, 6, 8, 12 or 24 hours, every hour when the document names none.
+  * **When.** A job tick sends what the outbox holds once in each interval, counted from midnight UTC.
+  * **Why.** A notice queued by a write was always sent straight after it, and while the process runs the
+    dispatcher's own timer retries a failure on its backoff. What nothing else wakes waits for a job tick: a retry that
+    falls due after the process has slept, or what a pass left at its limit. On Cloudflare a container sleeps a few
+    minutes after its last request, and the only tick is the Worker's cron, which the template set to once a day, so
+    such a notice waited up to a day.
+  * **Not a cap.** The interval bounds how long a waiting notice waits; it never holds back a write's notices or the
+    dispatcher's own retries, which would only make mail later.
+  * **Overlapping ticks pass once.** The check and the record are one step under a lock.
+  * **New API.** `getSendEveryHours()` reads the setting, and `sendDue( now )` is the tick's pass. `runJobTick()` now
+    returns `notifications: null` on a tick inside an interval that has already had its pass.
+  * **Store failures.** A record that cannot be read does not hold mail back: the pass runs. One that cannot be written
+    is logged, and the next tick passes again.
+  * **Behaviour change for the `internal` trigger**, which ticks every 15 minutes. With the default interval, what a
+    pass left behind (at its limit, or around a store failure) now waits up to an hour rather than a quarter. That
+    process does not sleep, so retries keep the dispatcher's timer, and notices queued by a write still go at once.
+* fix(notifications): **a failure is logged by its kind and code alone.** Three lines logged the whole error: a
+  dispatcher pass that failed, a queued notice the store could not process, and the new scheduled pass's record.
+  * **The leak.** A store error can carry the write it failed on. ioredis attaches the command and its arguments to a
+    reply error, and the logger writes every property it is given. So a pending entry the store refused to write, on
+    an out-of-memory or read-only Redis, put its recipient's address in the log. That breaks this module's own rule
+    that nothing here logs an address.
+  * **Missed by the tests.** The test of that rule read only each line's message, never the details.
+  * **Now.** Those lines carry `{ name, code }`, and the test reads the details too, with a reproduction: an
+    ioredis-shaped error on the pending entry's write.
+* test(notifications): **the fixtures name no application's domain.** The notice tests used one consumer's task kinds,
+  record field and brand colours. They now use neutral ones, as does the README's `setLayout` example.
+* docs(notifications): **typedefs.** `TiMailTransportError` is the shape a transport rejects with, `transient`
+  optional as the dispatcher reads it. `TiJobTimeOfDay` and
+  `TiJobSchedule` replace the shapes written inline in the job scheduler. The retention default is explained without
+  reference to any one application.
+
+Tests: 8 new (977 in the package).
+
 ## Version 1.53.0
 
 What an application needs to give administrators a screen for its e-mails, and to send them as branded HTML (CA-490).
@@ -48,7 +89,7 @@ Design: §10 of `docs/superpowers/specs/2026-10-14-web-framework-notifications-d
   `E_NOTICE_TRANSPORT_OFF` while sending is off. `render( kind, recipient, data, texts )` takes draft texts too, so a
   preview shows unsaved edits exactly as they would be sent.
 
-Tests: 15 new in `notification-service.test.js` (968 in the package). Three of the new guards were each removed in
+Tests: 16 new in `notification-service.test.js` (969 in the package). Three of the new guards were each removed in
 turn and their test failed: rendering a queued notice without the stored edits, the colour pattern, and the one-line
 rule.
 

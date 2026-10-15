@@ -5,6 +5,17 @@ This document contains the list of changes made to the cloudflare package. The f
 A rule added to or widened in the probe filter applies to every application the moment it takes the release, so every
 such change is called out here.
 
+## Version 0.5.1
+
+* feat(template): **the cron fires every hour**, `0 * * * *`, where it fired daily at 04:00 UTC (CA-496).
+  * **Why.** The cron is what ticks web-framework's jobs. From 1.54.0, web-framework sends waiting e-mail once per
+    interval of the `notifications` document's `sendEveryHours`, which can be as short as an hour. A daily cron would
+    have held that mail back for a day, whatever the document said.
+  * **What does not change.** A daily job still runs once a day at its own time.
+  * **What it costs.** Each tick wakes a sleeping container.
+  * **Who it affects.** The template is copied into an application, so an application's own wrangler file changes only
+    when it is edited.
+
 ## Version 0.5.0
 
 The Cloudflare end of web-framework 1.52.0's notifications and scheduled jobs (CA-486). Design:

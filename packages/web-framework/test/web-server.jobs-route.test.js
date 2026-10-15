@@ -75,6 +75,14 @@ describe( "the route trigger", () => {
         assert.equal( runs, 1 );
     } );
 
+    it( "passes the outbox once in the interval: a second tick in the same hour reports no pass (CA-496)", async () => {
+        const first = await server.runJobTick();
+        const second = await server.runJobTick();
+        // The first tick of this test may fall in the hour the route's ticks above already passed.
+        assert.equal( second.notifications, null );
+        assert.ok( first.notifications === null || typeof first.notifications.sent === "number" );
+    } );
+
     it( "answers only POST", async () => {
         const response = await fetch( `${ server.serverUrl }/_ti/jobs/run`, { redirect: "manual" } );
         assert.notEqual( response.status, 204 );
