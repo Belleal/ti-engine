@@ -40,7 +40,9 @@ let base = null;
 
 before( async () => {
     const app = express();
-    app.use( session( { secret: "test-only", resave: false, saveUninitialized: false, cookie: { path: "/", httpOnly: true, sameSite: "lax" }, unset: "destroy" } ) );
+    // Wired as TiWebServer wires it: `secure: "auto"` marks the cookie Secure on HTTPS and still sets it on this plain-HTTP
+    // test server.
+    app.use( session( { secret: "test-only", resave: false, saveUninitialized: false, cookie: { path: "/", httpOnly: true, secure: "auto", sameSite: "lax" }, unset: "destroy" } ) );
     app.get( "/sign-in", ( request, response ) => {
         request.session.user = { userID: "u1" };
         response.send( "signed in" );
