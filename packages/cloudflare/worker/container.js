@@ -252,12 +252,54 @@ const MAIL_TRANSIENT_CODES = Object.freeze( [ "E_RATE_LIMIT_EXCEEDED", "E_DAILY_
 
 /**
  * The fields of a message the relay passes to the binding. Anything else the container sends is dropped, `cc` and
- * `bcc` among them: one call is one message to one person.
+ * `bcc` among them: one call is one message to one person. `attachments` is checked and rebuilt on its own.
  *
  * @type {string[]}
  * @private
  */
 const MAIL_FIELDS = Object.freeze( [ "from", "to", "subject", "text", "html", "replyTo" ] );
+
+/**
+ * The most files one message may carry.
+ *
+ * @type {number}
+ * @private
+ */
+const MAIL_MAX_ATTACHMENTS = 10;
+
+/**
+ * The most base64 the files of one message may hold together: 4 MiB, which is web-framework's 3 MiB once encoded.
+ * Email Service refuses a message above 5 MiB, so this leaves the bodies room and refuses a runaway early.
+ *
+ * @type {number}
+ * @private
+ */
+const MAIL_MAX_ATTACHMENT_BASE64 = 4 * 1024 * 1024;
+
+/**
+ * A file name the binding can put in a header as it is: plain ASCII, with no path separator, quote or line break.
+ *
+ * @type {RegExp}
+ * @private
+ */
+const MAIL_ATTACHMENT_FILENAME = /^[A-Za-z0-9][A-Za-z0-9._ -]{0,99}$/;
+
+/**
+ * A media type with optional parameters, in RFC 2045 tokens only, so nothing in it can end the part's header. Only a
+ * space or a tab may stand around a `;`: `\s` would let a line break through.
+ *
+ * @type {RegExp}
+ * @private
+ */
+const MAIL_ATTACHMENT_TYPE = /^[A-Za-z0-9!#$&^_.+-]+\/[A-Za-z0-9!#$&^_.+-]+([ \t]*;[ \t]*[A-Za-z0-9!#$&^_.+-]+=[A-Za-z0-9!#$&^_.+-]+)*$/;
+
+/**
+ * Standard base64, padded: what the binding takes as a file's content when it is a string.
+ *
+ * @type {RegExp}
+ * @private
+ */
+const MAIL_BASE64 = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
 
 /**
  * @param {*} value
@@ -635,6 +677,38 @@ function isOneAddress( value ) {
 }
 
 /**
+ * Rebuilds the files a message carries as the binding takes them, or answers `null` for a list that is not one: more
+ * than {@link MAIL_MAX_ATTACHMENTS}, a name or type that could reach a header, content that is not base64, or more
+ * than {@link MAIL_MAX_ATTACHMENT_BASE64} together. Each is an attachment, never inline: nothing the container sends
+ * may stand in for part of the message's body.
+ *
+ * @param {*} value
+ * @returns {Array<{filename: string, type: string, disposition: string, content: string}>|null}
+ * @private
+ */
+function attachmentsOf( value ) {
+    if ( Array.isArray( value ) === false || value.length === 0 || value.length > MAIL_MAX_ATTACHMENTS ) {
+        return null;
+    }
+    let size = 0;
+    const files = [];
+    for ( const file of value ) {
+        if ( isPlainObject( file ) === false || typeof file.filename !== "string" || MAIL_ATTACHMENT_FILENAME.test( file.filename ) === false
+            || typeof file.type !== "string" || MAIL_ATTACHMENT_TYPE.test( file.type ) === false
+            || typeof file.content !== "string" || file.content === "" || MAIL_BASE64.test( file.content ) === false
+            || ( file.disposition !== undefined && file.disposition !== "attachment" ) ) {
+            return null;
+        }
+        size += file.content.length;
+        if ( size > MAIL_MAX_ATTACHMENT_BASE64 ) {
+            return null;
+        }
+        files.push( { filename: file.filename, type: file.type, disposition: "attachment", content: file.content } );
+    }
+    return files;
+}
+
+/**
  * A JSON answer to the container.
  *
  * @param {number} status
@@ -684,6 +758,13 @@ async function relayMail( request, env, bindingName ) {
         if ( posted[ field ] !== undefined ) {
             message[ field ] = posted[ field ];
         }
+    }
+    if ( posted.attachments !== undefined ) {
+        const attachments = attachmentsOf( posted.attachments );
+        if ( attachments === null ) {
+            return mailAnswer( 400, { code: "E_MAIL_INVALID", transient: false } );
+        }
+        message.attachments = attachments;
     }
     try {
         const result = await binding.send( message );

@@ -5,6 +5,27 @@ This document contains the list of changes made to the cloudflare package. The f
 A rule added to or widened in the probe filter applies to every application the moment it takes the release, so every
 such change is called out here.
 
+## Version 0.6.0
+
+* feat(container): **the mail relay passes a message's files** to the `send_email` binding (CA-502).
+  * **What was wrong.** The relay passed `from`, `to`, `subject`, `text`, `html` and `replyTo` and dropped everything
+    else, so the files web-framework 1.55.0 attaches to a notice, such as a calendar entry, never reached the binding.
+    The e-mail was still sent, without them.
+  * **Now.** `attachments` reaches the binding, each file rebuilt to `{ filename, type, disposition: "attachment",
+    content }`. Anything else posted on a file, such as an inline `contentId` or headers, is dropped, so nothing
+    posted can stand in for part of the body.
+  * **Refused as `400 E_MAIL_INVALID`:**
+    * a list that is empty or holds more than 10 files;
+    * a name that is not plain ASCII or holds a path, quote or line break;
+    * a type that is not RFC 2045 tokens, with only a space or a tab around a `;`;
+    * content that is not padded base64;
+    * a disposition other than `attachment`;
+    * more than 4 MiB of base64 together.
+  * **Who it affects.** An application's Worker gets this when it takes 0.6.0. Until then its relay drops the files and
+    sends the e-mail without them.
+
+Tests: 4 new in `container.test.js`, and all 4 fail on 0.5.1.
+
 ## Version 0.5.1
 
 * feat(template): **the cron fires every hour**, `0 * * * *`, where it fired daily at 04:00 UTC (CA-496).

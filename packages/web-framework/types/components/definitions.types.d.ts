@@ -135,6 +135,21 @@ export type TiMailAddress = {
     email: string;
     name?: string;
 };
+export type TiMailAttachment = {
+    /**
+     * Plain ASCII, with no path separator, quote or line break.
+     */
+    filename: string;
+    /**
+     * The media type, with parameters if any: `text/calendar; charset=utf-8; method=PUBLISH`.
+     */
+    type: string;
+    disposition: "attachment";
+    /**
+     * The file's bytes, base64-encoded.
+     */
+    content: string;
+};
 export type TiMailMessage = {
     /**
      * Absent when no sender is configured; a transport may supply its own.
@@ -145,6 +160,10 @@ export type TiMailMessage = {
     text: string;
     html: string;
     replyTo?: string;
+    /**
+     * Absent when the notice attached nothing.
+     */
+    attachments?: TiMailAttachment[];
 };
 export type TiMailTransport = {
     name: string;
@@ -205,6 +224,26 @@ export type TiNoticeDefinition = {
      * Each becomes editable as well.
      */
     labels?: Record<string, string[]>;
+    /**
+     * The files the notice carries, built from its data in the recipient's language, as the texts are. Never
+     * read the clock or the store here: a retry renders again, and must attach the same file.
+     */
+    attachments?: (data: Object, language: TiLocalizationLanguage, label: (key: string) => string) => TiNoticeAttachment[];
+};
+export type TiNoticeAttachment = {
+    /**
+     * Plain ASCII, starting with a letter or digit, at most 100 characters, with no path
+     * separator, quote or line break.
+     */
+    filename: string;
+    /**
+     * The media type, with parameters if any, in RFC 2045 tokens.
+     */
+    type: string;
+    /**
+     * The file as text, not empty; it is sent as its UTF-8 bytes.
+     */
+    content: string;
 };
 export type TiNoticeTexts = Record<string, Record<string, string>>;
 export type TiEditableNoticeText = {
@@ -362,6 +401,10 @@ export type TiRenderedNotice = {
      */
     text: string;
     html: string;
+    /**
+     * The notice's files, encoded; absent when it has none.
+     */
+    attachments?: TiMailAttachment[];
 };
 export type TiNotificationDrainReport = {
     sent: number;
@@ -504,7 +547,16 @@ export type TiJobsReport = {
  * @property {string} [name]
  */
 /**
- * A message as a transport sends it: one recipient, a plain-text part and an HTML part.
+ * A file a message carries, as a transport sends it: Cloudflare Email Service's attachment shape.
+ *
+ * @typedef {Object} TiMailAttachment
+ * @property {string} filename Plain ASCII, with no path separator, quote or line break.
+ * @property {string} type The media type, with parameters if any: `text/calendar; charset=utf-8; method=PUBLISH`.
+ * @property {"attachment"} disposition
+ * @property {string} content The file's bytes, base64-encoded.
+ */
+/**
+ * A message as a transport sends it: one recipient, a plain-text part, an HTML part, and the files the notice attached.
  *
  * @typedef {Object} TiMailMessage
  * @property {string|TiMailAddress} [from] Absent when no sender is configured; a transport may supply its own.
@@ -513,6 +565,7 @@ export type TiJobsReport = {
  * @property {string} text
  * @property {string} html
  * @property {string} [replyTo]
+ * @property {TiMailAttachment[]} [attachments] Absent when the notice attached nothing.
  */
 /**
  * What sends a {@link TiMailMessage}. `send` resolves to `{ messageId }` once the provider has accepted the message,
@@ -556,6 +609,18 @@ export type TiJobsReport = {
  *           through the `notifications` document, and an edit using another name is refused.
  * @property {Object<string, string[]>} [labels] The other label keys `format` reads, each with the names it may use.
  *           Each becomes editable as well.
+ * @property {(data: Object, language: TiLocalizationLanguage, label: (key: string) => string) => TiNoticeAttachment[]} [attachments]
+ *           The files the notice carries, built from its data in the recipient's language, as the texts are. Never
+ *           read the clock or the store here: a retry renders again, and must attach the same file.
+ */
+/**
+ * A file a notice attaches, as its `attachments` returns it. At most 10, and 3 MiB together.
+ *
+ * @typedef {Object} TiNoticeAttachment
+ * @property {string} filename Plain ASCII, starting with a letter or digit, at most 100 characters, with no path
+ *           separator, quote or line break.
+ * @property {string} type The media type, with parameters if any, in RFC 2045 tokens.
+ * @property {string} content The file as text, not empty; it is sent as its UTF-8 bytes.
  */
 /**
  * Edited notice texts, by label key and then language: `{ "notice.task-new.subject": { "bg": "…" } }`. Only what an
@@ -643,6 +708,7 @@ export type TiJobsReport = {
  * @property {string} text The text, with the link after it (introduced by the layout's button label, when it has
  *           one) and the layout's footer under a signature delimiter.
  * @property {string} html
+ * @property {TiMailAttachment[]} [attachments] The notice's files, encoded; absent when it has none.
  */
 /**
  * What one dispatcher run did.

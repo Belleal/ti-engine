@@ -113,6 +113,38 @@ const DRAIN_LIMIT = 1000;
 const MAX_TIMER = 2147483647;
 
 /**
+ * The most files one notice may attach.
+ *
+ * @type {number}
+ */
+const MAX_ATTACHMENTS = 10;
+
+/**
+ * The most bytes a notice's files may hold together, before encoding: 3 MiB, which base64 makes 4 MiB. Cloudflare
+ * Email Service refuses a message above 5 MiB, the files and both bodies included, so this leaves the bodies room.
+ *
+ * @type {number}
+ */
+const MAX_ATTACHMENT_BYTES = 3 * 1024 * 1024;
+
+/**
+ * A file name a transport can put in a header as it is: plain ASCII, starting with a letter or digit, with no path
+ * separator, quote or line break. A name outside it would need RFC 2231 encoding, which not every transport does.
+ *
+ * @type {RegExp}
+ */
+const ATTACHMENT_FILENAME = /^[A-Za-z0-9][A-Za-z0-9._ -]{0,99}$/;
+
+/**
+ * A media type with optional parameters, such as `text/calendar; charset=utf-8; method=PUBLISH`, in RFC 2045 tokens
+ * only: a quote, a line break or a stray `;` would end up inside the part's `Content-Type` header. Only a space or a
+ * tab may stand around a `;`: `\s` would let `text/calendar\r\n; method=PUBLISH` through, a line break in the header.
+ *
+ * @type {RegExp}
+ */
+const ATTACHMENT_TYPE = /^[A-Za-z0-9!#$&^_.+-]+\/[A-Za-z0-9!#$&^_.+-]+([ \t]*;[ \t]*[A-Za-z0-9!#$&^_.+-]+=[A-Za-z0-9!#$&^_.+-]+)*$/;
+
+/**
  * What a log line may carry of a failure: its kind and its code, never its message or its data. A store error can carry
  * the write it failed on: ioredis attaches the command and its arguments to a reply error, so a failed write of a
  * pending entry held the recipient's address, and the logger writes every property of an error it is given.
@@ -311,6 +343,43 @@ function layoutHTML( { language, subject, paragraphs, url, action, footer, layou
 }
 
 /**
+ * Checks the files a notice's `attachments` returned and encodes each for the message: its name, its media type,
+ * `disposition: "attachment"` and its text as base64 of its UTF-8 bytes. An empty or absent list is no files.
+ * <br/>
+ * A notice that returns a malformed file is a defect in the application, not in the delivery, so it fails the notice
+ * permanently rather than being retried into the same answer. An empty file is malformed too: the relay refuses empty
+ * content, and failing here names the notice's own defect instead of the relay's answer.
+ *
+ * @method
+ * @param {*} files What `attachments` returned.
+ * @param {string} kind The notice, to name in the error.
+ * @returns {TiMailAttachment[]}
+ * @throws {Error} With `code` `E_NOTICE_ATTACHMENT_INVALID` and `transient` false.
+ * @private
+ */
+function encodeAttachments( files, kind ) {
+    if ( files === undefined || files === null ) {
+        return [];
+    }
+    if ( !Array.isArray( files ) || files.length > MAX_ATTACHMENTS ) {
+        throw transports.transportError( "E_NOTICE_ATTACHMENT_INVALID", false, kind );
+    }
+    let bytes = 0;
+    return files.map( ( file ) => {
+        if ( !file || typeof file !== "object" || typeof file.filename !== "string" || !ATTACHMENT_FILENAME.test( file.filename )
+            || typeof file.type !== "string" || !ATTACHMENT_TYPE.test( file.type ) || typeof file.content !== "string" || file.content === "" ) {
+            throw transports.transportError( "E_NOTICE_ATTACHMENT_INVALID", false, kind );
+        }
+        const content = Buffer.from( file.content, "utf8" );
+        bytes += content.length;
+        if ( bytes > MAX_ATTACHMENT_BYTES ) {
+            throw transports.transportError( "E_NOTICE_ATTACHMENT_INVALID", false, kind );
+        }
+        return { filename: file.filename, type: file.type, disposition: "attachment", content: content.toString( "base64" ) };
+    } );
+}
+
+/**
  * Whether a string can stand as one e-mail address in a message: something on both sides of a single `@`, and no
  * white space. A line break is the case that matters: in a transport that writes headers, it starts a new header.
  *
@@ -494,15 +563,16 @@ class NotificationService {
      * @param {string} kind The notice's name, which rules refer to.
      * @param {TiNoticeDefinition} definition
      * @returns {NotificationService} this
-     * @throws {TiException.E_GEN_INVALID_ARGUMENT_TYPE} On a missing name or label key, a link or format that is not a function, or placeholders or labels that are not lists of names.
+     * @throws {TiException.E_GEN_INVALID_ARGUMENT_TYPE} On a missing name or label key, a link, format or attachments that is not a function, or placeholders or labels that are not lists of names.
      * @public
      */
     registerNotice( kind, definition ) {
-        const { subject, text, link, format, placeholders, labels } = definition || {};
+        const { subject, text, link, format, placeholders, labels, attachments } = definition || {};
         const labelsValid = labels === undefined || ( labels !== null && typeof labels === "object" && !Array.isArray( labels )
             && Object.keys( labels ).every( ( key ) => key !== "" && isNameList( labels[ key ] ) ) );
         if ( typeof kind !== "string" || kind.trim() === "" || typeof subject !== "string" || subject === "" || typeof text !== "string" || text === ""
             || ( link !== undefined && typeof link !== "function" ) || ( format !== undefined && typeof format !== "function" )
+            || ( attachments !== undefined && typeof attachments !== "function" )
             || ( placeholders !== undefined && !isNameList( placeholders ) ) || !labelsValid ) {
             throw exceptions.raise( exceptions.exceptionCode.E_GEN_INVALID_ARGUMENT_TYPE, { reason: "invalid-notice-registration", kind: kind } );
         }
@@ -515,6 +585,7 @@ class NotificationService {
             text: text,
             link: link,
             format: format,
+            attachments: attachments,
             placeholders: ( placeholders !== undefined ) ? Object.freeze( [ ...new Set( placeholders ) ] ) : null,
             labels: Object.freeze( ownLabels )
         } ) );
@@ -885,6 +956,9 @@ class NotificationService {
      * <br/>
      * Each text is the edited one when `texts` holds it, else the shipped label. The dispatcher passes the document's
      * edits; an editor passes its unsaved ones to preview them exactly as they would be sent.
+     * <br/>
+     * A notice that declares `attachments` also renders its files, encoded for the message; one that returns none has
+     * no `attachments` at all, as before.
      *
      * @method
      * @param {string} kind A registered notice.
@@ -892,7 +966,7 @@ class NotificationService {
      * @param {Object} [data]
      * @param {TiNoticeTexts} [texts] Edited texts, by label key and language.
      * @returns {TiRenderedNotice}
-     * @throws {Error} With `code` `E_NOTICE_UNKNOWN` or `E_NOTICE_LABEL_MISSING`, and `transient` false.
+     * @throws {Error} With `code` `E_NOTICE_UNKNOWN`, `E_NOTICE_LABEL_MISSING` or `E_NOTICE_ATTACHMENT_INVALID`, and `transient` false.
      * @public
      */
     render( kind, recipient, data = {}, texts = {} ) {
@@ -937,7 +1011,13 @@ class NotificationService {
             // The conventional signature delimiter, which mail clients grey out or fold away.
             text += "\n\n-- \n" + footer;
         }
-        return { subject: subject, text: text, html: html };
+        const rendered = { subject: subject, text: text, html: html };
+        // Built from the notice's data alone, like the texts, so a retry attaches the same file.
+        const attachments = notice.attachments ? encodeAttachments( notice.attachments( data || {}, language, label ), kind ) : [];
+        if ( attachments.length > 0 ) {
+            rendered.attachments = attachments;
+        }
+        return rendered;
     }
 
     /**
@@ -1361,6 +1441,9 @@ class NotificationService {
         const rendered = this.render( pending.kind, pending.recipient, pending.data || {}, texts );
         const to = pending.recipient.name ? { email: pending.recipient.email, name: pending.recipient.name } : pending.recipient.email;
         const message = { to: to, subject: rendered.subject, text: rendered.text, html: rendered.html };
+        if ( rendered.attachments ) {
+            message.attachments = rendered.attachments;
+        }
         if ( this.#sender !== null ) {
             message.from = this.#senderName ? { email: this.#sender, name: this.#senderName } : this.#sender;
         }

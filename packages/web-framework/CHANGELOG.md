@@ -2,6 +2,30 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.55.0
+
+* feat(notifications): **a notice can carry files**, such as a calendar entry (CA-502).
+  * **Why.** Users of an application on this framework asked for interview e-mails they can add to their Outlook
+    calendars. A notice was a subject, a text and an HTML layout, so a calendar entry had no way into the message.
+  * **Now.** `registerNotice` takes an optional `attachments( data, language, label )`, which returns
+    `[ { filename, type, content } ]` with `content` as text. `render` returns the files as
+    `attachments: [ { filename, type, disposition: "attachment", content } ]`, with the content as base64 of its UTF-8
+    bytes. Cloudflare Email Service takes that shape, and the message sent carries it, in a test send too.
+  * **Built at send time, from the data alone**, like the texts: the outbox keeps only the event's data, so a retry
+    renders the file again, and the same data gives the same file.
+  * **Checked before it is sent.** A malformed file is a defect in the application, not in the delivery, so the
+    notice is given up as `E_NOTICE_ATTACHMENT_INVALID`, never retried. A file is malformed when:
+    * the list holds more than 10 files, or more than 3 MiB together. That is 4 MiB once encoded, under Email
+      Service's 5 MiB per message;
+    * a name is not plain ASCII, or holds a path, quote or line break;
+    * a type is not RFC 2045 tokens, with only a space or a tab around a `;`;
+    * the content is not text, or is empty: the relay refuses an empty file, so the notice fails at its source.
+  * **A notice without files is unchanged:** its rendering and its message have no `attachments` key at all.
+* docs(web-framework): the README's *E-mail notices* section describes attachments.
+
+Tests: 8 new (991 in the package), in `notification-service.test.js`, and 7 of them fail on 1.54.2. The eighth is the
+guard that a notice without files stays as it was.
+
 ## Version 1.54.2
 
 * fix(notifications): **the e-mail's button is one Outlook on Windows draws too** (CA-516).

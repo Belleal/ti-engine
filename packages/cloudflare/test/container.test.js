@@ -674,6 +674,69 @@ describe( "container — the mail relay (CA-486)", () => {
         assert.deepEqual( Object.keys( email.sent[ 0 ] ).sort(), [ "from", "html", "replyTo", "subject", "text", "to" ] );
     } );
 
+    // A calendar entry as web-framework encodes a notice's file (CA-502): base64 of its UTF-8 bytes.
+    const CALENDAR = Object.freeze( {
+        filename: "interview.ics",
+        type: "text/calendar; charset=utf-8; method=PUBLISH",
+        disposition: "attachment",
+        content: Buffer.from( "BEGIN:VCALENDAR\r\nSUMMARY:Интервю\r\nEND:VCALENDAR\r\n", "utf8" ).toString( "base64" )
+    } );
+
+    it( "passes a message's files as attachments, rebuilt to the binding's four fields", async () => {
+        const email = emailStub();
+        const response = await relayWith()( post( Object.assign( {}, MESSAGE, { attachments: [ Object.assign( { contentId: "x", headers: { "X-Evil": "1" } }, CALENDAR ) ] } ) ), { EMAIL: email } );
+        assert.equal( response.status, 200 );
+        assert.deepEqual( email.sent[ 0 ].attachments, [ CALENDAR ] );
+        assert.deepEqual( Object.keys( email.sent[ 0 ] ).sort(), [ "attachments", "from", "html", "subject", "text", "to" ] );
+    } );
+
+    it( "makes every file an attachment: a disposition left out is one, and inline is refused", async () => {
+        const email = emailStub();
+        const { disposition, ...undeclared } = CALENDAR;
+        await relayWith()( post( Object.assign( {}, MESSAGE, { attachments: [ undeclared ] } ) ), { EMAIL: email } );
+        assert.equal( disposition, "attachment" );
+        assert.equal( email.sent[ 0 ].attachments[ 0 ].disposition, "attachment" );
+        const inline = await relayWith()( post( Object.assign( {}, MESSAGE, { attachments: [ Object.assign( {}, CALENDAR, { disposition: "inline" } ) ] } ) ), { EMAIL: email } );
+        assert.equal( inline.status, 400 );
+        assert.equal( email.sent.length, 1 );
+    } );
+
+    it( "refuses files that are not a short list of named, typed, base64 content", async () => {
+        const email = emailStub();
+        const file = ( change ) => [ Object.assign( {}, CALENDAR, change ) ];
+        for ( const attachments of [
+            "interview.ics",
+            [],
+            CALENDAR,
+            Array.from( { length: 11 }, () => CALENDAR ),
+            file( { filename: "../interview.ics" } ),
+            file( { filename: "interview\r\n.ics" } ),
+            file( { filename: "интервю.ics" } ),
+            file( { type: "text/calendar; method=\"PUBLISH\"" } ),
+            file( { type: "text/calendar\r\nBcc: someone@example.com" } ),
+            file( { type: "text/calendar\r\n; method=PUBLISH" } ),
+            file( { type: "text/calendar;\n method=PUBLISH" } ),
+            file( { content: "BEGIN:VCALENDAR" } ),
+            file( { content: "QUJD=" } ),
+            file( { content: "" } ),
+            file( { content: [ 1, 2, 3 ] } ),
+            [ Object.assign( {}, CALENDAR, { content: "A".repeat( 4 * 1024 * 1024 ) } ), CALENDAR ]
+        ] ) {
+            const response = await relayWith()( post( Object.assign( {}, MESSAGE, { attachments: attachments } ) ), { EMAIL: email } );
+            assert.equal( response.status, 400, JSON.stringify( attachments ).slice( 0, 120 ) );
+            assert.deepEqual( await response.json(), { code: "E_MAIL_INVALID", transient: false } );
+        }
+        assert.equal( email.sent.length, 0 );
+    } );
+
+    it( "takes files of exactly 4 MiB of base64 together", async () => {
+        const email = emailStub();
+        const half = "A".repeat( 2 * 1024 * 1024 );
+        const response = await relayWith()( post( Object.assign( {}, MESSAGE, { attachments: [ Object.assign( {}, CALENDAR, { content: half } ), Object.assign( {}, CALENDAR, { content: half } ) ] } ) ), { EMAIL: email } );
+        assert.equal( response.status, 200 );
+        assert.equal( email.sent[ 0 ].attachments.length, 2 );
+    } );
+
     it( "refuses a message to more than one person, or without what it needs", async () => {
         const email = emailStub();
         for ( const body of [
