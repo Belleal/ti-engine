@@ -236,7 +236,12 @@ With `mail`, the Worker answers `POST /v1/mail/send` (`MAIL_PATH`) by sending th
 state. web-framework's `cloudflare` notification transport is what posts there.
 
 - One message is one call to one recipient. Of what the container posts, only `from`, `to`, `subject`, `text`,
-  `html` and `replyTo` reach the binding; a list of recipients, `cc` or `bcc` is refused or dropped.
+  `html`, `replyTo` and `attachments` reach the binding; a list of recipients, `cc` or `bcc` is refused or dropped.
+- `attachments` (0.6.0) is a list of at most 10 files, `{ filename, type, content }`, with `content` in base64, as
+  web-framework renders a notice's files. Each is rebuilt to those three fields plus `disposition: "attachment"`, so
+  nothing posted can stand in for part of the body. The list is refused as `E_MAIL_INVALID` when a name is not plain
+  ASCII or holds a path, quote or line break, when a type is not RFC 2045 tokens, when a content is not padded base64,
+  when a disposition is not `attachment`, or when the files hold more than 4 MiB of base64 together.
 - It answers `200 { messageId }`, or `{ code, transient }`: Email Service's `E_RATE_LIMIT_EXCEEDED`,
   `E_DAILY_LIMIT_EXCEEDED`, `E_DELIVERY_FAILED` and `E_INTERNAL_SERVER_ERROR` are transient (`503`), every other code
   permanent (`422`). A malformed message is `400 E_MAIL_INVALID`, and a deployment without the binding
