@@ -823,6 +823,71 @@ describe( "the layout", () => {
         assert.equal( unlabelled.text, plain.text );
     } );
 
+    // Every start tag in a rendered e-mail with its style as declarations. The HTML is the layout's own, so a linear scan
+    // of `<name …>` is enough: an attribute value holding `>` is escaped as `&gt;`.
+    function startTags( html ) {
+        return [ ...html.matchAll( /<([a-z][a-z0-9]*)\b([^>]*)>/g ) ].map( ( match ) => {
+            const style = /\sstyle="([^"]*)"/.exec( match[ 2 ] );
+            const declarations = {};
+            for ( const declaration of ( style ? style[ 1 ] : "" ).split( ";" ) ) {
+                const colon = declaration.indexOf( ":" );
+                if ( colon > 0 ) {
+                    declarations[ declaration.slice( 0, colon ).trim() ] = declaration.slice( colon + 1 ).trim();
+                }
+            }
+            return { name: match[ 1 ], index: match.index, style: declarations };
+        } );
+    }
+
+    // The button's link, the cell drawing it, that cell's table, and the cell holding that table.
+    function buttonParts( html, label ) {
+        const tags = startTags( html );
+        const end = html.indexOf( ">" + label + "</a>" );
+        const before = ( name, index ) => tags.filter( ( tag ) => tag.name === name && tag.index < index ).pop();
+        const link = before( "a", end );
+        const cell = before( "td", link.index );
+        const table = before( "table", cell.index );
+        return { link: link, cell: cell, wrapper: before( "td", table.index ) };
+    }
+
+    // Outlook on Windows lays mail out with Word, which drew the button as a bare block: no padding beside the label,
+    // the label on the block's bottom edge, the block flush against the paragraph above (production, 2026-10-16).
+    it( "gives the button its padding on the cell, as Word draws it, and keeps the link's own for every other client", () => {
+        const service = serviceWith( fakeTransport() );
+        service.setLayout( LAYOUT );
+        const { link, cell } = buttonParts( service.render( "task-new", ANNA, TASK ).html, "Отворете приложението" );
+        assert.equal( cell.style[ "mso-padding-alt" ], link.style.padding, "Word reads the cell's padding, the same as the link's" );
+        assert.equal( cell.style.padding, undefined, "a padding every client reads would double the link's" );
+        assert.equal( link.style[ "mso-padding-alt" ], "0", "Word applies none of the link's padding on top of the cell's" );
+        assert.equal( link.style.display, "inline-block", "elsewhere the link is the whole button, so all of it is clickable" );
+        assert.equal( cell.style[ "font-size" ], link.style[ "font-size" ] );
+        assert.match( cell.style[ "line-height" ], /^\d+px$/ );
+        assert.equal( parseFloat( cell.style[ "line-height" ] ), parseFloat( link.style[ "font-size" ] ) * parseFloat( link.style[ "line-height" ] ),
+            "the line Word sets in the cell is the label's, with no space left over above it" );
+    } );
+
+    it( "makes every space with padding on a cell: no margin on a table, and no padding Word would drop", () => {
+        const service = serviceWith( fakeTransport() );
+        const renders = [ service.render( "task-new", ANNA, TASK ).html ];
+        service.setLayout( LAYOUT );
+        renders.push( service.render( "task-new", ANNA, TASK ).html );
+        service.setLayout( { name: "Example", action: "notice.layout.missing" } );
+        renders.push( service.render( "task-new", ANNA, TASK ).html );
+        for ( const html of renders ) {
+            for ( const tag of startTags( html ) ) {
+                const properties = Object.keys( tag.style );
+                if ( [ "table", "tr", "td" ].includes( tag.name ) ) {
+                    assert.deepEqual( properties.filter( ( property ) => property.startsWith( "margin" ) ), [], `a margin on a <${ tag.name }>, which Word ignores` );
+                }
+                if ( properties.some( ( property ) => property.startsWith( "padding" ) ) && ![ "td", "body" ].includes( tag.name ) ) {
+                    assert.equal( tag.style[ "mso-padding-alt" ], "0", `padding on a <${ tag.name }> that Word does not draw and the layout relies on` );
+                }
+            }
+        }
+        const { wrapper } = buttonParts( renders[ 1 ], "Отворете приложението" );
+        assert.equal( wrapper.style.padding, "24px 0 0", "the gap above the button is the padding of the cell around it" );
+    } );
+
     it( "refuses a colour or a font that could break out of the style it lands in", () => {
         const service = serviceWith( fakeTransport() );
         assert.throws( () => service.setLayout( { colors: { brand: "red;background:url(https://x.example/p.png)" } } ) );

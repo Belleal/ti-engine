@@ -327,6 +327,15 @@ application's (CA-488). What it needs from the framework is below; the framework
     than the wordmark.
   - **Tables and inline styles**, because Gmail drops a `<style>` block in some views and Outlook on Windows renders
     with Word. `color-scheme: light`, so a client recolouring for dark mode leaves the brand alone.
+  - **The button was not one Word draws** until 1.54.2 (CA-516). Its gap was a margin on its table and its padding
+    was the link's, and Word drew neither: a user's Outlook showed a bare block with its label on the bottom edge.
+    It is now MJML's `mj-button` structure:
+    - the gap is padding on a cell around the button;
+    - the button's cell holds the padding for Word in `mso-padding-alt`, and the link keeps its own for every other
+      client, with `mso-padding-alt:0` for Word;
+    - the cell states the label's size and line height.
+
+    It is byte-identical in Chromium. It was not checked in Outlook.
   - **Nothing is fetched when it opens.** An image was the alternative, and rejected: Outlook hides it until allowed,
     and every open would request it from the application, telling it who opened what and when. That is the tracking
     1.52.0 ruled out.
