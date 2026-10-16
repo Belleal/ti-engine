@@ -486,7 +486,8 @@ await notifications.emit( "task.created", { key: "review:" + taskID + ":" + owne
   `render` returns them as `attachments: [ { filename, type, disposition: "attachment", content } ]`, the content
   base64 of its UTF-8 bytes, and the message sent carries them. They are built from the notice's data at send time,
   like the texts, so build them from the data alone: a retry renders again, and must attach the same file. At most 10
-  files and 3 MiB together; a name in plain ASCII with no path, quote or line break; a type in RFC 2045 tokens. A
+  files and 3 MiB together, none empty; a name in plain ASCII with no path, quote or line break; a type in RFC 2045
+  tokens, with only a space or a tab around a `;`. A
   notice whose files break those rules is given up as `E_NOTICE_ATTACHMENT_INVALID`, not retried. A notice that
   attaches nothing has no `attachments` key at all.
 

@@ -714,6 +714,8 @@ describe( "container — the mail relay (CA-486)", () => {
             file( { filename: "интервю.ics" } ),
             file( { type: "text/calendar; method=\"PUBLISH\"" } ),
             file( { type: "text/calendar\r\nBcc: someone@example.com" } ),
+            file( { type: "text/calendar\r\n; method=PUBLISH" } ),
+            file( { type: "text/calendar;\n method=PUBLISH" } ),
             file( { content: "BEGIN:VCALENDAR" } ),
             file( { content: "QUJD=" } ),
             file( { content: "" } ),

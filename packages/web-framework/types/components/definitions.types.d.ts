@@ -241,7 +241,7 @@ export type TiNoticeAttachment = {
      */
     type: string;
     /**
-     * The file as text; it is sent as its UTF-8 bytes.
+     * The file as text, not empty; it is sent as its UTF-8 bytes.
      */
     content: string;
 };
@@ -620,7 +620,7 @@ export type TiJobsReport = {
  * @property {string} filename Plain ASCII, starting with a letter or digit, at most 100 characters, with no path
  *           separator, quote or line break.
  * @property {string} type The media type, with parameters if any, in RFC 2045 tokens.
- * @property {string} content The file as text; it is sent as its UTF-8 bytes.
+ * @property {string} content The file as text, not empty; it is sent as its UTF-8 bytes.
  */
 /**
  * Edited notice texts, by label key and then language: `{ "notice.task-new.subject": { "bg": "…" } }`. Only what an

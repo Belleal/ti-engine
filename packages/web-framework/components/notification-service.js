@@ -137,11 +137,12 @@ const ATTACHMENT_FILENAME = /^[A-Za-z0-9][A-Za-z0-9._ -]{0,99}$/;
 
 /**
  * A media type with optional parameters, such as `text/calendar; charset=utf-8; method=PUBLISH`, in RFC 2045 tokens
- * only: a quote, a line break or a stray `;` would end up inside the part's `Content-Type` header.
+ * only: a quote, a line break or a stray `;` would end up inside the part's `Content-Type` header. Only a space or a
+ * tab may stand around a `;`: `\s` would let `text/calendar\r\n; method=PUBLISH` through, a line break in the header.
  *
  * @type {RegExp}
  */
-const ATTACHMENT_TYPE = /^[A-Za-z0-9!#$&^_.+-]+\/[A-Za-z0-9!#$&^_.+-]+(\s*;\s*[A-Za-z0-9!#$&^_.+-]+=[A-Za-z0-9!#$&^_.+-]+)*$/;
+const ATTACHMENT_TYPE = /^[A-Za-z0-9!#$&^_.+-]+\/[A-Za-z0-9!#$&^_.+-]+([ \t]*;[ \t]*[A-Za-z0-9!#$&^_.+-]+=[A-Za-z0-9!#$&^_.+-]+)*$/;
 
 /**
  * What a log line may carry of a failure: its kind and its code, never its message or its data. A store error can carry
@@ -346,7 +347,8 @@ function layoutHTML( { language, subject, paragraphs, url, action, footer, layou
  * `disposition: "attachment"` and its text as base64 of its UTF-8 bytes. An empty or absent list is no files.
  * <br/>
  * A notice that returns a malformed file is a defect in the application, not in the delivery, so it fails the notice
- * permanently rather than being retried into the same answer.
+ * permanently rather than being retried into the same answer. An empty file is malformed too: the relay refuses empty
+ * content, and failing here names the notice's own defect instead of the relay's answer.
  *
  * @method
  * @param {*} files What `attachments` returned.
@@ -365,7 +367,7 @@ function encodeAttachments( files, kind ) {
     let bytes = 0;
     return files.map( ( file ) => {
         if ( !file || typeof file !== "object" || typeof file.filename !== "string" || !ATTACHMENT_FILENAME.test( file.filename )
-            || typeof file.type !== "string" || !ATTACHMENT_TYPE.test( file.type ) || typeof file.content !== "string" ) {
+            || typeof file.type !== "string" || !ATTACHMENT_TYPE.test( file.type ) || typeof file.content !== "string" || file.content === "" ) {
             throw transports.transportError( "E_NOTICE_ATTACHMENT_INVALID", false, kind );
         }
         const content = Buffer.from( file.content, "utf8" );

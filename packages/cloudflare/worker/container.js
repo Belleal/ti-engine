@@ -285,12 +285,13 @@ const MAIL_MAX_ATTACHMENT_BASE64 = 4 * 1024 * 1024;
 const MAIL_ATTACHMENT_FILENAME = /^[A-Za-z0-9][A-Za-z0-9._ -]{0,99}$/;
 
 /**
- * A media type with optional parameters, in RFC 2045 tokens only, so nothing in it can end the part's header.
+ * A media type with optional parameters, in RFC 2045 tokens only, so nothing in it can end the part's header. Only a
+ * space or a tab may stand around a `;`: `\s` would let a line break through.
  *
  * @type {RegExp}
  * @private
  */
-const MAIL_ATTACHMENT_TYPE = /^[A-Za-z0-9!#$&^_.+-]+\/[A-Za-z0-9!#$&^_.+-]+(\s*;\s*[A-Za-z0-9!#$&^_.+-]+=[A-Za-z0-9!#$&^_.+-]+)*$/;
+const MAIL_ATTACHMENT_TYPE = /^[A-Za-z0-9!#$&^_.+-]+\/[A-Za-z0-9!#$&^_.+-]+([ \t]*;[ \t]*[A-Za-z0-9!#$&^_.+-]+=[A-Za-z0-9!#$&^_.+-]+)*$/;
 
 /**
  * Standard base64, padded: what the binding takes as a file's content when it is a string.

@@ -17,7 +17,7 @@ such change is called out here.
   * **Refused as `400 E_MAIL_INVALID`:**
     * a list that is empty or holds more than 10 files;
     * a name that is not plain ASCII or holds a path, quote or line break;
-    * a type that is not RFC 2045 tokens;
+    * a type that is not RFC 2045 tokens, with only a space or a tab around a `;`;
     * content that is not padded base64;
     * a disposition other than `attachment`;
     * more than 4 MiB of base64 together.

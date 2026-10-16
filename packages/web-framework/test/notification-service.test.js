@@ -543,8 +543,11 @@ describe( "attachments", () => {
             file( { filename: "" } ),
             file( { type: "text/calendar; method=\"PUBLISH\"" } ),
             file( { type: "text/calendar\r\nBcc: someone@example.com" } ),
+            file( { type: "text/calendar\r\n; method=PUBLISH" } ),
+            file( { type: "text/calendar;\n method=PUBLISH" } ),
             file( { type: "calendar" } ),
             file( { content: Buffer.from( "x" ) } ),
+            file( { content: "" } ),
             () => "interview.ics",
             () => Array.from( { length: 11 }, () => ( { filename: "a.txt", type: "text/plain", content: "a" } ) ),
             () => [ { filename: "a.txt", type: "text/plain", content: "a".repeat( 3 * 1024 * 1024 ) }, { filename: "b.txt", type: "text/plain", content: "b" } ]
@@ -559,6 +562,13 @@ describe( "attachments", () => {
         assert.equal( ( await service.drain() ).failed, 1 );
         assert.equal( transport.sent.length, 0 );
         assert.equal( doneEntries()[ 0 ].value.code, "E_NOTICE_ATTACHMENT_INVALID" );
+    } );
+
+    it( "takes a space or a tab around a type's separators", () => {
+        for ( const type of [ "text/calendar;method=PUBLISH", "text/calendar ; method=PUBLISH", "text/calendar;\tcharset=utf-8" ] ) {
+            const service = serviceWithCalendar( fakeTransport(), () => [ { filename: "interview.ics", type: type, content: "x" } ] );
+            assert.equal( service.render( "with-file", ANNA, TASK ).attachments[ 0 ].type, type );
+        }
     } );
 
     it( "takes a file of exactly the size limit, and a name of exactly 100 characters", () => {

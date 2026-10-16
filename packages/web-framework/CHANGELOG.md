@@ -18,12 +18,12 @@ This document will contain the list of changes made to the framework. The format
     * the list holds more than 10 files, or more than 3 MiB together. That is 4 MiB once encoded, under Email
       Service's 5 MiB per message;
     * a name is not plain ASCII, or holds a path, quote or line break;
-    * a type is not RFC 2045 tokens;
-    * the content is not text.
+    * a type is not RFC 2045 tokens, with only a space or a tab around a `;`;
+    * the content is not text, or is empty: the relay refuses an empty file, so the notice fails at its source.
   * **A notice without files is unchanged:** its rendering and its message have no `attachments` key at all.
 * docs(web-framework): the README's *E-mail notices* section describes attachments.
 
-Tests: 7 new (990 in the package), in `notification-service.test.js`, and 6 of them fail on 1.54.2. The seventh is the
+Tests: 8 new (991 in the package), in `notification-service.test.js`, and 7 of them fail on 1.54.2. The eighth is the
 guard that a notice without files stays as it was.
 
 ## Version 1.54.2
