@@ -2,6 +2,36 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.54.2
+
+* fix(notifications): **the e-mail's button is one Outlook on Windows draws too** (CA-516).
+  * **What was wrong.** A user's screenshot of a task e-mail, very likely from Outlook on Windows, showed the button
+    as a bare block. The label had no padding beside it and sat on the block's bottom edge, and the block butted
+    against the paragraph above. That Outlook lays mail out with Word. The button kept its gap as `margin` on a
+    `<table>`, and its padding on the `<a>` with `display:inline-block`, and Word drew none of the three.
+  * **Why it survived.** Every browser and modern client honours all three, so the button looked right everywhere it
+    was checked. Nothing here can run Word.
+  * **Now.** The button is a "bulletproof" one, the structure MJML's `mj-button` emits:
+    * The gap above it is `padding:24px 0 0` on a cell around the button, not a margin on its table.
+    * The button's cell holds its padding for Word in `mso-padding-alt`, which only Word reads. The link keeps its
+      own padding for every other client, so the whole button stays clickable there.
+    * The link's `mso-padding-alt:0` keeps Word from adding part of its padding on top of the cell's.
+    * The cell states the label's size and line height (15px, 18px), so the line Word sets in it is the label's and
+      leaves no space above the text.
+    * Plain `padding` on the cell was rejected: it would double the link's padding everywhere but Word, and dropping
+      the link's would leave only the label clickable in every client.
+  * **Measured in Chromium**, rendered by `render()` with a branded layout and its Bulgarian and English labels:
+    full-page screenshots before and after are byte-identical at 1024, 600 and 375 px. Every part's box is
+    unchanged, and a click at the button's inside corners still lands on the link. A 1px change to the gap or to the
+    cell's padding does change the screenshot, so the comparison would have caught one. **Not verified in Outlook**,
+    which cannot run here.
+  * Nothing else in the layout had the same defect. Every other gap is padding on a cell, or a margin on a `<p>`,
+    and no other link carries padding.
+
+Tests: 2 new (983 in the package), in `notification-service.test.js`, and both fail on 1.54.1's layout. One holds the
+button's parts to the structure above. The other sweeps every rendered layout: no margin on a table, row or cell, and
+padding only on a cell or the body, unless Word is told to drop it.
+
 ## Version 1.54.1
 
 * fix(auth): **signing out loads the page, so nothing of the signed-in one is left in memory** (CA-498).

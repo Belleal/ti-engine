@@ -151,6 +151,9 @@ const DEFAULT_COLORS = Object.freeze( {
 const DEFAULT_WORDMARK_FONT = "Georgia, 'Times New Roman', serif";
 const BODY_FONT = "-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
 
+// The button's padding, once: the link carries it for every client but Word, and the cell carries it for Word.
+const BUTTON_PADDING = "12px 22px";
+
 // What an application may put in a layout. A colour or a font family lands inside a `style` attribute, so anything
 // that could close the attribute or start another declaration is refused rather than escaped.
 const COLOR_PATTERN = /^#(?:[0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/;
@@ -272,7 +275,17 @@ function layoutHTML( { language, subject, paragraphs, url, action, footer, layou
     }
     const body = paragraphs.map( ( paragraph, index ) => `<p style="margin:${ index === 0 ? "0" : "16px" } 0 0;">${ asHTML( paragraph ) }</p>` );
     if ( url && action ) {
-        body.push( `<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:24px 0 0;"><tr><td style="background-color:${ colors.brand };border-radius:3px;"><a href="${ escapeHTML( url ) }" style="display:inline-block;padding:12px 22px;font-family:${ BODY_FONT };font-size:15px;font-weight:600;line-height:1.2;color:${ colors.brandText };text-decoration:none;">${ escapeHTML( action ) }</a></td></tr></table>` );
+        // Word, which lays mail out in Outlook on Windows, ignores a margin on a table and a link's padding and
+        // inline-block, and drew this button as a bare block, its label on the bottom edge, flush against the paragraph
+        // above. So the gap is padding on a cell around the button, and the cell holds the button's padding for Word in
+        // `mso-padding-alt`, which only Word reads: plain padding there would double the link's everywhere else, where
+        // the link's own keeps the whole button clickable. The link's `mso-padding-alt:0` keeps Word from adding part
+        // of its padding to the cell's, and the cell states the label's size and line height, so Word sets the label's
+        // line there and leaves no space above it.
+        body.push( `<table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr><td style="padding:24px 0 0;">`
+            + `<table role="presentation" cellspacing="0" cellpadding="0" border="0"><tr><td style="background-color:${ colors.brand };border-radius:3px;mso-padding-alt:${ BUTTON_PADDING };font-size:15px;line-height:18px;">`
+            + `<a href="${ escapeHTML( url ) }" style="display:inline-block;padding:${ BUTTON_PADDING };mso-padding-alt:0;font-family:${ BODY_FONT };font-size:15px;font-weight:600;line-height:1.2;color:${ colors.brandText };text-decoration:none;">${ escapeHTML( action ) }</a>`
+            + "</td></tr></table></td></tr></table>" );
         body.push( `<p style="margin:16px 0 0;font-size:13px;line-height:1.5;color:${ colors.muted };word-break:break-all;"><a href="${ escapeHTML( url ) }" style="color:${ colors.muted };">${ escapeHTML( url ) }</a></p>` );
     } else if ( url ) {
         body.push( `<p style="margin:16px 0 0;"><a href="${ escapeHTML( url ) }" style="color:${ colors.brand };">${ escapeHTML( url ) }</a></p>` );
