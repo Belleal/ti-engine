@@ -481,6 +481,14 @@ await notifications.emit( "task.created", { key: "review:" + taskID + ":" + owne
   own settings, validated by its schema. `getOptions()` reads them over the defaults, one key at a time.
 * **A test send.** `sendTest( kind, recipient, data, texts )` sends one rendered notice through the transport, past the
   outbox and the ledger, so nothing records it and it never stops the real one.
+* **Attachments.** A notice may declare `attachments: ( data, language, label ) => [ { filename, type, content } ]`,
+  such as a calendar entry (`interview.ics`, `text/calendar; charset=utf-8; method=PUBLISH`), with `content` as text.
+  `render` returns them as `attachments: [ { filename, type, disposition: "attachment", content } ]`, the content
+  base64 of its UTF-8 bytes, and the message sent carries them. They are built from the notice's data at send time,
+  like the texts, so build them from the data alone: a retry renders again, and must attach the same file. At most 10
+  files and 3 MiB together; a name in plain ASCII with no path, quote or line break; a type in RFC 2045 tokens. A
+  notice whose files break those rules is given up as `E_NOTICE_ATTACHMENT_INVALID`, not retried. A notice that
+  attaches nothing has no `attachments` key at all.
 
 ## Scheduled jobs
 

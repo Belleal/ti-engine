@@ -98,7 +98,7 @@ declare class NotificationService {
      * @param {string} kind The notice's name, which rules refer to.
      * @param {TiNoticeDefinition} definition
      * @returns {NotificationService} this
-     * @throws {TiException.E_GEN_INVALID_ARGUMENT_TYPE} On a missing name or label key, a link or format that is not a function, or placeholders or labels that are not lists of names.
+     * @throws {TiException.E_GEN_INVALID_ARGUMENT_TYPE} On a missing name or label key, a link, format or attachments that is not a function, or placeholders or labels that are not lists of names.
      * @public
      */
     registerNotice(kind: string, definition: TiNoticeDefinition): NotificationService;
@@ -287,6 +287,9 @@ declare class NotificationService {
      * <br/>
      * Each text is the edited one when `texts` holds it, else the shipped label. The dispatcher passes the document's
      * edits; an editor passes its unsaved ones to preview them exactly as they would be sent.
+     * <br/>
+     * A notice that declares `attachments` also renders its files, encoded for the message; one that returns none has
+     * no `attachments` at all, as before.
      *
      * @method
      * @param {string} kind A registered notice.
@@ -294,7 +297,7 @@ declare class NotificationService {
      * @param {Object} [data]
      * @param {TiNoticeTexts} [texts] Edited texts, by label key and language.
      * @returns {TiRenderedNotice}
-     * @throws {Error} With `code` `E_NOTICE_UNKNOWN` or `E_NOTICE_LABEL_MISSING`, and `transient` false.
+     * @throws {Error} With `code` `E_NOTICE_UNKNOWN`, `E_NOTICE_LABEL_MISSING` or `E_NOTICE_ATTACHMENT_INVALID`, and `transient` false.
      * @public
      */
     render(kind: string, recipient: TiNotificationRecipient | {

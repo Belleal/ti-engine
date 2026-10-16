@@ -479,6 +479,101 @@ describe( "render", () => {
 
 } );
 
+describe( "attachments", () => {
+
+    // A calendar entry as an application would build one: in the reader's language, from the notice's data alone.
+    const CALENDAR = Object.freeze( { filename: "interview.ics", type: "text/calendar; charset=utf-8; method=PUBLISH" } );
+    const calendarOf = ( data, language, label ) => [ {
+        filename: CALENDAR.filename,
+        type: CALENDAR.type,
+        content: "BEGIN:VCALENDAR\r\nSUMMARY:" + label( "notice.task-name." + data.task ) + " " + data.itemID + "\r\nLANGUAGE:" + language + "\r\nEND:VCALENDAR\r\n"
+    } ];
+    const decoded = ( attachment ) => Buffer.from( attachment.content, "base64" ).toString( "utf8" );
+
+    function serviceWithCalendar( transport, attachments = calendarOf ) {
+        const service = serviceWith( transport );
+        service.registerNotice( "with-file", { subject: "notice.task-new.subject", text: "notice.task-new.text", format: ( data ) => data, attachments: attachments } );
+        return service;
+    }
+
+    it( "renders the files a notice attaches, in the reader's language, as base64 of their UTF-8 bytes", () => {
+        const service = serviceWithCalendar( fakeTransport() );
+        const bg = service.render( "with-file", ANNA, TASK );
+        assert.deepEqual( bg.attachments.map( ( file ) => [ file.filename, file.type, file.disposition ] ), [ [ CALENDAR.filename, CALENDAR.type, "attachment" ] ] );
+        assert.equal( decoded( bg.attachments[ 0 ] ), "BEGIN:VCALENDAR\r\nSUMMARY:преглед I-7\r\nLANGUAGE:bg\r\nEND:VCALENDAR\r\n" );
+        assert.match( bg.attachments[ 0 ].content, /^[A-Za-z0-9+/]+={0,2}$/ );
+        assert.match( decoded( service.render( "with-file", BORIS, TASK ).attachments[ 0 ] ), /SUMMARY:review I-7\r\nLANGUAGE:en/ );
+    } );
+
+    it( "sends them with the message, and a retry sends the same file", async () => {
+        const transport = fakeTransport( [ "E_DELIVERY_FAILED" ] );
+        const service = serviceWithCalendar( transport );
+        await service.notify( { kind: "with-file", key: "k", recipient: ANNA, data: TASK } );
+        assert.equal( ( await service.drain() ).retrying, 1 );
+        service.clock.now += 61 * 1000;
+        assert.equal( ( await service.drain() ).sent, 1 );
+        assert.equal( transport.sent.length, 2 );
+        assert.deepEqual( transport.sent[ 1 ].attachments, transport.sent[ 0 ].attachments );
+        assert.equal( decoded( transport.sent[ 0 ].attachments[ 0 ] ), decoded( service.render( "with-file", ANNA, TASK ).attachments[ 0 ] ) );
+    } );
+
+    it( "leaves a message without files as it was: no attachments key at all", async () => {
+        const transport = fakeTransport();
+        const service = serviceWithCalendar( transport, () => [] );
+        assert.equal( "attachments" in service.render( "with-file", ANNA, TASK ), false );
+        assert.equal( "attachments" in service.render( "task-new", ANNA, TASK ), false );
+        await service.notify( { kind: "task-new", key: "k", recipient: ANNA, data: TASK } );
+        await service.drain();
+        assert.equal( "attachments" in transport.sent[ 0 ], false );
+    } );
+
+    it( "carries them in a test send too", async () => {
+        const transport = fakeTransport();
+        const service = serviceWithCalendar( transport );
+        await service.sendTest( "with-file", ANNA, TASK );
+        assert.equal( transport.sent[ 0 ].attachments[ 0 ].filename, CALENDAR.filename );
+    } );
+
+    it( "refuses a malformed file, and gives the notice up rather than retrying it into the same answer", async () => {
+        const file = ( change ) => () => [ Object.assign( { filename: "interview.ics", type: "text/calendar", content: "x" }, change ) ];
+        const malformed = [
+            file( { filename: "../interview.ics" } ),
+            file( { filename: "interview\r\n.ics" } ),
+            file( { filename: "интервю.ics" } ),
+            file( { filename: "" } ),
+            file( { type: "text/calendar; method=\"PUBLISH\"" } ),
+            file( { type: "text/calendar\r\nBcc: someone@example.com" } ),
+            file( { type: "calendar" } ),
+            file( { content: Buffer.from( "x" ) } ),
+            () => "interview.ics",
+            () => Array.from( { length: 11 }, () => ( { filename: "a.txt", type: "text/plain", content: "a" } ) ),
+            () => [ { filename: "a.txt", type: "text/plain", content: "a".repeat( 3 * 1024 * 1024 ) }, { filename: "b.txt", type: "text/plain", content: "b" } ]
+        ];
+        for ( const attachments of malformed ) {
+            const service = serviceWithCalendar( fakeTransport(), attachments );
+            assert.throws( () => service.render( "with-file", ANNA, TASK ), ( error ) => error.code === "E_NOTICE_ATTACHMENT_INVALID" && error.transient === false, String( attachments ) );
+        }
+        const transport = fakeTransport();
+        const service = serviceWithCalendar( transport, file( { filename: "../interview.ics" } ) );
+        await service.notify( { kind: "with-file", key: "k", recipient: ANNA, data: TASK } );
+        assert.equal( ( await service.drain() ).failed, 1 );
+        assert.equal( transport.sent.length, 0 );
+        assert.equal( doneEntries()[ 0 ].value.code, "E_NOTICE_ATTACHMENT_INVALID" );
+    } );
+
+    it( "takes a file of exactly the size limit, and a name of exactly 100 characters", () => {
+        const service = serviceWithCalendar( fakeTransport(), () => [ { filename: "a".repeat( 96 ) + ".txt", type: "text/plain", content: "a".repeat( 3 * 1024 * 1024 ) } ] );
+        assert.equal( service.render( "with-file", ANNA, TASK ).attachments.length, 1 );
+    } );
+
+    it( "refuses an attachments that is not a function at registration", () => {
+        const service = serviceWith( fakeTransport() );
+        assert.throws( () => service.registerNotice( "bad", { subject: "notice.task-new.subject", text: "notice.task-new.text", attachments: [ CALENDAR ] } ),
+            ( error ) => error.code === exceptions.exceptionCode.E_GEN_INVALID_ARGUMENT_TYPE );
+    } );
+
+} );
+
 describe( "events and rules", () => {
 
     const RULES = Object.freeze( {
