@@ -1104,8 +1104,10 @@ acted on). What follows is only what is specific to *this* repository's gates.
   one that bites documentation edits; only the violations inside your diff get flagged, so a file with pre-existing
   ones is not your problem unless you touch those lines.
   <br/>
-  **None of this applies in `Belleal/competence`** — CodeRabbit does not run there at all, so nothing but CI and a
-  human reviews a PR in that repository. Do not carry the expectation across.
+  **None of this applies in `Belleal/competence`**, where CodeRabbit is unavailable for now (`CLAUDE.md` → *Pull
+  requests*). That repository is private and on CodeRabbit's free plan, which posts a summary or a *"Review limit
+  reached"* notice and never a line review (competence #164, 2026-10-16); the paid plan is not taken. Nothing but CI
+  and a human reviews a PR there. Do not carry the expectation across.
 - CI also runs **CodeQL**, a Debricked vulnerability scan, `lint-and-test` and `docker-build`.
 - **Tag pushes are rejected for agent sessions** (HTTP 403 on the tag ref) even though branch pushes succeed, so a
   `<package>-v<version>` release tag — which `npm-publish.yml` creates itself on a successful publish — cannot be

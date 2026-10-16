@@ -145,6 +145,12 @@ prose that fits the change, covering:
 - **verification** — commands, counts, measured before/after
 - **what was deliberately not done**, and why
 
+**CodeRabbit is unavailable in `Belleal/competence` for now** (Boris, 2026-10-16). That repository is private, and
+CodeRabbit's free plan there posts a summary or a *"Review limit reached"* notice but never a line review; the paid
+plan it asks for is not taken. So a competence PR is reviewed by CI, by your own adversarial re-read of the diff
+before pushing, and by Boris. Do not wait for a bot pass that is not coming, and a notice from it needs no reply.
+It does review `Belleal/ti-engine`, which is public.
+
 **CodeRabbit is a reviewer, not an oracle.** Verify every finding against the code before acting: this session it
 raised two, one of which was a real copy of a helper nobody had noticed, and one whose premise (`trust proxy` off)
 did not hold. Fix the real ones; when declining, reply with the measurement that settles it rather than an opinion.
