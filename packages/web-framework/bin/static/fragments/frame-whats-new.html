@@ -1,0 +1,79 @@
+<!--
+    What's new: the notes new in the release this deployment runs, then the earlier ones by version, as the server picks
+    them for the reader - their audience, their language, and a link only to a screen they may open. Opening the screen
+    marks the release seen, which ends any reminder bound to the tiWhatsNew store.
+
+    The English on each element is what shows where the application's catalogue has no text for its key.
+
+    Alpine runs in CSP mode: no inline style attributes and no optional chaining in expressions - the shaping is done
+    in tiScreenWhatsNew before the values reach the template.
+-->
+<div class="ti-page ti-whats-new" x-data="tiScreenWhatsNew">
+
+    <div class="ti-page-head">
+        <div class="ti-page-eyebrow" x-text-label="interface.whats-new.eyebrow">Updates</div>
+        <h1 class="ti-page-title"><span x-text="pageTitle.before">What's new</span><em x-text="pageTitle.em"></em><span x-text="pageTitle.after"></span></h1>
+        <p class="ti-page-subtitle" x-text-label="interface.whats-new.intro">What each release changed for you, in plain words.</p>
+        <p class="ti-whats-new-meta" x-show="release" x-text="updatedText"></p>
+    </div>
+
+    <template x-if="busy">
+        <div class="ti-empty-state">
+            <div class="ti-empty-state-title" x-text-label="interface.whats-new.loading">Loading what's new…</div>
+        </div>
+    </template>
+
+    <template x-if="loaded">
+        <div class="ti-whats-new-body">
+
+            <section class="ti-panel ti-whats-new-release is-fresh" aria-labelledby="ti-whats-new-fresh-title">
+                <h2 class="ti-whats-new-heading" id="ti-whats-new-fresh-title" x-text-label="interface.whats-new.fresh-title">New in this release</h2>
+                <template x-if="!hasFresh()">
+                    <p class="ti-whats-new-empty" x-text-label="interface.whats-new.fresh-empty">Nothing in this release changes what you do.</p>
+                </template>
+                <ul class="ti-whats-new-notes">
+                    <template x-for="note in fresh" x-bind:key="noteKey( note )">
+                        <li class="ti-whats-new-note">
+                            <span class="ti-tag" x-bind:class="kindClass( note )" x-text="kindText( note )"></span>
+                            <div class="ti-whats-new-note-body">
+                                <h3 class="ti-whats-new-note-title" x-text="note.title"></h3>
+                                <p class="ti-whats-new-note-text" x-text="note.text"></p>
+                                <template x-if="canOpen( note )">
+                                    <button type="button" class="ti-btn sm ti-whats-new-open" @click="open( note )" x-text="openText( note )"></button>
+                                </template>
+                            </div>
+                        </li>
+                    </template>
+                </ul>
+            </section>
+
+            <!-- Earlier releases: each version that has a note for the reader, newest first. -->
+            <template x-if="hasEarlier()">
+                <section class="ti-whats-new-earlier" aria-labelledby="ti-whats-new-earlier-title">
+                    <h2 class="ti-whats-new-heading" id="ti-whats-new-earlier-title" x-text-label="interface.whats-new.earlier-title">Earlier releases</h2>
+                    <template x-for="entry in earlier" x-bind:key="entry.version">
+                        <div class="ti-panel ti-whats-new-release">
+                            <h3 class="ti-whats-new-version" x-text="releaseText( entry )"></h3>
+                            <ul class="ti-whats-new-notes">
+                                <template x-for="note in entry.notes" x-bind:key="noteKey( note )">
+                                    <li class="ti-whats-new-note">
+                                        <span class="ti-tag" x-bind:class="kindClass( note )" x-text="kindText( note )"></span>
+                                        <div class="ti-whats-new-note-body">
+                                            <h4 class="ti-whats-new-note-title" x-text="note.title"></h4>
+                                            <p class="ti-whats-new-note-text" x-text="note.text"></p>
+                                            <template x-if="canOpen( note )">
+                                                <button type="button" class="ti-btn sm ti-whats-new-open" @click="open( note )" x-text="openText( note )"></button>
+                                            </template>
+                                        </div>
+                                    </li>
+                                </template>
+                            </ul>
+                        </div>
+                    </template>
+                </section>
+            </template>
+
+        </div>
+    </template>
+
+</div>

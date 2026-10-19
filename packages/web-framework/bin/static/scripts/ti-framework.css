@@ -401,6 +401,24 @@ body {
     mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cline x1='18' y1='20' x2='18' y2='10'/%3E%3Cline x1='12' y1='20' x2='12' y2='4'/%3E%3Cline x1='6' y1='20' x2='6' y2='14'/%3E%3C/svg%3E");
 }
 
+/* What's new (1.56.0): a four-point spark and a small one beside it. */
+.ti-icon.sparkle {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10 4l1.6 4.9L16.5 10.5l-4.9 1.6L10 17l-1.6-4.9L3.5 10.5l4.9-1.6zM18 14v6M15 17h6'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10 4l1.6 4.9L16.5 10.5l-4.9 1.6L10 17l-1.6-4.9L3.5 10.5l4.9-1.6zM18 14v6M15 17h6'/%3E%3C/svg%3E");
+}
+
+/* Feedback (1.56.0): a tray for the administrators' list, and a speech bubble for sending it. The framework's `send`
+   reads as a play triangle at menu size. */
+.ti-icon.inbox {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 13l2.5-7h11L20 13v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1zM4 13h4.5l1 2h5l1-2H20'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 13l2.5-7h11L20 13v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1zM4 13h4.5l1 2h5l1-2H20'/%3E%3C/svg%3E");
+}
+
+.ti-icon.message {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 5h14a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-8l-4 3.5V16H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zM8 9.5h8M8 12.5h5'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 5h14a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-8l-4 3.5V16H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zM8 9.5h8M8 12.5h5'/%3E%3C/svg%3E");
+}
+
 .ti-main {
     display: flex;
     flex-direction: column;
@@ -4104,4 +4122,432 @@ html.ti-busy .ti-busy-indicator-glyph {
     height: 8px;
     padding: 0;
     font-size: 0;
+}
+
+/* ---------- What's new (1.56.0, CA-528) ----------
+   The screen: a panel for the release this deployment runs, then one per earlier version. A note is its kind's tag
+   beside its title, text and link; notes are parted by a hairline, not boxed, so a release reads as one list. */
+.ti-whats-new-meta {
+    margin: 6px 0 0;
+    font-size: var(--fs-sm);
+    color: var(--fg-tertiary);
+}
+
+.ti-whats-new-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-5);
+    max-width: 880px;
+}
+
+.ti-whats-new-release {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-2);
+    padding: 20px 24px 8px;
+}
+
+.ti-whats-new-release.is-fresh {
+    border-top: 3px solid var(--accent);
+}
+
+.ti-whats-new-earlier {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-3);
+}
+
+.ti-whats-new-heading {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 500;
+    color: var(--fg-primary);
+}
+
+.ti-whats-new-version {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    color: var(--fg-tertiary);
+}
+
+.ti-whats-new-empty {
+    margin: 0;
+    font-size: var(--fs-sm);
+    color: var(--fg-secondary);
+}
+
+.ti-whats-new-notes {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.ti-whats-new-note {
+    display: grid;
+    grid-template-columns: 96px minmax(0, 1fr);
+    gap: 4px 14px;
+    align-items: start;
+    padding: 14px 0;
+    border-top: 1px solid var(--border-soft);
+}
+
+.ti-whats-new-note:first-child {
+    border-top: 0;
+}
+
+.ti-whats-new-note > .ti-tag {
+    justify-self: start;
+    margin-top: 2px;
+}
+
+.ti-whats-new-note-body {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    min-width: 0;
+}
+
+.ti-whats-new-note-title {
+    margin: 0;
+    font-size: var(--fs-base);
+    font-weight: 600;
+    line-height: 1.35;
+    color: var(--fg-primary);
+}
+
+.ti-whats-new-note-text {
+    margin: 0;
+    font-size: var(--fs-sm);
+    line-height: 1.55;
+    color: var(--fg-secondary);
+    overflow-wrap: anywhere;
+}
+
+.ti-whats-new-open {
+    margin-top: 2px;
+}
+
+/* A dashboard's notice, for an application that places one: the spark, what is new, and the two ways to end it. */
+.ti-whats-new-notice {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: var(--s-4);
+    padding: 12px 14px 12px 18px;
+    border-left: 3px solid var(--accent);
+}
+
+.ti-whats-new-notice-icon {
+    display: inline-flex;
+    color: var(--accent);
+}
+
+.ti-whats-new-notice-body {
+    min-width: 0;
+}
+
+.ti-whats-new-notice-title {
+    margin: 0;
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    color: var(--fg-primary);
+}
+
+.ti-whats-new-notice-text {
+    margin: 2px 0 0;
+    font-size: var(--fs-sm);
+    color: var(--fg-secondary);
+    overflow-wrap: anywhere;
+}
+
+.ti-whats-new-notice-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+@media ( max-width: 640px ) {
+    .ti-whats-new-release {
+        padding: 16px 16px 4px;
+    }
+
+    .ti-whats-new-note {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .ti-whats-new-notice {
+        grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    .ti-whats-new-notice-actions {
+        grid-column: 1 / -1;
+        justify-content: flex-end;
+    }
+}
+
+/* ---------- Feedback (1.56.0, CA-528) ----------
+   Send Feedback: the four kinds as choices, the text, the context a problem carries, and the anonymous switch. The
+   administrators' list: one panel per item, its kind, sender, date and status on one line above the text. */
+.ti-feedback-form,
+.ti-feedback-sent {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-3);
+    max-width: 760px;
+    padding: 22px 24px;
+}
+
+.ti-feedback-label {
+    margin: 0;
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    color: var(--fg-primary);
+}
+
+.ti-feedback-kinds {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+}
+
+.ti-feedback-kind {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 2px 8px;
+    align-items: start;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+    background: var(--bg-surface);
+    cursor: pointer;
+}
+
+/* The chosen kind, read from the DOM: a class bound per option would need a reactive read per radio. */
+.ti-feedback-kind:has( input:checked ) {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+}
+
+.ti-feedback-kind input {
+    margin: 2px 0 0;
+    accent-color: var(--accent);
+}
+
+.ti-feedback-kind-name {
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    color: var(--fg-primary);
+}
+
+.ti-feedback-kind-hint {
+    grid-column: 2;
+    font-size: var(--fs-xs);
+    line-height: 1.4;
+    color: var(--fg-secondary);
+}
+
+.ti-feedback-text {
+    width: 100%;
+}
+
+.ti-feedback-remaining {
+    margin-top: -6px;
+    font-size: var(--fs-xs);
+    color: var(--fg-tertiary);
+    text-align: right;
+}
+
+.ti-feedback-context {
+    margin: 0;
+    padding: 10px 12px;
+    border-radius: var(--r-sm);
+    background: var(--bg-sunken);
+    font-size: var(--fs-sm);
+    line-height: 1.5;
+    color: var(--fg-secondary);
+}
+
+.ti-feedback-anonymous {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    cursor: pointer;
+}
+
+.ti-feedback-anonymous input {
+    margin: 3px 0 0;
+    accent-color: var(--accent);
+}
+
+.ti-feedback-anonymous-name {
+    display: block;
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    color: var(--fg-primary);
+}
+
+.ti-feedback-anonymous-hint {
+    display: block;
+    font-size: var(--fs-xs);
+    line-height: 1.45;
+    color: var(--fg-secondary);
+}
+
+.ti-feedback-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.ti-feedback-sent {
+    align-items: flex-start;
+}
+
+.ti-feedback-sent-title {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 500;
+    color: var(--fg-primary);
+}
+
+.ti-feedback-sent-text {
+    margin: 0;
+    font-size: var(--fs-sm);
+    color: var(--fg-secondary);
+}
+
+.ti-feedback-inbox-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-3);
+    max-width: 960px;
+}
+
+.ti-feedback-filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+}
+
+.ti-feedback-statuses {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-right: auto;
+}
+
+.ti-feedback-filter-label {
+    font-size: var(--fs-sm);
+    color: var(--fg-secondary);
+}
+
+/* A select is full width by default; beside its label on one line it is as wide as its longest choice. */
+.ti-feedback-filters .ti-select {
+    width: auto;
+    min-width: 180px;
+}
+
+.ti-feedback-none {
+    margin: 0;
+    font-size: var(--fs-sm);
+    color: var(--fg-secondary);
+}
+
+.ti-feedback-items {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-3);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.ti-feedback-item {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 16px 20px;
+}
+
+.ti-feedback-item-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+}
+
+.ti-feedback-item-sender {
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    color: var(--fg-primary);
+}
+
+.ti-feedback-item-date {
+    font-size: var(--fs-sm);
+    color: var(--fg-tertiary);
+    margin-right: auto;
+}
+
+/* The status's label and select stay together when the line wraps. */
+.ti-feedback-item-status-field {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ti-feedback-item-status {
+    width: auto;
+    min-width: 140px;
+}
+
+.ti-feedback-item-text {
+    margin: 0;
+    font-size: var(--fs-sm);
+    line-height: 1.55;
+    color: var(--fg-primary);
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+}
+
+.ti-feedback-item-context {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 6px 16px;
+    margin: 0;
+    padding: 10px 12px;
+    border-radius: var(--r-sm);
+    background: var(--bg-sunken);
+}
+
+.ti-feedback-item-context-line {
+    min-width: 0;
+}
+
+.ti-feedback-item-context-line dt {
+    font-size: var(--fs-xs);
+    color: var(--fg-tertiary);
+}
+
+.ti-feedback-item-context-line dd {
+    margin: 0;
+    font-size: var(--fs-sm);
+    color: var(--fg-secondary);
+    overflow-wrap: anywhere;
+}
+
+@media ( max-width: 640px ) {
+    .ti-feedback-form,
+    .ti-feedback-sent {
+        padding: 16px;
+    }
+
+    .ti-feedback-item {
+        padding: 14px 16px;
+    }
 }

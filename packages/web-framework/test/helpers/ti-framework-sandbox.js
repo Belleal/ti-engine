@@ -84,7 +84,7 @@ const createClassList = () => {
  * (the HTMX hooks among them), by event type.
  *
  * @method
- * @returns {{stores: Object, components: Object, directives: Object, sandbox: Object, documentListeners: Map<string, Function[]>}}
+ * @returns {{stores: Object, components: Object, directives: Object, sandbox: Object, documentListeners: Map<string, Function[]>, effects: Function[]}}
  * @public
  */
 const loadTiFramework = () => {
@@ -92,6 +92,7 @@ const loadTiFramework = () => {
     const components = {};
     const directives = {};
     const documentListeners = new Map();
+    const effects = [];
 
     const Alpine = {
         store: function ( name, value ) {
@@ -106,6 +107,11 @@ const loadTiFramework = () => {
         },
         directive: ( name, handler ) => {
             directives[ name ] = handler;
+        },
+        // Runs an effect once, as Alpine does when it is set up; a test re-runs `effects` after changing what they read.
+        effect: ( callback ) => {
+            effects.push( callback );
+            callback();
         }
     };
 
@@ -146,7 +152,7 @@ const loadTiFramework = () => {
 
     ( documentListeners.get( "alpine:init" ) || [] ).forEach( ( handler ) => handler() );
 
-    return { stores: stores, components: components, directives: directives, sandbox: sandbox, documentListeners: documentListeners };
+    return { stores: stores, components: components, directives: directives, sandbox: sandbox, documentListeners: documentListeners, effects: effects };
 };
 
 module.exports = { loadTiFramework: loadTiFramework, SCRIPT_PATH: SCRIPT_PATH };

@@ -38,6 +38,7 @@ const adminConfigHandlers = require( "#admin-config-handlers" );
 const configService = require( "#config-service" );
 const notificationService = require( "#notification-service" );
 const jobScheduler = require( "#job-scheduler" );
+const feedback = require( "#feedback" );
 const applyWebConfigEnvOverrides = require( "#web-config-env" );
 const localization = require( "@ti-engine/core/localization" );
 
@@ -271,6 +272,9 @@ class TiWebServer extends ServiceConsumer {
         }
         this.#jobsTrigger = jobs.trigger;
         notificationService.instance.configure( Object.assign( {}, this.serviceConfig.notifications, { publicUrl: this.serviceConfig.publicUrl } ) );
+        // The feedback e-mail goes to the allowlisted administrators, as this server reads them: after the `TI_WEB_*`
+        // overrides, so a container that names its admins in `TI_WEB_AUTH_ADMINS` is the list written to.
+        feedback.instance.configure( { admins: this.serviceConfig.auth && this.serviceConfig.auth.admins } );
 
         // If there is a web application configuration, create the web application manager:
         if ( this.serviceConfig.application ) {

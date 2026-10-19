@@ -452,6 +452,158 @@ export type TiJobsReport = {
     ran: string[];
     failed: string[];
 };
+export type TiSessionSubject = {
+    id: string;
+    name: string;
+};
+export type TiWhatsNewNoteSource = {
+    /**
+     * Lower-case words joined by hyphens, once within its version.
+     */
+    id: string;
+    kind: "new" | "improved" | "fixed";
+    /**
+     * `everyone`, `admin`, or a name the application maps to its roles.
+     */
+    audience: string[];
+    /**
+     * The screen the note is about, offered as a link to whoever may open it.
+     */
+    screen?: string;
+    /**
+     * One line, by language.
+     */
+    title: Record<string, string>;
+    /**
+     * A few plain sentences, by language.
+     */
+    text: Record<string, string>;
+};
+export type TiWhatsNewReleaseNotes = {
+    /**
+     * `major.minor.patch`.
+     */
+    version: string;
+    /**
+     * Empty for a version nobody would notice.
+     */
+    notes: TiWhatsNewNoteSource[];
+};
+export type TiWhatsNewOptions = {
+    /**
+     * Newest first.
+     */
+    notes: TiWhatsNewReleaseNotes[];
+    /**
+     * The release a deployment with no record ran: the one before the application had What's new.
+     */
+    baseline?: string | null;
+    /**
+     * An audience name → the roles it covers.
+     */
+    audiences?: Record<string, (string | number)[]>;
+};
+export type TiWhatsNewRelease = {
+    version: string;
+    previous: string | null;
+    /**
+     * ISO-8601: when the deployment started running it.
+     */
+    since: string | null;
+};
+export type TiWhatsNewNote = {
+    id: string;
+    version: string;
+    kind: "new" | "improved" | "fixed";
+    title: string;
+    text: string;
+    screen: string | null;
+};
+export type TiWhatsNewMarker = {
+    version: string;
+    /**
+     * ISO-8601.
+     */
+    at: string | null;
+};
+export type TiWhatsNewView = {
+    release: TiWhatsNewRelease;
+    /**
+     * The notes new in the release running.
+     */
+    fresh: TiWhatsNewNote[];
+    earlier: Array<{
+        version: string;
+        notes: TiWhatsNewNote[];
+    }>;
+    seen: boolean;
+};
+export type TiWhatsNewStatus = {
+    version: string;
+    /**
+     * How many notes are new and not yet seen; 0 once the release is.
+     */
+    unseen: number;
+    /**
+     * The first such note's title, or empty.
+     */
+    first: string;
+};
+export type TiFeedbackOptions = {
+    /**
+     * A language → the locale its dates are written in, such as `{ en: "en-GB" }`.
+     */
+    dateLocales?: Record<string, string>;
+};
+export type TiFeedbackContext = {
+    /**
+     * The screen they were on, if it is one the application has; else empty.
+     */
+    screen: string;
+    /**
+     * The version running.
+     */
+    version: string;
+    /**
+     * The session's language.
+     */
+    language: string;
+    /**
+     * The browser's own description, at most 200 characters.
+     */
+    browser: string;
+};
+export type TiFeedbackItem = {
+    feedbackID: string;
+    kind: "suggestion" | "problem" | "praise" | "other";
+    /**
+     * 1 to 4000 characters.
+     */
+    text: string;
+    anonymous: boolean;
+    /**
+     * The subject ID; null when anonymous.
+     */
+    submittedBy: string | null;
+    /**
+     * Null when anonymous.
+     */
+    senderName: string | null;
+    /**
+     * ISO-8601.
+     */
+    submittedAt: string;
+    /**
+     * A problem's only.
+     */
+    context: TiFeedbackContext | null;
+    status: "new" | "in-progress" | "done" | "declined";
+    statusChangedAt: string | null;
+    /**
+     * The administrator's user ID.
+     */
+    statusChangedBy: string | null;
+};
 /** @import { TiLocalizationLanguage } from "@ti-engine/core/localization" */
 /**
  * @callback TiSessionCallback
@@ -747,4 +899,112 @@ export type TiJobsReport = {
  * @typedef {Object} TiJobsReport
  * @property {string[]} ran
  * @property {string[]} failed
+ */
+/**
+ * Who a session acts for, as the application knows them (`TiWebAppManager#resolveSubject`): the key a person's What's
+ * new marker and their feedback are kept under, and the name an administrator reads.
+ *
+ * @typedef {Object} TiSessionSubject
+ * @property {string} id
+ * @property {string} name
+ */
+/**
+ * One note as an application writes it.
+ *
+ * @typedef {Object} TiWhatsNewNoteSource
+ * @property {string} id Lower-case words joined by hyphens, once within its version.
+ * @property {"new"|"improved"|"fixed"} kind
+ * @property {string[]} audience `everyone`, `admin`, or a name the application maps to its roles.
+ * @property {string} [screen] The screen the note is about, offered as a link to whoever may open it.
+ * @property {Object<string, string>} title One line, by language.
+ * @property {Object<string, string>} text A few plain sentences, by language.
+ */
+/**
+ * The notes one version shipped.
+ *
+ * @typedef {Object} TiWhatsNewReleaseNotes
+ * @property {string} version `major.minor.patch`.
+ * @property {TiWhatsNewNoteSource[]} notes Empty for a version nobody would notice.
+ */
+/**
+ * How an application turns What's new on.
+ *
+ * @typedef {Object} TiWhatsNewOptions
+ * @property {TiWhatsNewReleaseNotes[]} notes Newest first.
+ * @property {string|null} [baseline] The release a deployment with no record ran: the one before the application had What's new.
+ * @property {Object<string, Array<string|number>>} [audiences] An audience name → the roles it covers.
+ */
+/**
+ * The release a deployment runs and the one before it.
+ *
+ * @typedef {Object} TiWhatsNewRelease
+ * @property {string} version
+ * @property {string|null} previous
+ * @property {string|null} since ISO-8601: when the deployment started running it.
+ */
+/**
+ * A note as one reader is shown it: in their language, with its link only where they may open the screen.
+ *
+ * @typedef {Object} TiWhatsNewNote
+ * @property {string} id
+ * @property {string} version
+ * @property {"new"|"improved"|"fixed"} kind
+ * @property {string} title
+ * @property {string} text
+ * @property {string|null} screen
+ */
+/**
+ * That a person has seen a release, and when.
+ *
+ * @typedef {Object} TiWhatsNewMarker
+ * @property {string} version
+ * @property {string|null} at ISO-8601.
+ */
+/**
+ * What the What's new screen shows one reader.
+ *
+ * @typedef {Object} TiWhatsNewView
+ * @property {TiWhatsNewRelease} release
+ * @property {TiWhatsNewNote[]} fresh The notes new in the release running.
+ * @property {Array<{version: string, notes: TiWhatsNewNote[]}>} earlier
+ * @property {boolean} seen
+ */
+/**
+ * What a What's new reminder needs.
+ *
+ * @typedef {Object} TiWhatsNewStatus
+ * @property {string} version
+ * @property {number} unseen How many notes are new and not yet seen; 0 once the release is.
+ * @property {string} first The first such note's title, or empty.
+ */
+/**
+ * How an application turns feedback on.
+ *
+ * @typedef {Object} TiFeedbackOptions
+ * @property {Object<string, string>} [dateLocales] A language → the locale its dates are written in, such as `{ en: "en-GB" }`.
+ */
+/**
+ * What a problem report carries without the sender typing it.
+ *
+ * @typedef {Object} TiFeedbackContext
+ * @property {string} screen The screen they were on, if it is one the application has; else empty.
+ * @property {string} version The version running.
+ * @property {string} language The session's language.
+ * @property {string} browser The browser's own description, at most 200 characters.
+ */
+/**
+ * A piece of feedback about the application.
+ *
+ * @typedef {Object} TiFeedbackItem
+ * @property {string} feedbackID
+ * @property {"suggestion"|"problem"|"praise"|"other"} kind
+ * @property {string} text 1 to 4000 characters.
+ * @property {boolean} anonymous
+ * @property {string|null} submittedBy The subject ID; null when anonymous.
+ * @property {string|null} senderName Null when anonymous.
+ * @property {string} submittedAt ISO-8601.
+ * @property {TiFeedbackContext|null} context A problem's only.
+ * @property {"new"|"in-progress"|"done"|"declined"} status
+ * @property {string|null} statusChangedAt
+ * @property {string|null} statusChangedBy The administrator's user ID.
  */

@@ -1,0 +1,62 @@
+<!--
+    Send Feedback: what it is, the text, and whether to send it anonymously, to the application's administrators. A
+    problem carries the screen the sender was on, the version, the language and the browser, and the form says so before
+    it is sent.
+
+    The English on each element is what shows where the application's catalogue has no text for its key.
+
+    Alpine runs in CSP mode: no inline style attributes and no optional chaining in expressions - the shaping is done
+    in tiScreenSendFeedback before the values reach the template.
+-->
+<div class="ti-page ti-send-feedback" x-data="tiScreenSendFeedback">
+
+    <div class="ti-page-head">
+        <div class="ti-page-eyebrow" x-text-label="interface.send-feedback.eyebrow">To the administrators</div>
+        <h1 class="ti-page-title"><span x-text="pageTitle.before">Send feedback</span><em x-text="pageTitle.em"></em><span x-text="pageTitle.after"></span></h1>
+        <p class="ti-page-subtitle" x-text-label="interface.send-feedback.intro">A suggestion, a problem you ran into, or something you liked: it goes to the people who run this application.</p>
+    </div>
+
+    <template x-if="!sent">
+        <section class="ti-panel ti-feedback-form" aria-labelledby="ti-feedback-kind-title">
+            <h2 class="ti-feedback-label" id="ti-feedback-kind-title" x-text-label="interface.send-feedback.kind-title">What is it?</h2>
+            <div class="ti-feedback-kinds" role="radiogroup" aria-labelledby="ti-feedback-kind-title">
+                <template x-for="option in kinds" x-bind:key="option.kind">
+                    <label class="ti-feedback-kind" x-bind:for="option.id">
+                        <input type="radio" name="feedback-kind" x-bind:id="option.id" x-bind:value="option.kind" x-bind:checked="option.checked" @change="setKind( option.kind )"/>
+                        <span class="ti-feedback-kind-name" x-text="option.name"></span>
+                        <span class="ti-feedback-kind-hint" x-text="option.hint"></span>
+                    </label>
+                </template>
+            </div>
+
+            <label class="ti-feedback-label" for="ti-feedback-text" x-text-label="interface.send-feedback.text-label">Your feedback</label>
+            <textarea class="ti-textarea ti-feedback-text" id="ti-feedback-text" name="feedback-text" rows="7" maxlength="4000"
+                      x-bind:value="text" x-text-label:placeholder="interface.send-feedback.text-placeholder"
+                      placeholder="What happened, or what would help? For a problem, say what you were doing." @input="setText( $event.target.value )"></textarea>
+            <span class="ti-feedback-remaining" x-text="remainingText"></span>
+
+            <p class="ti-feedback-context" x-show="isProblem" x-text="contextText"></p>
+
+            <label class="ti-feedback-anonymous" for="ti-feedback-anonymous">
+                <input type="checkbox" id="ti-feedback-anonymous" name="feedback-anonymous" x-bind:checked="anonymous" @change="setAnonymous( $event.target.checked )"/>
+                <span>
+                    <span class="ti-feedback-anonymous-name" x-text-label="interface.send-feedback.anonymous">Send anonymously</span>
+                    <span class="ti-feedback-anonymous-hint" x-text-label="interface.send-feedback.anonymous-hint">Your name is not kept with it, so nobody can reply to you or ask you about it.</span>
+                </span>
+            </label>
+
+            <div class="ti-feedback-actions">
+                <button type="button" class="ti-btn primary" x-bind:disabled="!canSend" @click="send()" x-text-label="interface.send-feedback.send">Send</button>
+            </div>
+        </section>
+    </template>
+
+    <template x-if="sent">
+        <section class="ti-panel ti-feedback-sent">
+            <h2 class="ti-feedback-sent-title" x-text-label="interface.send-feedback.sent-title">Thank you</h2>
+            <p class="ti-feedback-sent-text" x-text-label="interface.send-feedback.sent-text">Your feedback has reached the administrators.</p>
+            <button type="button" class="ti-btn" @click="another()" x-text-label="interface.send-feedback.another">Send more feedback</button>
+        </section>
+    </template>
+
+</div>

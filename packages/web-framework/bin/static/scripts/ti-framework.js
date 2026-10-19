@@ -2231,6 +2231,474 @@ const configureScreenAbout = () => {
 };
 
 /**
+ * Splits a page title's label at the part it marks `*so*`, for a title that renders that part in an `<em>`: a theme
+ * styles the emphasis, and a label that marks none is the plain title. The framework's own labels mark none.
+ *
+ * @method
+ * @param {string} text
+ * @returns {{before: string, em: string, after: string}}
+ * @public
+ */
+const splitTitleEmphasis = ( text ) => {
+    const value = ( typeof text === "string" ) ? text : "";
+    const match = /^([^*]*)\*([^*]+)\*([^*]*)$/.exec( value );
+    return match ? { before: match[ 1 ], em: match[ 2 ], after: match[ 3 ] } : { before: value, em: "", after: "" };
+};
+
+/**
+ * Returns the store behind What's new's reminders, `tiWhatsNew`: how many notes are new for the signed-in person and not
+ * yet seen, and the first one's title. An application binds its dashboard notice or a sidebar count to it. Opening
+ * What's new or dismissing a notice marks the release seen and empties it.
+ * <br/>
+ * It loads once the shell is initialized for someone signed in, and only where the application turned What's new on.
+ * A status that cannot load is no reminder, so a failure leaves it empty and says nothing: the screen itself still
+ * opens from the menu and says what went wrong.
+ *
+ * @method
+ * @returns {Object}
+ * @public
+ */
+const configureStoreWhatsNew = () => ( {
+    unseen: 0,
+    first: "",
+    requested: false,
+    marked: false,
+
+    // The sign-in page initializes the shell too, with no user, and a request from there was answered 401 into the
+    // console (measured in Chromium, CA-526).
+    init() {
+        Alpine.effect( () => {
+            const tiApplication = Alpine.store( "tiApplication" );
+            const features = ( tiApplication.configuration && tiApplication.configuration.features ) || {};
+            if ( tiApplication.isInitialized && tiApplication.user && features.whatsNew === true && !this.requested ) {
+                this.requested = true;
+                this.load();
+            }
+        } );
+    },
+
+    load() {
+        return Alpine.store( "tiApplication" ).sendRequest( "/app/whats-new-status" ).then( ( result ) => {
+            // A deep link to the screen asks for the status and the notes together, and the screen marks the release
+            // seen once the notes arrive: a status answered after that brought the count back beside notes just read.
+            if ( this.marked ) {
+                return;
+            }
+            const data = ( result && result.data && typeof result.data === "object" ) ? result.data : {};
+            this.unseen = Math.max( 0, Number( data.unseen ) || 0 );
+            this.first = ( typeof data.first === "string" ) ? data.first : "";
+        } ).catch( () => {
+            this.unseen = 0;
+            this.first = "";
+        } );
+    },
+
+    // The rest of a notice's sentence, after the first note's title: how many more there are, or nothing.
+    get moreText() {
+        const more = this.unseen - 1;
+        return ( more > 0 )
+            ? " " + Alpine.store( "tiApplication" ).getLabel( "interface.dashboard.whats-new.more", "and {n} more for you" ).replace( "{n}", String( more ) )
+            : "";
+    },
+
+    // A sidebar entry's name, with the count while there is one: it is the accessible name, so the count is read out
+    // with the entry.
+    get label() {
+        const tiApplication = Alpine.store( "tiApplication" );
+        const name = tiApplication.getLabel( "interface.topbar.whats-new", "What's New" );
+        return ( this.unseen > 0 )
+            ? `${ name }, ${ tiApplication.getLabel( "interface.navigation.whats-new-unseen", "{n} new" ).replace( "{n}", String( this.unseen ) ) }`
+            : name;
+    },
+
+    // Records the release as seen, and empties the reminders at once rather than after the answer.
+    markSeen() {
+        this.marked = true;
+        this.unseen = 0;
+        this.first = "";
+        return Alpine.store( "tiApplication" ).sendRequest( "/app/whats-new-seen", "POST", {} ).catch( () => undefined );
+    },
+
+    open() {
+        Alpine.store( "tiApplication" ).openScreen( "whats-new" );
+    },
+
+    dismiss() {
+        return this.markSeen();
+    }
+} );
+
+/**
+ * Returns the store that remembers the screen a person left for Send Feedback, `tiScreenTrail`: the screen a problem
+ * report names as the one they were on. The shell names the current screen after every swap; this keeps the one before
+ * Send Feedback, in a variable of its own so that keeping it is no change the effect reacts to.
+ *
+ * @method
+ * @returns {Object}
+ * @public
+ */
+const configureStoreScreenTrail = () => {
+    let last = "";
+    return {
+        previous: "",
+
+        init() {
+            Alpine.effect( () => {
+                const screen = String( Alpine.store( "tiApplication" ).currentScreen || "" );
+                if ( screen === "" || screen === last ) {
+                    return;
+                }
+                if ( screen === "send-feedback" ) {
+                    this.previous = last;
+                }
+                last = screen;
+            } );
+        }
+    };
+};
+
+/**
+ * Returns a configuration object for the What's new screen, "frame-whats-new.html".
+ * <br/>
+ * The notes new in the release this deployment runs, then the earlier ones by version, as the server picks them for the
+ * reader: their audience, their language, and a link only to a screen they may open. Opening the screen is what marks
+ * the release seen, so a reminder bound to `tiWhatsNew` goes once the notes have been shown.
+ *
+ * @method
+ * @returns {Object}
+ * @public
+ */
+const configureScreenWhatsNew = () => {
+    const tiToolbox = Alpine.store( "tiToolbox" );
+    const tiApplication = Alpine.store( "tiApplication" );
+    const label = ( key, fallback ) => tiApplication.getLabel( key, fallback );
+    const KIND_TAGS = Object.freeze( { new: "accent", improved: "info", fixed: "success" } );
+
+    return {
+        busy: true,
+        loaded: false,
+        release: null,
+        fresh: [],
+        earlier: [],
+
+        init() {
+            loadWhenInitialized( this, () => this.load() );
+        },
+
+        load() {
+            this.busy = true;
+            tiApplication.sendRequest( "/app/whats-new" ).then( ( result ) => {
+                const data = ( result && result.data && typeof result.data === "object" ) ? result.data : {};
+                this.release = ( data.release && typeof data.release === "object" ) ? data.release : null;
+                this.fresh = Array.isArray( data.fresh ) ? data.fresh : [];
+                this.earlier = Array.isArray( data.earlier ) ? data.earlier : [];
+                this.loaded = true;
+                this.busy = false;
+                if ( data.seen !== true ) {
+                    Alpine.store( "tiWhatsNew" ).markSeen();
+                }
+            } ).catch( ( error ) => {
+                this.busy = false;
+                if ( error && ( error.name === "AbortError" || error.isAborted ) ) return;
+                tiApplication.notify( tiApplication.formatException( error ) );
+            } );
+        },
+
+        get pageTitle() {
+            return splitTitleEmphasis( label( "interface.whats-new.page-title", "What's new" ) );
+        },
+
+        // When this deployment started running the release, and which it is.
+        get updatedText() {
+            if ( !this.release ) {
+                return "";
+            }
+            const version = String( this.release.version || "" );
+            return this.release.since
+                ? label( "interface.whats-new.updated", "Updated on {date}, version {version}" ).replace( "{date}", tiToolbox.formatDate( this.release.since, "" ) ).replace( "{version}", version )
+                : label( "interface.whats-new.version-only", "Version {version}" ).replace( "{version}", version );
+        },
+
+        hasFresh() {
+            return this.fresh.length > 0;
+        },
+
+        hasEarlier() {
+            return this.earlier.length > 0;
+        },
+
+        noteKey( note ) {
+            return `${ note.version }:${ note.id }`;
+        },
+
+        kindText( note ) {
+            return label( `interface.whats-new.kind.${ note.kind }`, note.kind );
+        },
+
+        kindClass( note ) {
+            return KIND_TAGS[ note.kind ] || KIND_TAGS.new;
+        },
+
+        releaseText( entry ) {
+            return label( "interface.whats-new.release", "Version {version}" ).replace( "{version}", String( entry.version ) );
+        },
+
+        // A note about this very screen offers no link to it.
+        canOpen( note ) {
+            return !!note.screen && note.screen !== "whats-new";
+        },
+
+        openText( note ) {
+            return label( "interface.whats-new.open", "Open {screen}" ).replace( "{screen}", label( `interface.topbar.${ note.screen }`, note.screen ) );
+        },
+
+        open( note ) {
+            tiApplication.openScreen( note.screen );
+        }
+    };
+};
+
+/**
+ * Returns a configuration object for the Send Feedback screen, "frame-send-feedback.html".
+ * <br/>
+ * What it is, the text, and whether to send it anonymously. A problem carries the screen the person was on, which
+ * `tiScreenTrail` kept, the browser, and on the server the version and language; the form says so before it is sent.
+ * The screen is read when the feedback is sent rather than when the form opens: the shell names the current screen
+ * after the swap, which can come after the form's own start.
+ *
+ * @method
+ * @returns {Object}
+ * @public
+ */
+const configureScreenSendFeedback = () => {
+    const tiApplication = Alpine.store( "tiApplication" );
+    const label = ( key, fallback ) => tiApplication.getLabel( key, fallback );
+    const KINDS = [ "suggestion", "problem", "praise", "other" ];
+    const TEXT_MAX = 4000;
+    const browserName = () => ( typeof navigator !== "undefined" && navigator && typeof navigator.userAgent === "string" ) ? navigator.userAgent : "";
+
+    return {
+        kind: "",
+        text: "",
+        anonymous: false,
+        busy: false,
+        sent: false,
+
+        get pageTitle() {
+            return splitTitleEmphasis( label( "interface.send-feedback.page-title", "Send feedback" ) );
+        },
+
+        get kinds() {
+            return KINDS.map( ( kind ) => ( {
+                kind: kind,
+                id: "ti-feedback-kind-" + kind,
+                name: label( `interface.feedback.kind.${ kind }`, kind ),
+                hint: label( `interface.send-feedback.kind-hint.${ kind }`, "" ),
+                checked: this.kind === kind
+            } ) );
+        },
+
+        setKind( kind ) {
+            this.kind = KINDS.includes( kind ) ? kind : "";
+        },
+
+        setText( value ) {
+            this.text = String( value || "" );
+        },
+
+        setAnonymous( checked ) {
+            this.anonymous = checked === true;
+        },
+
+        get remainingText() {
+            return label( "interface.send-feedback.remaining", "{n} characters left" ).replace( "{n}", String( Math.max( 0, TEXT_MAX - this.text.length ) ) );
+        },
+
+        get canSend() {
+            return this.kind !== "" && this.text.trim() !== "" && this.text.length <= TEXT_MAX && !this.busy;
+        },
+
+        get isProblem() {
+            return this.kind === "problem";
+        },
+
+        // The screen a problem names: the one left for this form, or none known after a reload here.
+        get aboutScreen() {
+            return String( Alpine.store( "tiScreenTrail" ).previous || "" );
+        },
+
+        get contextText() {
+            const screen = this.aboutScreen;
+            const name = screen ? label( `interface.topbar.${ screen }`, screen ) : label( "interface.send-feedback.screen-unknown", "not known" );
+            return label( "interface.send-feedback.context", "With a problem we also send the screen you were on ({screen}), the application's version, your language and your browser." ).replace( "{screen}", name );
+        },
+
+        send() {
+            if ( !this.canSend ) {
+                return;
+            }
+            this.busy = true;
+            const body = { kind: this.kind, text: this.text.trim(), anonymous: this.anonymous, screen: this.isProblem ? this.aboutScreen : "", browser: this.isProblem ? browserName() : "" };
+            tiApplication.sendRequest( "/app/send-feedback", "POST", body ).then( () => {
+                this.busy = false;
+                this.sent = true;
+                tiApplication.notify( label( "interface.send-feedback.sent-toast", "Thank you: your feedback was sent." ) );
+            } ).catch( ( error ) => {
+                this.busy = false;
+                tiApplication.notify( tiApplication.formatException( error ) );
+            } );
+        },
+
+        another() {
+            this.kind = "";
+            this.text = "";
+            this.anonymous = false;
+            this.sent = false;
+        }
+    };
+};
+
+/**
+ * Returns a configuration object for the administrators' Feedback screen, "frame-feedback-inbox.html".
+ * <br/>
+ * Every piece of feedback, newest first, filtered by status (New until asked otherwise) and by kind, each with who sent
+ * it, the text, a problem's context, and a select that gives it a status in place.
+ *
+ * @method
+ * @returns {Object}
+ * @public
+ */
+const configureScreenFeedbackInbox = () => {
+    const tiToolbox = Alpine.store( "tiToolbox" );
+    const tiApplication = Alpine.store( "tiApplication" );
+    const label = ( key, fallback ) => tiApplication.getLabel( key, fallback );
+    const STATUSES = [ "new", "in-progress", "done", "declined" ];
+    const KINDS = [ "suggestion", "problem", "praise", "other" ];
+    const KIND_TAGS = Object.freeze( { suggestion: "info", problem: "danger", praise: "success", other: "outline" } );
+
+    return {
+        items: [],
+        loaded: false,
+        busy: true,
+        statusFilter: "new",
+        kindFilter: "",
+
+        init() {
+            loadWhenInitialized( this, () => this.load() );
+        },
+
+        load() {
+            this.busy = true;
+            tiApplication.sendRequest( "/app/feedback-inbox" ).then( ( result ) => {
+                const data = ( result && result.data && typeof result.data === "object" ) ? result.data : {};
+                this.items = Array.isArray( data.items ) ? data.items : [];
+                this.loaded = true;
+                this.busy = false;
+            } ).catch( ( error ) => {
+                this.busy = false;
+                if ( error && ( error.name === "AbortError" || error.isAborted ) ) return;
+                tiApplication.notify( tiApplication.formatException( error ) );
+            } );
+        },
+
+        get pageTitle() {
+            return splitTitleEmphasis( label( "interface.feedback-inbox.page-title", "Feedback" ) );
+        },
+
+        // The status filter's choices, each with its count; "all" last.
+        get statusChoices() {
+            const choices = STATUSES.map( ( status ) => ( {
+                value: status,
+                name: label( `interface.feedback.status.${ status }`, status ),
+                count: this.items.filter( ( item ) => item.status === status ).length
+            } ) );
+            choices.push( { value: "all", name: label( "interface.feedback-inbox.all", "All" ), count: this.items.length } );
+            return choices.map( ( choice ) => Object.assign( choice, {
+                pressed: ( this.statusFilter === choice.value ) ? "true" : "false",
+                text: `${ choice.name } (${ choice.count })`
+            } ) );
+        },
+
+        get kindChoices() {
+            return KINDS.map( ( kind ) => ( { value: kind, name: label( `interface.feedback.kind.${ kind }`, kind ) } ) );
+        },
+
+        get statusOptions() {
+            return STATUSES.map( ( status ) => ( { value: status, name: label( `interface.feedback.status.${ status }`, status ) } ) );
+        },
+
+        setStatusFilter( status ) {
+            this.statusFilter = status;
+        },
+
+        setKindFilter( kind ) {
+            this.kindFilter = KINDS.includes( kind ) ? kind : "";
+        },
+
+        get shown() {
+            return this.items.filter( ( item ) => ( this.statusFilter === "all" || item.status === this.statusFilter ) && ( this.kindFilter === "" || item.kind === this.kindFilter ) );
+        },
+
+        hasShown() {
+            return this.shown.length > 0;
+        },
+
+        hasItems() {
+            return this.items.length > 0;
+        },
+
+        kindText( item ) {
+            return label( `interface.feedback.kind.${ item.kind }`, item.kind );
+        },
+
+        kindClass( item ) {
+            return KIND_TAGS[ item.kind ] || "outline";
+        },
+
+        senderText( item ) {
+            return ( item.anonymous !== true && item.senderName ) ? item.senderName : label( "interface.feedback.sender.anonymous", "Anonymous" );
+        },
+
+        dateText( item ) {
+            return tiToolbox.formatDate( item.submittedAt, "" );
+        },
+
+        statusSelectID( item ) {
+            return "ti-feedback-status-" + item.feedbackID;
+        },
+
+        // A problem's context, each line named; none for anything else.
+        contextLines( item ) {
+            const context = item.context;
+            if ( !context ) {
+                return [];
+            }
+            const screen = context.screen ? label( `interface.topbar.${ context.screen }`, context.screen ) : label( "interface.send-feedback.screen-unknown", "not known" );
+            return [
+                { key: "screen", name: label( "interface.feedback-inbox.context.screen", "Screen" ), value: screen },
+                { key: "version", name: label( "interface.feedback-inbox.context.version", "Version" ), value: context.version || "—" },
+                { key: "language", name: label( "interface.feedback-inbox.context.language", "Language" ), value: String( context.language || "—" ).toUpperCase() },
+                { key: "browser", name: label( "interface.feedback-inbox.context.browser", "Browser" ), value: context.browser || "—" }
+            ];
+        },
+
+        setStatus( item, status ) {
+            if ( !STATUSES.includes( status ) || status === item.status ) {
+                return;
+            }
+            const was = item.status;
+            item.status = status;
+            tiApplication.sendRequest( "/app/feedback-status", "POST", { feedbackID: item.feedbackID, status: status } ).then( () => {
+                tiApplication.notify( label( "interface.feedback-inbox.status-saved", "Status saved." ) );
+            } ).catch( ( error ) => {
+                item.status = was;
+                tiApplication.notify( tiApplication.formatException( error ) );
+            } );
+        }
+    };
+};
+
+/**
  * Returns a configuration object for the login screen error message.
  * <br/>
  * The login handlers answer a failed sign-in with a `303` to `/?error=<code>` (see `defaultErrorHandler`). This reads
@@ -2266,6 +2734,9 @@ document.addEventListener( "alpine:init", () => {
     Alpine.store( "tiToolbox", configureToolbox() );
     Alpine.store( "tiApplication", configureApplication() );
     Alpine.store( "tiComponentsConfig", {} );
+    // After tiApplication, which both read as they start.
+    Alpine.store( "tiWhatsNew", configureStoreWhatsNew() );
+    Alpine.store( "tiScreenTrail", configureStoreScreenTrail() );
     Alpine.data( "tiApplication", () => ( {
         // Collapsing to icons is the column's feature. A visitor who collapsed the sidebar on a wide screen would
         // otherwise find a drawer of bare icons on a narrow one (CA-406).
@@ -2293,4 +2764,7 @@ document.addEventListener( "alpine:init", () => {
     Alpine.data( "tiLoginError", configureLoginError );
     Alpine.data( "tiScreenProfile", configureScreenProfile );
     Alpine.data( "tiScreenAbout", configureScreenAbout );
+    Alpine.data( "tiScreenWhatsNew", configureScreenWhatsNew );
+    Alpine.data( "tiScreenSendFeedback", configureScreenSendFeedback );
+    Alpine.data( "tiScreenFeedbackInbox", configureScreenFeedbackInbox );
 } );

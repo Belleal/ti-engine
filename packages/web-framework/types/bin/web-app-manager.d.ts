@@ -1,5 +1,5 @@
 export = TiWebAppManager;
-import type { TiApplicationInfo, TiInfoSection, TiLabelsBundle, TiProfileInfo, TiSession } from "#definitions";
+import type { TiApplicationInfo, TiFeedbackOptions, TiInfoSection, TiLabelsBundle, TiProfileInfo, TiSession, TiSessionSubject, TiWhatsNewOptions } from "#definitions";
 /**
  * Gates the login-page authentication markup to the effective enabled methods. The login fragment delimits blocks
  * with HTML-comment markers: `<!--ti-auth-method:METHOD-->…<!--/ti-auth-method-->` around each method's control
@@ -93,6 +93,50 @@ declare class TiWebAppManager {
      * @public
      */
     registerConfigEditor(editorKey: string, definition: Object): TiWebAppManager;
+    /**
+     * Turns on What's new: the application's release notes, each person shown those new in the release the deployment
+     * runs, written for their audience and in their language. Registers the `whats-new` screen and its requests, and
+     * adds it to the default user menu. Call during initialization.
+     * <br/>
+     * The notes are checked at once, so a malformed file stops the start rather than leaving an empty screen. The
+     * framework's `tiWhatsNew` store is what a dashboard notice or a sidebar count binds to.
+     *
+     * @method
+     * @param {TiWhatsNewOptions} options
+     * @returns {TiWebAppManager} this (chainable)
+     * @throws {TiException.E_GEN_INVALID_ARGUMENT_TYPE} When the notes, the baseline or the audiences are malformed.
+     * @public
+     */
+    enableWhatsNew(options: TiWhatsNewOptions): TiWebAppManager;
+    /**
+     * Turns on feedback about the application: Send Feedback for everyone signed in, and Feedback, where the allowlisted
+     * administrators read what arrived and give it a status. Registers both screens and their requests, the
+     * `feedback.received` event and the `feedback-received` notice, and adds Send Feedback to the default user menu.
+     * Call during initialization. The application's `notifications` document holds the rule that e-mails the
+     * administrators, as for every notice.
+     *
+     * @method
+     * @param {TiFeedbackOptions} [options]
+     * @returns {TiWebAppManager} this (chainable)
+     * @throws {TiException.E_GEN_INVALID_ARGUMENT_TYPE} When `dateLocales` is malformed.
+     * @public
+     */
+    enableFeedback(options?: TiFeedbackOptions): TiWebAppManager;
+    /**
+     * Who a session acts for, as the application knows them: the key a person's What's new marker and the feedback they
+     * send under their name are kept under, and the name an administrator reads on an item. Their personal-data export
+     * and erasure find both by the same ID.
+     * <br/>
+     * The default is the session user's ID and name. Override when the application has a record of its own for people,
+     * so that what is kept follows that record rather than a sign-in identity.
+     *
+     * @method
+     * @param {TiSession} session
+     * @returns {TiSessionSubject|null} Null when the session names nobody.
+     * @virtual
+     * @public
+     */
+    resolveSubject(session: TiSession): TiSessionSubject | null;
     /**
      * Used to clear the static file cache. This is useful for testing purposes to ensure that the web server is always serving fresh content.
      *
