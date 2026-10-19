@@ -2262,6 +2262,7 @@ const configureStoreWhatsNew = () => ( {
     unseen: 0,
     first: "",
     requested: false,
+    marked: false,
 
     // The sign-in page initializes the shell too, with no user, and a request from there was answered 401 into the
     // console (measured in Chromium, CA-526).
@@ -2278,6 +2279,11 @@ const configureStoreWhatsNew = () => ( {
 
     load() {
         return Alpine.store( "tiApplication" ).sendRequest( "/app/whats-new-status" ).then( ( result ) => {
+            // A deep link to the screen asks for the status and the notes together, and the screen marks the release
+            // seen once the notes arrive: a status answered after that brought the count back beside notes just read.
+            if ( this.marked ) {
+                return;
+            }
             const data = ( result && result.data && typeof result.data === "object" ) ? result.data : {};
             this.unseen = Math.max( 0, Number( data.unseen ) || 0 );
             this.first = ( typeof data.first === "string" ) ? data.first : "";
@@ -2307,6 +2313,7 @@ const configureStoreWhatsNew = () => ( {
 
     // Records the release as seen, and empties the reminders at once rather than after the answer.
     markSeen() {
+        this.marked = true;
         this.unseen = 0;
         this.first = "";
         return Alpine.store( "tiApplication" ).sendRequest( "/app/whats-new-seen", "POST", {} ).catch( () => undefined );

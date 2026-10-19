@@ -32,10 +32,12 @@ This document will contain the list of changes made to the framework. The format
 * test(web-framework): the sandbox helper runs `Alpine.effect`, so a store that starts from one can be driven.
 * docs(web-framework): the README's *What's new and Feedback* section.
 
-Tests: 66 new (1057 in the package), in `whats-new.test.js`, `feedback.test.js`,
-`web-app-manager.whats-new-feedback.test.js` and `ti-framework.whats-new-feedback.test.js`. One holds the allowlist's
-address check to linear time: its first pattern, `[^@\s]+\.[^@\s]+`, let each dot match two ways, and a crafted entry
-took 479 ms at 20,000 repetitions (CodeQL `js/polynomial-redos`, found on this change's pull request).
+Tests: 67 new (1058 in the package), in `whats-new.test.js`, `feedback.test.js`,
+`web-app-manager.whats-new-feedback.test.js` and `ti-framework.whats-new-feedback.test.js`. Two hold defects found on
+this change's pull request. The allowlist's address check runs in linear time: its first pattern, `[^@\s]+\.[^@\s]+`,
+let each dot match two ways, and a crafted entry took 479 ms at 20,000 repetitions (CodeQL `js/polynomial-redos`). And
+a release marked seen stays seen: a deep link to the screen asks for the status and the notes together, and a status
+answered after the screen had marked the release brought back the count beside the notes just read (CodeRabbit).
 
 ## Version 1.55.0
 

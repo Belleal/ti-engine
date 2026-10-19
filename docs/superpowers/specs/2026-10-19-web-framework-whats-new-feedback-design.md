@@ -106,7 +106,9 @@ class MyApplication extends TiWebAppManager {
   in* (the sign-in page initializes too, and asking from there answered 401, measured for CA-526), and only where the
   application enabled the feature (`configuration.features.whatsNew`). `markSeen`, `open` and `dismiss` serve a
   notice; `label` is a sidebar entry's accessible name with the count. The `tiScreenWhatsNew` component drives the
-  screen, which marks the release seen once it has shown it.
+  screen, which marks the release seen once it has shown it. A status answered after that is dropped: a deep link
+  to the screen asks for the status and the notes at once, and a late status brought the count back beside notes just
+  read (found on review).
 
 ## 6. Feedback
 

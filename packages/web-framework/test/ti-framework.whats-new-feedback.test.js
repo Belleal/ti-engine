@@ -102,6 +102,23 @@ describe( "tiWhatsNew — the status behind a dashboard notice", () => {
         assert.deepEqual( plain( stores.tiApplication.opened ), [ "whats-new" ] );
     } );
 
+    it( "keeps the release seen when its status answers after it was marked", async () => {
+        const { stores } = shell();
+        const tiApplication = stores.tiApplication;
+        const answered = tiApplication.sendRequest;
+        let answer;
+        tiApplication.sendRequest = ( url, method, body ) => ( url === "/app/whats-new-status" )
+            ? new Promise( ( resolve ) => { answer = resolve; } )
+            : answered( url, method, body );
+        // A deep link to the screen: the status is asked, then the screen marks the release seen before it answers.
+        const loading = stores.tiWhatsNew.load();
+        await stores.tiWhatsNew.markSeen();
+        answer( { data: { unseen: 5, first: "Reports" } } );
+        await loading;
+        assert.deepEqual( [ stores.tiWhatsNew.unseen, stores.tiWhatsNew.first ], [ 0, "" ] );
+        assert.equal( stores.tiWhatsNew.label, "What's New" );
+    } );
+
     it( "says nothing when the status cannot load", async () => {
         const { stores } = shell( { "/app/whats-new-status": new Error( "down" ) } );
         stores.tiWhatsNew.unseen = 4;
