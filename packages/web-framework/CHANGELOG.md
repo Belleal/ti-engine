@@ -2,6 +2,39 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.56.0
+
+* feat(web-framework): **What's new and Feedback are framework features** (CA-528; design record
+  `docs/superpowers/specs/2026-10-19-web-framework-whats-new-feedback-design.md`).
+  * **Why.** An application built both on 2026-10-19, inside itself, and neither knew anything about that
+    application: What's new needs a version, roles and a store, Feedback a session, the administrators' allowlist, the
+    notifications service and a store. Asked whether they belonged in the framework, Boris agreed.
+  * **What's new.** `enableWhatsNew( { notes, baseline, audiences } )` registers the `whats-new` screen, its requests
+    (`GET /app/whats-new`, `GET /app/whats-new-status`, `POST /app/whats-new-seen`) and its user-menu entry. A
+    deployment remembers the release it runs and the one before it, so a person is shown the notes of every version in
+    between, for the audiences they belong to and in their language, until they open the screen or dismiss a notice.
+    The notes are checked at once. The `tiWhatsNew` store is what a dashboard notice binds to; it asks only once the
+    shell is initialized for someone signed in, because the sign-in page initializes it too.
+  * **Feedback.** `enableFeedback( { dateLocales } )` registers Send Feedback, the administrators' Feedback screen, its
+    requests (`POST /app/send-feedback`, `GET /app/feedback-inbox`, `POST /app/feedback-status`), the
+    `feedback.received` event and the `feedback-received` notice, which goes to every allowlisted administrator whose
+    entry is an address, never to the sender. Anonymous keeps no ID and no name; a problem keeps the screen (only one the
+    application registered), the version, the language and the browser, cut to 200 characters.
+  * **`resolveSubject( session )`**, a new virtual on `TiWebAppManager`, names the person a session acts for, `{ id,
+    name }`, the session user's by default. Both features keep what they keep under that ID, and the new exports
+    `./whats-new` and `./feedback` give a personal-data export and erasure what they need.
+  * **Values, never documents.** Every record is a state-store value, because D1 cannot delete a document and erasure
+    deletes. One document holding every feedback item was rejected: D1 keeps a document in one row, capped near 2 MB.
+    The inbox reads its items eight at a time.
+  * **A page title may mark its emphasis** with `*…*` in its label, which the three screens render as `<em>`; the
+    framework's own labels mark none.
+  * `sparkle`, `message` and `inbox` join the `.ti-icon` set; the screens' styles join the end of `ti-framework.css`.
+* test(web-framework): the sandbox helper runs `Alpine.effect`, so a store that starts from one can be driven.
+* docs(web-framework): the README's *What's new and Feedback* section.
+
+Tests: 65 new (1056 in the package), in `whats-new.test.js`, `feedback.test.js`,
+`web-app-manager.whats-new-feedback.test.js` and `ti-framework.whats-new-feedback.test.js`.
+
 ## Version 1.55.0
 
 * feat(notifications): **a notice can carry files**, such as a calendar entry (CA-502).

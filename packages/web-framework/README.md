@@ -520,6 +520,46 @@ tick, so a job must be harmless to run twice. `TI_WEB_JOBS_TRIGGER` decides what
 Both triggers assume one instance, as the configuration store's lock does. `runJobTick()` on the server runs a tick
 on demand.
 
+## What's new and Feedback
+
+Two screens an application turns on in its manager's constructor; without the call, neither exists.
+
+```js
+class MyApplication extends TiWebAppManager {
+    constructor() {
+        super( "my-application" );
+        this.enableWhatsNew( {
+            notes: require( "./whats-new.json" ).releases,     // newest first
+            baseline: "2.4.0",                                  // the release before the application had What's new
+            audiences: { manager: [ 2 ], supervisor: [ 3 ] }    // a name a note may use → the roles it covers
+        } );
+        this.enableFeedback( { dateLocales: { en: "en-GB" } } );
+    }
+}
+```
+
+* **What's new** (`whats-new`) shows each person, in their language, the notes of every release since the one the
+  deployment ran before, then the earlier ones. A note is `{ id, kind, audience, screen?, title, text }`, `kind` one of
+  `new`, `improved`, `fixed`, `title` and `text` by language. Its audience is `everyone`, `admin` or a name the
+  application maps; its `screen` becomes a link only for someone that screen's roles admit. The notes are checked when
+  `enableWhatsNew` runs (`WhatsNew.validateNotes` says why), so a malformed file stops the start. The browser's
+  `tiWhatsNew` store holds how many notes are new and unseen and the first one's title, for a dashboard notice or a
+  sidebar count to bind to.
+* **Feedback**: Send Feedback (`send-feedback`) for everyone signed in, a suggestion, problem, praise or other, up to
+  4000 characters, optionally anonymous; a problem carries the screen the person came from, the version, the language
+  and the browser. Feedback (`feedback-inbox`, `admin` only) lists every item newest first with a status. Each new item
+  raises `feedback.received`, which the `feedback-received` notice sends to every allowlisted administrator whose
+  entry is an e-mail address, never the sender, once the application's `notifications` document has a rule for it.
+* **Who a person is.** Override `resolveSubject( session )` to return `{ id, name }` from the application's own record;
+  the default is the session user's ID and name. The marker and the feedback are kept under that ID, and
+  `@ti-engine/web-framework/whats-new` (`markerOf`, `forget`) and `@ti-engine/web-framework/feedback` (`sentBy`,
+  `eraseSentBy`) are what a personal-data export and erasure call.
+* **Storage.** Every record is a value in the state store (`ti:whats-new:*`, `ti:feedback:item:*`), never a JSON
+  document, because D1 cannot delete a document. Nothing needs a partition spec.
+* **Texts.** The screens carry their English; an application translates them by holding the keys in its own catalogue
+  (`interface.whats-new.*`, `interface.feedback.*`, `interface.send-feedback.*`, `interface.feedback-inbox.*`,
+  `interface.notice.feedback-received.*`, `error.feedback.*`). A page title's label may mark its emphasis, `What's *new*`.
+
 ## When a request fails
 
 `webHandlers.defaultErrorHandler` answers every error nothing else handled.

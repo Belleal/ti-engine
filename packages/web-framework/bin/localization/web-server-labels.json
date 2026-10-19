@@ -80,6 +80,18 @@
       "about": {
         "en": "About",
         "bg": "Информация"
+      },
+      "whats-new": {
+        "en": "What's New",
+        "bg": "Какво ново"
+      },
+      "send-feedback": {
+        "en": "Send Feedback",
+        "bg": "Изпрати обратна връзка"
+      },
+      "feedback-inbox": {
+        "en": "Feedback",
+        "bg": "Обратна връзка"
       }
     },
     "user-menu": {
@@ -94,6 +106,14 @@
       "logout": {
         "en": "Logout",
         "bg": "Изход"
+      },
+      "whats-new": {
+        "en": "What's new",
+        "bg": "Какво ново"
+      },
+      "send-feedback": {
+        "en": "Send feedback",
+        "bg": "Изпрати обратна връзка"
       }
     },
     "profile": {
@@ -230,6 +250,328 @@
       "runtime-application": {
         "en": "Application ID",
         "bg": "ID на приложението"
+      }
+    },
+    "dashboard": {
+      "whats-new": {
+        "title": {
+          "en": "New in this release",
+          "bg": "Ново в това издание"
+        },
+        "more": {
+          "en": "and {n} more for you",
+          "bg": "и още {n} за Вас"
+        },
+        "open": {
+          "en": "See what's new",
+          "bg": "Вижте новостите"
+        },
+        "dismiss": {
+          "en": "Dismiss the notice",
+          "bg": "Затвори известието"
+        }
+      }
+    },
+    "navigation": {
+      "whats-new-unseen": {
+        "en": "{n} new",
+        "bg": "нови: {n}"
+      }
+    },
+    "notice": {
+      "feedback-received": {
+        "subject": {
+          "en": "Feedback about the application: {kind}",
+          "bg": "Обратна връзка за приложението: {kind}"
+        },
+        "text": {
+          "en": "On {date}, {sender} sent this feedback about the application:\n\n{text}\n\nOpen Feedback, under Administration, to give it a status.",
+          "bg": "На {date} {sender} изпрати следната обратна връзка за приложението:\n\n{text}\n\nОтворете „Обратна връзка“ в „Администрация“, за да ѝ дадете статус."
+        }
+      }
+    },
+    "whats-new": {
+      "eyebrow": {
+        "en": "Updates",
+        "bg": "Обновления"
+      },
+      "page-title": {
+        "en": "What's new",
+        "bg": "Какво ново"
+      },
+      "intro": {
+        "en": "What each release changed for you, in plain words.",
+        "bg": "Какво е променило за Вас всяко издание, с прости думи."
+      },
+      "updated": {
+        "en": "Updated on {date}, version {version}",
+        "bg": "Обновено на {date}, версия {version}"
+      },
+      "version-only": {
+        "en": "Version {version}",
+        "bg": "Версия {version}"
+      },
+      "loading": {
+        "en": "Loading what's new…",
+        "bg": "Зареждане на новостите…"
+      },
+      "fresh-title": {
+        "en": "New in this release",
+        "bg": "Ново в това издание"
+      },
+      "fresh-empty": {
+        "en": "Nothing in this release changes what you do.",
+        "bg": "Нищо в това издание не променя работата Ви."
+      },
+      "earlier-title": {
+        "en": "Earlier releases",
+        "bg": "По-ранни издания"
+      },
+      "release": {
+        "en": "Version {version}",
+        "bg": "Версия {version}"
+      },
+      "kind": {
+        "new": {
+          "en": "New",
+          "bg": "Ново"
+        },
+        "improved": {
+          "en": "Improved",
+          "bg": "Подобрено"
+        },
+        "fixed": {
+          "en": "Fixed",
+          "bg": "Поправено"
+        }
+      },
+      "open": {
+        "en": "Open {screen}",
+        "bg": "Отвори „{screen}“"
+      }
+    },
+    "feedback": {
+      "kind": {
+        "suggestion": {
+          "en": "Suggestion",
+          "bg": "Предложение"
+        },
+        "problem": {
+          "en": "Problem",
+          "bg": "Проблем"
+        },
+        "praise": {
+          "en": "Praise",
+          "bg": "Похвала"
+        },
+        "other": {
+          "en": "Other",
+          "bg": "Друго"
+        }
+      },
+      "sender": {
+        "anonymous": {
+          "en": "Anonymous",
+          "bg": "Анонимно"
+        }
+      },
+      "status": {
+        "new": {
+          "en": "New",
+          "bg": "Нова"
+        },
+        "in-progress": {
+          "en": "In progress",
+          "bg": "В работа"
+        },
+        "done": {
+          "en": "Done",
+          "bg": "Готова"
+        },
+        "declined": {
+          "en": "Declined",
+          "bg": "Отхвърлена"
+        }
+      }
+    },
+    "send-feedback": {
+      "eyebrow": {
+        "en": "To the administrators",
+        "bg": "До администраторите"
+      },
+      "page-title": {
+        "en": "Send feedback",
+        "bg": "Изпратете обратна връзка"
+      },
+      "intro": {
+        "en": "A suggestion, a problem you ran into, or something you liked: it goes to the people who run this application.",
+        "bg": "Предложение, проблем, на който сте попаднали, или нещо, което Ви е харесало: то стига до хората, които поддържат приложението."
+      },
+      "kind-title": {
+        "en": "What is it?",
+        "bg": "Какво е?"
+      },
+      "kind-hint": {
+        "suggestion": {
+          "en": "An idea to make it better",
+          "bg": "Идея как да стане по-добро"
+        },
+        "problem": {
+          "en": "Something that does not work as it should",
+          "bg": "Нещо, което не работи както трябва"
+        },
+        "praise": {
+          "en": "Something that works well",
+          "bg": "Нещо, което работи добре"
+        },
+        "other": {
+          "en": "Anything else",
+          "bg": "Всичко останало"
+        }
+      },
+      "text-label": {
+        "en": "Your feedback",
+        "bg": "Вашата обратна връзка"
+      },
+      "text-placeholder": {
+        "en": "What happened, or what would help? For a problem, say what you were doing.",
+        "bg": "Какво се случи или какво би помогнало? При проблем опишете какво правехте."
+      },
+      "remaining": {
+        "en": "{n} characters left",
+        "bg": "Остават {n} знака"
+      },
+      "context": {
+        "en": "With a problem we also send the screen you were on ({screen}), the application's version, your language and your browser.",
+        "bg": "При проблем изпращаме и екрана, на който сте били ({screen}), версията на приложението, езика и браузъра Ви."
+      },
+      "screen-unknown": {
+        "en": "not known",
+        "bg": "неизвестен"
+      },
+      "anonymous": {
+        "en": "Send anonymously",
+        "bg": "Изпрати анонимно"
+      },
+      "anonymous-hint": {
+        "en": "Your name is not kept with it, so nobody can reply to you or ask you about it.",
+        "bg": "Името Ви не се запазва с нея, така че никой не може да Ви отговори или да Ви попита за нея."
+      },
+      "send": {
+        "en": "Send",
+        "bg": "Изпрати"
+      },
+      "sent-toast": {
+        "en": "Thank you: your feedback was sent.",
+        "bg": "Благодарим Ви: обратната Ви връзка е изпратена."
+      },
+      "sent-title": {
+        "en": "Thank you",
+        "bg": "Благодарим Ви"
+      },
+      "sent-text": {
+        "en": "Your feedback has reached the administrators.",
+        "bg": "Обратната Ви връзка стигна до администраторите."
+      },
+      "another": {
+        "en": "Send more feedback",
+        "bg": "Изпратете още обратна връзка"
+      }
+    },
+    "feedback-inbox": {
+      "eyebrow": {
+        "en": "Administration",
+        "bg": "Администрация"
+      },
+      "page-title": {
+        "en": "Feedback",
+        "bg": "Обратна връзка"
+      },
+      "intro": {
+        "en": "What people sent about the application, newest first. Give each a status as you deal with it.",
+        "bg": "Какво са изпратили хората за приложението, първо най-новото. Давайте статус на всяко, докато го обработвате."
+      },
+      "loading": {
+        "en": "Loading feedback…",
+        "bg": "Зареждане на обратната връзка…"
+      },
+      "status-filter": {
+        "en": "Show by status",
+        "bg": "Покажи по статус"
+      },
+      "all": {
+        "en": "All",
+        "bg": "Всички"
+      },
+      "kind-filter": {
+        "en": "Kind",
+        "bg": "Вид"
+      },
+      "all-kinds": {
+        "en": "Every kind",
+        "bg": "Всички видове"
+      },
+      "empty-title": {
+        "en": "No feedback yet",
+        "bg": "Все още няма обратна връзка"
+      },
+      "empty-desc": {
+        "en": "What people send from Send Feedback appears here.",
+        "bg": "Това, което хората изпращат от „Изпрати обратна връзка“, се появява тук."
+      },
+      "none-shown": {
+        "en": "Nothing matches these filters.",
+        "bg": "Нищо не отговаря на тези филтри."
+      },
+      "status-label": {
+        "en": "Status",
+        "bg": "Статус"
+      },
+      "status-saved": {
+        "en": "Status saved.",
+        "bg": "Статусът е запазен."
+      },
+      "context": {
+        "screen": {
+          "en": "Screen",
+          "bg": "Екран"
+        },
+        "version": {
+          "en": "Version",
+          "bg": "Версия"
+        },
+        "language": {
+          "en": "Language",
+          "bg": "Език"
+        },
+        "browser": {
+          "en": "Browser",
+          "bg": "Браузър"
+        }
+      }
+    }
+  },
+  "error": {
+    "feedback": {
+      "kind": {
+        "en": "Choose what the feedback is.",
+        "bg": "Изберете какво е обратната връзка."
+      },
+      "text-empty": {
+        "en": "Write your feedback before sending it.",
+        "bg": "Напишете обратната си връзка, преди да я изпратите."
+      },
+      "text-long": {
+        "en": "Feedback is limited to 4000 characters.",
+        "bg": "Обратната връзка е ограничена до 4000 знака."
+      },
+      "status": {
+        "en": "That is not a status feedback can have.",
+        "bg": "Това не е статус, който обратната връзка може да има."
+      },
+      "not-found": {
+        "en": "That feedback no longer exists.",
+        "bg": "Тази обратна връзка вече не съществува."
       }
     }
   }

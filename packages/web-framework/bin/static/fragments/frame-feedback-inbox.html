@@ -1,0 +1,85 @@
+<!--
+    Feedback (administrators only): every piece of feedback about the application, newest first, filtered by status and
+    kind, each with who sent it, its text, a problem's context, and a select that gives it a status.
+
+    The English on each element is what shows where the application's catalogue has no text for its key.
+
+    Alpine runs in CSP mode: no inline style attributes and no optional chaining in expressions - the shaping is done
+    in tiScreenFeedbackInbox before the values reach the template.
+-->
+<div class="ti-page ti-feedback-inbox" x-data="tiScreenFeedbackInbox">
+
+    <div class="ti-page-head">
+        <div class="ti-page-eyebrow" x-text-label="interface.feedback-inbox.eyebrow">Administration</div>
+        <h1 class="ti-page-title"><span x-text="pageTitle.before">Feedback</span><em x-text="pageTitle.em"></em><span x-text="pageTitle.after"></span></h1>
+        <p class="ti-page-subtitle" x-text-label="interface.feedback-inbox.intro">What people sent about the application, newest first. Give each a status as you deal with it.</p>
+    </div>
+
+    <template x-if="busy">
+        <div class="ti-empty-state">
+            <div class="ti-empty-state-title" x-text-label="interface.feedback-inbox.loading">Loading feedback…</div>
+        </div>
+    </template>
+
+    <template x-if="loaded">
+        <div class="ti-feedback-inbox-body">
+            <div class="ti-feedback-filters">
+                <div class="ti-feedback-statuses" role="group" x-text-label:aria-label="interface.feedback-inbox.status-filter" aria-label="Show by status">
+                    <template x-for="choice in statusChoices" x-bind:key="choice.value">
+                        <button type="button" class="ti-btn sm" x-bind:class="choice.pressed === 'true' ? 'primary' : 'ghost'" x-bind:aria-pressed="choice.pressed"
+                                @click="setStatusFilter( choice.value )" x-text="choice.text"></button>
+                    </template>
+                </div>
+                <label class="ti-feedback-filter-label" for="ti-feedback-kind-filter" x-text-label="interface.feedback-inbox.kind-filter">Kind</label>
+                <select class="ti-select" id="ti-feedback-kind-filter" name="feedback-kind-filter" @change="setKindFilter( $event.target.value )">
+                    <option value="" x-text-label="interface.feedback-inbox.all-kinds">Every kind</option>
+                    <template x-for="choice in kindChoices" x-bind:key="choice.value">
+                        <option x-bind:value="choice.value" x-text="choice.name"></option>
+                    </template>
+                </select>
+            </div>
+
+            <template x-if="!hasItems()">
+                <div class="ti-panel ti-empty-state">
+                    <div class="ti-empty-state-title" x-text-label="interface.feedback-inbox.empty-title">No feedback yet</div>
+                    <div class="ti-empty-state-desc" x-text-label="interface.feedback-inbox.empty-desc">What people send from Send Feedback appears here.</div>
+                </div>
+            </template>
+            <template x-if="hasItems() && !hasShown()">
+                <p class="ti-feedback-none" x-text-label="interface.feedback-inbox.none-shown">Nothing matches these filters.</p>
+            </template>
+
+            <ul class="ti-feedback-items">
+                <template x-for="item in shown" x-bind:key="item.feedbackID">
+                    <li class="ti-panel ti-feedback-item">
+                        <div class="ti-feedback-item-head">
+                            <span class="ti-tag" x-bind:class="kindClass( item )" x-text="kindText( item )"></span>
+                            <span class="ti-feedback-item-sender" x-text="senderText( item )"></span>
+                            <span class="ti-feedback-item-date" x-text="dateText( item )"></span>
+                            <span class="ti-feedback-item-status-field">
+                                <label class="ti-feedback-filter-label" x-bind:for="statusSelectID( item )" x-text-label="interface.feedback-inbox.status-label">Status</label>
+                                <select class="ti-select ti-feedback-item-status" x-bind:id="statusSelectID( item )" x-bind:name="statusSelectID( item )" @change="setStatus( item, $event.target.value )">
+                                    <template x-for="option in statusOptions" x-bind:key="option.value">
+                                        <option x-bind:value="option.value" x-bind:selected="option.value === item.status" x-text="option.name"></option>
+                                    </template>
+                                </select>
+                            </span>
+                        </div>
+                        <p class="ti-feedback-item-text" x-text="item.text"></p>
+                        <template x-if="contextLines( item ).length > 0">
+                            <dl class="ti-feedback-item-context">
+                                <template x-for="line in contextLines( item )" x-bind:key="line.key">
+                                    <div class="ti-feedback-item-context-line">
+                                        <dt x-text="line.name"></dt>
+                                        <dd x-text="line.value"></dd>
+                                    </div>
+                                </template>
+                            </dl>
+                        </template>
+                    </li>
+                </template>
+            </ul>
+        </div>
+    </template>
+
+</div>

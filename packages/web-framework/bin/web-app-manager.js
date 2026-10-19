@@ -28,8 +28,10 @@ const authorization = require( "#authorization" );
 const applicationInfo = require( "#application-info" );
 const staticFingerprint = require( "#static-fingerprint" );
 const fragmentFingerprint = require( "#fragment-fingerprint" );
+const whatsNew = require( "#whats-new" );
+const feedback = require( "#feedback" );
 
-/** @import { TiApplicationInfo, TiInfoSection, TiLabelsBundle, TiProfileInfo, TiSession } from "#definitions" */
+/** @import { TiApplicationInfo, TiFeedbackOptions, TiInfoSection, TiLabelsBundle, TiProfileInfo, TiSession, TiSessionSubject, TiWhatsNewOptions, TiWhatsNewStatus, TiWhatsNewView } from "#definitions" */
 
 /**
  * Where a label catalogue is served. The hash IS the address, which is what makes an `immutable` answer honest:
@@ -54,6 +56,14 @@ const LABELS_BUNDLE_HASH_LENGTH = 16;
  * @type {number}
  */
 const MAX_HELD_LABELS_BUNDLES = 16;
+
+/**
+ * The fragments that make up the shell rather than a screen: never the screen a problem report names, nor where a
+ * What's new note links to.
+ *
+ * @type {Set<string>}
+ */
+const SHELL_FRAGMENTS = new Set( [ "home", "application-main", "login", "not-found" ] );
 
 const RE_NONCE_ATTR = /\{ti-nonce-placeholder}/g;
 const RE_CSRF_ATTR = /\{ti-csrf-placeholder}/g;
@@ -261,6 +271,8 @@ class TiWebAppManager {
     #immutableAddressing = new Map();
     #unaddressableReported = new Set();
     #untranslatedReported = new Set();
+    #whatsNewEnabled = false;
+    #feedbackEnabled = false;
 
     /**
      * @constructor
@@ -408,6 +420,83 @@ class TiWebAppManager {
     registerConfigEditor( editorKey, definition ) {
         configService.instance.registerEditor( editorKey, definition );
         return this;
+    }
+
+    /**
+     * Turns on What's new: the application's release notes, each person shown those new in the release the deployment
+     * runs, written for their audience and in their language. Registers the `whats-new` screen and its requests, and
+     * adds it to the default user menu. Call during initialization.
+     * <br/>
+     * The notes are checked at once, so a malformed file stops the start rather than leaving an empty screen. The
+     * framework's `tiWhatsNew` store is what a dashboard notice or a sidebar count binds to.
+     *
+     * @method
+     * @param {TiWhatsNewOptions} options
+     * @returns {TiWebAppManager} this (chainable)
+     * @throws {TiException.E_GEN_INVALID_ARGUMENT_TYPE} When the notes, the baseline or the audiences are malformed.
+     * @public
+     */
+    enableWhatsNew( options ) {
+        whatsNew.instance.configure( options );
+        this.addFragment( "whats-new", {
+            title: "What's New",
+            path: "fragments/frame-whats-new.html"
+        } );
+        this.#whatsNewEnabled = true;
+        return this;
+    }
+
+    /**
+     * Turns on feedback about the application: Send Feedback for everyone signed in, and Feedback, where the allowlisted
+     * administrators read what arrived and give it a status. Registers both screens and their requests, the
+     * `feedback.received` event and the `feedback-received` notice, and adds Send Feedback to the default user menu.
+     * Call during initialization. The application's `notifications` document holds the rule that e-mails the
+     * administrators, as for every notice.
+     *
+     * @method
+     * @param {TiFeedbackOptions} [options]
+     * @returns {TiWebAppManager} this (chainable)
+     * @throws {TiException.E_GEN_INVALID_ARGUMENT_TYPE} When `dateLocales` is malformed.
+     * @public
+     */
+    enableFeedback( options = {} ) {
+        feedback.instance.enable( options );
+        this.addFragment( "send-feedback", {
+            title: "Send Feedback",
+            path: "fragments/frame-send-feedback.html"
+        } );
+        this.addFragment( "feedback-inbox", {
+            title: "Feedback",
+            path: "fragments/frame-feedback-inbox.html",
+            roles: [ authorization.ADMIN_ROLE ]
+        } );
+        this.#feedbackEnabled = true;
+        return this;
+    }
+
+    /**
+     * Who a session acts for, as the application knows them: the key a person's What's new marker and the feedback they
+     * send under their name are kept under, and the name an administrator reads on an item. Their personal-data export
+     * and erasure find both by the same ID.
+     * <br/>
+     * The default is the session user's ID and name. Override when the application has a record of its own for people,
+     * so that what is kept follows that record rather than a sign-in identity.
+     *
+     * @method
+     * @param {TiSession} session
+     * @returns {TiSessionSubject|null} Null when the session names nobody.
+     * @virtual
+     * @public
+     */
+    resolveSubject( session ) {
+        const user = session && session.user;
+        if ( !user || user.userID === undefined || user.userID === null || user.userID === "" ) {
+            return null;
+        }
+        return {
+            id: String( user.userID ),
+            name: String( user.name || user.username || user.userID )
+        };
     }
 
     /**
@@ -644,6 +733,15 @@ class TiWebAppManager {
         if ( view === "about" ) {
             return this.getApplicationInfo( session );
         }
+        if ( this.#whatsNewEnabled && view === "whats-new" ) {
+            return this.#loadWhatsNew( session );
+        }
+        if ( this.#whatsNewEnabled && view === "whats-new-status" ) {
+            return this.#loadWhatsNewStatus( session );
+        }
+        if ( this.#feedbackEnabled && view === "feedback-inbox" ) {
+            return this.#loadFeedbackInbox( session );
+        }
         return new Promise( ( resolve, reject ) => {
             if ( view === "config" ) {
                 // The catalogue's address rather than the catalogue: this answer is `no-store` and fetched on every
@@ -655,6 +753,12 @@ class TiWebAppManager {
                     labelsBundle: { hash: labelsBundle.hash, url: labelsBundle.url },
                     auth: {
                         isAuthenticated: Boolean( session && session.user )
+                    },
+                    // What the browser asks for only where the application turned it on: the What's new store loads
+                    // its status from here.
+                    features: {
+                        whatsNew: this.#whatsNewEnabled,
+                        feedback: this.#feedbackEnabled
                     },
                     componentsConfig: this.buildComponentsConfig( session )
                 } );
@@ -681,24 +785,40 @@ class TiWebAppManager {
      */
     buildComponentsConfig( session ) {
         const language = session && session.language;
+        const buttonConfigs = [ {
+            title: localization.getLabel( "interface.user-menu.profile", language, "Your profile" ),
+            icon: "user-profile",
+            action: { href: "/app/profile", target: "#ti-content", swap: "innerHTML" }
+        } ];
+        if ( this.#whatsNewEnabled ) {
+            buttonConfigs.push( {
+                title: localization.getLabel( "interface.user-menu.whats-new", language, "What's new" ),
+                icon: "sparkle",
+                action: { href: "/app/whats-new", target: "#ti-content", swap: "innerHTML" }
+            } );
+        }
+        if ( this.#feedbackEnabled ) {
+            buttonConfigs.push( {
+                title: localization.getLabel( "interface.user-menu.send-feedback", language, "Send feedback" ),
+                icon: "message",
+                action: { href: "/app/send-feedback", target: "#ti-content", swap: "innerHTML" }
+            } );
+        }
+        buttonConfigs.push( {
+            title: localization.getLabel( "interface.user-menu.about", language, "About" ),
+            icon: "info-circle",
+            action: { href: "/app/about", target: "#ti-content", swap: "innerHTML" }
+        }, {
+            title: localization.getLabel( "interface.user-menu.logout", language, "Logout" ),
+            icon: "logout",
+            action: { href: "/logout", method: "post", target: "body", swap: "outerHTML" }
+        } );
         return {
             userProfileMenu: {
                 menuTitle: localization.getLabel( "interface.topbar.user-profile", language, "Your profile" ),
                 placement: "right-end",
                 offset: 0,
-                buttonConfigs: [ {
-                    title: localization.getLabel( "interface.user-menu.profile", language, "Your profile" ),
-                    icon: "user-profile",
-                    action: { href: "/app/profile", target: "#ti-content", swap: "innerHTML" }
-                }, {
-                    title: localization.getLabel( "interface.user-menu.about", language, "About" ),
-                    icon: "info-circle",
-                    action: { href: "/app/about", target: "#ti-content", swap: "innerHTML" }
-                }, {
-                    title: localization.getLabel( "interface.user-menu.logout", language, "Logout" ),
-                    icon: "logout",
-                    action: { href: "/logout", method: "post", target: "body", swap: "outerHTML" }
-                } ]
+                buttonConfigs: buttonConfigs
             }
         };
     }
@@ -757,15 +877,7 @@ class TiWebAppManager {
      */
     getApplicationInfo( session ) {
         return new Promise( ( resolve ) => {
-            if ( !this.#baseApplicationInfo ) {
-                this.#baseApplicationInfo = applicationInfo.buildApplicationInfo( {
-                    manifest: applicationInfo.readApplicationManifest(),
-                    env: process.env,
-                    components: TiWebAppManager.resolveFrameworkComponents()
-                } );
-            }
-
-            const info = structuredClone( this.#baseApplicationInfo );
+            const info = structuredClone( this.#applicationBaseInfo() );
             if ( authorization.hasAnyRole( session, [ authorization.ADMIN_ROLE ] ) ) {
                 info.runtime = {
                     node: process.version,
@@ -868,6 +980,15 @@ class TiWebAppManager {
      * @public
      */
     processServiceRequest( session, service, params ) {
+        if ( this.#whatsNewEnabled && service === "whats-new-seen" ) {
+            return this.#markWhatsNewSeen( session );
+        }
+        if ( this.#feedbackEnabled && service === "send-feedback" ) {
+            return this.#sendFeedback( session, params );
+        }
+        if ( this.#feedbackEnabled && service === "feedback-status" ) {
+            return this.#setFeedbackStatus( session, params );
+        }
         return new Promise( ( resolve, reject ) => {
             reject( exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_URI, { service: service } ) );
         } );
@@ -900,6 +1021,208 @@ class TiWebAppManager {
     }
 
     /* Private interface */
+
+    /**
+     * The application's own facts, resolved once from its `package.json` and the `TI_WEB_APP_*` overrides: the manifest
+     * cannot change while the process runs.
+     *
+     * @method
+     * @returns {TiApplicationInfo}
+     */
+    #applicationBaseInfo() {
+        if ( !this.#baseApplicationInfo ) {
+            this.#baseApplicationInfo = applicationInfo.buildApplicationInfo( {
+                manifest: applicationInfo.readApplicationManifest(),
+                env: process.env,
+                components: TiWebAppManager.resolveFrameworkComponents()
+            } );
+        }
+        return this.#baseApplicationInfo;
+    }
+
+    /**
+     * Whether a name is a screen this application has: a registered fragment that is not part of the shell.
+     *
+     * @method
+     * @param {string} name
+     * @returns {boolean}
+     */
+    #isScreen( name ) {
+        return typeof name === "string" && !SHELL_FRAGMENTS.has( name ) && Object.prototype.hasOwnProperty.call( this.#fragments, name );
+    }
+
+    /**
+     * Whether a session holding these roles may open a screen, by the same gate {@link TiWebAppManager#verifyAccess}
+     * applies.
+     *
+     * @method
+     * @param {string} name
+     * @param {Array<string|number>} roles
+     * @returns {boolean}
+     */
+    #canOpen( name, roles ) {
+        return this.#isScreen( name ) && authorization.isAccessAllowed( this.#fragments[ name ].roles || null, roles );
+    }
+
+    /**
+     * Who a request is from, as {@link TiWebAppManager#resolveSubject} says, with the ID as a string.
+     *
+     * @method
+     * @param {TiSession} session
+     * @returns {TiSessionSubject}
+     * @throws {TiException.E_SEC_UNAUTHORIZED_ACCESS} (401) When the session names nobody.
+     */
+    #requireSubject( session ) {
+        const subject = ( session && session.user ) ? this.resolveSubject( session ) : null;
+        const id = ( subject && ( typeof subject.id === "string" || typeof subject.id === "number" ) ) ? String( subject.id ) : "";
+        if ( id === "" ) {
+            throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 );
+        }
+        return { id: id, name: String( subject.name || "" ) };
+    }
+
+    /**
+     * Refuses anyone but an allowlisted administrator.
+     *
+     * @method
+     * @param {TiSession} session
+     * @throws {TiException.E_SEC_UNAUTHORIZED_ACCESS} 401 with no session user, 403 without the `admin` role.
+     */
+    #requireAdmin( session ) {
+        if ( !session || !session.user ) {
+            throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_401 );
+        }
+        if ( !authorization.hasAnyRole( session, [ authorization.ADMIN_ROLE ] ) ) {
+            throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNAUTHORIZED_ACCESS, null, exceptions.httpCode.C_403 );
+        }
+    }
+
+    /**
+     * What What's new needs to know about a reader: the version running, whose marker to read, and what they may open.
+     *
+     * @method
+     * @param {TiSession} session
+     * @returns {Object}
+     * @throws {TiException.E_SEC_UNAUTHORIZED_ACCESS} (401) When the session names nobody.
+     */
+    #whatsNewReader( session ) {
+        const subject = this.#requireSubject( session );
+        const roles = Array.isArray( session.user.roles ) ? session.user.roles : [];
+        return {
+            running: this.#applicationBaseInfo().version,
+            subjectID: subject.id,
+            roles: roles,
+            language: session.language,
+            canOpen: ( screen ) => this.#canOpen( screen, roles )
+        };
+    }
+
+    /**
+     * The notes the session's person is shown, and whether they have seen the release. Reading does not mark it.
+     *
+     * @method
+     * @param {TiSession} session
+     * @returns {Promise<TiWhatsNewView>}
+     */
+    #loadWhatsNew( session ) {
+        return new Promise( ( resolve, reject ) => {
+            whatsNew.instance.view( this.#whatsNewReader( session ) ).then( resolve ).catch( ( error ) => reject( exceptions.raise( error ) ) );
+        } );
+    }
+
+    /**
+     * What a reminder needs: how many notes are new and unseen, and the first one's title.
+     *
+     * @method
+     * @param {TiSession} session
+     * @returns {Promise<TiWhatsNewStatus>}
+     */
+    #loadWhatsNewStatus( session ) {
+        return new Promise( ( resolve, reject ) => {
+            whatsNew.instance.status( this.#whatsNewReader( session ) ).then( resolve ).catch( ( error ) => reject( exceptions.raise( error ) ) );
+        } );
+    }
+
+    /**
+     * Records that the session's person has seen the release running.
+     *
+     * @method
+     * @param {TiSession} session
+     * @returns {Promise<{version: string}>}
+     */
+    #markWhatsNewSeen( session ) {
+        return new Promise( ( resolve, reject ) => {
+            const subject = this.#requireSubject( session );
+            whatsNew.instance.markSeen( this.#applicationBaseInfo().version, subject.id ).then( resolve ).catch( ( error ) => reject( exceptions.raise( error ) ) );
+        } );
+    }
+
+    /**
+     * Stores a piece of feedback from anyone signed in and e-mails the administrators. A problem's screen must be one
+     * this application has.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} params `{ kind, text, anonymous, screen, browser }`.
+     * @returns {Promise<{feedbackID: string}>}
+     */
+    #sendFeedback( session, params ) {
+        return new Promise( ( resolve, reject ) => {
+            const subject = this.#requireSubject( session );
+            feedback.instance.submit( params, {
+                subject: subject,
+                email: session.user.email,
+                version: this.#applicationBaseInfo().version,
+                language: session.language || "",
+                isScreen: ( screen ) => this.#isScreen( screen )
+            } ).then( ( item ) => resolve( { feedbackID: item.feedbackID } ) ).catch( ( error ) => reject( exceptions.raise( error ) ) );
+        } );
+    }
+
+    /**
+     * Every piece of feedback, newest first, for the administrators' screen. An anonymous item carries no name.
+     *
+     * @method
+     * @param {TiSession} session
+     * @returns {Promise<{items: Array<Object>}>}
+     */
+    #loadFeedbackInbox( session ) {
+        return new Promise( ( resolve, reject ) => {
+            this.#requireAdmin( session );
+            feedback.instance.fetchAll().then( ( items ) => {
+                resolve( {
+                    items: items.map( ( item ) => ( {
+                        feedbackID: item.feedbackID,
+                        kind: item.kind,
+                        text: String( item.text || "" ),
+                        status: feedback.instance.isStatus( item.status ) ? item.status : feedback.STATUS.NEW,
+                        submittedAt: item.submittedAt || null,
+                        anonymous: item.anonymous === true,
+                        senderName: ( item.anonymous === true ) ? "" : String( item.senderName || "" ),
+                        context: ( item.context && typeof item.context === "object" ) ? item.context : null,
+                        statusChangedAt: item.statusChangedAt || null
+                    } ) )
+                } );
+            } ).catch( ( error ) => reject( exceptions.raise( error ) ) );
+        } );
+    }
+
+    /**
+     * Gives a piece of feedback a status, recording which administrator and when.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} params `{ feedbackID, status }`.
+     * @returns {Promise<{feedbackID: string, status: string, statusChangedAt: string}>}
+     */
+    #setFeedbackStatus( session, params ) {
+        return new Promise( ( resolve, reject ) => {
+            this.#requireAdmin( session );
+            feedback.instance.setStatus( params && params.feedbackID, String( params && params.status || "" ), session.user.userID ).then( ( item ) => {
+                resolve( { feedbackID: item.feedbackID, status: item.status, statusChangedAt: item.statusChangedAt } );
+            } ).catch( ( error ) => reject( exceptions.raise( error ) ) );
+        } );
+    }
 
     /**
      * Locates the `package.json` owning a resolvable module specifier by walking up from the resolved file.
