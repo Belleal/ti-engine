@@ -213,7 +213,15 @@ describe( "Feedback — the e-mail to the administrators", () => {
     it( "keeps the allowlist entries that are addresses, once each, from a list or the comma form of TI_WEB_AUTH_ADMINS", () => {
         assert.deepEqual( fresh().configure( { admins: [ "Boss@Example.com", "admin", "boss@example.com" ] } ).recipients, [ "boss@example.com" ] );
         assert.deepEqual( fresh().configure( { admins: "a@example.com, b@example.com ,oauth2:123" } ).recipients, [ "a@example.com", "b@example.com" ] );
+        assert.deepEqual( fresh().configure( { admins: [ "x@sub.example.co.uk", "a@b", "a@b.", "a@.b", "a@b..c", "a b@x.org" ] } ).recipients, [ "x@sub.example.co.uk" ] );
         assert.deepEqual( fresh().configure( {} ).recipients, [] );
+    } );
+
+    it( "reads an entry built to make the address check backtrack in linear time", () => {
+        // The first pattern let each dot match two ways: 479 ms at 20,000 repetitions, quadratic beyond (CodeQL).
+        const started = process.hrtime.bigint();
+        assert.deepEqual( fresh().configure( { admins: [ "!@!." + "!.".repeat( 50000 ) + " " ] } ).recipients, [] );
+        assert.ok( Number( process.hrtime.bigint() - started ) / 1e6 < 200 );
     } );
 
     it( "writes to every administrator but the sender, under an ID that is not an address", async () => {

@@ -32,8 +32,10 @@ This document will contain the list of changes made to the framework. The format
 * test(web-framework): the sandbox helper runs `Alpine.effect`, so a store that starts from one can be driven.
 * docs(web-framework): the README's *What's new and Feedback* section.
 
-Tests: 65 new (1056 in the package), in `whats-new.test.js`, `feedback.test.js`,
-`web-app-manager.whats-new-feedback.test.js` and `ti-framework.whats-new-feedback.test.js`.
+Tests: 66 new (1057 in the package), in `whats-new.test.js`, `feedback.test.js`,
+`web-app-manager.whats-new-feedback.test.js` and `ti-framework.whats-new-feedback.test.js`. One holds the allowlist's
+address check to linear time: its first pattern, `[^@\s]+\.[^@\s]+`, let each dot match two ways, and a crafted entry
+took 479 ms at 20,000 repetitions (CodeQL `js/polynomial-redos`, found on this change's pull request).
 
 ## Version 1.55.0
 

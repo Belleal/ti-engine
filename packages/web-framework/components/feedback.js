@@ -106,8 +106,10 @@ const TEXT_MAX = 4000;
 const BROWSER_MAX = 200;
 
 // An allowlist entry that is an e-mail address. An entry is matched against a sign-in's user ID, user name or e-mail,
-// so not every entry is one, and only one that is can be written to.
-const ADDRESS = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+// so not every entry is one, and only one that is can be written to. The domain's labels exclude the dot, so each dot
+// has one place to match: with `[^@\s]+\.[^@\s]+` an entry such as "a@a." and "a." repeated took quadratic time
+// (479 ms at 20,000 repetitions, measured; CodeQL js/polynomial-redos).
+const ADDRESS = /^[^@\s]+@[^@\s.]+(?:\.[^@\s.]+)+$/;
 
 // A feedback ID as this module mints them, and nothing a key pattern could read as a wildcard.
 const FEEDBACK_ID = /^[A-Za-z0-9-]{1,64}$/;
