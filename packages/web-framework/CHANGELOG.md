@@ -2,6 +2,21 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.56.1
+
+* fix(web-framework): **the sidebar keeps its entries' gap above the footer** (CA-530).
+  * **What was wrong.** Scrolled to its end, a sidebar too long for the window ended with its last entry flush against
+    the footer's border, the theme switch and the user below it. Measured in Chromium on an application's sidebar at
+    1440x800 and 1280x720, expanded and collapsed, and in the 390px drawer: 0px, where entries are 2px apart.
+  * **Why it survived.** `.ti-sidebar-foot` takes `margin-top: auto`, which pushes it down while the list is short;
+    once the list scrolls there is no free space, the auto margin is 0, and nothing else held a gap. A short sidebar,
+    the only kind this package's own pages have, never shows it.
+  * **Now.** `.ti-sidebar > :has(+ .ti-sidebar-foot) { margin-bottom: 2px }`, the same as `.ti-sidebar-nav`'s gap,
+    on whatever the application puts before the footer. Measured again: 2px in all five layouts.
+* fix(web-framework): What's new's Bulgarian introduction reads "на достъпен език", not "с прости думи" (CA-529).
+
+Tests: 1 new (1059 in the package), in `ti-framework.sidebar-overflow.test.js`; it fails without the rule.
+
 ## Version 1.56.0
 
 * feat(web-framework): **What's new and Feedback are framework features** (CA-528; design record

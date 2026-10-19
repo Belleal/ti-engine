@@ -301,7 +301,7 @@
       },
       "intro": {
         "en": "What each release changed for you, in plain words.",
-        "bg": "Какво е променило за Вас всяко издание, с прости думи."
+        "bg": "Какво е променило за Вас всяко издание, на достъпен език."
       },
       "updated": {
         "en": "Updated on {date}, version {version}",
