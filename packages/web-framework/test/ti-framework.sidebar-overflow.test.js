@@ -131,6 +131,16 @@ describe( "the brand and the footer stay on screen while the list scrolls", () =
         assertDeclares( ".ti-sidebar-foot", "margin-top", "auto" );
     } );
 
+    it( "keeps the entries' own gap above the footer once the list scrolls", () => {
+        // Scrolled to its end, the last entry sat flush against the footer's border: with no free space the auto
+        // margin is 0, and nothing else held a gap. Measured in Chromium at 1440x800, 1280x720 and in the 390px
+        // drawer: 0px, where entries are 2px apart (CA-530). Whatever the application puts before the footer keeps
+        // the gap the entries keep between themselves.
+        const gap = declarations( ".ti-sidebar-nav" ).gap;
+        assert.equal( gap, "2px" );
+        assertDeclares( ".ti-sidebar > :has(+ .ti-sidebar-foot)", "margin-bottom", gap, "the same gap as between two entries" );
+    } );
+
 } );
 
 describe( "the collapse button survives the sidebar becoming a scroller", () => {

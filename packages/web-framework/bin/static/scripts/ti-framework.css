@@ -1073,6 +1073,15 @@ body {
     background: linear-gradient(var(--sidebar-bg), var(--sidebar-bg)), var(--bg-app);
 }
 
+/* The list's own gap between its last entry and the footer's border, as between any two entries (`.ti-sidebar-nav`).
+   With `margin-top: auto` alone, a sidebar long enough to scroll ended flush against that border: no free space is left
+   to distribute, so the auto margin is 0. Measured in Chromium at 1440x800 and 1280x720, expanded and collapsed, and in
+   the 390px drawer: 0px, where entries are 2px apart (CA-530). The element before the footer is the application's,
+   whatever it is, so it is found by what follows it. */
+.ti-sidebar > :has(+ .ti-sidebar-foot) {
+    margin-bottom: 2px;
+}
+
 .ti-sidebar-user {
     display: flex;
     align-items: center;
