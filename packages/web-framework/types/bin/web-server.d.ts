@@ -14,10 +14,36 @@ export type ApiConfig = {
 export type SettingsAuth = {
     enabledMethods: string[];
     local: SettingsAuthLocal;
+    emailLink?: SettingsAuthEmailLink;
     oauth2: {
         azure?: SettingsOAuth2Client;
         google?: SettingsOAuth2Client;
     };
+};
+export type SettingsAuthEmailLink = {
+    /**
+     * The sign-in page, `/` unless stated: where the link lands, and where a request for one is
+     * answered with `?email-link=<outcome>`.
+     */
+    path?: string;
+    /**
+     * How long a link works, 15 unless stated; at most a day.
+     */
+    lifetimeMinutes?: number;
+    /**
+     * The e-mail domains that may sign in this way (see
+     * `TI_WEB_AUTH_EMAIL_LINK_ALLOWED_DOMAINS`). Empty or absent admits any domain.
+     */
+    allowedDomains?: string[];
+    /**
+     * How many links one address may be sent in an hour, 5 unless stated.
+     */
+    hourlyLimitPerAddress?: number;
+    /**
+     * How many links one client network address may ask for in an hour, 30
+     * unless stated.
+     */
+    hourlyLimitPerClient?: number;
 };
 export type SettingsAuthLocal = {
     /**

@@ -2,6 +2,38 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.57.0
+
+* feat(web-framework): **sign in with a link sent by e-mail**, the `email-link` method (CA-537; design record
+  `docs/superpowers/specs/2026-10-20-web-framework-email-link-sign-in-design.md`).
+  * **Why.** Every method assumed an account the deployment trusts: a record in the users file, or a Google or
+    Microsoft account. An application whose users are the public has neither; VEDA Education's parents sign in to read
+    their child's report, and most would not keep a password for it.
+  * **Asking.** `POST /login/email-link` with `email` sends the new `sign-in-link` notice at once and answers `303` to
+    `<path>?email-link=sent|limited|invalid-address|unavailable`. An address outside `auth.emailLink.allowedDomains`
+    (`TI_WEB_AUTH_EMAIL_LINK_ALLOWED_DOMAINS`) is sent nothing and answered `sent`, so the answer never says who may
+    sign in. Five links an address and thirty a client network address an hour, unless configured.
+  * **The link** carries 32 random bytes in its fragment, which no server receives; the store keeps only their
+    SHA-256, expiring with the link (15 minutes unless configured). The sign-in page takes the token out of the address
+    bar and posts it when the person presses Continue, so a mail scanner that opens the link spends nothing.
+  * **Spending it.** The first request to delete the stored entry wins (Redis's `DEL` count, D1's `deleted`); a second
+    use, an unknown or an expired token is refused with `E_SEC_INVALID_AUTH_TOKEN` (2000), which the sign-in page
+    explains as an expired link. Then the sign-in is every method's: `augmentSession`, the allowlist, `303` to `/`.
+    The user is `email:` and 32 hex of the address's SHA-256, with the address as username and e-mail.
+  * **Fails closed.** Without a transport, `publicUrl` or the notice's texts in the deployment's language, the method
+    is left out at start with a warning naming what is missing. Nothing logged holds an address, a client address or
+    a token.
+  * **The sign-in page** gains the address form, a "link sent" step and a Continue step (`tiLoginEmailLink`), an "or"
+    between the e-mail link and the local form when both are enabled (`<!--ti-auth-form-divider-->`), and the
+    expired-link message in the error box. The "or continue with" divider now shows when either form and a provider
+    are enabled. New labels in English and Bulgarian.
+* feat(notifications): `sendNow( kind, recipient, data )` sends one notice at once, past the outbox and the ledger, with
+  one attempt; `sendTest` now shares its send. `publicUrl` reports the base of every link.
+
+Tests: 61 new (1120 in the package): `email-link.test.js`, `web-handlers.email-link.test.js`,
+`frame-login.email-link.test.js`, and new cases in `web-app-manager.auth-visibility.test.js` and
+`web-server-env-overrides.test.js`.
+
 ## Version 1.56.1
 
 * fix(web-framework): **the sidebar keeps its entries' gap above the footer** (CA-530).

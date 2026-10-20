@@ -581,7 +581,10 @@ let applyAdminRoleFor = ( instance, session, request ) => {
 };
 
 /**
- *Handler for server-side authentication.
+ * Handler for server-side authentication: `POST /login/local` checks a username and password, `GET /login/<provider>`
+ * starts an OpenID sign-in, and `POST /login/email-link` either asks for a sign-in link (`email`) or spends one
+ * (`token`). Every sign-in ends the same way: a regenerated session, the application's `augmentSession`, the `admin`
+ * allowlist, and a `303` to `/`; every refusal is a `401`, which the error handler turns into `/?error=<code>`.
  *
  * @method
  * @param {TiWebServer} instance
@@ -608,6 +611,39 @@ module.exports.authenticationHandler = ( instance ) => {
             } ).catch( ( error ) => {
                 next( exceptions.raise( error, null, exceptions.httpCode.C_401 ) );
             } );
+        } else if ( method === authMethod.EMAIL_LINK && request.method === "POST" ) {
+            // One form asks for a link, the other spends one: the sign-in page posts the token it read from the link's
+            // fragment, after the person pressed a button (see the design record, §3.3). A token wins over an address.
+            const token = request.body && request.body.token;
+            if ( typeof token === "string" && token !== "" ) {
+                Promise.resolve().then( () => {
+                    return instance.authorize( authMethod.EMAIL_LINK, new URL( request.originalUrl, getBaseUrl( request ) ), { token: token } );
+                } ).then( ( user ) => {
+                    return regenerateAndSaveSession( request, "/", ( session ) => {
+                        session.user = user.asJSON();
+                        session.language = resolveSessionLanguage( user, instance, readLanguageChoice( request, instance ) );
+
+                        return applyAdminRoleFor( instance, instance.augmentSession( session, request ), request );
+                    } );
+                } ).then( ( redirectTo ) => {
+                    response.redirect( exceptions.httpCode.C_303, convertUriToString( redirectTo ) );
+                } ).catch( ( error ) => {
+                    // An unusable token lands on the sign-in page as `?error=2000`, which it explains as an expired link.
+                    next( exceptions.raise( error, null, exceptions.httpCode.C_401 ) );
+                } );
+            } else {
+                Promise.resolve().then( () => {
+                    return instance.authenticate( authMethod.EMAIL_LINK, {
+                        email: request.body && request.body.email,
+                        client: request.ip,
+                        language: resolveRequestLanguage( request, instance )
+                    } );
+                } ).then( ( result ) => {
+                    response.redirect( exceptions.httpCode.C_303, convertUriToString( result.redirectTo ) );
+                } ).catch( ( error ) => {
+                    next( exceptions.raise( error, null, exceptions.httpCode.C_401 ) );
+                } );
+            }
         } else if ( method === authMethod.OPENID_GOOGLE || method === authMethod.OPENID_AZURE ) {
             instance.authenticate( method, { baseUrl: getBaseUrl( request ) } ).then( ( result ) => {
                 return regenerateAndSaveSession( request, result.redirectTo, ( session ) => {

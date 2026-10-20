@@ -12,17 +12,85 @@
             <ti-component-login-card-head-placeholder></ti-component-login-card-head-placeholder>
 
             <!-- Error message -->
-            <!-- The element's own text is the FALLBACK the x-text-label directive falls back to, and it has to be
-                 here: this key lives in the framework's web-server-labels.json, and a consuming application
+            <!-- Each message's own text is the FALLBACK the x-text-label directive falls back to, and it has to be
+                 here: these keys live in the framework's web-server-labels.json, and a consuming application
                  configures exactly one labels path — its own — so the framework's catalogue is not loaded and the
                  key does not resolve. An empty element therefore rendered an empty red box: visibly broken, saying
-                 nothing. An application that wants this localized adds the key to its own catalogue. -->
+                 nothing. An application that wants this localized adds the key to its own catalogue.
+                 The second message is for a sign-in link that cannot be used any more (`?error=2000`, CA-537). -->
             <div id="ti-error"
                  class="ti-login-error"
                  x-data="tiLoginError"
                  x-bind:class="{ visible: hasError }"
-                 role="alert"
-                 x-text-label="interface.default.login.error-sign-in-failed">Sign-in failed. Please try again.</div>
+                 role="alert">
+                <span x-show="!isExpiredLink" x-text-label="interface.default.login.error-sign-in-failed">Sign-in failed. Please try again.</span>
+                <span x-show="isExpiredLink" x-text-label="interface.default.login.error-sign-in-link-expired">This sign-in link has expired or has already been used. Ask for a new one.</span>
+            </div>
+
+            <!--ti-auth-method:email-link-->
+            <!-- Sign-in with a link sent by e-mail (CA-537). One block, three steps: asking for an address, the link sent,
+                 and continuing from a link opened in an e-mail. The link carries its token in the URL's fragment, which
+                 no server sees; the person presses Continue and the token is posted, so a mail scanner that fetches the
+                 link spends nothing. The address form is the one shown before the script runs, so it works without it. -->
+            <div class="ti-login-email-link" x-data="tiLoginEmailLink">
+                <form x-show="step === 'confirm'" x-cloak action="/login/email-link" method="post" class="ti-login-form">
+                    <input type="hidden" name="_csrf" value='{ti-csrf-placeholder}'>
+                    <input type="hidden" name="token" x-bind:value="token">
+                    <p class="ti-login-note" x-text-label="interface.default.login.email-link-confirm-prompt">You opened a sign-in link. Continue to sign in.</p>
+                    <button type="submit" class="ti-btn primary lg full ti-login-submit">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                             stroke-linejoin="round" aria-hidden="true">
+                            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"/>
+                        </svg>
+                        <span x-text-label="interface.default.login.email-link-continue">Continue</span>
+                    </button>
+                </form>
+                <div x-show="step === 'sent'" x-cloak class="ti-login-form">
+                    <p class="ti-login-note" role="status" x-text-label="interface.default.login.email-link-sent">Check your e-mail. If this address may sign in, a link is on its way: it works once, for a few minutes.</p>
+                    <button type="button" class="ti-btn lg full" x-on:click="askAgain" x-text-label="interface.default.login.email-link-other">Use another address</button>
+                </div>
+                <form x-show="step === 'ask'" action="/login/email-link" method="post" class="ti-login-form">
+                    <input type="hidden" name="_csrf" value='{ti-csrf-placeholder}'>
+                    <p class="ti-login-warning" role="alert" x-show="message === 'limited'" x-cloak
+                       x-text-label="interface.default.login.email-link-limited">Too many sign-in links were asked for. Wait a while, then try again.</p>
+                    <p class="ti-login-warning" role="alert" x-show="message === 'unavailable'" x-cloak
+                       x-text-label="interface.default.login.email-link-unavailable">The e-mail could not be sent just now. Try again in a few minutes.</p>
+                    <p class="ti-login-warning" role="alert" x-show="message === 'invalid-address'" x-cloak
+                       x-text-label="interface.default.login.email-link-invalid-address">That does not look like an e-mail address. Check it and try again.</p>
+                    <div>
+                        <label class="ti-field-label" x-text-label="interface.default.login.email" for="ti-email">E-mail</label>
+                        <input id="ti-email"
+                               name="email"
+                               type="email"
+                               autocomplete="email"
+                               autocapitalize="none"
+                               spellcheck="false"
+                               inputmode="email"
+                               enterkeyhint="send"
+                               maxlength="254"
+                               required class="ti-input"
+                               x-text-label:placeholder="interface.default.login.email-placeholder"
+                               placeholder="Enter your e-mail address"/>
+                    </div>
+                    <button type="submit" class="ti-btn primary lg full ti-login-submit">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                             stroke-linejoin="round" aria-hidden="true">
+                            <path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2ZM22 6l-10 7L2 6"/>
+                        </svg>
+                        <span x-text-label="interface.default.login.email-link-send">Send me a sign-in link</span>
+                    </button>
+                </form>
+            </div>
+            <!--/ti-auth-method-->
+
+            <!--ti-auth-form-divider-->
+            <!-- Between the e-mail link and the local form, shown only when both are enabled. -->
+            <div class="ti-login-divider">
+                <div class="ti-login-divider-line"></div>
+                <span class="ti-login-divider-label" x-text-label="interface.default.login.or">or</span>
+                <div class="ti-login-divider-line"></div>
+            </div>
+            <!--/ti-auth-form-divider-->
 
             <!--ti-auth-method:local-->
             <!-- Local auth form -->

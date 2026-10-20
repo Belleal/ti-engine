@@ -170,6 +170,31 @@ describe( "applyWebConfigEnvOverrides", () => {
         assert.equal( config.staticCache, undefined );
     } );
 
+    describe( "TI_WEB_AUTH_EMAIL_LINK_ALLOWED_DOMAINS", () => {
+
+        it( "replaces auth.emailLink.allowedDomains (trimmed, empties dropped) and keeps the rest of auth.emailLink", () => {
+            const config = { auth: { enabledMethods: [ "email-link" ], emailLink: { lifetimeMinutes: 10, allowedDomains: [ "old.example" ] } } };
+            applyWebConfigEnvOverrides( config, { TI_WEB_AUTH_EMAIL_LINK_ALLOWED_DOMAINS: " school.bg , example.com ,, " } );
+            assert.deepEqual( config.auth.emailLink.allowedDomains, [ "school.bg", "example.com" ] );
+            assert.equal( config.auth.emailLink.lifetimeMinutes, 10 );
+            assert.deepEqual( config.auth.enabledMethods, [ "email-link" ] );
+        } );
+
+        it( "creates what it needs on a config without auth, and an empty value admits any domain", () => {
+            assert.deepEqual( applyWebConfigEnvOverrides( {}, { TI_WEB_AUTH_EMAIL_LINK_ALLOWED_DOMAINS: "school.bg" } ).auth.emailLink.allowedDomains, [ "school.bg" ] );
+            const config = { auth: { emailLink: { allowedDomains: [ "gone.example" ] } } };
+            applyWebConfigEnvOverrides( config, { TI_WEB_AUTH_EMAIL_LINK_ALLOWED_DOMAINS: "" } );
+            assert.deepEqual( config.auth.emailLink.allowedDomains, [] );
+        } );
+
+        it( "leaves the configured list when the variable is absent", () => {
+            const config = { auth: { emailLink: { allowedDomains: [ "keep.example" ] } } };
+            applyWebConfigEnvOverrides( config, {} );
+            assert.deepEqual( config.auth.emailLink.allowedDomains, [ "keep.example" ] );
+        } );
+
+    } );
+
     describe( "TI_WEB_AUTH_LOCAL_USERS_PATH", () => {
 
         it( "sets the local users file path", () => {

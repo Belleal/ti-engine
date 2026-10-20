@@ -2924,6 +2924,28 @@ html.ti-busy .ti-busy-indicator-glyph {
     margin-top: var(--s-1);
 }
 
+/* Sign-in with a link sent by e-mail (CA-537). A step the script has not chosen stays hidden until Alpine starts; the
+   address form carries no x-cloak, so it is what shows without the script. */
+.ti-login-email-link [x-cloak] {
+    display: none !important;
+}
+
+.ti-login-note {
+    margin: 0;
+    font-size: var(--fs-sm);
+    line-height: 1.5;
+    color: var(--fg-secondary);
+}
+
+.ti-login-warning {
+    margin: 0;
+    padding: var(--s-3);
+    font-size: var(--fs-sm);
+    color: var(--warn);
+    background: var(--warn-soft);
+    border-radius: var(--r-md);
+}
+
 .ti-login-divider {
     display: flex;
     align-items: center;

@@ -12,6 +12,7 @@ export type TiAuthMethod = string;
  */
 declare const authMethodEnum: import("@ti-engine/core/definitions").TiEnumOf<{
     LOCAL: string[];
+    EMAIL_LINK: string[];
     OPENID_AZURE: string[];
     OPENID_GOOGLE: string[];
 }>;
@@ -77,6 +78,10 @@ declare class AuthManager {
      * but a caller that invokes it without having just authenticated bypasses password verification entirely.
      * The framework's own login route always calls `authenticate()` first (see `web-handlers.js`); this method
      * is public on both `AuthManager` and `TiWebServer`, so any other caller must preserve that ordering itself.
+     * <br/>
+     * `EMAIL_LINK` is the exception: its `authenticate()` sent a link some minutes earlier, and this spends the
+     * token the link carried (`oidc.token`). That is its whole check, so it refuses a token that is malformed, unknown,
+     * already spent or expired with `E_SEC_INVALID_AUTH_TOKEN`.
      *
      * @method
      * @param {TiAuthMethod} authMethod

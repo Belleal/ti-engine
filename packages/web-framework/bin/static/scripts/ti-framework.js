@@ -2699,6 +2699,21 @@ const configureScreenFeedbackInbox = () => {
 };
 
 /**
+ * The error code the sign-in page shows as an expired sign-in link: `E_SEC_INVALID_AUTH_TOKEN`.
+ *
+ * @type {number}
+ */
+const LOGIN_EXPIRED_LINK_CODE = 2000;
+
+/**
+ * The outcomes of a request for a sign-in link that the address form explains: `?email-link=<outcome>`. `sent` is a step
+ * of its own.
+ *
+ * @type {ReadonlyArray<string>}
+ */
+const LOGIN_EMAIL_LINK_MESSAGES = Object.freeze( [ "limited", "unavailable", "invalid-address" ] );
+
+/**
  * Returns a configuration object for the login screen error message.
  * <br/>
  * The login handlers answer a failed sign-in with a `303` to `/?error=<code>` (see `defaultErrorHandler`). This reads
@@ -2712,14 +2727,64 @@ const configureScreenFeedbackInbox = () => {
 const configureLoginError = () => {
     return {
         hasError: false,
+        isExpiredLink: false,
 
         init() {
             const tiToolbox = Alpine.store( "tiToolbox" );
-            this.hasError = Boolean( tiToolbox.getUrlParam( "error" ) );
+            const code = tiToolbox.getUrlParam( "error" );
+            this.hasError = Boolean( code );
+            // 2000 is `E_SEC_INVALID_AUTH_TOKEN`, which only a sign-in link raises at sign-in: one that is unknown, already
+            // used or expired (CA-537). "Sign-in failed" would leave the person trying the same link again.
+            this.isExpiredLink = ( code === String( LOGIN_EXPIRED_LINK_CODE ) );
             // The parameter is a one-time message, not state. Read it, show it, drop it — otherwise a refresh (or a
             // bookmark, or a shared link) replays a sign-in failure that already happened, and the login screen can
             // never be returned to its blank state without editing the URL by hand.
             tiToolbox.clearUrlParam( "error" );
+        }
+    };
+};
+
+/**
+ * Returns a configuration object for sign-in with a link sent by e-mail (CA-537): one block on the sign-in page in three
+ * steps, `ask` (the address form), `sent` and `confirm`.
+ * <br/>
+ * The link lands here with its token in the fragment, `#email-link=<token>`, which no server sees. The token is taken
+ * out of the address bar at once, so it is not left in the history, and the person presses Continue to post it: a mail
+ * scanner that opened the link, and perhaps ran this script, presses nothing and so spends nothing. A request for a
+ * link comes back as `?email-link=<outcome>`, read once and dropped like `?error=`.
+ *
+ * @method
+ * @returns {Object}
+ * @public
+ */
+const configureLoginEmailLink = () => {
+    return {
+        step: "ask",
+        token: "",
+        message: "",
+
+        init() {
+            const tiToolbox = Alpine.store( "tiToolbox" );
+            const outcome = tiToolbox.getUrlParam( "email-link" );
+            tiToolbox.clearUrlParam( "email-link" );
+            const hash = String( window.location.hash || "" ).replace( /^#/, "" );
+            const token = hash ? new URLSearchParams( hash ).get( "email-link" ) : null;
+            if ( token ) {
+                if ( window.history && typeof window.history.replaceState === "function" ) {
+                    window.history.replaceState( null, "", window.location.pathname + window.location.search );
+                }
+                this.token = token;
+                this.step = "confirm";
+            } else if ( outcome === "sent" ) {
+                this.step = "sent";
+            } else if ( LOGIN_EMAIL_LINK_MESSAGES.includes( outcome ) ) {
+                this.message = outcome;
+            }
+        },
+
+        askAgain() {
+            this.message = "";
+            this.step = "ask";
         }
     };
 };
@@ -2762,6 +2827,7 @@ document.addEventListener( "alpine:init", () => {
     Alpine.data( "tiComponentNotificationBar", configureComponentNotificationBar );
     Alpine.data( "tiComponentTooltip", configureComponentTooltip );
     Alpine.data( "tiLoginError", configureLoginError );
+    Alpine.data( "tiLoginEmailLink", configureLoginEmailLink );
     Alpine.data( "tiScreenProfile", configureScreenProfile );
     Alpine.data( "tiScreenAbout", configureScreenAbout );
     Alpine.data( "tiScreenWhatsNew", configureScreenWhatsNew );

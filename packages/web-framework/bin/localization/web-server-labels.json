@@ -53,6 +53,54 @@
         "language-switch": {
           "en": "Language",
           "bg": "Език"
+        },
+        "email": {
+          "en": "E-mail",
+          "bg": "Имейл"
+        },
+        "email-placeholder": {
+          "en": "Enter your e-mail address",
+          "bg": "Въведете имейл адреса си"
+        },
+        "email-link-send": {
+          "en": "Send me a sign-in link",
+          "bg": "Изпратете ми линк за вход"
+        },
+        "email-link-sent": {
+          "en": "Check your e-mail. If this address may sign in, a link is on its way: it works once, for a few minutes.",
+          "bg": "Проверете имейла си. Ако с този адрес може да се влиза, линкът за вход е на път: работи веднъж, за няколко минути."
+        },
+        "email-link-other": {
+          "en": "Use another address",
+          "bg": "Друг имейл адрес"
+        },
+        "email-link-confirm-prompt": {
+          "en": "You opened a sign-in link. Continue to sign in.",
+          "bg": "Отворихте линк за вход. Продължете, за да влезете."
+        },
+        "email-link-continue": {
+          "en": "Continue",
+          "bg": "Продължете"
+        },
+        "email-link-limited": {
+          "en": "Too many sign-in links were asked for. Wait a while, then try again.",
+          "bg": "Поискани са твърде много линкове за вход. Изчакайте малко и опитайте отново."
+        },
+        "email-link-unavailable": {
+          "en": "The e-mail could not be sent just now. Try again in a few minutes.",
+          "bg": "Имейлът не можа да бъде изпратен в момента. Опитайте отново след няколко минути."
+        },
+        "email-link-invalid-address": {
+          "en": "That does not look like an e-mail address. Check it and try again.",
+          "bg": "Това не прилича на имейл адрес. Проверете го и опитайте отново."
+        },
+        "error-sign-in-link-expired": {
+          "en": "This sign-in link has expired or has already been used. Ask for a new one.",
+          "bg": "Този линк за вход е изтекъл или вече е използван. Поискайте нов."
+        },
+        "or": {
+          "en": "or",
+          "bg": "или"
         }
       }
     },
@@ -287,6 +335,16 @@
         "text": {
           "en": "On {date}, {sender} sent this feedback about the application:\n\n{text}\n\nOpen Feedback, under Administration, to give it a status.",
           "bg": "На {date} {sender} изпрати следната обратна връзка за приложението:\n\n{text}\n\nОтворете „Обратна връзка“ в „Администрация“, за да ѝ дадете статус."
+        }
+      },
+      "sign-in-link": {
+        "subject": {
+          "en": "Your sign-in link",
+          "bg": "Вашият линк за вход"
+        },
+        "text": {
+          "en": "To sign in, open the link in this e-mail. It works once, within {minutes} minutes.\n\nIf you did not ask to sign in, ignore this e-mail: without the link nobody can sign in as you.",
+          "bg": "За да влезете, отворете линка в този имейл. Той работи веднъж, в рамките на {minutes} минути.\n\nАко не сте поискали да влезете, не обръщайте внимание на този имейл: без линка никой не може да влезе от ваше име."
         }
       }
     },

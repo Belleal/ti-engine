@@ -3,13 +3,14 @@ import type { TiApplicationInfo, TiFeedbackOptions, TiInfoSection, TiLabelsBundl
 /**
  * Gates the login-page authentication markup to the effective enabled methods. The login fragment delimits blocks
  * with HTML-comment markers: `<!--ti-auth-method:METHOD-->…<!--/ti-auth-method-->` around each method's control
- * (the `local` credentials form and each OpenID provider button), `<!--ti-auth-divider-->…<!--/ti-auth-divider-->`
- * around the "or continue with" separator, `<!--ti-auth-social-->…<!--/ti-auth-social-->` around the SSO button
- * group, and `<!--ti-auth-none-->…<!--/ti-auth-none-->` around a "no method configured" fallback. It removes the
- * block for any method that is not enabled, drops the social group when no SSO provider is enabled, shows the
- * divider only when a local form AND at least one SSO provider are both present, and shows the fallback only when
- * nothing is enabled. Any remaining markers are stripped so clean HTML ships. Fragments without these markers
- * (every non-login fragment) are returned unchanged.
+ * (the `email-link` and `local` forms and each OpenID provider button), `<!--ti-auth-form-divider-->…<!--/ti-auth-form-divider-->`
+ * around the "or" between the two forms, `<!--ti-auth-divider-->…<!--/ti-auth-divider-->` around the "or continue
+ * with" separator, `<!--ti-auth-social-->…<!--/ti-auth-social-->` around the SSO button group, and
+ * `<!--ti-auth-none-->…<!--/ti-auth-none-->` around a "no method configured" fallback. It removes the block for any
+ * method that is not enabled, drops the social group when no SSO provider is enabled, shows the "or" only when both
+ * forms are present, shows the "or continue with" divider only when a form AND at least one SSO provider are both
+ * present, and shows the fallback only when nothing is enabled. Any remaining markers are stripped so clean HTML
+ * ships. Fragments without these markers (every non-login fragment) are returned unchanged.
  *
  * @param {string} html
  * @param {string[]} [enabledMethods] The effective enabled authentication methods.

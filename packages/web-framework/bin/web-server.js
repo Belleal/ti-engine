@@ -86,9 +86,22 @@ const localization = require( "@ti-engine/core/localization" );
  * @typedef {Object} SettingsAuth
  * @property {string[]} enabledMethods
  * @property {SettingsAuthLocal} local
+ * @property {SettingsAuthEmailLink} [emailLink]
  * @property {Object} oauth2
  * @property {SettingsOAuth2Client} [oauth2.azure]
  * @property {SettingsOAuth2Client} [oauth2.google]
+ */
+
+/**
+ * @typedef {Object} SettingsAuthEmailLink
+ * @property {string} [path] The sign-in page, `/` unless stated: where the link lands, and where a request for one is
+ *           answered with `?email-link=<outcome>`.
+ * @property {number} [lifetimeMinutes] How long a link works, 15 unless stated; at most a day.
+ * @property {string[]} [allowedDomains] The e-mail domains that may sign in this way (see
+ *           `TI_WEB_AUTH_EMAIL_LINK_ALLOWED_DOMAINS`). Empty or absent admits any domain.
+ * @property {number} [hourlyLimitPerAddress] How many links one address may be sent in an hour, 5 unless stated.
+ * @property {number} [hourlyLimitPerClient] How many links one client network address may ask for in an hour, 30
+ *           unless stated.
  */
 
 /**

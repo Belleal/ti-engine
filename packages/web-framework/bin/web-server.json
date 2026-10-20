@@ -21,6 +21,13 @@
     "local": {
       "usersPath": ""
     },
+    "emailLink": {
+      "path": "/",
+      "lifetimeMinutes": 15,
+      "allowedDomains": [],
+      "hourlyLimitPerAddress": 5,
+      "hourlyLimitPerClient": 30
+    },
     "oauth2": {
       "azure": {
         "tokenEndpointAuthMethod": "client_secret_post",
