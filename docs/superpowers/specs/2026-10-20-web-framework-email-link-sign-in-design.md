@@ -90,7 +90,7 @@ proxy log and no `Referer`. The login page reads it, removes it from the address
 *Continue*. That button posts the token, with the page's own CSRF token, to `POST /login/email-link`.
 
 Before showing the button, the page asks the server which address the link signs in, without spending it
-(`POST /login/email-link` with `{ token, peek: true }` as JSON), and shows it: "You are signing in as …", with "Not you?
+(`POST /login/email-link` with `{ token, peek: true }` as JSON, answered by `TiWebServer#peekEmailLink`), and shows it: "You are signing in as …", with "Not you?
 Use another address" beside Continue. Otherwise anybody could ask for a link to their own address, send it to someone
 waiting for theirs, and have that person continue into the sender's account and type their child's details there. A
 link that can no longer sign anybody in goes straight back to the address form, saying so.
@@ -182,7 +182,8 @@ as the notification service names a recipient.
   share one private send. A getter, `publicUrl`, lets the method check it has a base for the link.
 - **The method's rules live in `components/email-link.js`** (`EmailLink`), which `AuthManager` constructs when the
   method is enabled. `authenticate( EMAIL_LINK, { email, client, language } )` resolves `{ redirectTo, outcome }` for
-  every outcome, a failure to send included; `authorize( EMAIL_LINK, url, { token } )` spends the token.
+  every outcome, a failure to send included; `peekEmailLink( token )` answers the address without spending it;
+  `authorize( EMAIL_LINK, url, { token } )` spends the token.
 - **Measured in Chromium** against a real server on a local D1 state service: the link lands with its token in the
   fragment, the address bar loses it at once, the page shows the address it signs in, `/me` is still refused before
   Continue, the session is the address's after it, a second use goes back to the address form saying the link has
@@ -193,4 +194,12 @@ as the notification service names a recipient.
   (the address is shown now); and the sign-in's last steps copied into a third place (now one `signInUser` for every
   method). Declined, with the reasons in §3.2 and §5: the client limit's trust in `request.ip`, the per-address limit
   spendable by others, the counters across instances, and the timing of a refused domain.
+- **A second review pass** on the result found six more, all taken: a double click on Continue posted the spent token
+  again and showed "expired" over a sign-in that had worked (both forms now hold their button once sent, and let go on a
+  page Back brings back); a link opened in a browser already signed in was read by nothing, so its token stayed in the
+  address bar and the history (the shell now takes it out and says to sign out first); the peek rode on `authenticate`
+  with a second answer shape (now `peekEmailLink`, which an application counting sign-in attempts does not see); the
+  OpenID callback's `delete session.oidc`, a no-op after express-session's `regenerate`, took a parameter of its own
+  in the shared completion (now one line in it); the domain list was normalized twice; and the package's changelog
+  named the application.
 

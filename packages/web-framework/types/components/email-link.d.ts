@@ -59,8 +59,8 @@ declare class EmailLink {
     #private;
     /**
      * @constructor
-     * @param {SettingsAuthEmailLink} [settings] `auth.emailLink`, its `allowedDomains` already a list of lower-case
-     *        domains (see {@link AuthManager.toDomainList}).
+     * @param {SettingsAuthEmailLink} [settings] `auth.emailLink`, its `allowedDomains` already normalized by
+     *        {@link AuthManager.toDomainList}, which is the one place a domain list is read.
      * @param {Object} [options] For tests.
      * @param {function(): number} [options.now] The clock, in milliseconds.
      */

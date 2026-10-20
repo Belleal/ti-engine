@@ -589,17 +589,18 @@ let applyAdminRoleFor = ( instance, session, request ) => {
  * @param {TiWebServer} instance
  * @param {ExpressRequest} request
  * @param {User} user
- * @param {(session: TiSession) => void} [prepare] Runs on the new session before the application sees it.
  * @returns {Promise<string>} Where to send the browser: `/`.
  * @private
  */
-let signInUser = ( instance, request, user, prepare ) => {
+let signInUser = ( instance, request, user ) => {
     return regenerateAndSaveSession( request, "/", ( session ) => {
         session.user = user.asJSON();
         session.language = resolveSessionLanguage( user, instance, readLanguageChoice( request, instance ) );
-        if ( prepare ) {
-            prepare( session );
-        }
+
+        // No sign-in carries an OpenID state past its end. express-session's `regenerate` starts an empty session, so
+        // this matters only to a store whose `regenerate` keeps data; it was the OpenID callback's own line until all
+        // three methods came to share this one.
+        delete session.oidc;
 
         return applyAdminRoleFor( instance, instance.augmentSession( session, request ), request );
     } );
@@ -639,10 +640,10 @@ module.exports.authenticationHandler = ( instance ) => {
                 // The sign-in page asks which address the link signs in before showing Continue (see EmailLink#peek).
                 // Only a JSON body can say `true`, so a plain form post never lands here.
                 Promise.resolve().then( () => {
-                    return instance.authenticate( authMethod.EMAIL_LINK, { token: token } );
-                } ).then( ( result ) => {
+                    return instance.peekEmailLink( token );
+                } ).then( ( email ) => {
                     response.set( "Cache-Control", "no-store" );
-                    response.status( exceptions.httpCode.C_200 ).send( { isSuccessful: true, data: { email: result.email } } );
+                    response.status( exceptions.httpCode.C_200 ).send( { isSuccessful: true, data: { email: email } } );
                 } ).catch( ( error ) => {
                     next( exceptions.raise( error, null, exceptions.httpCode.C_401 ) );
                 } );
@@ -789,9 +790,7 @@ module.exports.authorizedOAuth2CallbackHandler = ( instance, authMethod ) => {
         }
 
         instance.authorize( authMethod, new URL( request.originalUrl, getBaseUrl( request ) ), oidc ).then( ( user ) => {
-            return signInUser( instance, request, user, ( session ) => {
-                delete session.oidc;
-            } );
+            return signInUser( instance, request, user );
         } ).then( ( redirectTo ) => {
             response.redirect( exceptions.httpCode.C_303, convertUriToString( redirectTo ) );
         } ).catch( ( error ) => {

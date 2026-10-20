@@ -1212,6 +1212,9 @@ const configureApplication = () => {
             } ).then( ( result ) => {
                 this.user = result?.data?.user || null;
                 this.isInitialized = true;
+                if ( this.user ) {
+                    this._setAsideSignInLink();
+                }
             } ).catch( ( error ) => {
                 if ( error?.name === "AbortError" || error?.isAborted ) {
                     return;
@@ -1222,6 +1225,26 @@ const configureApplication = () => {
                 const formatted = this.formatException( error );
                 this.notify( { message: this.getLabel( "error.application.init-failed" ) + " " + formatted.message, details: formatted.details } );
             } );
+        },
+
+        /**
+         * Takes a sign-in link's token out of the address bar when the link was opened in a browser that is already
+         * signed in, and tells the person how to use it (CA-537). `/` shows the application then, not the sign-in page,
+         * so nothing reads the token: it stayed in the address bar and the history for as long as the link worked, and
+         * the person was left looking at whoever was signed in.
+         *
+         * @method
+         * @private
+         */
+        _setAsideSignInLink() {
+            const hash = String( window.location.hash || "" ).replace( /^#/, "" );
+            if ( !hash || !new URLSearchParams( hash ).get( "email-link" ) ) {
+                return;
+            }
+            if ( window.history && typeof window.history.replaceState === "function" ) {
+                window.history.replaceState( null, "", window.location.pathname + window.location.search );
+            }
+            this.notify( this.getLabel( "interface.default.login.email-link-signed-in-already", "This browser is already signed in. To use the sign-in link, sign out, then open the link from your e-mail again." ) );
         },
 
         /**
@@ -2766,6 +2789,7 @@ const configureLoginEmailLink = () => {
         token: "",
         email: "",
         checking: false,
+        sending: false,
         message: "",
 
         init() {
@@ -2814,6 +2838,21 @@ const configureLoginEmailLink = () => {
             this.email = "";
             this.message = "";
             this.step = "ask";
+        },
+
+        /**
+         * Holds the button down once a form is on its way. A link works once: a second Continue posted the spent token
+         * and came back saying the link had expired, over the sign-in that had just worked.
+         */
+        markSending() {
+            this.sending = true;
+        },
+
+        /**
+         * Lets the buttons work again on a page the browser brought back from its cache, as Back does.
+         */
+        resetSending() {
+            this.sending = false;
         }
     };
 };

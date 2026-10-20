@@ -152,8 +152,8 @@ class EmailLink {
 
     /**
      * @constructor
-     * @param {SettingsAuthEmailLink} [settings] `auth.emailLink`, its `allowedDomains` already a list of lower-case
-     *        domains (see {@link AuthManager.toDomainList}).
+     * @param {SettingsAuthEmailLink} [settings] `auth.emailLink`, its `allowedDomains` already normalized by
+     *        {@link AuthManager.toDomainList}, which is the one place a domain list is read.
      * @param {Object} [options] For tests.
      * @param {function(): number} [options.now] The clock, in milliseconds.
      */
@@ -357,7 +357,7 @@ class EmailLink {
         const isCount = ( value ) => Number.isInteger( value ) && value > 0;
         const resolved = {
             lifetimeMinutes: pick( "lifetimeMinutes", ( value ) => isCount( value ) && value <= 1440 ),
-            allowedDomains: Object.freeze( Array.isArray( given.allowedDomains ) ? given.allowedDomains.map( ( domain ) => String( domain ).trim().toLowerCase().replace( /^@/, "" ) ).filter( ( domain ) => domain !== "" ) : [] ),
+            allowedDomains: Object.freeze( Array.isArray( given.allowedDomains ) ? [ ...given.allowedDomains ] : [] ),
             hourlyLimitPerAddress: pick( "hourlyLimitPerAddress", isCount ),
             hourlyLimitPerClient: pick( "hourlyLimitPerClient", isCount )
         };

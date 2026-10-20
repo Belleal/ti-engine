@@ -444,14 +444,21 @@ describe( "AuthManager — the email-link method", () => {
         assert.deepEqual( await auth.authenticate( "email-link", { email: "nope", client: "203.0.113.7" } ), { redirectTo: "/?email-link=invalid-address", outcome: "invalid-address" } );
     } );
 
-    it( "with a token, tells the address it would sign in without spending it", async () => {
+    it( "tells the address a link would sign in without spending it, through a method of its own", async () => {
         const auth = manager();
         await auth.initialize();
         await auth.authenticate( "email-link", { email: "parent@example.com", client: "203.0.113.7" } );
         const token = tokenOf( sent[ 0 ] );
-        assert.deepEqual( await auth.authenticate( "email-link", { token: token } ), { email: "parent@example.com" } );
-        assert.deepEqual( await auth.authenticate( "email-link", { token: "nope" } ), { email: null } );
+        assert.equal( await auth.peekEmailLink( token ), "parent@example.com" );
+        assert.equal( await auth.peekEmailLink( "nope" ), null );
+        assert.deepEqual( await auth.authenticate( "email-link", { email: "other@example.com", client: "203.0.113.7", token: token } ), { redirectTo: "/?email-link=sent", outcome: "sent" }, "authenticate only ever asks for a link" );
         assert.equal( ( await auth.authorize( "email-link", null, { token: token } ) ).asJSON().email, "parent@example.com", "still spendable" );
+    } );
+
+    it( "refuses to tell anything while the method is not enabled", async () => {
+        const auth = new AuthManager( { enabledMethods: [], local: {}, oauth2: {} } );
+        await auth.initialize();
+        await assert.rejects( auth.peekEmailLink( "a".repeat( 43 ) ), ( error ) => error.code === 2004 && error.httpCode === 401 );
     } );
 
     it( "turns a spent link into a user named by a digest of the address, and refuses it the second time", async () => {

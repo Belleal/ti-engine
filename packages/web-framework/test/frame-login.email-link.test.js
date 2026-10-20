@@ -47,7 +47,12 @@ describe( "the e-mail link block on the sign-in page", () => {
             assert.ok( form.includes( "name=\"_csrf\" value='{ti-csrf-placeholder}'" ) );
         } );
         assert.ok( forms.some( ( form ) => /name="token" x-bind:value="token"/.test( form ) ), "one form carries the token" );
-        assert.ok( forms.some( ( form ) => /<p class="ti-login-address" x-text="email"><\/p>/.test( form ) && /x-bind:disabled="checking"/.test( form ) ), "and shows the address it signs in" );
+        assert.ok( forms.some( ( form ) => /<p class="ti-login-address" x-text="email"><\/p>/.test( form ) && /x-bind:disabled="checking \|\| sending"/.test( form ) ), "and shows the address it signs in" );
+        forms.forEach( ( form ) => {
+            assert.match( form, /^<form[^>]*x-on:submit="markSending"/, "each form holds its button down once sent" );
+            assert.match( form, /type="submit"[^>]*x-bind:disabled="[^"]*sending/ );
+        } );
+        assert.match( block(), /x-data="tiLoginEmailLink" x-on:pageshow\.window="resetSending"/, "a page brought back by Back works again" );
         assert.ok( forms.some( ( form ) => /name="email"[\s\S]*type="email"[\s\S]*required/.test( form ) ), "one asks for the address" );
     } );
 
@@ -179,6 +184,57 @@ describe( "tiLoginEmailLink", () => {
         for ( const outcome of [ "limited", "unavailable", "invalid-address", "expired" ] ) {
             assert.ok( block().includes( `x-show="message === '${ outcome }'"` ), outcome );
         }
+    } );
+
+} );
+
+describe( "tiLoginEmailLink — sending once", () => {
+
+    it( "holds the buttons down once a form is on its way, and lets them go on a page brought back from the cache", () => {
+        const { component } = start( "tiLoginEmailLink", "https://app.example.com/" );
+        assert.equal( component.sending, false );
+        component.markSending();
+        assert.equal( component.sending, true );
+        component.resetSending();
+        assert.equal( component.sending, false );
+    } );
+
+} );
+
+describe( "a sign-in link opened in a browser that is already signed in", () => {
+
+    function signedIn( href ) {
+        const { stores, sandbox } = loadTiFramework();
+        const url = new URL( href );
+        const replaced = [];
+        const notified = [];
+        sandbox.URLSearchParams = URLSearchParams;
+        sandbox.location = { href: href, pathname: url.pathname, search: url.search, hash: url.hash };
+        sandbox.history = { replaceState: ( state, title, next ) => replaced.push( next ) };
+        stores.tiApplication.notify = ( message ) => notified.push( message );
+        stores.tiApplication.configuration = { labels: {} };
+        stores.tiApplication._setAsideSignInLink();
+        return { replaced, notified };
+    }
+
+    it( "takes the token out of the address bar and says how to use the link", () => {
+        const { replaced, notified } = signedIn( `https://app.example.com/app/home?tab=1#email-link=${ TOKEN }` );
+        assert.deepEqual( replaced, [ "/app/home?tab=1" ] );
+        assert.equal( notified.length, 1 );
+        assert.match( notified[ 0 ], /already signed in/ );
+    } );
+
+    it( "leaves any other address alone", () => {
+        for ( const href of [ "https://app.example.com/", "https://app.example.com/#section", "https://app.example.com/#email-link=" ] ) {
+            const { replaced, notified } = signedIn( href );
+            assert.deepEqual( replaced, [], href );
+            assert.deepEqual( notified, [], href );
+        }
+    } );
+
+    it( "is asked once the shell knows the visitor is signed in", () => {
+        const script = fs.readFileSync( path.join( __dirname, "..", "bin", "static", "scripts", "ti-framework.js" ), "utf8" );
+        assert.match( script, /this\.isInitialized = true;\s*if \( this\.user \) \{\s*this\._setAsideSignInLink\(\);/ );
     } );
 
 } );

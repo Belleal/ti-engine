@@ -7,8 +7,8 @@ This document will contain the list of changes made to the framework. The format
 * feat(web-framework): **sign in with a link sent by e-mail**, the `email-link` method (CA-537; design record
   `docs/superpowers/specs/2026-10-20-web-framework-email-link-sign-in-design.md`).
   * **Why.** Every method assumed an account the deployment trusts: a record in the users file, or a Google or
-    Microsoft account. An application whose users are the public has neither; VEDA Education's parents sign in to read
-    their child's report, and most would not keep a password for it.
+    Microsoft account. An application whose users are the public has neither: parents signing in to read their child's
+    report would not keep a password for it, and many do not sign in with Google.
   * **Asking.** `POST /login/email-link` with `email` sends the new `sign-in-link` notice at once and answers `303` to
     `/?email-link=sent|limited|invalid-address|unavailable`. An address outside `auth.emailLink.allowedDomains`
     (`TI_WEB_AUTH_EMAIL_LINK_ALLOWED_DOMAINS`; a value naming no domain leaves the list) is sent nothing and answered
@@ -18,11 +18,13 @@ This document will contain the list of changes made to the framework. The format
     SHA-256, expiring with the link (15 minutes unless configured). The sign-in page takes the token out of the address
     bar, asks which address it signs in without spending it (`{ token, peek: true }` as JSON) and shows it, with "Not
     you?" beside Continue: a link somebody asked for, for their own address, cannot sign the person into it unnoticed.
-    The token is posted when the person presses Continue, so a mail scanner that opens the link spends nothing.
+    The token is posted when the person presses Continue, once (both forms hold their button once sent), so a mail
+    scanner that opens the link spends nothing. In a browser already signed in, the shell takes the token out of the
+    address bar and says to sign out and open the link again.
   * **Spending it.** The first request to delete the stored entry wins (Redis's `DEL` count, D1's `deleted`); a second
     use, an unknown or an expired token, or a domain the list no longer admits, is refused with
     `E_SEC_INVALID_AUTH_TOKEN` (2000), which the sign-in page explains as an expired link. Then the sign-in is every
-    method's, through one `signInUser` they now share: `augmentSession`, the allowlist, `303` to `/`. The user is
+    method's, through one `signInUser` local, e-mail link and OpenID sign-ins now share: `augmentSession`, the allowlist, `303` to `/`. The user is
     `email:` and 32 hex of the address's SHA-256, with the address as username and e-mail.
   * **Fails closed.** Without a transport that delivers (`log` does not), `publicUrl` or the notice's texts in the
     deployment's language, the method is left out at start with a warning naming what is missing. Nothing logged holds
@@ -35,7 +37,9 @@ This document will contain the list of changes made to the framework. The format
   one attempt; `sendTest` now shares its send. `publicUrl` reports the base of every link, and `transportName` the
   transport's own name.
 
-Tests: 71 new (1130 in the package): `email-link.test.js`, `web-handlers.email-link.test.js`,
+* feat(web-server): `peekEmailLink( token )`, the address a sign-in link would sign in, without spending it.
+
+Tests: 77 new (1136 in the package): `email-link.test.js`, `web-handlers.email-link.test.js`,
 `frame-login.email-link.test.js`, and new cases in `web-app-manager.auth-visibility.test.js` and
 `web-server-env-overrides.test.js`.
 

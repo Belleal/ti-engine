@@ -813,6 +813,19 @@ class TiWebServer extends ServiceConsumer {
     }
 
     /**
+     * The address a sign-in link would sign in, without spending it, or `null` when it could not sign anybody in (see
+     * {@link AuthManager#peekEmailLink}). The sign-in page asks before it shows Continue.
+     *
+     * @method
+     * @param {*} token
+     * @returns {Promise<string|null>}
+     * @public
+     */
+    peekEmailLink( token ) {
+        return this.#authManager.peekEmailLink( token );
+    }
+
+    /**
      * Used to get a service mapping if such exists.
      *
      * @method

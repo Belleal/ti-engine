@@ -109,6 +109,10 @@
         "email-link-not-you": {
           "en": "Not you? Use another address",
           "bg": "Не сте вие? Използвайте друг адрес"
+        },
+        "email-link-signed-in-already": {
+          "en": "This browser is already signed in. To use the sign-in link, sign out, then open the link from your e-mail again.",
+          "bg": "В този браузър вече има вписан потребител. За да използвате линка за вход, излезте и отворете линка от имейла си отново."
         }
       }
     },

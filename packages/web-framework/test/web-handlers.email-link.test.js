@@ -63,7 +63,7 @@ function mockRequest( { method = "POST", body = {}, session, cookies = {} } = {}
 }
 
 function instance( overrides = {} ) {
-    const calls = { authenticate: [], authorize: [], augmented: [] };
+    const calls = { authenticate: [], authorize: [], peek: [], augmented: [] };
     const target = {
         calls: calls,
         serviceConfig: { auth: { admins: [ "parent@example.com" ] } },
@@ -82,6 +82,10 @@ function instance( overrides = {} ) {
         augmentSession: ( session, request ) => {
             calls.augmented.push( request );
             return session;
+        },
+        peekEmailLink: ( token ) => {
+            calls.peek.push( token );
+            return Promise.resolve( "parent@example.com" );
         }
     };
     return Object.assign( target, overrides );
@@ -146,16 +150,14 @@ describe( "POST /login/email-link — which address a link signs in", () => {
 
     it( "answers the address as JSON, uncached, and leaves the session and the token alone", async () => {
         const events = [];
-        const server = instance( { authenticate: ( method, details ) => {
-            server.calls.authenticate.push( { method, details } );
-            return Promise.resolve( { email: "parent@example.com" } );
-        } } );
+        const server = instance();
         const request = mockRequest( { body: { token: TOKEN, peek: true }, session: mockSession( {}, events ) } );
         const answer = await post( server, request );
         assert.equal( answer.status, 200 );
         assert.deepEqual( answer.body, { isSuccessful: true, data: { email: "parent@example.com" } } );
         assert.equal( answer.headers[ "Cache-Control" ], "no-store" );
-        assert.deepEqual( server.calls.authenticate, [ { method: "email-link", details: { token: TOKEN } } ] );
+        assert.deepEqual( server.calls.peek, [ TOKEN ] );
+        assert.equal( server.calls.authenticate.length, 0, "no sign-in attempt is made" );
         assert.equal( server.calls.authorize.length, 0, "nothing is spent" );
         assert.deepEqual( events, [], "nobody is signed in" );
     } );
@@ -164,6 +166,14 @@ describe( "POST /login/email-link — which address a link signs in", () => {
         const server = instance();
         await post( server, mockRequest( { body: { token: TOKEN, peek: "true" } } ) );
         assert.equal( server.calls.authorize.length, 1 );
+        assert.equal( server.calls.peek.length, 0 );
+    } );
+
+    it( "answers the question with a 401 when the method is not enabled", async () => {
+        const refusal = Object.assign( new Error( "disabled" ), { code: 2004 } );
+        const server = instance( { peekEmailLink: () => Promise.reject( refusal ) } );
+        const answer = await post( server, mockRequest( { body: { token: TOKEN, peek: true } } ) );
+        assert.equal( answer.next.httpCode, 401 );
     } );
 
 } );

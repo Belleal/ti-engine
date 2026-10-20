@@ -410,6 +410,16 @@ declare class TiWebServer extends ServiceConsumer {
      */
     authorize(authMethod: TiAuthMethod, currentUrl: URL, oidc: Object): Promise<User>;
     /**
+     * The address a sign-in link would sign in, without spending it, or `null` when it could not sign anybody in (see
+     * {@link AuthManager#peekEmailLink}). The sign-in page asks before it shows Continue.
+     *
+     * @method
+     * @param {*} token
+     * @returns {Promise<string|null>}
+     * @public
+     */
+    peekEmailLink(token: any): Promise<string | null>;
+    /**
      * Used to get a service mapping if such exists.
      *
      * @method

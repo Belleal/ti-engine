@@ -212,11 +212,14 @@ How it works:
    is in no access log. The store keeps only the token's SHA-256, with the address, and the value expires with the
    link.
 3. **Following it.** The sign-in page takes the token out of the address bar, asks which address it signs in without
-   spending it (`POST /login/email-link` with `{ token, peek: true }` as JSON, answered `{ data: { email } }`), and
+   spending it (`POST /login/email-link` with `{ token, peek: true }` as JSON, answered `{ data: { email } }` through
+   `TiWebServer#peekEmailLink`), and
    shows "You are signing in as …" with *Continue* and *Not you? Use another address*. Showing the address keeps a link
    somebody asked for, for their own address, from signing the person into that account unnoticed. Pressing Continue
-   posts the token. The click is deliberate: a mail scanner that opens the link, even one that runs the page's script,
-   presses nothing and spends nothing.
+   posts the token, once: the button holds once pressed. The click is deliberate: a mail scanner that opens the link,
+   even one that runs the page's script, presses nothing and spends nothing. A link opened in a browser that is already
+   signed in shows the application, not the sign-in page; the shell takes the token out of the address bar and says to
+   sign out and open the link again.
 4. **Spending it.** The first request to delete the stored entry wins; every later one, an expired or unknown token,
    and one whose domain the list no longer admits, is refused with `E_SEC_INVALID_AUTH_TOKEN` (2000), which the sign-in
    page explains as an expired link. A spent link signs in as the other methods do: `augmentSession` may refuse, the
@@ -244,7 +247,7 @@ The login screen renders before sign-in, so none of an application's own fragmen
 
 Use the brand slot to name the application and say what it is for. Use the heading slot to title the card, and say which account to sign in with. Use the extra slot for anything a first-time visitor should read after the sign-in controls. No slot can change the sign-in controls themselves; those stay the framework's, gated to the enabled methods. The Microsoft button carries Microsoft's four-square logo and reads "Sign in with Microsoft", as Microsoft's branding guidelines ask; the method is still `openid-azure`.
 
-Every string on the screen goes through `x-text-label` under `interface.default.login.*`: `welcome`, `sign-in-prompt`, `username`, `username-placeholder`, `password`, `password-placeholder`, `sign-in`, `or-continue-with`, `sign-in-google`, `sign-in-azure`, `no-sign-in-method` and `error-sign-in-failed`, and for the e-mail link `email`, `email-placeholder`, `email-link-send`, `email-link-sent`, `email-link-other`, `email-link-confirm-prompt`, `email-link-signing-in-as`, `email-link-continue`, `email-link-not-you`, `email-link-limited`, `email-link-unavailable`, `email-link-invalid-address`, `error-sign-in-link-expired` and `or` (between the e-mail link and the local form, when both are enabled). An application normally points `TI_LOCALIZATION_LABELS_PATH` at its own catalogue alone, so the framework's translations never reach it. It adds the keys it wants translated to its own catalogue, and a key it leaves out renders the English text written in the fragment.
+Every string on the screen goes through `x-text-label` under `interface.default.login.*`: `welcome`, `sign-in-prompt`, `username`, `username-placeholder`, `password`, `password-placeholder`, `sign-in`, `or-continue-with`, `sign-in-google`, `sign-in-azure`, `no-sign-in-method` and `error-sign-in-failed`, and for the e-mail link `email`, `email-placeholder`, `email-link-send`, `email-link-sent`, `email-link-other`, `email-link-confirm-prompt`, `email-link-signing-in-as`, `email-link-continue`, `email-link-not-you`, `email-link-signed-in-already` (a notice, when a link is opened in a browser already signed in), `email-link-limited`, `email-link-unavailable`, `email-link-invalid-address`, `error-sign-in-link-expired` and `or` (between the e-mail link and the local form, when both are enabled). An application normally points `TI_LOCALIZATION_LABELS_PATH` at its own catalogue alone, so the framework's translations never reach it. It adds the keys it wants translated to its own catalogue, and a key it leaves out renders the English text written in the fragment.
 
 ## The busy indicator
 

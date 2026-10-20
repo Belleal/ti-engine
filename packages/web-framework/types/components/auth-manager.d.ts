@@ -93,6 +93,19 @@ declare class AuthManager {
      */
     authorize(authMethod: TiAuthMethod, currentUrl: URL, oidc: Object): Promise<User>;
     /**
+     * The address a sign-in link would sign in, without spending it, or `null` when it could not sign anybody in. The
+     * sign-in page shows the address before the person continues, so that a link somebody else asked for, for their
+     * own address, is not followed into their account unnoticed. It reads and changes nothing else: no attempt is
+     * counted and the link stays as it was.
+     *
+     * @method
+     * @param {*} token
+     * @returns {Promise<string|null>}
+     * @throws {TiException.E_SEC_UNRECOGNIZED_AUTH_METHOD} (as a rejection) When the `email-link` method is not enabled.
+     * @public
+     */
+    peekEmailLink(token: any): Promise<string | null>;
+    /**
      * Used to get the callback URL for the specified OAuth2 authentication method.
      *
      * @method
