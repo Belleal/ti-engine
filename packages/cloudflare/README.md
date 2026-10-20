@@ -243,6 +243,8 @@ state. web-framework's `cloudflare` notification transport is what posts there.
   ASCII or holds a path, quote or line break, when a type is not RFC 2045 tokens with only a space or a tab around a
   `;`, when a content is empty or not padded base64, when a disposition is not `attachment`, or when the files hold
   more than 4 MiB of base64 together.
+- The binding is given each file's **bytes**, decoded from that base64 (0.6.1). Given the base64 string, it sent the
+  string itself as the file, so a calendar entry reached Outlook as its base64 text.
 - It answers `200 { messageId }`, or `{ code, transient }`: Email Service's `E_RATE_LIMIT_EXCEEDED`,
   `E_DAILY_LIMIT_EXCEEDED`, `E_DELIVERY_FAILED` and `E_INTERNAL_SERVER_ERROR` are transient (`503`), every other code
   permanent (`422`). A malformed message is `400 E_MAIL_INVALID`, and a deployment without the binding

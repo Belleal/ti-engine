@@ -5,6 +5,27 @@ This document contains the list of changes made to the cloudflare package. The f
 A rule added to or widened in the probe filter applies to every application the moment it takes the release, so every
 such change is called out here.
 
+## Version 0.6.1
+
+* fix(container): **the mail relay gives the `send_email` binding a file's bytes**, not its base64 (CA-533).
+  * **What was wrong.** The first interview invite sent on production reached Outlook as an `interview.ics` holding
+    base64 text, which no calendar opens. The file was byte-for-byte the base64 web-framework posts. The relay passed
+    that string to the binding as the file's `content`, and the binding sent the string as the file, encoding it once
+    more for transfer, so the reader's mail client decoded it back to the base64. Decoded, the entry itself is valid.
+  * **Why it survived.** The binding's documentation says a string content is "base64 string or binary content", and
+    0.6.0 took that at its word. Its tests used a stub binding, which can show what the relay passes but not what Email
+    Service makes of it. That invite was the first real delivery.
+  * **Now.** The relay decodes each file's base64, after the same checks as before, and gives the binding a
+    `Uint8Array`. The documentation describes binary content without any ambiguity. What the container posts is
+    unchanged, and so is every refusal.
+  * **Who it affects.** Every e-mail with a file that an application's Worker sends through 0.6.0. A file already
+    sent stays as it arrived: rebooking or cancelling an interview sends a new entry.
+  * **Not covered.** Wrangler's local email simulator cannot serialize binary content, as Cloudflare documents, so a
+    file sent under `wrangler dev` without remote bindings fails there. Deployed Workers are unaffected.
+
+Tests: 1 new in `container.test.js`, which fails on 0.6.0, and the one that pinned the base64 string now checks the
+other three fields.
+
 ## Version 0.6.0
 
 * feat(container): **the mail relay passes a message's files** to the `send_email` binding (CA-502).
