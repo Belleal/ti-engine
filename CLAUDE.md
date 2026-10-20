@@ -129,9 +129,11 @@ npm run build:types && npm run check:types   # declarations are committed and mu
   are done and the checks above pass, review the whole diff against the base once more, as a reviewer who did not write
   it: the `code-review` skill at `high` on `origin/<base>...HEAD`, or an equivalent independent pass. Do it before the
   PR is called ready, and again after a later change of substance. Verify every finding against the code, as with
-  CodeRabbit: fix the real ones in the same PR, each with a test that fails without the fix, decline the rest with the
-  measurement that settles it, and list both in the PR body. It adds to CodeRabbit rather than replacing it. On CA-534
-  it found seven real defects that 4163 passing tests and a browser check had not.
+  CodeRabbit: fix the real ones in the same PR, each with a test that fails without the fix where a test can reproduce
+  it, or else a targeted check whose result the PR body records; decline the rest with the measurement that settles it,
+  and list both in the PR body. Then run the checks above again and quote those results, not the ones from before the
+  fixes. It adds to CodeRabbit rather than replacing it. On CA-534 it found seven real defects that 4163 passing tests
+  and a browser check had not.
 
 ---
 
