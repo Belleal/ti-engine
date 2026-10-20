@@ -197,10 +197,16 @@ describe( "POST /login/email-link — spending a link", () => {
         assert.ok( request.session.user.roles.includes( "admin" ), "the allowlist applies to an e-mail sign-in too" );
     } );
 
-    it( "sends a link that cannot be used back to the sign-in page, which says it has expired", async () => {
+    it( "sends a link that cannot be used back to the sign-in page, which says it has expired, and logs it without the token", async ( t ) => {
+        const logger = require( "@ti-engine/core/logger" );
+        const logged = [];
+        t.mock.method( logger, "log", ( message, severity, data ) => logged.push( { message: String( message ), severity, data: JSON.stringify( data ) } ) );
         const server = instance( { authorize: () => Promise.reject( exceptions.raise( exceptions.exceptionCode.E_SEC_INVALID_AUTH_TOKEN, null, exceptions.httpCode.C_401 ) ) } );
         const answer = await post( server, mockRequest( { body: { token: TOKEN } } ) );
         assert.deepEqual( answer, { status: 303, location: "/?email-link=expired" } );
+        assert.equal( logged.length, 1 );
+        assert.equal( logged[ 0 ].severity, logger.logSeverity.DEBUG, "as every other refused sign-in" );
+        assert.ok( !logged[ 0 ].message.includes( TOKEN ) && !logged[ 0 ].data.includes( TOKEN ) );
     } );
 
     it( "keeps an application's refusal the failed sign-in it is, whatever code it raises", async () => {

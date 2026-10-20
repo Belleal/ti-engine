@@ -76,7 +76,9 @@ failure too (`/?error=`), so a page of its own would split the two.
 5. The `sign-in-link` notice is sent at once, past the outbox and the ledger, through a new
    `NotificationService#sendNow`. Its link is `<publicUrl>/#email-link=<token>`.
 6. The browser is sent back to `/?email-link=<outcome>`: `sent`, `limited`, `invalid-address` or `unavailable`
-   (the store or the transport failed; a token already stored is deleted, so a link nobody received never works).
+   (the store or the transport failed). A failure that certainly sent nothing — raised before the transport was asked,
+   or the relay's own refusal — deletes the token and gives back the request's counts. One that may have followed a
+   delivery, as a relay timeout may, keeps both: the e-mail may still arrive, and a slow relay is no way past a limit.
 
 **The answer never says whether an address may sign in.** A refused domain reads `sent`, like an admitted one. Whether
 the application will accept the person is decided at the end (§3.4), when they hold a link. The time the answer takes
@@ -215,4 +217,12 @@ as the notification service names a recipient.
   "once" depend on what follows it); four store calls in a row before the send (a request made rarely, and the order
   is what keeps a client over its limit from counting against the address); and sharing a one-line hash helper across
   modules.
+- **A fourth pass** found the third round's refund too generous and the original deletion too eager: a relay timeout
+  may follow a delivery, so refunding it let a slow relay be a way past the limits, and deleting its token left an
+  e-mail that arrived with a link that could not work. Both now apply only to a failure that certainly sent nothing.
+  It also found a Continue step left by another link and brought back by Back losing its unspent link (now only a
+  press of Continue drops it), buttons held for good when a request was stopped (they let go after eight seconds), the
+  expired-link redirect skipping the log every other refused sign-in gets (DEBUG, without the token), a stale changelog
+  line, and the limit key and expiry written twice. Declined: making `notify` itself queue a message until the
+  notification bar exists, which would change every early notice in the framework, not this one.
 

@@ -222,8 +222,9 @@ How it works:
    sign out and open the link again.
 4. **Spending it.** The first request to delete the stored entry wins; every later one, an expired or unknown token,
    and one whose domain the list no longer admits, is refused with `E_SEC_INVALID_AUTH_TOKEN` and answered `303` to
-   `/?email-link=expired`, which the sign-in page explains. A request that could not be sent gives its counts back, so
-   an outage does not use up anybody's hour. A spent link signs in as the other methods do: `augmentSession` may refuse, the
+   `/?email-link=expired`, which the sign-in page explains. A request that certainly sent nothing gives its counts back
+   and deletes its link, so an outage uses up nobody's hour; one that may have gone through, as a relay timeout may,
+   keeps both. A spent link signs in as the other methods do: `augmentSession` may refuse, the
    `admin` allowlist applies.
 
 The session's user is `{ userID: "email:<32 hex of the address's SHA-256>", username: <address>, email: <address> }`,

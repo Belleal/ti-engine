@@ -234,20 +234,31 @@ describe( "EmailLink — asking for a link", () => {
         assert.equal( sent.length, 2 );
     } );
 
-    it( "answers unavailable when the e-mail cannot be sent, and deletes the link it could not send", async () => {
+    it( "answers unavailable when the e-mail certainly was not sent, and deletes its link", async () => {
         const link = new EmailLink().registerNotice();
-        failNext = Object.assign( new Error( "relay down" ), { code: "E_RELAY_UNAVAILABLE", transient: true } );
+        failNext = Object.assign( new Error( "daily limit" ), { code: "E_DAILY_LIMIT_EXCEEDED", transient: true } );
         assert.equal( await link.request( { email: "parent@example.com", client: "203.0.113.7" } ), "unavailable" );
         assert.deepEqual( tokenKeys(), [], "a link nobody received can never work" );
 
         NotificationService.instance.setTransport( null );
         assert.equal( await link.request( { email: "parent@example.com", client: "203.0.113.7" } ), "unavailable", "sending switched off since start" );
+        assert.deepEqual( tokenKeys(), [] );
+    } );
+
+    it( "keeps the link and the counts when the send may have gone through, as a relay timeout may", async () => {
+        const link = new EmailLink( { hourlyLimitPerAddress: 2 } ).registerNotice();
+        for ( let i = 0; i < 2; i++ ) {
+            failNext = Object.assign( new Error( "relay timeout" ), { code: "E_RELAY_UNAVAILABLE", transient: true } );
+            assert.equal( await link.request( { email: "parent@example.com", client: "203.0.113.7" } ), "unavailable" );
+        }
+        assert.equal( tokenKeys().length, 2, "an e-mail that arrives anyway carries a link that works" );
+        assert.equal( await link.request( { email: "parent@example.com", client: "203.0.113.7" } ), "limited", "a slow relay is no way past the limit" );
     } );
 
     it( "gives back what it counted when nothing could be sent, so an outage uses up nobody's hour", async () => {
         const link = new EmailLink( { hourlyLimitPerAddress: 2, hourlyLimitPerClient: 2 } ).registerNotice();
         for ( let i = 0; i < 4; i++ ) {
-            failNext = Object.assign( new Error( "relay down" ), { code: "E_RELAY_UNAVAILABLE", transient: true } );
+            failNext = Object.assign( new Error( "rate limit" ), { code: "E_RATE_LIMIT_EXCEEDED", transient: true } );
             assert.equal( await link.request( { email: "parent@example.com", client: "203.0.113.7" } ), "unavailable" );
         }
         assert.equal( await link.request( { email: "parent@example.com", client: "203.0.113.7" } ), "sent", "the relay is back, and the hour is whole" );

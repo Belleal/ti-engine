@@ -200,14 +200,32 @@ describe( "tiLoginEmailLink — sending once", () => {
         assert.equal( component.step, "ask" );
     } );
 
-    it( "drops a Continue step that Back brought back, whose link the press that left the page most likely spent", async () => {
+    it( "lets the buttons go after a while anyway, for a request that was stopped or lost", () => {
+        const { components, sandbox } = loadTiFramework();
+        const timers = [];
+        sandbox.setTimeout = ( callback, delay ) => timers.push( { callback, delay } ) && timers.length;
+        sandbox.clearTimeout = () => {};
+        const component = components.tiLoginEmailLink();
+        component.markSending();
+        assert.equal( component.sending, true );
+        assert.equal( timers.length, 1 );
+        assert.ok( timers[ 0 ].delay >= 3000 && timers[ 0 ].delay <= 15000, `long enough to stop a double click, short enough to retry: ${ timers[ 0 ].delay } ms` );
+        timers[ 0 ].callback();
+        assert.equal( component.sending, false );
+    } );
+
+    it( "drops a Continue step that Back brought back after Continue was pressed, and keeps one left another way", async () => {
         const { component, settled } = start( "tiLoginEmailLink", `https://app.example.com/#email-link=${ TOKEN }` );
         await settled;
+        component.resetSending( { persisted: true } );
+        assert.equal( component.step, "confirm", "left by another link, the page keeps its unspent link" );
+        assert.equal( component.token, TOKEN );
         component.markSending();
         component.resetSending( { persisted: false } );
         assert.equal( component.step, "confirm", "a first showing of the page keeps it" );
+        component.markSending();
         component.resetSending( { persisted: true } );
-        assert.equal( component.step, "ask" );
+        assert.equal( component.step, "ask", "the press that left the page most likely spent it" );
         assert.equal( component.token, "" );
     } );
 

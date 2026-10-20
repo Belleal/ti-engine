@@ -27,21 +27,22 @@ This document will contain the list of changes made to the framework. The format
     application refusing with the same code still reads "Sign-in failed". Then the sign-in is every method's, through
     one `signInUser` that local, e-mail link and OpenID sign-ins now share: `augmentSession`, the allowlist, `303` to
     `/`. The user is `email:` and 32 hex of the address's SHA-256, with the address as username and e-mail. A request
-    that sent nothing gives its counts back, so an outage uses up nobody's hour.
+    that certainly sent nothing gives its counts back and deletes its link; one that may have gone through (a relay
+    timeout) keeps both.
   * **Fails closed.** Without a transport that delivers (`log` does not), `publicUrl` or the notice's texts in the
     deployment's language, the method is left out at start with a warning naming what is missing. Nothing logged holds
     an address, a client address or a token.
   * **The sign-in page** gains the address form, a "link sent" step and a Continue step (`tiLoginEmailLink`), an "or"
-    between the e-mail link and the local form when both are enabled (`<!--ti-auth-form-divider-->`), and the
-    expired-link message in the error box. The "or continue with" divider now shows when either form and a provider
-    are enabled. New labels in English and Bulgarian.
+    between the e-mail link and the local form when both are enabled (`<!--ti-auth-form-divider-->`), and the block's
+    own message for an expired link (the error box is unchanged). The "or continue with" divider now shows when either
+    form and a provider are enabled. New labels in English and Bulgarian.
 * feat(notifications): `sendNow( kind, recipient, data )` sends one notice at once, past the outbox and the ledger, with
   one attempt; `sendTest` now shares its send. `publicUrl` reports the base of every link, and `transportName` the
   transport's own name.
 
 * feat(web-server): `peekEmailLink( token )`, the address a sign-in link would sign in, without spending it.
 
-Tests: 78 new (1137 in the package): `email-link.test.js`, `web-handlers.email-link.test.js`,
+Tests: 80 new (1139 in the package): `email-link.test.js`, `web-handlers.email-link.test.js`,
 `frame-login.email-link.test.js`, and new cases in `web-app-manager.auth-visibility.test.js` and
 `web-server-env-overrides.test.js`.
 

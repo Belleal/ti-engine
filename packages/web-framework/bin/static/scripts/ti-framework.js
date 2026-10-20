@@ -1261,6 +1261,7 @@ const configureApplication = () => {
          * @public
          */
         takeSignInLink() {
+            // The shell's init has normally done this already; again here, it only finds nothing to take.
             this._stashSignInLink();
             const token = this.signInLink;
             this.signInLink = null;
@@ -1297,13 +1298,18 @@ const configureApplication = () => {
                 return;
             }
             let delivered = false;
-            document.addEventListener( "htmx:afterSettle", () => {
-                if ( !delivered && document.querySelector( "#ti-notifications" ) ) {
-                    delivered = true;
-                    // After Alpine has started the bar's component, which it does as the swapped markup settles.
-                    setTimeout( () => this.notify( message ), 0 );
+            const deliver = () => {
+                if ( delivered || !document.querySelector( "#ti-notifications" ) ) {
+                    return;
                 }
-            } );
+                delivered = true;
+                if ( typeof document.removeEventListener === "function" ) {
+                    document.removeEventListener( "htmx:afterSettle", deliver );
+                }
+                // After Alpine has started the bar's component, which it does as the swapped markup settles.
+                setTimeout( () => this.notify( message ), 0 );
+            };
+            document.addEventListener( "htmx:afterSettle", deliver );
         },
 
         /**
@@ -2789,6 +2795,14 @@ const configureScreenFeedbackInbox = () => {
 const LOGIN_EMAIL_LINK_MESSAGES = Object.freeze( [ "limited", "unavailable", "invalid-address", "expired" ] );
 
 /**
+ * How long a sign-in form holds its button once sent, in milliseconds: long enough to stop a double click, short enough
+ * that a person who stopped a slow request, or lost the connection, can try again without reloading.
+ *
+ * @type {number}
+ */
+const LOGIN_SENDING_HOLD_MS = 8000;
+
+/**
  * Returns a configuration object for the login screen error message.
  * <br/>
  * The login handlers answer a failed sign-in with a `303` to `/?error=<code>` (see `defaultErrorHandler`). This reads
@@ -2837,6 +2851,7 @@ const configureLoginEmailLink = () => {
         email: "",
         checking: false,
         sending: false,
+        sendingTimer: null,
         message: "",
 
         init() {
@@ -2890,18 +2905,24 @@ const configureLoginEmailLink = () => {
          */
         markSending() {
             this.sending = true;
+            clearTimeout( this.sendingTimer );
+            this.sendingTimer = setTimeout( () => {
+                this.sending = false;
+            }, LOGIN_SENDING_HOLD_MS );
         },
 
         /**
          * Lets the buttons work again on a page the browser brought back from its cache, as Back does. A Continue step
-         * brought back that way holds a token that was most likely spent by the press that left the page, so it goes
-         * back to the address form rather than offering the same link again.
+         * brought back that way after Continue was pressed holds a token that press most likely spent, so it goes back to
+         * the address form rather than offering the same link again; one left another way keeps its link.
          *
          * @param {PageTransitionEvent} [event]
          */
         resetSending( event ) {
+            const wasSending = this.sending;
+            clearTimeout( this.sendingTimer );
             this.sending = false;
-            if ( event && event.persisted && this.step === "confirm" ) {
+            if ( event && event.persisted && wasSending && this.step === "confirm" ) {
                 this.askAgain();
             }
         }

@@ -100,7 +100,8 @@ declare class EmailLink {
      * <br/>
      * **The outcome never says whether the address may sign in.** An address outside `allowedDomains` is sent nothing
      * and answered `sent`, like one inside it. Over either hourly limit nothing is sent, whatever the address. A request
-     * that could not be sent gives back what it counted, so an outage does not use up anybody's hour.
+     * that certainly sent nothing gives back what it counted, so an outage does not use up anybody's hour; one whose
+     * send may have gone through keeps its counts and its link, since the e-mail may still arrive.
      *
      * @method
      * @param {TiEmailLinkRequest} [request]

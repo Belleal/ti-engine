@@ -109,6 +109,12 @@ const TOKEN = /^[A-Za-z0-9_-]{43}$/;
 // The window a limit counts in, in seconds.
 const LIMIT_WINDOW = 3600;
 
+// The failures after which nothing was sent for certain: raised before the transport was asked, or the relay's own
+// refusal. Anything else, above all the relay's E_RELAY_UNAVAILABLE (a timeout, a dropped connection, an answer it
+// could not read), may have followed a delivery, so its link is kept and its counts stand.
+const NOT_SENT = Object.freeze( [ "E_NOTICE_TRANSPORT_OFF", "E_NOTICE_UNKNOWN", "E_NOTICE_LABEL_MISSING", "E_NOTICE_ATTACHMENT_INVALID",
+    "E_RATE_LIMIT_EXCEEDED", "E_DAILY_LIMIT_EXCEEDED" ] );
+
 /**
  * The SHA-256 of a value, in hex.
  *
@@ -119,6 +125,44 @@ const LIMIT_WINDOW = 3600;
  */
 function digestOf( value ) {
     return createHash( "sha256" ).update( String( value ) ).digest( "hex" );
+}
+
+/**
+ * Where a token's entry is kept, or `null` for a token this module could not have made: nothing is read for it.
+ *
+ * @method
+ * @param {*} token
+ * @returns {string|null}
+ * @private
+ */
+function tokenKeyOf( token ) {
+    return ( typeof token === "string" && TOKEN.test( token ) ) ? KEY_TOKEN + digestOf( token ) : null;
+}
+
+/**
+ * Where a limit keeps its count of a value.
+ *
+ * @method
+ * @param {"address"|"client"} kind
+ * @param {string} value
+ * @returns {string}
+ * @private
+ */
+function limitKeyOf( kind, value ) {
+    return KEY_LIMIT + kind + ":" + digestOf( value ).slice( 0, 32 );
+}
+
+/**
+ * Whole seconds from now until a moment, at least one: the expiry a count is written with.
+ *
+ * @method
+ * @param {number} until In milliseconds.
+ * @param {number} now In milliseconds.
+ * @returns {number}
+ * @private
+ */
+function secondsUntil( until, now ) {
+    return Math.max( 1, Math.ceil( ( until - now ) / 1000 ) );
 }
 
 /**
@@ -245,7 +289,8 @@ class EmailLink {
      * <br/>
      * **The outcome never says whether the address may sign in.** An address outside `allowedDomains` is sent nothing
      * and answered `sent`, like one inside it. Over either hourly limit nothing is sent, whatever the address. A request
-     * that could not be sent gives back what it counted, so an outage does not use up anybody's hour.
+     * that certainly sent nothing gives back what it counted, so an outage does not use up anybody's hour; one whose
+     * send may have gone through keeps its counts and its link, since the e-mail may still arrive.
      *
      * @method
      * @param {TiEmailLinkRequest} [request]
@@ -260,6 +305,7 @@ class EmailLink {
         const subject = EmailLink.subjectOf( address );
         const clientValue = String( client || "unknown" );
         const counted = [];
+        const progress = { sending: false };
         return this.#count( "client", clientValue, this.#settings.hourlyLimitPerClient ).then( ( withinClient ) => {
             if ( !withinClient ) {
                 logger.log( `E-mail sign-in: client '${ EmailLink.subjectOf( clientValue ) }' is over its hourly limit; no link was sent.`, logger.logSeverity.NOTICE );
@@ -277,10 +323,14 @@ class EmailLink {
                     logger.log( `E-mail sign-in: address '${ subject }' is in the domain '${ domainOf( address ) }', which may not sign in; no link was sent.`, logger.logSeverity.INFO );
                     return OUTCOME.SENT;
                 }
-                return this.#issueAndSend( address, subject, language );
+                return this.#issueAndSend( address, subject, language, progress );
             } );
         } ).catch( ( error ) => {
-            logger.log( `E-mail sign-in: a link for address '${ subject }' could not be sent (${ ( error && error.code ) || "unknown" }).`, logger.logSeverity.WARNING, { stack: error && error.stack } );
+            const sentNothing = !progress.sending || NOT_SENT.includes( error && error.code );
+            logger.log( `E-mail sign-in: a link for address '${ subject }' could not be sent (${ ( error && error.code ) || "unknown" })${ sentNothing ? "" : "; it may have gone, so its link is kept and it counts" }.`, logger.logSeverity.WARNING, { stack: error && error.stack } );
+            if ( !sentNothing ) {
+                return OUTCOME.UNAVAILABLE;
+            }
             return Promise.all( counted.map( ( [ kind, value ] ) => this.#uncount( kind, value ).catch( () => undefined ) ) ).then( () => OUTCOME.UNAVAILABLE );
         } );
     }
@@ -297,10 +347,11 @@ class EmailLink {
      * @public
      */
     peek( token ) {
-        if ( typeof token !== "string" || !TOKEN.test( token ) ) {
+        const key = tokenKeyOf( token );
+        if ( key === null ) {
             return Promise.resolve( null );
         }
-        return cache.instance.getValue( KEY_TOKEN + digestOf( token ) ).then( ( entry ) => this.#usableAddress( entry ) );
+        return cache.instance.getValue( key ).then( ( entry ) => this.#usableAddress( entry ) );
     }
 
     /**
@@ -313,10 +364,10 @@ class EmailLink {
      * @public
      */
     redeem( token ) {
-        if ( typeof token !== "string" || !TOKEN.test( token ) ) {
+        const key = tokenKeyOf( token );
+        if ( key === null ) {
             return Promise.resolve( null );
         }
-        const key = KEY_TOKEN + digestOf( token );
         return cache.instance.getValue( key ).then( ( entry ) => {
             if ( !entry || typeof entry !== "object" ) {
                 return null;
@@ -436,7 +487,7 @@ class EmailLink {
      * @returns {Promise<boolean>}
      */
     #count( kind, value, limit ) {
-        const key = KEY_LIMIT + kind + ":" + digestOf( value ).slice( 0, 32 );
+        const key = limitKeyOf( kind, value );
         return this.#lock.exclusively( key, () => {
             return cache.instance.getValue( key ).then( ( entry ) => {
                 const now = this.#now();
@@ -446,7 +497,7 @@ class EmailLink {
                     return false;
                 }
                 const resetAt = live ? entry.resetAt : now + LIMIT_WINDOW * 1000;
-                return cache.instance.setValue( key, { count: count, resetAt: resetAt }, Math.max( 1, Math.ceil( ( resetAt - now ) / 1000 ) ) ).then( () => true );
+                return cache.instance.setValue( key, { count: count, resetAt: resetAt }, secondsUntil( resetAt, now ) ).then( () => true );
             } );
         } );
     }
@@ -460,14 +511,14 @@ class EmailLink {
      * @returns {Promise<void>}
      */
     #uncount( kind, value ) {
-        const key = KEY_LIMIT + kind + ":" + digestOf( value ).slice( 0, 32 );
+        const key = limitKeyOf( kind, value );
         return this.#lock.exclusively( key, () => {
             return cache.instance.getValue( key ).then( ( entry ) => {
                 const now = this.#now();
                 if ( !entry || typeof entry !== "object" || !isCount( entry.count ) || !Number.isFinite( entry.resetAt ) || entry.resetAt <= now ) {
                     return undefined;
                 }
-                return cache.instance.setValue( key, { count: entry.count - 1, resetAt: entry.resetAt }, Math.max( 1, Math.ceil( ( entry.resetAt - now ) / 1000 ) ) );
+                return cache.instance.setValue( key, { count: entry.count - 1, resetAt: entry.resetAt }, secondsUntil( entry.resetAt, now ) );
             } );
         } );
     }
@@ -506,17 +557,20 @@ class EmailLink {
     }
 
     /**
-     * Stores a new token and sends the link. A link that could not be sent is deleted, so it can never work.
+     * Stores a new token and sends the link. A link that certainly was not sent is deleted, so it can never work; one
+     * whose send may have gone through is kept, so an e-mail that arrives anyway carries a link that works.
      *
      * @method
      * @param {string} address
      * @param {string} subject
      * @param {string} [language]
+     * @param {{sending: boolean}} progress Set once the transport has been asked, so the caller knows whether a failure
+     *        may have followed a delivery.
      * @returns {Promise<string>} {@link OUTCOME}`.SENT`; rejects when the store or the transport fails.
      */
-    #issueAndSend( address, subject, language ) {
+    #issueAndSend( address, subject, language, progress ) {
         const token = randomBytes( TOKEN_BYTES ).toString( "base64url" );
-        const key = KEY_TOKEN + digestOf( token );
+        const key = tokenKeyOf( token );
         const lifetime = this.#settings.lifetimeMinutes * 60;
         const entry = {
             address: address,
@@ -526,7 +580,11 @@ class EmailLink {
         return cache.instance.setValue( key, entry, lifetime ).then( () => {
             // The recipient ID is what the notification service logs, so it is the address's subject, never the address.
             const recipient = { id: `email-link-${ subject }`, email: address, language: entry.language };
+            progress.sending = true;
             return notificationService.instance.sendNow( NOTICE, recipient, { token: token, minutes: this.#settings.lifetimeMinutes } ).catch( ( error ) => {
+                if ( !NOT_SENT.includes( error && error.code ) ) {
+                    throw error;
+                }
                 return Promise.resolve( cache.instance.deleteValue( key ) ).catch( () => undefined ).then( () => {
                     throw error;
                 } );

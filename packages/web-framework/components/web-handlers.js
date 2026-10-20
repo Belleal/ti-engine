@@ -659,6 +659,8 @@ module.exports.authenticationHandler = ( instance ) => {
                     // `augmentSession` raising it must read "Sign-in failed" like any other refusal.
                     const exception = exceptions.raise( error, null, exceptions.httpCode.C_401 );
                     if ( exception.code === exceptions.exceptionCode.E_SEC_INVALID_AUTH_TOKEN ) {
+                        // Logged as every other refused sign-in is, since it never reaches the error handler; never the token.
+                        logger.log( "Refused an e-mail sign-in link: unknown, already used or expired.", logger.logSeverity.DEBUG, exception );
                         return EmailLink.answerFor( EmailLink.OUTCOME.EXPIRED );
                     }
                     throw exception;
