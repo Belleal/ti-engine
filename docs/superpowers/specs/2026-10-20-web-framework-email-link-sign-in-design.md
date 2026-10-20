@@ -112,11 +112,11 @@ posted the token by itself, would be spent by the scanner, and the person would 
 5. The session is regenerated exactly as for the other methods: `augmentSession` may refuse, the `admin` allowlist
    applies, the session language follows the same rules.
 
-Every refusal goes the way the other methods' do: a `401`, which the error handler turns into `/?error=<code>`. A token
-that is malformed, unknown, already spent or expired is refused with `E_SEC_INVALID_AUTH_TOKEN`, code 2000, which
-nothing else raises at sign-in, so the login page explains that code as an expired link: "Sign-in failed" would have
-the person try the same link again. An application's refusal in `augmentSession` reads "Sign-in failed", as it does for
-every method.
+A token that is malformed, unknown, already spent or expired is refused by `authorize` with
+`E_SEC_INVALID_AUTH_TOKEN`, and the handler answers that refusal, read from `authorize` alone, with a `303` to
+`/?email-link=expired`, which the e-mail link's block explains: "Sign-in failed" would have the person try the same
+link again. Every other refusal goes the way the other methods' do, a `401` the error handler turns into
+`/?error=<code>`; so an application's `augmentSession` refusal reads "Sign-in failed" whatever code it raises.
 
 ### 3.5 Fail closed at start
 
@@ -138,7 +138,9 @@ as the notification service names a recipient.
 - A component, `tiLoginEmailLink`, with three steps: asking for the address (with a message for `limited`,
   `invalid-address` or `unavailable`), the link sent, and continuing from a link. The address form is the one shown
   before the script runs, so the page works without it.
-- The error box gains a second message, for `?error=2000`.
+- The shell takes a link's token out of the address bar as it starts, before any frame can push another address, and
+  keeps it for the block to take (`tiApplication.takeSignInLink`). In a browser already signed in, `/` shows the
+  application, so nothing takes it: the shell then says to sign out and open the link again.
 - Its strings are `interface.default.login.email*` and `interface.default.login.or`, in English and Bulgarian. The
   notice's are `interface.notice.sign-in-link.{subject,text}`. An application carries those it wants in its catalogue,
   as for every framework string; the notice's two are required (§3.5).
@@ -202,4 +204,15 @@ as the notification service names a recipient.
   OpenID callback's `delete session.oidc`, a no-op after express-session's `regenerate`, took a parameter of its own
   in the shared completion (now one line in it); the domain list was normalized twice; and the package's changelog
   named the application.
+- **A third pass** found the signed-in set-aside racing the shell's own loads (the first frame pushes its address, and
+  the notification bar may not be there yet when `/me` answers: the token is now taken out as the shell starts, and the
+  notice waits for the bar); a Continue step brought back by Back offering a spent token (it returns to the address
+  form now); an outage using up the hourly budget (a request that sent nothing gives its counts back); the page reading
+  the shared code 2000 as an expired link wherever it came from (the handler now answers a refusal from `authorize`
+  with `?email-link=expired`, and the error box is as it was); the public `TiWebServer#authorize` note not naming the
+  exception; and small duplicates and inline shapes (`TiEmailLinkRequest`, `TiEmailLinkRedeemed`). Declined: a store
+  failure after the token is spent burns the link (that outage fails every sign-in, and un-spending a token would make
+  "once" depend on what follows it); four store calls in a row before the send (a request made rarely, and the order
+  is what keeps a client over its limit from counting against the address); and sharing a one-line hash helper across
+  modules.
 

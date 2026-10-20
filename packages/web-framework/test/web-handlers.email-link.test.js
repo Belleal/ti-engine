@@ -24,6 +24,7 @@
 
 const { describe, it } = require( "node:test" );
 const assert = require( "node:assert/strict" );
+const exceptions = require( "@ti-engine/core/exceptions" );
 const webHandlers = require( "#web-handlers" );
 
 const TOKEN = "A".repeat( 43 );
@@ -196,12 +197,20 @@ describe( "POST /login/email-link — spending a link", () => {
         assert.ok( request.session.user.roles.includes( "admin" ), "the allowlist applies to an e-mail sign-in too" );
     } );
 
-    it( "refuses a link that cannot be used with its own code, which the sign-in page explains", async () => {
-        const exceptions = require( "@ti-engine/core/exceptions" );
+    it( "sends a link that cannot be used back to the sign-in page, which says it has expired", async () => {
         const server = instance( { authorize: () => Promise.reject( exceptions.raise( exceptions.exceptionCode.E_SEC_INVALID_AUTH_TOKEN, null, exceptions.httpCode.C_401 ) ) } );
         const answer = await post( server, mockRequest( { body: { token: TOKEN } } ) );
-        assert.equal( answer.next.code, 2000 );
+        assert.deepEqual( answer, { status: 303, location: "/?email-link=expired" } );
+    } );
+
+    it( "keeps an application's refusal the failed sign-in it is, whatever code it raises", async () => {
+        // The code is shared: an `augmentSession` raising it must not read as an expired link.
+        const server = instance( { augmentSession: () => {
+            throw exceptions.raise( exceptions.exceptionCode.E_SEC_INVALID_AUTH_TOKEN );
+        } } );
+        const answer = await post( server, mockRequest( { body: { token: TOKEN } } ) );
         assert.equal( answer.next.httpCode, 401 );
+        assert.equal( answer.next.code, 2000 );
     } );
 
     it( "destroys the new session when the application refuses the person", async () => {

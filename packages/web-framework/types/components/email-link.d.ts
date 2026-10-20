@@ -1,5 +1,6 @@
 export = EmailLink;
 import type { SettingsAuthEmailLink } from "#web-server";
+import type { TiEmailLinkRequest, TiEmailLinkRedeemed } from "#definitions";
 /**
  * The notice that carries the link.
  *
@@ -26,9 +27,9 @@ declare const NOTICE_LABELS: Readonly<{
  */
 declare const PARAMETER: string;
 /**
- * How a request for a link ended, as the sign-in page is told in `?email-link=`.
+ * What the sign-in page is told in `?email-link=`: how a request for a link ended, or that a link could not be used.
  *
- * @type {Readonly<{SENT: string, LIMITED: string, INVALID_ADDRESS: string, UNAVAILABLE: string}>}
+ * @type {Readonly<{SENT: string, LIMITED: string, INVALID_ADDRESS: string, UNAVAILABLE: string, EXPIRED: string}>}
  * @public
  */
 declare const OUTCOME: Readonly<{
@@ -36,6 +37,7 @@ declare const OUTCOME: Readonly<{
     LIMITED: string;
     INVALID_ADDRESS: string;
     UNAVAILABLE: string;
+    EXPIRED: string;
 }>;
 /**
  * The settings in effect when the configuration names none.
@@ -97,21 +99,15 @@ declare class EmailLink {
      * failure to store or to send is logged and answered as {@link OUTCOME}`.UNAVAILABLE`.
      * <br/>
      * **The outcome never says whether the address may sign in.** An address outside `allowedDomains` is sent nothing
-     * and answered `sent`, like one inside it. Over either hourly limit nothing is sent, whatever the address.
+     * and answered `sent`, like one inside it. Over either hourly limit nothing is sent, whatever the address. A request
+     * that could not be sent gives back what it counted, so an outage does not use up anybody's hour.
      *
      * @method
-     * @param {Object} request
-     * @param {*} request.email As the form sent it.
-     * @param {string} [request.client] The client's network address, which the client limit counts.
-     * @param {string} [request.language] The language the request was answered in, for the e-mail and the session.
+     * @param {TiEmailLinkRequest} [request]
      * @returns {Promise<string>} One of {@link OUTCOME}.
      * @public
      */
-    request({ email, client, language }?: {
-        email: any;
-        client?: string;
-        language?: string;
-    }): Promise<string>;
+    request({ email, client, language }?: TiEmailLinkRequest): Promise<string>;
     /**
      * The address a token would sign in, without spending it, or `null` for a token that could not sign anybody in.
      * The sign-in page shows the address before the person continues, so a link somebody else asked for, for their
@@ -130,22 +126,19 @@ declare class EmailLink {
      *
      * @method
      * @param {*} token As the form sent it.
-     * @returns {Promise<{address: string, language: (string|undefined)}|null>}
+     * @returns {Promise<TiEmailLinkRedeemed|null>}
      * @public
      */
-    redeem(token: any): Promise<{
-        address: string;
-        language: (string | undefined);
-    } | null>;
+    redeem(token: any): Promise<TiEmailLinkRedeemed | null>;
     /**
-     * The answer to a request for a link: the sign-in page, told how the request ended.
+     * Where the browser is sent with an answer about a link: the sign-in page, told the outcome.
      *
      * @method
      * @param {string} outcome One of {@link OUTCOME}.
      * @returns {string}
      * @public
      */
-    answerFor(outcome: string): string;
+    static answerFor(outcome: string): string;
     /**
      * Reads `auth.emailLink` into the settings in effect: each missing or malformed value takes its default, with a
      * warning for a malformed one. Pure, so the rules are testable without a server.

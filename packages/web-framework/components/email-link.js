@@ -25,6 +25,7 @@ const localization = require( "@ti-engine/core/localization" );
 const notificationService = require( "#notification-service" );
 
 /** @import { SettingsAuthEmailLink } from "#web-server" */
+/** @import { TiEmailLinkRequest, TiEmailLinkRedeemed } from "#definitions" */
 
 // + the SHA-256 of a token → `{ address, language, expiresAt }`. A value, which the store expires and can delete: the
 // delete is what spends a token. The token itself is never stored, so a read of the store hands out no link.
@@ -66,16 +67,17 @@ const PARAMETER = "email-link";
 const SIGN_IN_PAGE = "/";
 
 /**
- * How a request for a link ended, as the sign-in page is told in `?email-link=`.
+ * What the sign-in page is told in `?email-link=`: how a request for a link ended, or that a link could not be used.
  *
- * @type {Readonly<{SENT: string, LIMITED: string, INVALID_ADDRESS: string, UNAVAILABLE: string}>}
+ * @type {Readonly<{SENT: string, LIMITED: string, INVALID_ADDRESS: string, UNAVAILABLE: string, EXPIRED: string}>}
  * @public
  */
 const OUTCOME = Object.freeze( {
     SENT: "sent",
     LIMITED: "limited",
     INVALID_ADDRESS: "invalid-address",
-    UNAVAILABLE: "unavailable"
+    UNAVAILABLE: "unavailable",
+    EXPIRED: "expired"
 } );
 
 /**
@@ -120,16 +122,27 @@ function digestOf( value ) {
 }
 
 /**
- * A positive whole number, else the fallback.
+ * Whether a value is a positive whole number, as every count and lifetime here must be.
  *
  * @method
  * @param {*} value
- * @param {number} fallback
- * @returns {number}
+ * @returns {boolean}
  * @private
  */
-function positiveInteger( value, fallback ) {
-    return ( Number.isInteger( value ) && value > 0 ) ? value : fallback;
+function isCount( value ) {
+    return Number.isInteger( value ) && value > 0;
+}
+
+/**
+ * An address's domain: what follows its last `@`.
+ *
+ * @method
+ * @param {string} address As {@link EmailLink.normalizeAddress} returns it.
+ * @returns {string}
+ * @private
+ */
+function domainOf( address ) {
+    return address.slice( address.lastIndexOf( "@" ) + 1 );
 }
 
 /**
@@ -192,7 +205,7 @@ class EmailLink {
             // A rendering without a token, such as an editor's preview, links to the sign-in page itself.
             link: ( data ) => ( typeof data.token === "string" ) ? `${ SIGN_IN_PAGE }#${ PARAMETER }=${ data.token }` : SIGN_IN_PAGE,
             // Only the lifetime may appear in the texts: the token reaches the message through the link alone.
-            format: ( data ) => ( { minutes: String( positiveInteger( data.minutes, this.#settings.lifetimeMinutes ) ) } ),
+            format: ( data ) => ( { minutes: String( isCount( data.minutes ) ? data.minutes : this.#settings.lifetimeMinutes ) } ),
             placeholders: [ "minutes" ]
         } );
         return this;
@@ -231,13 +244,11 @@ class EmailLink {
      * failure to store or to send is logged and answered as {@link OUTCOME}`.UNAVAILABLE`.
      * <br/>
      * **The outcome never says whether the address may sign in.** An address outside `allowedDomains` is sent nothing
-     * and answered `sent`, like one inside it. Over either hourly limit nothing is sent, whatever the address.
+     * and answered `sent`, like one inside it. Over either hourly limit nothing is sent, whatever the address. A request
+     * that could not be sent gives back what it counted, so an outage does not use up anybody's hour.
      *
      * @method
-     * @param {Object} request
-     * @param {*} request.email As the form sent it.
-     * @param {string} [request.client] The client's network address, which the client limit counts.
-     * @param {string} [request.language] The language the request was answered in, for the e-mail and the session.
+     * @param {TiEmailLinkRequest} [request]
      * @returns {Promise<string>} One of {@link OUTCOME}.
      * @public
      */
@@ -247,26 +258,30 @@ class EmailLink {
             return Promise.resolve( OUTCOME.INVALID_ADDRESS );
         }
         const subject = EmailLink.subjectOf( address );
-        return this.#count( "client", String( client || "unknown" ), this.#settings.hourlyLimitPerClient ).then( ( withinClient ) => {
+        const clientValue = String( client || "unknown" );
+        const counted = [];
+        return this.#count( "client", clientValue, this.#settings.hourlyLimitPerClient ).then( ( withinClient ) => {
             if ( !withinClient ) {
-                logger.log( `E-mail sign-in: client '${ EmailLink.subjectOf( client || "unknown" ) }' is over its hourly limit; no link was sent.`, logger.logSeverity.NOTICE );
+                logger.log( `E-mail sign-in: client '${ EmailLink.subjectOf( clientValue ) }' is over its hourly limit; no link was sent.`, logger.logSeverity.NOTICE );
                 return OUTCOME.LIMITED;
             }
+            counted.push( [ "client", clientValue ] );
             return this.#count( "address", address, this.#settings.hourlyLimitPerAddress ).then( ( withinAddress ) => {
                 if ( !withinAddress ) {
                     logger.log( `E-mail sign-in: address '${ subject }' is over its hourly limit; no link was sent.`, logger.logSeverity.NOTICE );
                     return OUTCOME.LIMITED;
                 }
+                counted.push( [ "address", address ] );
                 if ( !this.#isDomainAllowed( address ) ) {
                     // The domain is what an operator acts on, a missing entry in the list; the address is somebody's.
-                    logger.log( `E-mail sign-in: address '${ subject }' is in the domain '${ address.slice( address.lastIndexOf( "@" ) + 1 ) }', which may not sign in; no link was sent.`, logger.logSeverity.INFO );
+                    logger.log( `E-mail sign-in: address '${ subject }' is in the domain '${ domainOf( address ) }', which may not sign in; no link was sent.`, logger.logSeverity.INFO );
                     return OUTCOME.SENT;
                 }
                 return this.#issueAndSend( address, subject, language );
             } );
         } ).catch( ( error ) => {
             logger.log( `E-mail sign-in: a link for address '${ subject }' could not be sent (${ ( error && error.code ) || "unknown" }).`, logger.logSeverity.WARNING, { stack: error && error.stack } );
-            return OUTCOME.UNAVAILABLE;
+            return Promise.all( counted.map( ( [ kind, value ] ) => this.#uncount( kind, value ).catch( () => undefined ) ) ).then( () => OUTCOME.UNAVAILABLE );
         } );
     }
 
@@ -294,7 +309,7 @@ class EmailLink {
      *
      * @method
      * @param {*} token As the form sent it.
-     * @returns {Promise<{address: string, language: (string|undefined)}|null>}
+     * @returns {Promise<TiEmailLinkRedeemed|null>}
      * @public
      */
     redeem( token ) {
@@ -318,19 +333,19 @@ class EmailLink {
         } );
     }
 
+    /* Static interface */
+
     /**
-     * The answer to a request for a link: the sign-in page, told how the request ended.
+     * Where the browser is sent with an answer about a link: the sign-in page, told the outcome.
      *
      * @method
      * @param {string} outcome One of {@link OUTCOME}.
      * @returns {string}
      * @public
      */
-    answerFor( outcome ) {
+    static answerFor( outcome ) {
         return `${ SIGN_IN_PAGE }?${ PARAMETER }=${ encodeURIComponent( outcome ) }`;
     }
-
-    /* Static interface */
 
     /**
      * Reads `auth.emailLink` into the settings in effect: each missing or malformed value takes its default, with a
@@ -354,7 +369,6 @@ class EmailLink {
             warnings.push( `E-mail sign-in: 'auth.emailLink.${ name }' is not valid and was ignored; using ${ JSON.stringify( DEFAULTS[ name ] ) }.` );
             return DEFAULTS[ name ];
         };
-        const isCount = ( value ) => Number.isInteger( value ) && value > 0;
         const resolved = {
             lifetimeMinutes: pick( "lifetimeMinutes", ( value ) => isCount( value ) && value <= 1440 ),
             allowedDomains: Object.freeze( Array.isArray( given.allowedDomains ) ? [ ...given.allowedDomains ] : [] ),
@@ -438,6 +452,27 @@ class EmailLink {
     }
 
     /**
+     * Gives back one request a limit counted, when nothing was sent for it. A window that has ended has nothing to give.
+     *
+     * @method
+     * @param {"address"|"client"} kind
+     * @param {string} value
+     * @returns {Promise<void>}
+     */
+    #uncount( kind, value ) {
+        const key = KEY_LIMIT + kind + ":" + digestOf( value ).slice( 0, 32 );
+        return this.#lock.exclusively( key, () => {
+            return cache.instance.getValue( key ).then( ( entry ) => {
+                const now = this.#now();
+                if ( !entry || typeof entry !== "object" || !isCount( entry.count ) || !Number.isFinite( entry.resetAt ) || entry.resetAt <= now ) {
+                    return undefined;
+                }
+                return cache.instance.setValue( key, { count: entry.count - 1, resetAt: entry.resetAt }, Math.max( 1, Math.ceil( ( entry.resetAt - now ) / 1000 ) ) );
+            } );
+        } );
+    }
+
+    /**
      * The address a stored entry signs in, or `null` when it may not: past its expiry, malformed, or in a domain the
      * list no longer admits. The domain is checked again because the list can be narrowed while a link is out, as an
      * OpenID sign-in's domain is checked when it completes.
@@ -467,7 +502,7 @@ class EmailLink {
      */
     #isDomainAllowed( address ) {
         const allowed = this.#settings.allowedDomains;
-        return allowed.length === 0 || allowed.includes( address.slice( address.lastIndexOf( "@" ) + 1 ) );
+        return allowed.length === 0 || allowed.includes( domainOf( address ) );
     }
 
     /**

@@ -94,10 +94,6 @@
           "en": "That does not look like an e-mail address. Check it and try again.",
           "bg": "Това не прилича на имейл адрес. Проверете го и опитайте отново."
         },
-        "error-sign-in-link-expired": {
-          "en": "This sign-in link has expired or has already been used. Ask for a new one.",
-          "bg": "Този линк за вход е изтекъл или вече е използван. Поискайте нов."
-        },
         "or": {
           "en": "or",
           "bg": "или"
@@ -113,6 +109,10 @@
         "email-link-signed-in-already": {
           "en": "This browser is already signed in. To use the sign-in link, sign out, then open the link from your e-mail again.",
           "bg": "В този браузър вече има вписан потребител. За да използвате линка за вход, излезте и отворете линка от имейла си отново."
+        },
+        "email-link-expired": {
+          "en": "This sign-in link has expired or has already been used. Ask for a new one.",
+          "bg": "Този линк за вход е изтекъл или вече е използван. Поискайте нов."
         }
       }
     },

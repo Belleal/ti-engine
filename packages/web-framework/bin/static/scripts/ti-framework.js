@@ -1178,11 +1178,16 @@ const configureApplication = () => {
          * @public
          */
         navigationOpen: false,
+        // A sign-in link's token, taken out of the address bar as the shell starts (CA-537); see `takeSignInLink`.
+        signInLink: null,
 
         /**
          * Used to initialize the web application.
          */
         init() {
+            // First, before any frame can push another address over the one holding the token.
+            this._stashSignInLink();
+
             document.addEventListener( "ti:error", ( event ) => {
                 this.notify( this.formatException( event.detail ) );
             } );
@@ -1213,7 +1218,7 @@ const configureApplication = () => {
                 this.user = result?.data?.user || null;
                 this.isInitialized = true;
                 if ( this.user ) {
-                    this._setAsideSignInLink();
+                    this._explainSignInLink();
                 }
             } ).catch( ( error ) => {
                 if ( error?.name === "AbortError" || error?.isAborted ) {
@@ -1228,23 +1233,77 @@ const configureApplication = () => {
         },
 
         /**
-         * Takes a sign-in link's token out of the address bar when the link was opened in a browser that is already
-         * signed in, and tells the person how to use it (CA-537). `/` shows the application then, not the sign-in page,
-         * so nothing reads the token: it stayed in the address bar and the history for as long as the link worked, and
-         * the person was left looking at whoever was signed in.
+         * Takes a sign-in link's token out of the address bar and keeps it here, for the sign-in page to take with
+         * {@link takeSignInLink} (CA-537). It runs as the shell starts, before anything can push another address: the
+         * application's first screen pushes its own, and a token still in the address then stayed in the history behind
+         * it for as long as the link worked.
          *
          * @method
          * @private
          */
-        _setAsideSignInLink() {
+        _stashSignInLink() {
             const hash = String( window.location.hash || "" ).replace( /^#/, "" );
-            if ( !hash || !new URLSearchParams( hash ).get( "email-link" ) ) {
+            const token = hash ? new URLSearchParams( hash ).get( "email-link" ) : null;
+            if ( !token ) {
                 return;
             }
+            this.signInLink = token;
             if ( window.history && typeof window.history.replaceState === "function" ) {
                 window.history.replaceState( null, "", window.location.pathname + window.location.search );
             }
-            this.notify( this.getLabel( "interface.default.login.email-link-signed-in-already", "This browser is already signed in. To use the sign-in link, sign out, then open the link from your e-mail again." ) );
+        },
+
+        /**
+         * The sign-in link's token the page was opened with, once: the sign-in page's e-mail link block takes it.
+         *
+         * @method
+         * @returns {string|null}
+         * @public
+         */
+        takeSignInLink() {
+            this._stashSignInLink();
+            const token = this.signInLink;
+            this.signInLink = null;
+            return token;
+        },
+
+        /**
+         * Tells a person who opened a sign-in link in a browser that is already signed in how to use it. `/` shows the
+         * application then, not the sign-in page, so nothing takes the link, and without a word they were left looking
+         * at whoever was signed in.
+         *
+         * @method
+         * @private
+         */
+        _explainSignInLink() {
+            if ( !this.signInLink ) {
+                return;
+            }
+            this.signInLink = null;
+            this._notifyWhenShown( this.getLabel( "interface.default.login.email-link-signed-in-already", "This browser is already signed in. To use the sign-in link, sign out, then open the link from your e-mail again." ) );
+        },
+
+        /**
+         * Notifies once the notification bar is on the page. It arrives with the shell's first frame, which may land after
+         * the answer that prompted the message, and {@link notify} drops a message with no bar to put it in.
+         *
+         * @method
+         * @param {string} message
+         * @private
+         */
+        _notifyWhenShown( message ) {
+            if ( document.querySelector( "#ti-notifications" ) ) {
+                this.notify( message );
+                return;
+            }
+            let delivered = false;
+            document.addEventListener( "htmx:afterSettle", () => {
+                if ( !delivered && document.querySelector( "#ti-notifications" ) ) {
+                    delivered = true;
+                    // After Alpine has started the bar's component, which it does as the swapped markup settles.
+                    setTimeout( () => this.notify( message ), 0 );
+                }
+            } );
         },
 
         /**
@@ -2722,19 +2781,12 @@ const configureScreenFeedbackInbox = () => {
 };
 
 /**
- * The error code the sign-in page shows as an expired sign-in link: `E_SEC_INVALID_AUTH_TOKEN`.
- *
- * @type {number}
- */
-const LOGIN_EXPIRED_LINK_CODE = 2000;
-
-/**
- * The outcomes of a request for a sign-in link that the address form explains: `?email-link=<outcome>`. `sent` is a step
- * of its own.
+ * The answers about a sign-in link that the address form explains, from `?email-link=<outcome>`: a request that sent
+ * nothing, and a link that could not be used. `sent` is a step of its own.
  *
  * @type {ReadonlyArray<string>}
  */
-const LOGIN_EMAIL_LINK_MESSAGES = Object.freeze( [ "limited", "unavailable", "invalid-address" ] );
+const LOGIN_EMAIL_LINK_MESSAGES = Object.freeze( [ "limited", "unavailable", "invalid-address", "expired" ] );
 
 /**
  * Returns a configuration object for the login screen error message.
@@ -2750,15 +2802,10 @@ const LOGIN_EMAIL_LINK_MESSAGES = Object.freeze( [ "limited", "unavailable", "in
 const configureLoginError = () => {
     return {
         hasError: false,
-        isExpiredLink: false,
 
         init() {
             const tiToolbox = Alpine.store( "tiToolbox" );
-            const code = tiToolbox.getUrlParam( "error" );
-            this.hasError = Boolean( code );
-            // 2000 is `E_SEC_INVALID_AUTH_TOKEN`, which only a sign-in link raises at sign-in: one that is unknown, already
-            // used or expired (CA-537). "Sign-in failed" would leave the person trying the same link again.
-            this.isExpiredLink = ( code === String( LOGIN_EXPIRED_LINK_CODE ) );
+            this.hasError = Boolean( tiToolbox.getUrlParam( "error" ) );
             // The parameter is a one-time message, not state. Read it, show it, drop it — otherwise a refresh (or a
             // bookmark, or a shared link) replays a sign-in failure that already happened, and the login screen can
             // never be returned to its blank state without editing the URL by hand.
@@ -2796,12 +2843,9 @@ const configureLoginEmailLink = () => {
             const tiToolbox = Alpine.store( "tiToolbox" );
             const outcome = tiToolbox.getUrlParam( "email-link" );
             tiToolbox.clearUrlParam( "email-link" );
-            const hash = String( window.location.hash || "" ).replace( /^#/, "" );
-            const token = hash ? new URLSearchParams( hash ).get( "email-link" ) : null;
+            // The shell took the token out of the address bar as it started (see `tiApplication.takeSignInLink`).
+            const token = Alpine.store( "tiApplication" ).takeSignInLink();
             if ( token ) {
-                if ( window.history && typeof window.history.replaceState === "function" ) {
-                    window.history.replaceState( null, "", window.location.pathname + window.location.search );
-                }
                 this.token = token;
                 this.step = "confirm";
                 this.check();
@@ -2849,10 +2893,17 @@ const configureLoginEmailLink = () => {
         },
 
         /**
-         * Lets the buttons work again on a page the browser brought back from its cache, as Back does.
+         * Lets the buttons work again on a page the browser brought back from its cache, as Back does. A Continue step
+         * brought back that way holds a token that was most likely spent by the press that left the page, so it goes
+         * back to the address form rather than offering the same link again.
+         *
+         * @param {PageTransitionEvent} [event]
          */
-        resetSending() {
+        resetSending( event ) {
             this.sending = false;
+            if ( event && event.persisted && this.step === "confirm" ) {
+                this.askAgain();
+            }
         }
     };
 };

@@ -3,6 +3,7 @@ import User = require("#user");
 import type { SettingsAuth } from "#web-server";
 export type TiAuthMethod = string;
 /** @import { SettingsAuth } from "#web-server" */
+/** @import { TiEmailLinkRequest } from "#definitions" */
 /**
  * Enum for specifying the authentication method.
  *

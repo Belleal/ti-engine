@@ -25,6 +25,7 @@ const helmet = require( "helmet" );
 const onHeaders = require( "on-headers" );
 const cache = require( "@ti-engine/core/cache" );
 const authMethod = require( "#auth-manager" ).authMethod;
+const EmailLink = require( "#email-link" );
 const authorization = require( "#authorization" );
 
 /** @import { TiAuthMethod } from "#auth-manager" */
@@ -652,10 +653,18 @@ module.exports.authenticationHandler = ( instance ) => {
                     return instance.authorize( authMethod.EMAIL_LINK, new URL( request.originalUrl, getBaseUrl( request ) ), { token: token } );
                 } ).then( ( user ) => {
                     return signInUser( instance, request, user );
+                }, ( error ) => {
+                    // A link that can no longer sign anybody in is the e-mail link's own answer, which its block on the
+                    // sign-in page explains. Read here, from `authorize` alone: the code is shared, and an application's
+                    // `augmentSession` raising it must read "Sign-in failed" like any other refusal.
+                    const exception = exceptions.raise( error, null, exceptions.httpCode.C_401 );
+                    if ( exception.code === exceptions.exceptionCode.E_SEC_INVALID_AUTH_TOKEN ) {
+                        return EmailLink.answerFor( EmailLink.OUTCOME.EXPIRED );
+                    }
+                    throw exception;
                 } ).then( ( redirectTo ) => {
                     response.redirect( exceptions.httpCode.C_303, convertUriToString( redirectTo ) );
                 } ).catch( ( error ) => {
-                    // An unusable token lands on the sign-in page as `?error=2000`, which it explains as an expired link.
                     next( exceptions.raise( error, null, exceptions.httpCode.C_401 ) );
                 } );
             } else {

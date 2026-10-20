@@ -23,9 +23,11 @@ This document will contain the list of changes made to the framework. The format
     address bar and says to sign out and open the link again.
   * **Spending it.** The first request to delete the stored entry wins (Redis's `DEL` count, D1's `deleted`); a second
     use, an unknown or an expired token, or a domain the list no longer admits, is refused with
-    `E_SEC_INVALID_AUTH_TOKEN` (2000), which the sign-in page explains as an expired link. Then the sign-in is every
-    method's, through one `signInUser` local, e-mail link and OpenID sign-ins now share: `augmentSession`, the allowlist, `303` to `/`. The user is
-    `email:` and 32 hex of the address's SHA-256, with the address as username and e-mail.
+    `E_SEC_INVALID_AUTH_TOKEN` and answered `303` to `/?email-link=expired`, which the sign-in page explains; an
+    application refusing with the same code still reads "Sign-in failed". Then the sign-in is every method's, through
+    one `signInUser` that local, e-mail link and OpenID sign-ins now share: `augmentSession`, the allowlist, `303` to
+    `/`. The user is `email:` and 32 hex of the address's SHA-256, with the address as username and e-mail. A request
+    that sent nothing gives its counts back, so an outage uses up nobody's hour.
   * **Fails closed.** Without a transport that delivers (`log` does not), `publicUrl` or the notice's texts in the
     deployment's language, the method is left out at start with a warning naming what is missing. Nothing logged holds
     an address, a client address or a token.
@@ -39,7 +41,7 @@ This document will contain the list of changes made to the framework. The format
 
 * feat(web-server): `peekEmailLink( token )`, the address a sign-in link would sign in, without spending it.
 
-Tests: 77 new (1136 in the package): `email-link.test.js`, `web-handlers.email-link.test.js`,
+Tests: 78 new (1137 in the package): `email-link.test.js`, `web-handlers.email-link.test.js`,
 `frame-login.email-link.test.js`, and new cases in `web-app-manager.auth-visibility.test.js` and
 `web-server-env-overrides.test.js`.
 

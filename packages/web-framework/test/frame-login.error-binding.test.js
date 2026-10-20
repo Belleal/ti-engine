@@ -61,8 +61,7 @@ describe( "login error surface", () => {
     } );
 
     it( "carries fallback text, so it can never render as an empty box", () => {
-        // The generic message's own text: since CA-537 the box holds a second message, for an expired sign-in link.
-        const match = fragment.match( /id="ti-error"[\s\S]*?x-text-label="interface\.default\.login\.error-sign-in-failed">([^<]*)</ );
+        const match = fragment.match( /id="ti-error"[\s\S]*?x-text-label="[^"]+">([\s\S]*?)<\/div>/ );
 
         assert.ok( match, "the error element must be found" );
         assert.ok( match[ 1 ].trim().length > 0,
@@ -107,7 +106,7 @@ describe( "login error surface — behaviour", () => {
         // Not a made-up element: the fallback is read out of the real fragment, and the catalogue is empty the way a
         // consumer's is — it loads its own labels, never this package's. This is the exact path that rendered an
         // empty red box.
-        const fallback = fragment.match( /id="ti-error"[\s\S]*?x-text-label="interface\.default\.login\.error-sign-in-failed">([^<]*)</ )[ 1 ].trim();
+        const fallback = fragment.match( /id="ti-error"[\s\S]*?x-text-label="[^"]+">([\s\S]*?)<\/div>/ )[ 1 ].trim();
 
         // Guard the guard: with an empty fragment this comparison is "" === "" and proves nothing, which is exactly
         // the broken state it exists to catch.

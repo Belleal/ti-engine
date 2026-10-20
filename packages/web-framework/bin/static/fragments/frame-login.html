@@ -12,20 +12,17 @@
             <ti-component-login-card-head-placeholder></ti-component-login-card-head-placeholder>
 
             <!-- Error message -->
-            <!-- Each message's own text is the FALLBACK the x-text-label directive falls back to, and it has to be
-                 here: these keys live in the framework's web-server-labels.json, and a consuming application
+            <!-- The element's own text is the FALLBACK the x-text-label directive falls back to, and it has to be
+                 here: this key lives in the framework's web-server-labels.json, and a consuming application
                  configures exactly one labels path — its own — so the framework's catalogue is not loaded and the
                  key does not resolve. An empty element therefore rendered an empty red box: visibly broken, saying
-                 nothing. An application that wants this localized adds the key to its own catalogue.
-                 The second message is for a sign-in link that cannot be used any more (`?error=2000`, CA-537). -->
+                 nothing. An application that wants this localized adds the key to its own catalogue. -->
             <div id="ti-error"
                  class="ti-login-error"
                  x-data="tiLoginError"
                  x-bind:class="{ visible: hasError }"
-                 role="alert">
-                <span x-show="!isExpiredLink" x-text-label="interface.default.login.error-sign-in-failed">Sign-in failed. Please try again.</span>
-                <span x-show="isExpiredLink" x-text-label="interface.default.login.error-sign-in-link-expired">This sign-in link has expired or has already been used. Ask for a new one.</span>
-            </div>
+                 role="alert"
+                 x-text-label="interface.default.login.error-sign-in-failed">Sign-in failed. Please try again.</div>
 
             <!--ti-auth-method:email-link-->
             <!-- Sign-in with a link sent by e-mail (CA-537). One block, three steps: asking for an address, the link sent,
@@ -65,7 +62,7 @@
                     <p class="ti-login-warning" role="alert" x-show="message === 'invalid-address'" x-cloak
                        x-text-label="interface.default.login.email-link-invalid-address">That does not look like an e-mail address. Check it and try again.</p>
                     <p class="ti-login-warning" role="alert" x-show="message === 'expired'" x-cloak
-                       x-text-label="interface.default.login.error-sign-in-link-expired">This sign-in link has expired or has already been used. Ask for a new one.</p>
+                       x-text-label="interface.default.login.email-link-expired">This sign-in link has expired or has already been used. Ask for a new one.</p>
                     <div>
                         <label class="ti-field-label" x-text-label="interface.default.login.email" for="ti-email">E-mail</label>
                         <input id="ti-email"

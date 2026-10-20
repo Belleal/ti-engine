@@ -26,6 +26,7 @@ const localUserDirectory = require( "#local-user-directory" );
 const EmailLink = require( "#email-link" );
 
 /** @import { SettingsAuth } from "#web-server" */
+/** @import { TiEmailLinkRequest } from "#definitions" */
 
 /**
  * Enum for specifying the authentication method.
@@ -456,7 +457,7 @@ class AuthManager {
      * a failure to send is one of those endings, not a rejection.
      *
      * @method
-     * @param {{email: *, client: (string|undefined), language: (string|undefined)}} authDetails
+     * @param {TiEmailLinkRequest} authDetails
      * @returns {Promise<{redirectTo: string, outcome: string}>}
      */
     #requestEmailLink( authDetails ) {
@@ -465,7 +466,7 @@ class AuthManager {
         }
         const details = authDetails || {};
         return this.#emailLink.request( { email: details.email, client: details.client, language: details.language } ).then( ( outcome ) => {
-            return { redirectTo: this.#emailLink.answerFor( outcome ), outcome: outcome };
+            return { redirectTo: EmailLink.answerFor( outcome ), outcome: outcome };
         } );
     }
 

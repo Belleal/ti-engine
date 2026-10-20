@@ -173,6 +173,24 @@
  */
 
 /**
+ * A request for a sign-in link, as the login handler passes it to `AuthManager#authenticate` and it reaches
+ * `EmailLink#request` (CA-537).
+ *
+ * @typedef {Object} TiEmailLinkRequest
+ * @property {*} email The address as the form sent it; checked and normalized by `EmailLink.normalizeAddress`.
+ * @property {string} [client] The client's network address, which the per-client hourly limit counts.
+ * @property {string} [language] The language the request was answered in: the e-mail's, and the session's after it.
+ */
+
+/**
+ * What a spent sign-in link signs in: `EmailLink#redeem` gives it to `AuthManager`, which makes the session's user of it.
+ *
+ * @typedef {Object} TiEmailLinkRedeemed
+ * @property {string} address Trimmed and lower-cased.
+ * @property {string} [language] The language the link was asked for in.
+ */
+
+/**
  * A notice an application sends.
  *
  * @typedef {Object} TiNoticeDefinition

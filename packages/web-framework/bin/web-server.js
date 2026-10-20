@@ -800,6 +800,10 @@ class TiWebServer extends ServiceConsumer {
      * user from the directory record named by `oidc.username`, verifying that the record exists and is not disabled
      * but performing no password comparison of its own; the framework's own login route calls `authenticate` first.
      * Calling this directly without that preceding step would mint a session for any known username.
+     * <br/>
+     * `email-link` is the exception: its `authenticate` sends a link, and this, given the link's `oidc.token`, is the
+     * whole check. It spends the token, and refuses one that is malformed, unknown, already spent or expired with
+     * `E_SEC_INVALID_AUTH_TOKEN`.
      *
      * @method
      * @param {TiAuthMethod} authMethod

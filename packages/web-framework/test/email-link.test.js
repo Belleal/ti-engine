@@ -151,7 +151,7 @@ describe( "EmailLink — the settings", () => {
 
     it( "has no setting for the sign-in page, which is always /, where every sign-in's failure goes too", () => {
         assert.equal( Object.hasOwn( EmailLink.resolveSettings( { path: "/app" } ).settings, "path" ), false );
-        assert.equal( new EmailLink( { path: "/app" } ).answerFor( "sent" ), "/?email-link=sent" );
+        assert.equal( EmailLink.answerFor( "sent" ), "/?email-link=sent" );
     } );
 
     it( "caps a link's lifetime at a day", () => {
@@ -244,6 +244,17 @@ describe( "EmailLink — asking for a link", () => {
         assert.equal( await link.request( { email: "parent@example.com", client: "203.0.113.7" } ), "unavailable", "sending switched off since start" );
     } );
 
+    it( "gives back what it counted when nothing could be sent, so an outage uses up nobody's hour", async () => {
+        const link = new EmailLink( { hourlyLimitPerAddress: 2, hourlyLimitPerClient: 2 } ).registerNotice();
+        for ( let i = 0; i < 4; i++ ) {
+            failNext = Object.assign( new Error( "relay down" ), { code: "E_RELAY_UNAVAILABLE", transient: true } );
+            assert.equal( await link.request( { email: "parent@example.com", client: "203.0.113.7" } ), "unavailable" );
+        }
+        assert.equal( await link.request( { email: "parent@example.com", client: "203.0.113.7" } ), "sent", "the relay is back, and the hour is whole" );
+        assert.equal( await link.request( { email: "parent@example.com", client: "203.0.113.7" } ), "sent" );
+        assert.equal( await link.request( { email: "parent@example.com", client: "203.0.113.7" } ), "limited", "what was sent still counts" );
+    } );
+
     it( "answers unavailable when the store fails, rather than rejecting", async ( t ) => {
         const link = new EmailLink().registerNotice();
         t.mock.method( cacheStub, "getValue", () => Promise.reject( new Error( "store down" ) ) );
@@ -269,8 +280,9 @@ describe( "EmailLink — asking for a link", () => {
     } );
 
     it( "answers with the sign-in page, told how the request ended", () => {
-        assert.equal( new EmailLink().answerFor( "sent" ), "/?email-link=sent" );
-        assert.equal( new EmailLink().answerFor( "limited" ), "/?email-link=limited" );
+        assert.equal( EmailLink.answerFor( "sent" ), "/?email-link=sent" );
+        assert.equal( EmailLink.answerFor( "limited" ), "/?email-link=limited" );
+        assert.equal( EmailLink.answerFor( EmailLink.OUTCOME.EXPIRED ), "/?email-link=expired" );
     } );
 
 } );

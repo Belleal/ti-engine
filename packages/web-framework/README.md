@@ -221,8 +221,9 @@ How it works:
    signed in shows the application, not the sign-in page; the shell takes the token out of the address bar and says to
    sign out and open the link again.
 4. **Spending it.** The first request to delete the stored entry wins; every later one, an expired or unknown token,
-   and one whose domain the list no longer admits, is refused with `E_SEC_INVALID_AUTH_TOKEN` (2000), which the sign-in
-   page explains as an expired link. A spent link signs in as the other methods do: `augmentSession` may refuse, the
+   and one whose domain the list no longer admits, is refused with `E_SEC_INVALID_AUTH_TOKEN` and answered `303` to
+   `/?email-link=expired`, which the sign-in page explains. A request that could not be sent gives its counts back, so
+   an outage does not use up anybody's hour. A spent link signs in as the other methods do: `augmentSession` may refuse, the
    `admin` allowlist applies.
 
 The session's user is `{ userID: "email:<32 hex of the address's SHA-256>", username: <address>, email: <address> }`,
@@ -247,7 +248,7 @@ The login screen renders before sign-in, so none of an application's own fragmen
 
 Use the brand slot to name the application and say what it is for. Use the heading slot to title the card, and say which account to sign in with. Use the extra slot for anything a first-time visitor should read after the sign-in controls. No slot can change the sign-in controls themselves; those stay the framework's, gated to the enabled methods. The Microsoft button carries Microsoft's four-square logo and reads "Sign in with Microsoft", as Microsoft's branding guidelines ask; the method is still `openid-azure`.
 
-Every string on the screen goes through `x-text-label` under `interface.default.login.*`: `welcome`, `sign-in-prompt`, `username`, `username-placeholder`, `password`, `password-placeholder`, `sign-in`, `or-continue-with`, `sign-in-google`, `sign-in-azure`, `no-sign-in-method` and `error-sign-in-failed`, and for the e-mail link `email`, `email-placeholder`, `email-link-send`, `email-link-sent`, `email-link-other`, `email-link-confirm-prompt`, `email-link-signing-in-as`, `email-link-continue`, `email-link-not-you`, `email-link-signed-in-already` (a notice, when a link is opened in a browser already signed in), `email-link-limited`, `email-link-unavailable`, `email-link-invalid-address`, `error-sign-in-link-expired` and `or` (between the e-mail link and the local form, when both are enabled). An application normally points `TI_LOCALIZATION_LABELS_PATH` at its own catalogue alone, so the framework's translations never reach it. It adds the keys it wants translated to its own catalogue, and a key it leaves out renders the English text written in the fragment.
+Every string on the screen goes through `x-text-label` under `interface.default.login.*`: `welcome`, `sign-in-prompt`, `username`, `username-placeholder`, `password`, `password-placeholder`, `sign-in`, `or-continue-with`, `sign-in-google`, `sign-in-azure`, `no-sign-in-method` and `error-sign-in-failed`, and for the e-mail link `email`, `email-placeholder`, `email-link-send`, `email-link-sent`, `email-link-other`, `email-link-confirm-prompt`, `email-link-signing-in-as`, `email-link-continue`, `email-link-not-you`, `email-link-expired`, `email-link-signed-in-already` (a notice, when a link is opened in a browser already signed in), `email-link-limited`, `email-link-unavailable`, `email-link-invalid-address` and `or` (between the e-mail link and the local form, when both are enabled). An application normally points `TI_LOCALIZATION_LABELS_PATH` at its own catalogue alone, so the framework's translations never reach it. It adds the keys it wants translated to its own catalogue, and a key it leaves out renders the English text written in the fragment.
 
 ## The busy indicator
 
