@@ -17,7 +17,7 @@
 
 "use strict";
 
-const { createHash, randomBytes } = require( "node:crypto" );
+const { createHash, createHmac, randomBytes } = require( "node:crypto" );
 const cache = require( "@ti-engine/core/cache" );
 const tools = require( "@ti-engine/core/tools" );
 const logger = require( "@ti-engine/core/logger" );
@@ -108,6 +108,11 @@ const TOKEN = /^[A-Za-z0-9_-]{43}$/;
 
 // The window a limit counts in, in seconds.
 const LIMIT_WINDOW = 3600;
+
+// The key a log line's subject is made with, new for each process. A plain SHA-256 of a network address is reversed by
+// hashing all 2^32 IPv4 addresses, and one of an e-mail address by hashing a list of guesses; keyed, neither works for a
+// reader of the log. A subject therefore matches across one process's lines, not across restarts.
+const SUBJECT_KEY = randomBytes( 32 );
 
 // The failures after which nothing was sent for certain: raised before the transport was asked, or the relay's own
 // refusal. Anything else, above all the relay's E_RELAY_UNAVAILABLE (a timeout, a dropped connection, an answer it
@@ -448,8 +453,9 @@ class EmailLink {
     }
 
     /**
-     * What the log names a value by, an address or a client's network address: the first 16 hex digits of its SHA-256,
-     * as the notification service names a recipient.
+     * What the log names a value by, an address or a client's network address: the first 16 hex digits of its
+     * HMAC-SHA-256 under a key made for this process (see {@link SUBJECT_KEY}), so a reader of the log cannot recover
+     * the value by hashing every candidate.
      *
      * @method
      * @param {string} value
@@ -457,13 +463,14 @@ class EmailLink {
      * @public
      */
     static subjectOf( value ) {
-        return digestOf( value ).slice( 0, 16 );
+        return createHmac( "sha256", SUBJECT_KEY ).update( String( value ) ).digest( "hex" ).slice( 0, 16 );
     }
 
     /**
      * The user ID of the person an address signs in: `email:` and the first 32 hex digits of its SHA-256. Stable, so
-     * the same address is the same user at every sign-in, and not the address, because the framework writes user IDs
-     * to its log.
+     * the same address is the same user at every sign-in and on every instance, which is why it cannot be keyed per
+     * process as {@link EmailLink.subjectOf} is. It keeps the address itself out of the log, where the framework writes
+     * user IDs, but whoever can guess an address can confirm it against the ID: it is pseudonymous, not anonymous.
      *
      * @method
      * @param {string} address As {@link EmailLink.normalizeAddress} returns it.

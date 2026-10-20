@@ -31,7 +31,8 @@ This document will contain the list of changes made to the framework. The format
     timeout) keeps both.
   * **Fails closed.** Without a transport that delivers (`log` does not), `publicUrl` or the notice's texts in the
     deployment's language, the method is left out at start with a warning naming what is missing. Nothing logged holds
-    an address, a client address or a token.
+    an address, a client address or a token: a log line names them by an HMAC under a key made for each process,
+    which no list of guesses reverses.
   * **The sign-in page** gains the address form, a "link sent" step and a Continue step (`tiLoginEmailLink`), an "or"
     between the e-mail link and the local form when both are enabled (`<!--ti-auth-form-divider-->`), and the block's
     own message for an expired link (the error box is unchanged). The "or continue with" divider now shows when either

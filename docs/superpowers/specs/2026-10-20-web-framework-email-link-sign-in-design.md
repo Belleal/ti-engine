@@ -129,8 +129,11 @@ again on every request, since an application may switch the transport.
 
 ### 3.6 What is logged
 
-Never an address and never a token. A line names the client or the address by the first 16 hex digits of its SHA-256,
-as the notification service names a recipient.
+Never an address and never a token. A line names the client or the address by the first 16 hex digits of its
+HMAC-SHA-256 under a key made for each process: a plain SHA-256 of a network address is reversed by hashing all 2^32
+IPv4 addresses, and of an e-mail address by hashing a list of guesses (CodeRabbit on the PR). A subject matches across
+one process's lines, not across restarts. The user ID cannot be keyed that way, since it must be the same on every
+instance and at every sign-in, so it is pseudonymous: an address someone guesses can be confirmed against it.
 
 ### 3.7 The login page
 

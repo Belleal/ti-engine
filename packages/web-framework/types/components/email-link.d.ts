@@ -165,8 +165,9 @@ declare class EmailLink {
      */
     static normalizeAddress(value: any): string | null;
     /**
-     * What the log names a value by, an address or a client's network address: the first 16 hex digits of its SHA-256,
-     * as the notification service names a recipient.
+     * What the log names a value by, an address or a client's network address: the first 16 hex digits of its
+     * HMAC-SHA-256 under a key made for this process (see {@link SUBJECT_KEY}), so a reader of the log cannot recover
+     * the value by hashing every candidate.
      *
      * @method
      * @param {string} value
@@ -176,8 +177,9 @@ declare class EmailLink {
     static subjectOf(value: string): string;
     /**
      * The user ID of the person an address signs in: `email:` and the first 32 hex digits of its SHA-256. Stable, so
-     * the same address is the same user at every sign-in, and not the address, because the framework writes user IDs
-     * to its log.
+     * the same address is the same user at every sign-in and on every instance, which is why it cannot be keyed per
+     * process as {@link EmailLink.subjectOf} is. It keeps the address itself out of the log, where the framework writes
+     * user IDs, but whoever can guess an address can confirm it against the ID: it is pseudonymous, not anonymous.
      *
      * @method
      * @param {string} address As {@link EmailLink.normalizeAddress} returns it.

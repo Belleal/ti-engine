@@ -126,6 +126,10 @@ describe( "EmailLink — the address", () => {
 
     it( "names an address in the log by 16 hex digits and a user by 32, never by the address", () => {
         assert.match( EmailLink.subjectOf( "parent@example.com" ), /^[0-9a-f]{16}$/ );
+        assert.equal( EmailLink.subjectOf( "203.0.113.7" ), EmailLink.subjectOf( "203.0.113.7" ), "one name per value within a process" );
+        // Keyed: an unkeyed SHA-256 of an IPv4 address is reversed by hashing all 2^32 of them.
+        const plain = require( "node:crypto" ).createHash( "sha256" ).update( "203.0.113.7" ).digest( "hex" ).slice( 0, 16 );
+        assert.notEqual( EmailLink.subjectOf( "203.0.113.7" ), plain );
         assert.match( EmailLink.userIDOf( "parent@example.com" ), /^email:[0-9a-f]{32}$/ );
         assert.equal( EmailLink.userIDOf( "parent@example.com" ), EmailLink.userIDOf( "parent@example.com" ), "the same address is the same user" );
         assert.notEqual( EmailLink.userIDOf( "parent@example.com" ), EmailLink.userIDOf( "other@example.com" ) );

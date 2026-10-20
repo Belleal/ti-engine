@@ -229,7 +229,9 @@ How it works:
 
 The session's user is `{ userID: "email:<32 hex of the address's SHA-256>", username: <address>, email: <address> }`,
 the address trimmed and lower-cased. The user ID is not the address because the framework writes user IDs to its log;
-the log names an address or a client only by 16 hex digits of its SHA-256, and never holds a token.
+it is stable, so whoever can guess an address can confirm it against the ID. The e-mail link's own log lines name an
+address or a client only by 16 hex digits of an HMAC-SHA-256 under a key made for each process, which no list of
+guesses reverses, and never hold a token.
 
 **Not covered.** The client limit counts `request.ip`: on Cloudflare the Worker makes it the address Cloudflare saw,
 elsewhere it is what the proxy in front reports. The per-address limit can be spent by anybody who knows the address,
