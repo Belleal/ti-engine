@@ -125,6 +125,13 @@ npm run build:types && npm run check:types   # declarations are committed and mu
 - **Keep the skill current.** If the change makes anything the skill asserts wrong — a version, a count, an
   invariant, a file's purpose, a registration point — the skill edit ships **in the same PR**. Skills go stale one
   merged PR at a time, and a stale skill is worse than none because it is believed.
+- **A separate review pass once everything is implemented** (Boris, 2026-10-20). When the code, tests, docs and skill
+  are done and the checks above pass, review the whole diff against the base once more, as a reviewer who did not write
+  it: the `code-review` skill at `high` on `origin/<base>...HEAD`, or an equivalent independent pass. Do it before the
+  PR is called ready, and again after a later change of substance. Verify every finding against the code, as with
+  CodeRabbit: fix the real ones in the same PR, each with a test that fails without the fix, decline the rest with the
+  measurement that settles it, and list both in the PR body. It adds to CodeRabbit rather than replacing it. On CA-534
+  it found seven real defects that 4163 passing tests and a browser check had not.
 
 ---
 
@@ -147,8 +154,8 @@ prose that fits the change, covering:
 
 **CodeRabbit is unavailable in `Belleal/competence` for now** (Boris, 2026-10-16). That repository is private, and
 CodeRabbit's free plan there posts a summary or a *"Review limit reached"* notice but never a line review; the paid
-plan it asks for is not taken. So a competence PR is reviewed by CI, by your own adversarial re-read of the diff
-before pushing, and by Boris. Do not wait for a bot pass that is not coming, and a notice from it needs no reply.
+plan it asks for is not taken. So a competence PR is reviewed by CI, by the separate review pass under *Definition of
+done*, and by Boris. Do not wait for a bot pass that is not coming, and a notice from it needs no reply.
 It does review `Belleal/ti-engine`, which is public.
 
 **CodeRabbit is a reviewer, not an oracle.** Verify every finding against the code before acting: this session it
