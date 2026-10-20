@@ -581,9 +581,34 @@ let applyAdminRoleFor = ( instance, session, request ) => {
 };
 
 /**
+ * Signs a user in: a regenerated session holding the user and their language, then the application's `augmentSession`,
+ * which may refuse, and the `admin` allowlist. The one way every sign-in method ends, so none of them can build its
+ * session differently from the others.
+ *
+ * @method
+ * @param {TiWebServer} instance
+ * @param {ExpressRequest} request
+ * @param {User} user
+ * @param {(session: TiSession) => void} [prepare] Runs on the new session before the application sees it.
+ * @returns {Promise<string>} Where to send the browser: `/`.
+ * @private
+ */
+let signInUser = ( instance, request, user, prepare ) => {
+    return regenerateAndSaveSession( request, "/", ( session ) => {
+        session.user = user.asJSON();
+        session.language = resolveSessionLanguage( user, instance, readLanguageChoice( request, instance ) );
+        if ( prepare ) {
+            prepare( session );
+        }
+
+        return applyAdminRoleFor( instance, instance.augmentSession( session, request ), request );
+    } );
+};
+
+/**
  * Handler for server-side authentication: `POST /login/local` checks a username and password, `GET /login/<provider>`
- * starts an OpenID sign-in, and `POST /login/email-link` either asks for a sign-in link (`email`) or spends one
- * (`token`). Every sign-in ends the same way: a regenerated session, the application's `augmentSession`, the `admin`
+ * starts an OpenID sign-in, and `POST /login/email-link` asks for a sign-in link (`email`), reads which
+ * address a link would sign in without spending it (`token` with `peek`, answered as JSON), or spends one (`token`). Every sign-in ends the same way: a regenerated session, the application's `augmentSession`, the `admin`
  * allowlist, and a `303` to `/`; every refusal is a `401`, which the error handler turns into `/?error=<code>`.
  *
  * @method
@@ -600,12 +625,7 @@ module.exports.authenticationHandler = ( instance ) => {
             instance.authenticate( authMethod.LOCAL, { username: username, password: password } ).then( () => {
                 return instance.authorize( authMethod.LOCAL, new URL( request.originalUrl, getBaseUrl( request ) ), { username: username } );
             } ).then( ( user ) => {
-                return regenerateAndSaveSession( request, "/", ( session ) => {
-                    session.user = user.asJSON();
-                    session.language = resolveSessionLanguage( user, instance, readLanguageChoice( request, instance ) );
-
-                    return applyAdminRoleFor( instance, instance.augmentSession( session, request ), request );
-                } );
+                return signInUser( instance, request, user );
             } ).then( ( redirectTo ) => {
                 response.redirect( exceptions.httpCode.C_303, convertUriToString( redirectTo ) );
             } ).catch( ( error ) => {
@@ -615,16 +635,22 @@ module.exports.authenticationHandler = ( instance ) => {
             // One form asks for a link, the other spends one: the sign-in page posts the token it read from the link's
             // fragment, after the person pressed a button (see the design record, §3.3). A token wins over an address.
             const token = request.body && request.body.token;
-            if ( typeof token === "string" && token !== "" ) {
+            if ( typeof token === "string" && token !== "" && request.body.peek === true ) {
+                // The sign-in page asks which address the link signs in before showing Continue (see EmailLink#peek).
+                // Only a JSON body can say `true`, so a plain form post never lands here.
+                Promise.resolve().then( () => {
+                    return instance.authenticate( authMethod.EMAIL_LINK, { token: token } );
+                } ).then( ( result ) => {
+                    response.set( "Cache-Control", "no-store" );
+                    response.status( exceptions.httpCode.C_200 ).send( { isSuccessful: true, data: { email: result.email } } );
+                } ).catch( ( error ) => {
+                    next( exceptions.raise( error, null, exceptions.httpCode.C_401 ) );
+                } );
+            } else if ( typeof token === "string" && token !== "" ) {
                 Promise.resolve().then( () => {
                     return instance.authorize( authMethod.EMAIL_LINK, new URL( request.originalUrl, getBaseUrl( request ) ), { token: token } );
                 } ).then( ( user ) => {
-                    return regenerateAndSaveSession( request, "/", ( session ) => {
-                        session.user = user.asJSON();
-                        session.language = resolveSessionLanguage( user, instance, readLanguageChoice( request, instance ) );
-
-                        return applyAdminRoleFor( instance, instance.augmentSession( session, request ), request );
-                    } );
+                    return signInUser( instance, request, user );
                 } ).then( ( redirectTo ) => {
                     response.redirect( exceptions.httpCode.C_303, convertUriToString( redirectTo ) );
                 } ).catch( ( error ) => {
@@ -763,13 +789,8 @@ module.exports.authorizedOAuth2CallbackHandler = ( instance, authMethod ) => {
         }
 
         instance.authorize( authMethod, new URL( request.originalUrl, getBaseUrl( request ) ), oidc ).then( ( user ) => {
-            return regenerateAndSaveSession( request, "/", ( session ) => {
-                session.user = user.asJSON();
-                session.language = resolveSessionLanguage( user, instance, readLanguageChoice( request, instance ) );
-
+            return signInUser( instance, request, user, ( session ) => {
                 delete session.oidc;
-
-                return applyAdminRoleFor( instance, instance.augmentSession( session, request ), request );
             } );
         } ).then( ( redirectTo ) => {
             response.redirect( exceptions.httpCode.C_303, convertUriToString( redirectTo ) );

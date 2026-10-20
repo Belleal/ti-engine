@@ -2937,6 +2937,14 @@ html.ti-busy .ti-busy-indicator-glyph {
     color: var(--fg-secondary);
 }
 
+.ti-login-address {
+    margin: var(--s-1) 0 0;
+    font-size: var(--fs-md);
+    font-weight: 600;
+    color: var(--fg-primary);
+    overflow-wrap: anywhere;
+}
+
 .ti-login-warning {
     margin: 0;
     padding: var(--s-3);

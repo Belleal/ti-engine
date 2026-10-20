@@ -433,18 +433,23 @@ class AuthManager {
     }
 
     /**
-     * Asks for a sign-in link. Resolves with where to send the browser, the sign-in page told how the request ended;
-     * a failure to send is one of those endings, not a rejection.
+     * The `email-link` method's `authenticate`, which does one of two things. With `token`, it checks a link without
+     * spending it and resolves `{ email }`, the address it would sign in or `null`: the sign-in page shows it before the
+     * person continues. Otherwise it asks for a link and resolves with where to send the browser, the sign-in page told
+     * how the request ended; a failure to send is one of those endings, not a rejection.
      *
      * @method
-     * @param {{email: *, client: (string|undefined), language: (string|undefined)}} authDetails
-     * @returns {Promise<{redirectTo: string, outcome: string}>}
+     * @param {{email: *, client: (string|undefined), language: (string|undefined), token: *}} authDetails
+     * @returns {Promise<{redirectTo: string, outcome: string}|{email: (string|null)}>}
      */
     #requestEmailLink( authDetails ) {
         if ( !this.isAuthEnabled( authMethodEnum.EMAIL_LINK ) || this.#emailLink === null ) {
             return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNRECOGNIZED_AUTH_METHOD, null, exceptions.httpCode.C_401 ) );
         }
         const details = authDetails || {};
+        if ( details.token !== undefined ) {
+            return this.#emailLink.peek( details.token ).then( ( address ) => ( { email: address } ) );
+        }
         return this.#emailLink.request( { email: details.email, client: details.client, language: details.language } ).then( ( outcome ) => {
             return { redirectTo: this.#emailLink.answerFor( outcome ), outcome: outcome };
         } );

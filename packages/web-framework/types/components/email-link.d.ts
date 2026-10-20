@@ -83,8 +83,9 @@ declare class EmailLink {
      */
     registerNotice(): EmailLink;
     /**
-     * Why a link could not be sent with the deployment as it is, or `null` when it could. A link needs a transport,
-     * the public URL it starts from, and the notice's subject and text in the deployment's language.
+     * Why a link could not be sent with the deployment as it is, or `null` when it could. A link needs a transport
+     * that delivers mail, the public URL it starts from, and the notice's subject and text in the deployment's
+     * language. The `log` transport delivers nothing, so on it nobody could ever follow a link.
      *
      * @method
      * @returns {string|null}
@@ -112,8 +113,20 @@ declare class EmailLink {
         language?: string;
     }): Promise<string>;
     /**
+     * The address a token would sign in, without spending it, or `null` for a token that could not sign anybody in.
+     * The sign-in page shows the address before the person continues, so a link somebody else asked for, for their
+     * own address, is not followed into their account unnoticed. It tells the holder of a token nothing a spend would
+     * not: the token was sent to that address.
+     *
+     * @method
+     * @param {*} token As the form sent it.
+     * @returns {Promise<string|null>}
+     * @public
+     */
+    peek(token: any): Promise<string | null>;
+    /**
      * Spends a token: the first request to delete its entry gets the address it was sent to, every later one gets
-     * `null`, as does a token that is malformed, unknown or expired.
+     * `null`, as does a token that is malformed, unknown or expired, or whose address's domain may no longer sign in.
      *
      * @method
      * @param {*} token As the form sent it.

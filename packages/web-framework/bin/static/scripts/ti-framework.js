@@ -2750,8 +2750,11 @@ const configureLoginError = () => {
  * <br/>
  * The link lands here with its token in the fragment, `#email-link=<token>`, which no server sees. The token is taken
  * out of the address bar at once, so it is not left in the history, and the person presses Continue to post it: a mail
- * scanner that opened the link, and perhaps ran this script, presses nothing and so spends nothing. A request for a
- * link comes back as `?email-link=<outcome>`, read once and dropped like `?error=`.
+ * scanner that opened the link, and perhaps ran this script, presses nothing and so spends nothing. First the page asks
+ * the server which address the link signs in, without spending it, and shows it: a link somebody sent for their own
+ * address would otherwise sign the person into that account unnoticed. A link that can no longer sign anybody in goes
+ * straight back to the address form, saying so. A request for a link comes back as `?email-link=<outcome>`, read once
+ * and dropped like `?error=`.
  *
  * @method
  * @returns {Object}
@@ -2761,6 +2764,8 @@ const configureLoginEmailLink = () => {
     return {
         step: "ask",
         token: "",
+        email: "",
+        checking: false,
         message: "",
 
         init() {
@@ -2775,6 +2780,7 @@ const configureLoginEmailLink = () => {
                 }
                 this.token = token;
                 this.step = "confirm";
+                this.check();
             } else if ( outcome === "sent" ) {
                 this.step = "sent";
             } else if ( LOGIN_EMAIL_LINK_MESSAGES.includes( outcome ) ) {
@@ -2782,7 +2788,30 @@ const configureLoginEmailLink = () => {
             }
         },
 
+        /**
+         * Asks which address the link signs in. Should the question fail, Continue still works, without the address.
+         */
+        check() {
+            this.checking = true;
+            return Alpine.store( "tiApplication" ).sendRequest( "/login/email-link", "POST", { token: this.token, peek: true } ).then( ( result ) => {
+                const email = result && result.data ? result.data.email : null;
+                if ( typeof email === "string" && email !== "" ) {
+                    this.email = email;
+                } else {
+                    this.token = "";
+                    this.message = "expired";
+                    this.step = "ask";
+                }
+            } ).catch( () => {
+                this.email = "";
+            } ).finally( () => {
+                this.checking = false;
+            } );
+        },
+
         askAgain() {
+            this.token = "";
+            this.email = "";
             this.message = "";
             this.step = "ask";
         }

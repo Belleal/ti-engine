@@ -87,12 +87,19 @@ function instance( overrides = {} ) {
     return Object.assign( target, overrides );
 }
 
-// Runs the handler to its answer: a redirect, or what it passed to `next`.
+// Runs the handler to its answer: a redirect, a body, or what it passed to `next`.
 function post( server, request ) {
     return new Promise( ( resolve ) => {
-        webHandlers.authenticationHandler( server )( request, {
-            redirect: ( status, location ) => resolve( { status, location } )
-        }, ( error ) => resolve( { next: error } ) );
+        const headers = {};
+        const response = {
+            redirect: ( status, location ) => resolve( { status, location } ),
+            set: ( name, value ) => {
+                headers[ name ] = value;
+                return response;
+            },
+            status: ( status ) => ( { send: ( body ) => resolve( { status, body, headers } ) } )
+        };
+        webHandlers.authenticationHandler( server )( request, response, ( error ) => resolve( { next: error } ) );
     } );
 }
 
@@ -131,6 +138,32 @@ describe( "POST /login/email-link — asking for a link", () => {
     it( "leaves a GET to the routes after it, so it ends as any unknown page does", async () => {
         const answer = await post( instance(), mockRequest( { method: "GET" } ) );
         assert.equal( answer.next, undefined );
+    } );
+
+} );
+
+describe( "POST /login/email-link — which address a link signs in", () => {
+
+    it( "answers the address as JSON, uncached, and leaves the session and the token alone", async () => {
+        const events = [];
+        const server = instance( { authenticate: ( method, details ) => {
+            server.calls.authenticate.push( { method, details } );
+            return Promise.resolve( { email: "parent@example.com" } );
+        } } );
+        const request = mockRequest( { body: { token: TOKEN, peek: true }, session: mockSession( {}, events ) } );
+        const answer = await post( server, request );
+        assert.equal( answer.status, 200 );
+        assert.deepEqual( answer.body, { isSuccessful: true, data: { email: "parent@example.com" } } );
+        assert.equal( answer.headers[ "Cache-Control" ], "no-store" );
+        assert.deepEqual( server.calls.authenticate, [ { method: "email-link", details: { token: TOKEN } } ] );
+        assert.equal( server.calls.authorize.length, 0, "nothing is spent" );
+        assert.deepEqual( events, [], "nobody is signed in" );
+    } );
+
+    it( "takes only a JSON true as the question, so a form that posts peek=1 spends the link as it says", async () => {
+        const server = instance();
+        await post( server, mockRequest( { body: { token: TOKEN, peek: "true" } } ) );
+        assert.equal( server.calls.authorize.length, 1 );
     } );
 
 } );

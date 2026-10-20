@@ -137,24 +137,21 @@ describe( "EmailLink — the settings", () => {
 
     it( "takes the defaults when nothing is configured", () => {
         const { settings, warnings } = EmailLink.resolveSettings( undefined );
-        assert.deepEqual( { ...settings, allowedDomains: [ ...settings.allowedDomains ] }, { path: "/", lifetimeMinutes: 15, allowedDomains: [], hourlyLimitPerAddress: 5, hourlyLimitPerClient: 30 } );
+        assert.deepEqual( { ...settings, allowedDomains: [ ...settings.allowedDomains ] }, { lifetimeMinutes: 15, allowedDomains: [], hourlyLimitPerAddress: 5, hourlyLimitPerClient: 30 } );
         assert.deepEqual( warnings, [] );
     } );
 
     it( "takes a malformed value's default with a warning, and keeps the rest", () => {
-        const { settings, warnings } = EmailLink.resolveSettings( { path: "//evil.example.com", lifetimeMinutes: 0, hourlyLimitPerAddress: 3, hourlyLimitPerClient: "9" } );
-        assert.equal( settings.path, "/" );
+        const { settings, warnings } = EmailLink.resolveSettings( { lifetimeMinutes: 0, hourlyLimitPerAddress: 3, hourlyLimitPerClient: "9" } );
         assert.equal( settings.lifetimeMinutes, 15 );
         assert.equal( settings.hourlyLimitPerAddress, 3 );
         assert.equal( settings.hourlyLimitPerClient, 30 );
-        assert.equal( warnings.length, 3 );
+        assert.equal( warnings.length, 2 );
     } );
 
-    it( "accepts a sign-in page's path only, so the link cannot point at another site", () => {
-        [ "/", "/app", "/sign-in/parents" ].forEach( ( value ) => assert.equal( EmailLink.resolveSettings( { path: value } ).settings.path, value ) );
-        [ "app", "//evil.example.com", "https://evil.example.com/", "/a?b=c", "/a#b", "/a b" ].forEach( ( value ) => {
-            assert.equal( EmailLink.resolveSettings( { path: value } ).settings.path, "/", value );
-        } );
+    it( "has no setting for the sign-in page, which is always /, where every sign-in's failure goes too", () => {
+        assert.equal( Object.hasOwn( EmailLink.resolveSettings( { path: "/app" } ).settings, "path" ), false );
+        assert.equal( new EmailLink( { path: "/app" } ).answerFor( "sent" ), "/?email-link=sent" );
     } );
 
     it( "caps a link's lifetime at a day", () => {
@@ -273,7 +270,7 @@ describe( "EmailLink — asking for a link", () => {
 
     it( "answers with the sign-in page, told how the request ended", () => {
         assert.equal( new EmailLink().answerFor( "sent" ), "/?email-link=sent" );
-        assert.equal( new EmailLink( { path: "/app" } ).answerFor( "limited" ), "/app?email-link=limited" );
+        assert.equal( new EmailLink().answerFor( "limited" ), "/?email-link=limited" );
     } );
 
 } );
@@ -309,6 +306,28 @@ describe( "EmailLink — spending a link", () => {
         assert.deepEqual( tokenKeys(), [], "spent all the same" );
     } );
 
+    it( "refuses a link to a domain the list no longer admits, as an OpenID sign-in is checked when it completes", async () => {
+        const token = await sendOne( new EmailLink( { allowedDomains: [ "example.com", "school.bg" ] } ).registerNotice() );
+        // The operator narrows the list and restarts while the link is out.
+        const narrowed = new EmailLink( { allowedDomains: [ "school.bg" ] } );
+        assert.equal( await narrowed.peek( token ), null );
+        assert.equal( await narrowed.redeem( token ), null );
+        assert.deepEqual( tokenKeys(), [], "spent all the same, so widening the list again does not revive it" );
+    } );
+
+    it( "tells which address a link signs in without spending it, and nothing for one that cannot sign in", async () => {
+        const time = clock();
+        const link = new EmailLink( {}, { now: time.now } ).registerNotice();
+        const token = await sendOne( link );
+        assert.equal( await link.peek( token ), "parent@example.com" );
+        assert.equal( await link.peek( token ), "parent@example.com", "looking twice spends nothing" );
+        assert.equal( tokenKeys().length, 1 );
+        assert.equal( await link.peek( "a".repeat( 43 ) ), null );
+        assert.equal( await link.peek( [ token ] ), null );
+        time.advance( 15 * 60 * 1000 );
+        assert.equal( await link.peek( token ), null, "nor for an expired one" );
+    } );
+
     it( "refuses a malformed token without reading the store", async ( t ) => {
         const link = new EmailLink();
         const reads = t.mock.method( cacheStub, "getValue" );
@@ -332,7 +351,11 @@ describe( "EmailLink — readiness", () => {
         assert.match( new EmailLink().readiness(), /transport/ );
 
         NotificationService.instance.configure( { transport: "log" } );
+        NotificationService.instance.setTransport( capturing );
         assert.match( new EmailLink().readiness(), /public URL/ );
+
+        NotificationService.instance.configure( { transport: "log", publicUrl: PUBLIC_URL } );
+        assert.match( new EmailLink().readiness(), /'log', which delivers nothing/, "a log transport would answer every request 'sent' and deliver none" );
 
         ready();
         const saved = localization.getLabel;
@@ -345,9 +368,9 @@ describe( "EmailLink — readiness", () => {
     } );
 
     it( "renders a preview without a token as a link to the sign-in page", () => {
-        new EmailLink( { path: "/app" } ).registerNotice();
+        new EmailLink().registerNotice();
         const rendered = NotificationService.instance.render( "sign-in-link", { language: "en" }, {} );
-        assert.ok( rendered.text.includes( `${ PUBLIC_URL }/app` ) && !rendered.text.includes( "#email-link" ) );
+        assert.ok( rendered.text.includes( `${ PUBLIC_URL }/` ) && !rendered.text.includes( "#email-link" ) );
         assert.ok( rendered.text.includes( "15 minutes" ) );
     } );
 
@@ -374,6 +397,14 @@ describe( "NotificationService#sendNow", () => {
         t.mock.method( configService.instance, "getCurrent", () => Promise.reject( new Error( "store down" ) ) );
         await NotificationService.instance.sendNow( "sign-in-link", { id: "email-link-0123456789abcdef", email: "parent@example.com" }, { token: "t".repeat( 43 ), minutes: 15 } );
         assert.equal( sent[ 0 ].subject, lookup( "interface.notice.sign-in-link.subject", "en" ) );
+    } );
+
+    it( "reports the transport's own name, so a feature can tell the log transport from one that delivers", () => {
+        assert.equal( NotificationService.instance.transportName, null, "the capturing transport names nothing" );
+        NotificationService.instance.configure( { transport: "log", publicUrl: PUBLIC_URL } );
+        assert.equal( NotificationService.instance.transportName, "log" );
+        NotificationService.instance.configure( { transport: "off" } );
+        assert.equal( NotificationService.instance.transportName, null );
     } );
 
     it( "reports the public URL it links from", () => {
@@ -406,11 +437,21 @@ describe( "AuthManager — the email-link method", () => {
     } );
 
     it( "answers a request for a link with the sign-in page, told how it ended", async () => {
-        const auth = manager( { path: "/app", allowedDomains: [ "@Example.com" ] } );
+        const auth = manager( { allowedDomains: [ "@Example.com" ] } );
         await auth.initialize();
-        assert.deepEqual( await auth.authenticate( "email-link", { email: "parent@example.com", client: "203.0.113.7" } ), { redirectTo: "/app?email-link=sent", outcome: "sent" } );
+        assert.deepEqual( await auth.authenticate( "email-link", { email: "parent@example.com", client: "203.0.113.7" } ), { redirectTo: "/?email-link=sent", outcome: "sent" } );
         assert.equal( sent.length, 1, "a domain written with its @ still admits it" );
-        assert.deepEqual( await auth.authenticate( "email-link", { email: "nope", client: "203.0.113.7" } ), { redirectTo: "/app?email-link=invalid-address", outcome: "invalid-address" } );
+        assert.deepEqual( await auth.authenticate( "email-link", { email: "nope", client: "203.0.113.7" } ), { redirectTo: "/?email-link=invalid-address", outcome: "invalid-address" } );
+    } );
+
+    it( "with a token, tells the address it would sign in without spending it", async () => {
+        const auth = manager();
+        await auth.initialize();
+        await auth.authenticate( "email-link", { email: "parent@example.com", client: "203.0.113.7" } );
+        const token = tokenOf( sent[ 0 ] );
+        assert.deepEqual( await auth.authenticate( "email-link", { token: token } ), { email: "parent@example.com" } );
+        assert.deepEqual( await auth.authenticate( "email-link", { token: "nope" } ), { email: null } );
+        assert.equal( ( await auth.authorize( "email-link", null, { token: token } ) ).asJSON().email, "parent@example.com", "still spendable" );
     } );
 
     it( "turns a spent link into a user named by a digest of the address, and refuses it the second time", async () => {

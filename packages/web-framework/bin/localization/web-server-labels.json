@@ -101,6 +101,14 @@
         "or": {
           "en": "or",
           "bg": "или"
+        },
+        "email-link-signing-in-as": {
+          "en": "You are signing in as",
+          "bg": "Влизате като"
+        },
+        "email-link-not-you": {
+          "en": "Not you? Use another address",
+          "bg": "Не сте вие? Използвайте друг адрес"
         }
       }
     },

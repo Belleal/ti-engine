@@ -22,7 +22,6 @@
       "usersPath": ""
     },
     "emailLink": {
-      "path": "/",
       "lifetimeMinutes": 15,
       "allowedDomains": [],
       "hourlyLimitPerAddress": 5,

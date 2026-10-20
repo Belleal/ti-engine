@@ -85,10 +85,16 @@ function applyWebConfigEnvOverrides( config, env = process.env ) {
         config.auth.local.usersPath = env.TI_WEB_AUTH_LOCAL_USERS_PATH;
     }
     if ( env.TI_WEB_AUTH_EMAIL_LINK_ALLOWED_DOMAINS !== undefined ) {
-        // CA-537. Normalized by AuthManager.toDomainList, as an OpenID provider's list is.
-        config.auth = config.auth || {};
-        config.auth.emailLink = config.auth.emailLink || {};
-        config.auth.emailLink.allowedDomains = env.TI_WEB_AUTH_EMAIL_LINK_ALLOWED_DOMAINS.split( "," ).map( ( domain ) => domain.trim() ).filter( ( domain ) => domain.length > 0 );
+        // CA-537. Normalized by AuthManager.toDomainList, as an OpenID provider's list is. A value naming no domain
+        // leaves the configured list, as an empty `TI_GCLOUD_AUTH_ALLOWED_DOMAINS` does: an empty list admits every
+        // domain, so a variable passed through from an unset shell variable would otherwise widen access instead of
+        // changing nothing.
+        const domains = env.TI_WEB_AUTH_EMAIL_LINK_ALLOWED_DOMAINS.split( "," ).map( ( domain ) => domain.trim() ).filter( ( domain ) => domain.length > 0 );
+        if ( domains.length > 0 ) {
+            config.auth = config.auth || {};
+            config.auth.emailLink = config.auth.emailLink || {};
+            config.auth.emailLink.allowedDomains = domains;
+        }
     }
     if ( env.TI_WEB_TRUSTED_ORIGINS !== undefined ) {
         config.trustedOrigins = env.TI_WEB_TRUSTED_ORIGINS.split( "," ).map( ( origin ) => origin.trim() ).filter( ( origin ) => origin.length > 0 );

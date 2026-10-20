@@ -31,19 +31,26 @@
             <!-- Sign-in with a link sent by e-mail (CA-537). One block, three steps: asking for an address, the link sent,
                  and continuing from a link opened in an e-mail. The link carries its token in the URL's fragment, which
                  no server sees; the person presses Continue and the token is posted, so a mail scanner that fetches the
-                 link spends nothing. The address form is the one shown before the script runs, so it works without it. -->
+                 link spends nothing. Before that, the page asks which address the link signs in and shows it, so a link
+                 somebody else asked for, for their own address, is not followed into their account unnoticed. The
+                 address form is the one shown before the script runs, so it works without it. -->
             <div class="ti-login-email-link" x-data="tiLoginEmailLink">
                 <form x-show="step === 'confirm'" x-cloak action="/login/email-link" method="post" class="ti-login-form">
                     <input type="hidden" name="_csrf" value='{ti-csrf-placeholder}'>
                     <input type="hidden" name="token" x-bind:value="token">
-                    <p class="ti-login-note" x-text-label="interface.default.login.email-link-confirm-prompt">You opened a sign-in link. Continue to sign in.</p>
-                    <button type="submit" class="ti-btn primary lg full ti-login-submit">
+                    <div x-show="email">
+                        <p class="ti-login-note" x-text-label="interface.default.login.email-link-signing-in-as">You are signing in as</p>
+                        <p class="ti-login-address" x-text="email"></p>
+                    </div>
+                    <p class="ti-login-note" x-show="!email" x-text-label="interface.default.login.email-link-confirm-prompt">You opened a sign-in link. Continue to sign in.</p>
+                    <button type="submit" class="ti-btn primary lg full ti-login-submit" x-bind:disabled="checking">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                              stroke-linejoin="round" aria-hidden="true">
                             <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"/>
                         </svg>
                         <span x-text-label="interface.default.login.email-link-continue">Continue</span>
                     </button>
+                    <button type="button" class="ti-btn lg full" x-show="email" x-on:click="askAgain" x-text-label="interface.default.login.email-link-not-you">Not you? Use another address</button>
                 </form>
                 <div x-show="step === 'sent'" x-cloak class="ti-login-form">
                     <p class="ti-login-note" role="status" x-text-label="interface.default.login.email-link-sent">Check your e-mail. If this address may sign in, a link is on its way: it works once, for a few minutes.</p>
@@ -57,6 +64,8 @@
                        x-text-label="interface.default.login.email-link-unavailable">The e-mail could not be sent just now. Try again in a few minutes.</p>
                     <p class="ti-login-warning" role="alert" x-show="message === 'invalid-address'" x-cloak
                        x-text-label="interface.default.login.email-link-invalid-address">That does not look like an e-mail address. Check it and try again.</p>
+                    <p class="ti-login-warning" role="alert" x-show="message === 'expired'" x-cloak
+                       x-text-label="interface.default.login.error-sign-in-link-expired">This sign-in link has expired or has already been used. Ask for a new one.</p>
                     <div>
                         <label class="ti-field-label" x-text-label="interface.default.login.email" for="ti-email">E-mail</label>
                         <input id="ti-email"

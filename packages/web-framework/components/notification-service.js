@@ -564,6 +564,18 @@ class NotificationService {
     }
 
     /**
+     * The name the transport gives itself, such as `log` or `cloudflare`, or `null` with none or a transport without
+     * one. `log` delivers nothing, which a feature that cannot work without mail needs to know.
+     *
+     * @property
+     * @returns {string|null}
+     * @public
+     */
+    get transportName() {
+        return ( this.#transport && typeof this.#transport.name === "string" ) ? this.#transport.name : null;
+    }
+
+    /**
      * Registers a notice an application sends. Registered at start-up, like a configuration document.
      *
      * <br/>

@@ -180,11 +180,18 @@ describe( "applyWebConfigEnvOverrides", () => {
             assert.deepEqual( config.auth.enabledMethods, [ "email-link" ] );
         } );
 
-        it( "creates what it needs on a config without auth, and an empty value admits any domain", () => {
+        it( "creates what it needs on a config without auth", () => {
             assert.deepEqual( applyWebConfigEnvOverrides( {}, { TI_WEB_AUTH_EMAIL_LINK_ALLOWED_DOMAINS: "school.bg" } ).auth.emailLink.allowedDomains, [ "school.bg" ] );
-            const config = { auth: { emailLink: { allowedDomains: [ "gone.example" ] } } };
-            applyWebConfigEnvOverrides( config, { TI_WEB_AUTH_EMAIL_LINK_ALLOWED_DOMAINS: "" } );
-            assert.deepEqual( config.auth.emailLink.allowedDomains, [] );
+        } );
+
+        it( "leaves the configured list on a value naming no domain, which would otherwise admit every domain", () => {
+            // A compose file's `${DOMAINS}` with DOMAINS unset arrives as "", and an empty list admits any domain: the
+            // OpenID providers' variables are read with `||` for the same reason.
+            for ( const value of [ "", "  ", " , ," ] ) {
+                const config = { auth: { emailLink: { allowedDomains: [ "school.bg" ] } } };
+                applyWebConfigEnvOverrides( config, { TI_WEB_AUTH_EMAIL_LINK_ALLOWED_DOMAINS: value } );
+                assert.deepEqual( config.auth.emailLink.allowedDomains, [ "school.bg" ], JSON.stringify( value ) );
+            }
         } );
 
         it( "leaves the configured list when the variable is absent", () => {

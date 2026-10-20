@@ -61,6 +61,10 @@ const NOTICE_LABELS = Object.freeze( {
  */
 const PARAMETER = "email-link";
 
+// The sign-in page, where the link lands and a request is answered. Always `/`, because that is where the framework
+// sends every sign-in's failure too (`/?error=`): a page of its own would split the two.
+const SIGN_IN_PAGE = "/";
+
 /**
  * How a request for a link ended, as the sign-in page is told in `?email-link=`.
  *
@@ -81,7 +85,6 @@ const OUTCOME = Object.freeze( {
  * @public
  */
 const DEFAULTS = Object.freeze( {
-    path: "/",
     lifetimeMinutes: 15,
     allowedDomains: Object.freeze( [] ),
     hourlyLimitPerAddress: 5,
@@ -100,9 +103,6 @@ const ADDRESS = /^[^\s\p{Cc}@<>",;:()[\]\\]+@[^\s\p{Cc}@<>",;:()[\]\\.]+(?:\.[^\
 // 32 random bytes, base64url without padding.
 const TOKEN_BYTES = 32;
 const TOKEN = /^[A-Za-z0-9_-]{43}$/;
-
-// A sign-in page's path: one leading slash, then no second one, and nothing that would end the path.
-const PATH = /^\/(?!\/)[^?#\s]*$/;
 
 // The window a limit counts in, in seconds.
 const LIMIT_WINDOW = 3600;
@@ -190,7 +190,7 @@ class EmailLink {
             subject: NOTICE_LABELS.subject,
             text: NOTICE_LABELS.text,
             // A rendering without a token, such as an editor's preview, links to the sign-in page itself.
-            link: ( data ) => ( typeof data.token === "string" ) ? `${ this.#settings.path }#${ PARAMETER }=${ data.token }` : this.#settings.path,
+            link: ( data ) => ( typeof data.token === "string" ) ? `${ SIGN_IN_PAGE }#${ PARAMETER }=${ data.token }` : SIGN_IN_PAGE,
             // Only the lifetime may appear in the texts: the token reaches the message through the link alone.
             format: ( data ) => ( { minutes: String( positiveInteger( data.minutes, this.#settings.lifetimeMinutes ) ) } ),
             placeholders: [ "minutes" ]
@@ -199,8 +199,9 @@ class EmailLink {
     }
 
     /**
-     * Why a link could not be sent with the deployment as it is, or `null` when it could. A link needs a transport,
-     * the public URL it starts from, and the notice's subject and text in the deployment's language.
+     * Why a link could not be sent with the deployment as it is, or `null` when it could. A link needs a transport
+     * that delivers mail, the public URL it starts from, and the notice's subject and text in the deployment's
+     * language. The `log` transport delivers nothing, so on it nobody could ever follow a link.
      *
      * @method
      * @returns {string|null}
@@ -210,6 +211,9 @@ class EmailLink {
         const service = notificationService.instance;
         if ( !service.isEnabled ) {
             return "no notification transport is configured (TI_WEB_NOTIFY_TRANSPORT)";
+        }
+        if ( service.transportName === "log" ) {
+            return "the notification transport is 'log', which delivers nothing";
         }
         if ( !service.publicUrl ) {
             return "no public URL is set (TI_WEB_PUBLIC_URL), so the e-mail would carry no link";
@@ -267,8 +271,26 @@ class EmailLink {
     }
 
     /**
+     * The address a token would sign in, without spending it, or `null` for a token that could not sign anybody in.
+     * The sign-in page shows the address before the person continues, so a link somebody else asked for, for their
+     * own address, is not followed into their account unnoticed. It tells the holder of a token nothing a spend would
+     * not: the token was sent to that address.
+     *
+     * @method
+     * @param {*} token As the form sent it.
+     * @returns {Promise<string|null>}
+     * @public
+     */
+    peek( token ) {
+        if ( typeof token !== "string" || !TOKEN.test( token ) ) {
+            return Promise.resolve( null );
+        }
+        return cache.instance.getValue( KEY_TOKEN + digestOf( token ) ).then( ( entry ) => this.#usableAddress( entry ) );
+    }
+
+    /**
      * Spends a token: the first request to delete its entry gets the address it was sent to, every later one gets
-     * `null`, as does a token that is malformed, unknown or expired.
+     * `null`, as does a token that is malformed, unknown or expired, or whose address's domain may no longer sign in.
      *
      * @method
      * @param {*} token As the form sent it.
@@ -290,15 +312,8 @@ class EmailLink {
                 if ( !deleted ) {
                     return null;
                 }
-                // The store's own expiry is a backstop, which a provider may apply late; this is the check.
-                if ( !Number.isFinite( entry.expiresAt ) || entry.expiresAt <= this.#now() ) {
-                    return null;
-                }
-                const address = EmailLink.normalizeAddress( entry.address );
-                if ( address === null ) {
-                    return null;
-                }
-                return { address: address, language: ( typeof entry.language === "string" ) ? entry.language : undefined };
+                const address = this.#usableAddress( entry );
+                return ( address === null ) ? null : { address: address, language: ( typeof entry.language === "string" ) ? entry.language : undefined };
             } );
         } );
     }
@@ -312,7 +327,7 @@ class EmailLink {
      * @public
      */
     answerFor( outcome ) {
-        return `${ this.#settings.path }?${ PARAMETER }=${ encodeURIComponent( outcome ) }`;
+        return `${ SIGN_IN_PAGE }?${ PARAMETER }=${ encodeURIComponent( outcome ) }`;
     }
 
     /* Static interface */
@@ -341,7 +356,6 @@ class EmailLink {
         };
         const isCount = ( value ) => Number.isInteger( value ) && value > 0;
         const resolved = {
-            path: pick( "path", ( value ) => typeof value === "string" && PATH.test( value ) ),
             lifetimeMinutes: pick( "lifetimeMinutes", ( value ) => isCount( value ) && value <= 1440 ),
             allowedDomains: Object.freeze( Array.isArray( given.allowedDomains ) ? given.allowedDomains.map( ( domain ) => String( domain ).trim().toLowerCase().replace( /^@/, "" ) ).filter( ( domain ) => domain !== "" ) : [] ),
             hourlyLimitPerAddress: pick( "hourlyLimitPerAddress", isCount ),
@@ -421,6 +435,27 @@ class EmailLink {
                 return cache.instance.setValue( key, { count: count, resetAt: resetAt }, Math.max( 1, Math.ceil( ( resetAt - now ) / 1000 ) ) ).then( () => true );
             } );
         } );
+    }
+
+    /**
+     * The address a stored entry signs in, or `null` when it may not: past its expiry, malformed, or in a domain the
+     * list no longer admits. The domain is checked again because the list can be narrowed while a link is out, as an
+     * OpenID sign-in's domain is checked when it completes.
+     *
+     * @method
+     * @param {*} entry
+     * @returns {string|null}
+     */
+    #usableAddress( entry ) {
+        if ( !entry || typeof entry !== "object" ) {
+            return null;
+        }
+        // The store's own expiry is a backstop, which a provider may apply late; this is the check.
+        if ( !Number.isFinite( entry.expiresAt ) || entry.expiresAt <= this.#now() ) {
+            return null;
+        }
+        const address = EmailLink.normalizeAddress( entry.address );
+        return ( address !== null && this.#isDomainAllowed( address ) ) ? address : null;
     }
 
     /**

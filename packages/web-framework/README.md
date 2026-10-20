@@ -20,7 +20,7 @@ The web server configuration (host, port, TLS, cookies, etc.) is normally provid
 * `TI_WEB_TLS_CERT_PATH` is also read by the container liveness probe (below), which verifies against that certificate.
 * `TI_WEB_SESSION_IDLE_TIMEOUT` (whole minutes) sets how long a signed-in session survives **without activity**, overriding `cookies.maxAge`. The window is rolling: every response re-stamps the cookie, so a session ends only after that long with no request at all. Note that a user typing into a form makes no requests, so set this comfortably longer than the longest form a user fills in one sitting. Defaults to 480 (eight hours).
 * `TI_WEB_AUTH_METHODS` (comma-separated) **replaces** the enabled authentication methods (`auth.enabledMethods`), e.g. `openid-google`, `local,openid-google` or `email-link,openid-google`.
-* `TI_WEB_AUTH_EMAIL_LINK_ALLOWED_DOMAINS` (comma-separated) **replaces** `auth.emailLink.allowedDomains`, the e-mail domains that may sign in with a link. Empty admits any domain. See [Sign-in with a link sent by e-mail](#sign-in-with-a-link-sent-by-e-mail).
+* `TI_WEB_AUTH_EMAIL_LINK_ALLOWED_DOMAINS` (comma-separated) **replaces** `auth.emailLink.allowedDomains`, the e-mail domains that may sign in with a link. A value naming no domain leaves the configured list, since an empty list admits any domain. See [Sign-in with a link sent by e-mail](#sign-in-with-a-link-sent-by-e-mail).
 * `TI_WEB_AUTH_LOCAL_USERS_PATH` overrides the local user directory's file path (`auth.local.usersPath`), which backs `local` sign-in. An explicitly empty value means *no directory*, so every local sign-in is refused. See [Local (username/password) authentication](#local-usernamepassword-authentication).
 * `TI_WEB_AUTH_ADMINS` (comma-separated) **replaces** the admin allowlist (`auth.admins`). Entries are matched against the session user's user ID, username or email, so an OpenID deployment lists emails. An explicitly empty value means *no admins*.
 * `TI_WEB_TRUSTED_ORIGINS` (comma-separated) **replaces** the trusted request origins (`trustedOrigins`) — needed behind proxies that do not present the real external origin.
@@ -180,8 +180,9 @@ On every boot, the file is read and reconciled into the running directory: an ad
 Microsoft. It is for applications whose users are the public, such as parents. Enable it like any method
 (`TI_WEB_AUTH_METHODS=email-link`), and give the deployment what a link needs:
 
-* a notification transport (`TI_WEB_NOTIFY_TRANSPORT`, or an application's own through `setTransport`, called in the
-  application's constructor), see [E-mail notices](#e-mail-notices);
+* a notification transport that delivers (`TI_WEB_NOTIFY_TRANSPORT=cloudflare`, or an application's own through
+  `setTransport`, called in the application's constructor; not `log`, which delivers nothing), see
+  [E-mail notices](#e-mail-notices);
 * `TI_WEB_PUBLIC_URL`, which the link starts from;
 * the notice's texts, `interface.notice.sign-in-link.subject` and `.text` (placeholder `{minutes}`), in the
   application's own catalogue: the framework ships them in English and Bulgarian, and an application copies or rewrites
@@ -192,7 +193,6 @@ Without any of the three the method is left out at start, with a warning naming 
 ```jsonc
 "auth": {
   "emailLink": {
-    "path": "/",                  // the sign-in page: where the link lands, and where a request is answered
     "lifetimeMinutes": 15,        // how long a link works, at most a day
     "allowedDomains": [],         // TI_WEB_AUTH_EMAIL_LINK_ALLOWED_DOMAINS; empty admits any domain
     "hourlyLimitPerAddress": 5,   // links one address may be sent in an hour
@@ -204,26 +204,33 @@ Without any of the three the method is left out at start, with a warning naming 
 How it works:
 
 1. **Asking.** The sign-in page posts the address to `POST /login/email-link`. The server sends the `sign-in-link`
-   notice at once (one attempt, never queued), and answers `303` to `<path>?email-link=<outcome>`: `sent`, `limited`,
+   notice at once (one attempt, never queued), and answers `303` to `/?email-link=<outcome>`: `sent`, `limited`,
    `invalid-address` or `unavailable`. **The answer never says whether an address may sign in**: one outside
-   `allowedDomains` is sent nothing and answered `sent`.
-2. **The link** is `<publicUrl><path>#email-link=<token>`: 32 random bytes in the fragment, which no server receives,
-   so it is in no access log. The store keeps only the token's SHA-256, with the address, and the value expires with
-   the link.
-3. **Following it.** The sign-in page takes the token out of the address bar and shows *Continue*. Pressing it posts
-   the token. The click is deliberate: a mail scanner that opens the link, even one that runs the page's script,
+   `allowedDomains` is sent nothing and answered `sent`. (Its timing can tell an admitted domain from a refused one,
+   since only the first waits for the transport: that reveals the domain list, not anybody's account.)
+2. **The link** is `<publicUrl>/#email-link=<token>`: 32 random bytes in the fragment, which no server receives, so it
+   is in no access log. The store keeps only the token's SHA-256, with the address, and the value expires with the
+   link.
+3. **Following it.** The sign-in page takes the token out of the address bar, asks which address it signs in without
+   spending it (`POST /login/email-link` with `{ token, peek: true }` as JSON, answered `{ data: { email } }`), and
+   shows "You are signing in as …" with *Continue* and *Not you? Use another address*. Showing the address keeps a link
+   somebody asked for, for their own address, from signing the person into that account unnoticed. Pressing Continue
+   posts the token. The click is deliberate: a mail scanner that opens the link, even one that runs the page's script,
    presses nothing and spends nothing.
-4. **Spending it.** The first request to delete the stored entry wins; every later one, and an expired or unknown
-   token, is refused with `E_SEC_INVALID_AUTH_TOKEN` (2000), which the sign-in page explains as an expired link. A
-   spent link signs in as the other methods do: `augmentSession` may refuse, the `admin` allowlist applies.
+4. **Spending it.** The first request to delete the stored entry wins; every later one, an expired or unknown token,
+   and one whose domain the list no longer admits, is refused with `E_SEC_INVALID_AUTH_TOKEN` (2000), which the sign-in
+   page explains as an expired link. A spent link signs in as the other methods do: `augmentSession` may refuse, the
+   `admin` allowlist applies.
 
 The session's user is `{ userID: "email:<32 hex of the address's SHA-256>", username: <address>, email: <address> }`,
 the address trimmed and lower-cased. The user ID is not the address because the framework writes user IDs to its log;
 the log names an address or a client only by 16 hex digits of its SHA-256, and never holds a token.
 
-**Not covered.** The `log` transport sends nothing, so on it no link can be followed. The client limit counts
-`request.ip`, which behind a proxy is what the proxy reports; the per-address limit holds whatever it reports. The
-counters are kept per instance between reads, so several instances can each admit a request the others counted.
+**Not covered.** The client limit counts `request.ip`: on Cloudflare the Worker makes it the address Cloudflare saw,
+elsewhere it is what the proxy in front reports. The per-address limit can be spent by anybody who knows the address,
+holding its sign-in for the rest of the hour (a link already received still works); a challenge on the form is the
+application's remedy. The counters are kept per instance between reads, so several instances can each admit a request
+the others counted.
 
 ## The login screen
 
@@ -237,7 +244,7 @@ The login screen renders before sign-in, so none of an application's own fragmen
 
 Use the brand slot to name the application and say what it is for. Use the heading slot to title the card, and say which account to sign in with. Use the extra slot for anything a first-time visitor should read after the sign-in controls. No slot can change the sign-in controls themselves; those stay the framework's, gated to the enabled methods. The Microsoft button carries Microsoft's four-square logo and reads "Sign in with Microsoft", as Microsoft's branding guidelines ask; the method is still `openid-azure`.
 
-Every string on the screen goes through `x-text-label` under `interface.default.login.*`: `welcome`, `sign-in-prompt`, `username`, `username-placeholder`, `password`, `password-placeholder`, `sign-in`, `or-continue-with`, `sign-in-google`, `sign-in-azure`, `no-sign-in-method` and `error-sign-in-failed`, and for the e-mail link `email`, `email-placeholder`, `email-link-send`, `email-link-sent`, `email-link-other`, `email-link-confirm-prompt`, `email-link-continue`, `email-link-limited`, `email-link-unavailable`, `email-link-invalid-address`, `error-sign-in-link-expired` and `or` (between the e-mail link and the local form, when both are enabled). An application normally points `TI_LOCALIZATION_LABELS_PATH` at its own catalogue alone, so the framework's translations never reach it. It adds the keys it wants translated to its own catalogue, and a key it leaves out renders the English text written in the fragment.
+Every string on the screen goes through `x-text-label` under `interface.default.login.*`: `welcome`, `sign-in-prompt`, `username`, `username-placeholder`, `password`, `password-placeholder`, `sign-in`, `or-continue-with`, `sign-in-google`, `sign-in-azure`, `no-sign-in-method` and `error-sign-in-failed`, and for the e-mail link `email`, `email-placeholder`, `email-link-send`, `email-link-sent`, `email-link-other`, `email-link-confirm-prompt`, `email-link-signing-in-as`, `email-link-continue`, `email-link-not-you`, `email-link-limited`, `email-link-unavailable`, `email-link-invalid-address`, `error-sign-in-link-expired` and `or` (between the e-mail link and the local form, when both are enabled). An application normally points `TI_LOCALIZATION_LABELS_PATH` at its own catalogue alone, so the framework's translations never reach it. It adds the keys it wants translated to its own catalogue, and a key it leaves out renders the English text written in the fragment.
 
 ## The busy indicator
 

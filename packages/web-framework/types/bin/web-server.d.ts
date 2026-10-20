@@ -22,11 +22,6 @@ export type SettingsAuth = {
 };
 export type SettingsAuthEmailLink = {
     /**
-     * The sign-in page, `/` unless stated: where the link lands, and where a request for one is
-     * answered with `?email-link=<outcome>`.
-     */
-    path?: string;
-    /**
      * How long a link works, 15 unless stated; at most a day.
      */
     lifetimeMinutes?: number;

@@ -47,6 +47,7 @@ describe( "the e-mail link block on the sign-in page", () => {
             assert.ok( form.includes( "name=\"_csrf\" value='{ti-csrf-placeholder}'" ) );
         } );
         assert.ok( forms.some( ( form ) => /name="token" x-bind:value="token"/.test( form ) ), "one form carries the token" );
+        assert.ok( forms.some( ( form ) => /<p class="ti-login-address" x-text="email"><\/p>/.test( form ) && /x-bind:disabled="checking"/.test( form ) ), "and shows the address it signs in" );
         assert.ok( forms.some( ( form ) => /name="email"[\s\S]*type="email"[\s\S]*required/.test( form ) ), "one asks for the address" );
     } );
 
@@ -75,8 +76,13 @@ describe( "the e-mail link block on the sign-in page", () => {
  * @returns {{component: Object, replaced: string[]}}
  * @private
  */
-function start( name, href ) {
-    const { components, sandbox } = loadTiFramework();
+function start( name, href, peek = () => Promise.resolve( { isSuccessful: true, data: { email: "parent@example.com" } } ) ) {
+    const { components, sandbox, stores } = loadTiFramework();
+    const asked = [];
+    stores.tiApplication.sendRequest = ( url, method, data ) => {
+        asked.push( { url, method, data } );
+        return peek();
+    };
     const url = new URL( href );
     const replaced = [];
     const location = { href: href, pathname: url.pathname, search: url.search, hash: url.hash };
@@ -95,8 +101,8 @@ function start( name, href ) {
         }
     };
     const component = components[ name ]();
-    component.init();
-    return { component: component, replaced: replaced };
+    const settled = component.init();
+    return { component: component, replaced: replaced, asked: asked, settled: Promise.resolve( settled ).then( () => new Promise( ( resolve ) => setImmediate( resolve ) ) ) };
 }
 
 describe( "tiLoginEmailLink", () => {
@@ -113,6 +119,36 @@ describe( "tiLoginEmailLink", () => {
         assert.equal( component.step, "confirm" );
         assert.equal( component.token, TOKEN );
         assert.equal( replaced[ replaced.length - 1 ], "/app?keep=1", "the path and the query survive, the fragment goes" );
+    } );
+
+    it( "asks which address the link signs in, without spending it, and shows it before Continue", async () => {
+        const { component, asked, settled } = start( "tiLoginEmailLink", `https://app.example.com/#email-link=${ TOKEN }` );
+        assert.equal( component.checking, true, "Continue waits for the answer" );
+        // Through JSON, because the data was built inside the sandbox, whose objects have its own prototypes.
+        assert.deepEqual( JSON.parse( JSON.stringify( asked ) ), [ { url: "/login/email-link", method: "POST", data: { token: TOKEN, peek: true } } ] );
+        await settled;
+        assert.equal( component.checking, false );
+        assert.equal( component.email, "parent@example.com" );
+        assert.equal( component.step, "confirm" );
+        component.askAgain();
+        assert.equal( component.step, "ask" );
+        assert.equal( component.token, "", "Not you? drops the link" );
+    } );
+
+    it( "sends a link that can sign nobody in back to the address form, saying so", async () => {
+        const { component, settled } = start( "tiLoginEmailLink", `https://app.example.com/#email-link=${ TOKEN }`, () => Promise.resolve( { isSuccessful: true, data: { email: null } } ) );
+        await settled;
+        assert.equal( component.step, "ask" );
+        assert.equal( component.message, "expired" );
+        assert.equal( component.token, "" );
+    } );
+
+    it( "still lets the person continue when the question fails, without the address", async () => {
+        const { component, settled } = start( "tiLoginEmailLink", `https://app.example.com/#email-link=${ TOKEN }`, () => Promise.reject( new Error( "offline" ) ) );
+        await settled;
+        assert.equal( component.step, "confirm" );
+        assert.equal( component.checking, false );
+        assert.equal( component.email, "" );
     } );
 
     it( "says the link is on its way, and lets the person use another address", () => {
@@ -140,7 +176,7 @@ describe( "tiLoginEmailLink", () => {
     } );
 
     it( "has a block for every message the address form shows", () => {
-        for ( const outcome of [ "limited", "unavailable", "invalid-address" ] ) {
+        for ( const outcome of [ "limited", "unavailable", "invalid-address", "expired" ] ) {
             assert.ok( block().includes( `x-show="message === '${ outcome }'"` ), outcome );
         }
     } );

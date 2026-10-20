@@ -48,7 +48,6 @@ A fourth method, `email-link`, enabled like the others (`auth.enabledMethods`, `
 ```jsonc
 "auth": {
   "emailLink": {
-    "path": "/",                  // the sign-in page: where the link lands and where the answers go
     "lifetimeMinutes": 15,        // how long a link works
     "allowedDomains": [],         // as an OpenID provider's: empty admits any domain
     "hourlyLimitPerAddress": 5,   // links one address may be sent in an hour
@@ -57,7 +56,11 @@ A fourth method, `email-link`, enabled like the others (`auth.enabledMethods`, `
 }
 ```
 
-`TI_WEB_AUTH_EMAIL_LINK_ALLOWED_DOMAINS` (comma-separated) replaces `allowedDomains`.
+`TI_WEB_AUTH_EMAIL_LINK_ALLOWED_DOMAINS` (comma-separated) replaces `allowedDomains`; a value naming no domain leaves
+it, as an empty OpenID list variable does, since an empty list admits every domain.
+
+The sign-in page is `/`, where the link lands and a request is answered: that is where the framework sends every sign-in
+failure too (`/?error=`), so a page of its own would split the two.
 
 ### 3.2 Asking for a link
 
@@ -71,18 +74,26 @@ A fourth method, `email-link`, enabled like the others (`auth.enabledMethods`, `
 4. Otherwise a token of 32 random bytes is made, and stored under the SHA-256 of the token, never the token itself,
    with the address, the language the request was answered in, and the moment it expires. The value expires then too.
 5. The `sign-in-link` notice is sent at once, past the outbox and the ledger, through a new
-   `NotificationService#sendNow`. Its link is `<publicUrl><path>#email-link=<token>`.
-6. The browser is sent back to `<path>?email-link=<outcome>`: `sent`, `limited`, `invalid-address` or `unavailable`
+   `NotificationService#sendNow`. Its link is `<publicUrl>/#email-link=<token>`.
+6. The browser is sent back to `/?email-link=<outcome>`: `sent`, `limited`, `invalid-address` or `unavailable`
    (the store or the transport failed; a token already stored is deleted, so a link nobody received never works).
 
 **The answer never says whether an address may sign in.** A refused domain reads `sent`, like an admitted one. Whether
-the application will accept the person is decided at the end (§3.4), when they hold a link.
+the application will accept the person is decided at the end (§3.4), when they hold a link. The time the answer takes
+can still tell an admitted domain from a refused one, since only the first waits for the transport; that reveals the
+deployment's domain list, which is policy, never whether a person has an account.
 
 ### 3.3 Following the link
 
 The token travels in the URL's **fragment**, which a browser never sends to a server. So it is in no access log, no
 proxy log and no `Referer`. The login page reads it, removes it from the address bar, and shows one button,
 *Continue*. That button posts the token, with the page's own CSRF token, to `POST /login/email-link`.
+
+Before showing the button, the page asks the server which address the link signs in, without spending it
+(`POST /login/email-link` with `{ token, peek: true }` as JSON), and shows it: "You are signing in as …", with "Not you?
+Use another address" beside Continue. Otherwise anybody could ask for a link to their own address, send it to someone
+waiting for theirs, and have that person continue into the sender's account and type their child's details there. A
+link that can no longer sign anybody in goes straight back to the address form, saying so.
 
 The extra click is the point. Mail scanners — Microsoft Defender's Safe Links, Gmail's link checks, antivirus gateways
 — fetch a link before the person sees it, and some run its scripts. A link that signed in on `GET`, or a page that
@@ -93,7 +104,9 @@ posted the token by itself, would be spent by the scanner, and the person would 
 1. A token that is not 43 base64url characters is refused without a store read.
 2. The entry is read, then **deleted**; only the request whose delete removed it may go on. Two requests racing with
    the same token both read it, and exactly one deletes it.
-3. An entry past its `expiresAt` is refused (the store's own expiry is a backstop, not the check).
+3. An entry past its `expiresAt` is refused (the store's own expiry is a backstop, not the check), and so is an address
+   whose domain the list no longer admits: the list can be narrowed while a link is out, as an OpenID sign-in's domain
+   is checked when it completes.
 4. The user is `{ userID: "email:" + the first 32 hex digits of the address's SHA-256, username: address, email:
    address, language }`. The user ID is not the address because the framework writes user IDs to its log.
 5. The session is regenerated exactly as for the other methods: `augmentSession` may refuse, the `admin` allowlist
@@ -107,8 +120,9 @@ every method.
 
 ### 3.5 Fail closed at start
 
-The method is dropped, with a warning naming the reason, when sending cannot work: no transport, no `publicUrl` (the
-link would have no address), or the notice's subject or text not found in the deployment's language. Sending is checked
+The method is dropped, with a warning naming the reason, when sending cannot work: no transport, the `log` transport
+(which delivers nothing, so every request would read `sent` and no link would ever arrive), no `publicUrl` (the link
+would have no address), or the notice's subject or text not found in the deployment's language. Sending is checked
 again on every request, since an application may switch the transport.
 
 ### 3.6 What is logged
@@ -153,6 +167,13 @@ as the notification service names a recipient.
   still holds.
 - **The counters are not atomic across instances.** Two instances can each admit a request the other has counted; the
   limit can be exceeded by the number of instances, not more.
+- **The per-address limit can be spent by someone else.** It is what keeps an address from being flooded with links,
+  and its price is that whoever asks five times in an hour holds that address's sign-in for the rest of the hour. A
+  link already received still works. Counting per address and client together would end that and reopen the flood;
+  a challenge on the form (Turnstile) is the remedy for both, and belongs to the application.
+- **The client limit trusts `request.ip`.** On Cloudflare the Worker sets `X-Forwarded-For` to the address Cloudflare
+  connected to (`cloudflare/worker/forwarding.js`), which a client cannot choose; elsewhere it is whatever the proxy in
+  front reports, or the client's own header with no proxy at all.
 
 ## 6. What implementation settled
 
@@ -163,6 +184,13 @@ as the notification service names a recipient.
   method is enabled. `authenticate( EMAIL_LINK, { email, client, language } )` resolves `{ redirectTo, outcome }` for
   every outcome, a failure to send included; `authorize( EMAIL_LINK, url, { token } )` spends the token.
 - **Measured in Chromium** against a real server on a local D1 state service: the link lands with its token in the
-  fragment, the address bar loses it at once, `/me` is still refused before Continue, the session is the address's
-  after it, a second use shows the expired-link message, and a sixth request in the hour shows the limit.
+  fragment, the address bar loses it at once, the page shows the address it signs in, `/me` is still refused before
+  Continue, the session is the address's after it, a second use goes back to the address form saying the link has
+  expired, and a sixth request in the hour shows the limit.
+- **The review pass** (the `code-review` skill at `high` on the whole diff) found ten things. Fixed: a configurable
+  sign-in page that worked only as `/` (removed); `log` passing the start-up check; an empty domain variable widening
+  the list; the domain not checked again when a link is spent; the confirm step not saying which account it signs in
+  (the address is shown now); and the sign-in's last steps copied into a third place (now one `signInUser` for every
+  method). Declined, with the reasons in §3.2 and §5: the client limit's trust in `request.ip`, the per-address limit
+  spendable by others, the counters across instances, and the timing of a refused domain.
 

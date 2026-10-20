@@ -94,8 +94,6 @@ const localization = require( "@ti-engine/core/localization" );
 
 /**
  * @typedef {Object} SettingsAuthEmailLink
- * @property {string} [path] The sign-in page, `/` unless stated: where the link lands, and where a request for one is
- *           answered with `?email-link=<outcome>`.
  * @property {number} [lifetimeMinutes] How long a link works, 15 unless stated; at most a day.
  * @property {string[]} [allowedDomains] The e-mail domains that may sign in this way (see
  *           `TI_WEB_AUTH_EMAIL_LINK_ALLOWED_DOMAINS`). Empty or absent admits any domain.
