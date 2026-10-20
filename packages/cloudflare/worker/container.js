@@ -36,7 +36,7 @@
  * names its own prefix, settings and calls through options.
  * <br/>
  * NOTE: Runs in the Workers runtime, so it requires nothing, not even another module of this package, and uses only the
- * `Request`, `Response`, `URL` and `fetch` globals both Workers and Node provide.
+ * `Request`, `Response`, `URL`, `fetch` and `atob` globals both Workers and Node provide.
  *
  * @module container
  */
@@ -294,7 +294,7 @@ const MAIL_ATTACHMENT_FILENAME = /^[A-Za-z0-9][A-Za-z0-9._ -]{0,99}$/;
 const MAIL_ATTACHMENT_TYPE = /^[A-Za-z0-9!#$&^_.+-]+\/[A-Za-z0-9!#$&^_.+-]+([ \t]*;[ \t]*[A-Za-z0-9!#$&^_.+-]+=[A-Za-z0-9!#$&^_.+-]+)*$/;
 
 /**
- * Standard base64, padded: what the binding takes as a file's content when it is a string.
+ * Standard base64, padded: how web-framework posts a file's content, which the relay decodes before the binding sees it.
  *
  * @type {RegExp}
  * @private
@@ -677,13 +677,32 @@ function isOneAddress( value ) {
 }
 
 /**
+ * The bytes a base64 string holds, already checked against {@link MAIL_BASE64}.
+ * <br/>
+ * The binding is given these, never the string: it sent a string content as the file itself, so a calendar entry
+ * reached Outlook as its base64 text (CA-533), whatever its documentation says a string is.
+ *
+ * @param {string} base64
+ * @returns {Uint8Array}
+ * @private
+ */
+function bytesOf( base64 ) {
+    const binary = atob( base64 );
+    const bytes = new Uint8Array( binary.length );
+    for ( let index = 0; index < binary.length; index++ ) {
+        bytes[ index ] = binary.charCodeAt( index );
+    }
+    return bytes;
+}
+
+/**
  * Rebuilds the files a message carries as the binding takes them, or answers `null` for a list that is not one: more
  * than {@link MAIL_MAX_ATTACHMENTS}, a name or type that could reach a header, content that is not base64, or more
  * than {@link MAIL_MAX_ATTACHMENT_BASE64} together. Each is an attachment, never inline: nothing the container sends
- * may stand in for part of the message's body.
+ * may stand in for part of the message's body. Its content is the file's bytes ({@link bytesOf}).
  *
  * @param {*} value
- * @returns {Array<{filename: string, type: string, disposition: string, content: string}>|null}
+ * @returns {Array<{filename: string, type: string, disposition: string, content: Uint8Array}>|null}
  * @private
  */
 function attachmentsOf( value ) {
@@ -703,7 +722,7 @@ function attachmentsOf( value ) {
         if ( size > MAIL_MAX_ATTACHMENT_BASE64 ) {
             return null;
         }
-        files.push( { filename: file.filename, type: file.type, disposition: "attachment", content: file.content } );
+        files.push( { filename: file.filename, type: file.type, disposition: "attachment", content: bytesOf( file.content ) } );
     }
     return files;
 }

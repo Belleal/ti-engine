@@ -675,19 +675,32 @@ describe( "container — the mail relay (CA-486)", () => {
     } );
 
     // A calendar entry as web-framework encodes a notice's file (CA-502): base64 of its UTF-8 bytes.
+    const ENTRY = "BEGIN:VCALENDAR\r\nSUMMARY:Интервю\r\nEND:VCALENDAR\r\n";
     const CALENDAR = Object.freeze( {
         filename: "interview.ics",
         type: "text/calendar; charset=utf-8; method=PUBLISH",
         disposition: "attachment",
-        content: Buffer.from( "BEGIN:VCALENDAR\r\nSUMMARY:Интервю\r\nEND:VCALENDAR\r\n", "utf8" ).toString( "base64" )
+        content: Buffer.from( ENTRY, "utf8" ).toString( "base64" )
     } );
 
     it( "passes a message's files as attachments, rebuilt to the binding's four fields", async () => {
         const email = emailStub();
         const response = await relayWith()( post( Object.assign( {}, MESSAGE, { attachments: [ Object.assign( { contentId: "x", headers: { "X-Evil": "1" } }, CALENDAR ) ] } ) ), { EMAIL: email } );
         assert.equal( response.status, 200 );
-        assert.deepEqual( email.sent[ 0 ].attachments, [ CALENDAR ] );
+        const [ file ] = email.sent[ 0 ].attachments;
+        assert.deepEqual( { filename: file.filename, type: file.type, disposition: file.disposition }, { filename: CALENDAR.filename, type: CALENDAR.type, disposition: "attachment" } );
+        assert.deepEqual( Object.keys( file ).sort(), [ "content", "disposition", "filename", "type" ] );
         assert.deepEqual( Object.keys( email.sent[ 0 ] ).sort(), [ "attachments", "from", "html", "subject", "text", "to" ] );
+    } );
+
+    // The binding sent a string content as the file itself, so Outlook received the base64 text as interview.ics (CA-533).
+    it( "gives the binding the file's bytes, never the base64 they travelled in", async () => {
+        const email = emailStub();
+        await relayWith()( post( Object.assign( {}, MESSAGE, { attachments: [ CALENDAR, Object.assign( {}, CALENDAR, { content: "AP+AAQ==" } ) ] } ) ), { EMAIL: email } );
+        const [ entry, binary ] = email.sent[ 0 ].attachments;
+        assert.ok( entry.content instanceof Uint8Array, "binary content, which the binding sends as it is" );
+        assert.equal( new TextDecoder().decode( entry.content ), ENTRY );
+        assert.deepEqual( Array.from( binary.content ), [ 0, 255, 128, 1 ] );
     } );
 
     it( "makes every file an attachment: a disposition left out is one, and inline is refused", async () => {
