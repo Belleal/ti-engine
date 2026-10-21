@@ -170,6 +170,38 @@ describe( "applyWebConfigEnvOverrides", () => {
         assert.equal( config.staticCache, undefined );
     } );
 
+    describe( "TI_WEB_AUTH_EMAIL_LINK_ALLOWED_DOMAINS", () => {
+
+        it( "replaces auth.emailLink.allowedDomains (trimmed, empties dropped) and keeps the rest of auth.emailLink", () => {
+            const config = { auth: { enabledMethods: [ "email-link" ], emailLink: { lifetimeMinutes: 10, allowedDomains: [ "old.example" ] } } };
+            applyWebConfigEnvOverrides( config, { TI_WEB_AUTH_EMAIL_LINK_ALLOWED_DOMAINS: " school.bg , example.com ,, " } );
+            assert.deepEqual( config.auth.emailLink.allowedDomains, [ "school.bg", "example.com" ] );
+            assert.equal( config.auth.emailLink.lifetimeMinutes, 10 );
+            assert.deepEqual( config.auth.enabledMethods, [ "email-link" ] );
+        } );
+
+        it( "creates what it needs on a config without auth", () => {
+            assert.deepEqual( applyWebConfigEnvOverrides( {}, { TI_WEB_AUTH_EMAIL_LINK_ALLOWED_DOMAINS: "school.bg" } ).auth.emailLink.allowedDomains, [ "school.bg" ] );
+        } );
+
+        it( "leaves the configured list on a value naming no domain, which would otherwise admit every domain", () => {
+            // A compose file's `${DOMAINS}` with DOMAINS unset arrives as "", and an empty list admits any domain: the
+            // OpenID providers' variables are read with `||` for the same reason.
+            for ( const value of [ "", "  ", " , ," ] ) {
+                const config = { auth: { emailLink: { allowedDomains: [ "school.bg" ] } } };
+                applyWebConfigEnvOverrides( config, { TI_WEB_AUTH_EMAIL_LINK_ALLOWED_DOMAINS: value } );
+                assert.deepEqual( config.auth.emailLink.allowedDomains, [ "school.bg" ], JSON.stringify( value ) );
+            }
+        } );
+
+        it( "leaves the configured list when the variable is absent", () => {
+            const config = { auth: { emailLink: { allowedDomains: [ "keep.example" ] } } };
+            applyWebConfigEnvOverrides( config, {} );
+            assert.deepEqual( config.auth.emailLink.allowedDomains, [ "keep.example" ] );
+        } );
+
+    } );
+
     describe( "TI_WEB_AUTH_LOCAL_USERS_PATH", () => {
 
         it( "sets the local users file path", () => {

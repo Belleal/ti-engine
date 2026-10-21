@@ -87,6 +87,24 @@ declare class NotificationService {
      */
     get isEnabled(): boolean;
     /**
+     * The deployment's public base URL, without a trailing slash, or `null` when none is set: then a notice goes
+     * without a link.
+     *
+     * @property
+     * @returns {string|null}
+     * @public
+     */
+    get publicUrl(): string | null;
+    /**
+     * The name the transport gives itself, such as `log` or `cloudflare`, or `null` with none or a transport without
+     * one. `log` delivers nothing, which a feature that cannot work without mail needs to know.
+     *
+     * @property
+     * @returns {string|null}
+     * @public
+     */
+    get transportName(): string | null;
+    /**
      * Registers a notice an application sends. Registered at start-up, like a configuration document.
      *
      * <br/>
@@ -319,6 +337,26 @@ declare class NotificationService {
      * @public
      */
     sendTest(kind: string, recipient: TiNotificationRecipient, data?: Object, texts?: TiNoticeTexts): Promise<{
+        messageId: string | null;
+    }>;
+    /**
+     * Sends one notice straight away through the transport, past the outbox and the ledger, and makes one attempt: a
+     * notice that is useless once late, such as a sign-in link that expires in minutes. Nothing records it, nothing
+     * retries it, and the caller learns at once whether it went. It renders with the document's edited texts, or with
+     * the shipped labels alone when the document cannot be read, since a notice that must go now should not wait on it.
+     * <br/>
+     * The data is not stored anywhere, so it may carry what the outbox must not hold, such as a secret for the link.
+     *
+     * @method
+     * @param {string} kind A registered notice.
+     * @param {TiNotificationRecipient} recipient
+     * @param {Object} [data]
+     * @returns {Promise<{messageId: string|null}>}
+     * @throws {Error} (as a rejection) With `code` `E_NOTICE_TRANSPORT_OFF` while sending is off, `E_NOTICE_UNKNOWN` or `E_NOTICE_LABEL_MISSING`, or the transport's own code.
+     * @throws {TiException.E_GEN_INVALID_ARGUMENT_TYPE} (as a rejection) For a malformed recipient.
+     * @public
+     */
+    sendNow(kind: string, recipient: TiNotificationRecipient, data?: Object): Promise<{
         messageId: string | null;
     }>;
     /**

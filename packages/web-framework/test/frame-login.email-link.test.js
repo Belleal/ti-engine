@@ -1,0 +1,353 @@
+/*
+ * The ti-engine is an open source, free to use—both for personal and commercial projects—framework for the creation of microservice-based solutions using node.js.
+ * Copyright © 2021-2026 Boris Kostadinov <kostadinov.boris@gmail.com>
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+*/
+
+/**
+ * The sign-in page's e-mail link block (1.57.0, CA-537): what the shipped fragment holds, and what `tiLoginEmailLink`
+ * and `tiLoginError` do with the address bar, driven through the real script in the framework sandbox.
+ */
+
+const { describe, it } = require( "node:test" );
+const assert = require( "node:assert/strict" );
+const fs = require( "node:fs" );
+const path = require( "node:path" );
+const { loadTiFramework } = require( "./helpers/ti-framework-sandbox.js" );
+
+const fragment = fs.readFileSync( path.join( __dirname, "..", "bin", "static", "fragments", "frame-login.html" ), "utf8" );
+const styles = fs.readFileSync( path.join( __dirname, "..", "bin", "static", "scripts", "ti-framework.css" ), "utf8" );
+const TOKEN = "Ab0_-".repeat( 8 ) + "xyz";
+
+const block = () => {
+    const start = fragment.indexOf( "<!--ti-auth-method:email-link-->" );
+    const end = fragment.indexOf( "<!--/ti-auth-method-->", start );
+    assert.ok( start >= 0 && end > start, "the e-mail link block must be in the fragment" );
+    return fragment.slice( start, end );
+};
+
+describe( "the e-mail link block on the sign-in page", () => {
+
+    it( "posts both of its forms to /login/email-link with the page's CSRF token", () => {
+        const forms = block().match( /<form[^>]*>[\s\S]*?<\/form>/g );
+        assert.equal( forms.length, 2 );
+        forms.forEach( ( form ) => {
+            assert.match( form, /action="\/login\/email-link" method="post"/ );
+            assert.ok( form.includes( "name=\"_csrf\" value='{ti-csrf-placeholder}'" ) );
+        } );
+        assert.ok( forms.some( ( form ) => /name="token" x-bind:value="token"/.test( form ) ), "one form carries the token" );
+        assert.ok( forms.some( ( form ) => /<p class="ti-login-address" x-text="email"><\/p>/.test( form ) && /x-bind:disabled="checking \|\| sending"/.test( form ) ), "and shows the address it signs in" );
+        forms.forEach( ( form ) => {
+            assert.match( form, /^<form[^>]*x-on:submit="markSending"/, "each form holds its button down once sent" );
+            assert.match( form, /type="submit"[^>]*x-bind:disabled="[^"]*sending/ );
+        } );
+        assert.match( block(), /x-data="tiLoginEmailLink" x-on:pageshow\.window="resetSending"/, "a page brought back by Back works again" );
+        assert.ok( forms.some( ( form ) => /name="email"[\s\S]*type="email"[\s\S]*required/.test( form ) ), "one asks for the address" );
+    } );
+
+    it( "shows the address form before the script runs, and hides the other steps until it does", () => {
+        const ask = block().match( /<form x-show="step === 'ask'"[^>]*>/ );
+        assert.ok( ask, "the address form is the ask step" );
+        assert.ok( !ask[ 0 ].includes( "x-cloak" ), "with no script, the address form still works" );
+        assert.match( block(), /<form x-show="step === 'confirm'" x-cloak/ );
+        assert.match( block(), /<div x-show="step === 'sent'" x-cloak/ );
+        assert.match( styles, /\.ti-login-email-link \[x-cloak\]\s*\{\s*display:\s*none !important;/, "x-cloak needs a rule, or it hides nothing" );
+    } );
+
+    it( "registers its component with Alpine", () => {
+        const { components } = loadTiFramework();
+        assert.equal( typeof components.tiLoginEmailLink, "function" );
+    } );
+
+} );
+
+/**
+ * Initializes a sign-in page component against a stubbed address bar and reports what it did.
+ *
+ * @method
+ * @param {string} name The component's registered name.
+ * @param {string} href
+ * @returns {{component: Object, replaced: string[]}}
+ * @private
+ */
+function start( name, href, peek = () => Promise.resolve( { isSuccessful: true, data: { email: "parent@example.com" } } ) ) {
+    const { components, sandbox, stores } = loadTiFramework();
+    const asked = [];
+    stores.tiApplication.sendRequest = ( url, method, data ) => {
+        asked.push( { url, method, data } );
+        return peek();
+    };
+    const url = new URL( href );
+    const replaced = [];
+    const location = { href: href, pathname: url.pathname, search: url.search, hash: url.hash };
+    sandbox.URL = URL;
+    sandbox.URLSearchParams = URLSearchParams;
+    sandbox.location = location;
+    sandbox.history = {
+        replaceState: ( state, title, next ) => {
+            replaced.push( next );
+            // As a browser does, so a second rewrite sees the first.
+            const now = new URL( next, href );
+            location.href = now.href;
+            location.pathname = now.pathname;
+            location.search = now.search;
+            location.hash = now.hash;
+        }
+    };
+    const component = components[ name ]();
+    const settled = component.init();
+    return { component: component, store: stores.tiApplication, replaced: replaced, asked: asked, settled: Promise.resolve( settled ).then( () => new Promise( ( resolve ) => setImmediate( resolve ) ) ) };
+}
+
+describe( "tiLoginEmailLink", () => {
+
+    it( "opens on the address form when the address bar says nothing", () => {
+        const { component, replaced } = start( "tiLoginEmailLink", "https://app.example.com/" );
+        assert.equal( component.step, "ask" );
+        assert.equal( component.message, "" );
+        assert.deepEqual( replaced, [] );
+    } );
+
+    it( "takes a link's token out of the address bar at once and asks the person to continue", () => {
+        const { component, replaced } = start( "tiLoginEmailLink", `https://app.example.com/app?keep=1#email-link=${ TOKEN }` );
+        assert.equal( component.step, "confirm" );
+        assert.equal( component.token, TOKEN );
+        assert.equal( replaced[ replaced.length - 1 ], "/app?keep=1", "the path and the query survive, the fragment goes" );
+    } );
+
+    it( "asks which address the link signs in, without spending it, and shows it before Continue", async () => {
+        const { component, asked, settled } = start( "tiLoginEmailLink", `https://app.example.com/#email-link=${ TOKEN }` );
+        assert.equal( component.checking, true, "Continue waits for the answer" );
+        // Through JSON, because the data was built inside the sandbox, whose objects have its own prototypes.
+        assert.deepEqual( JSON.parse( JSON.stringify( asked ) ), [ { url: "/login/email-link", method: "POST", data: { token: TOKEN, peek: true } } ] );
+        await settled;
+        assert.equal( component.checking, false );
+        assert.equal( component.email, "parent@example.com" );
+        assert.equal( component.step, "confirm" );
+        component.askAgain();
+        assert.equal( component.step, "ask" );
+        assert.equal( component.token, "", "Not you? drops the link" );
+    } );
+
+    it( "sends a link that can sign nobody in back to the address form, saying so", async () => {
+        const { component, settled } = start( "tiLoginEmailLink", `https://app.example.com/#email-link=${ TOKEN }`, () => Promise.resolve( { isSuccessful: true, data: { email: null } } ) );
+        await settled;
+        assert.equal( component.step, "ask" );
+        assert.equal( component.message, "expired" );
+        assert.equal( component.token, "" );
+    } );
+
+    it( "still lets the person continue when the question fails, without the address", async () => {
+        const { component, settled } = start( "tiLoginEmailLink", `https://app.example.com/#email-link=${ TOKEN }`, () => Promise.reject( new Error( "offline" ) ) );
+        await settled;
+        assert.equal( component.step, "confirm" );
+        assert.equal( component.checking, false );
+        assert.equal( component.email, "" );
+    } );
+
+    it( "says the link is on its way, and lets the person use another address", () => {
+        const { component, replaced } = start( "tiLoginEmailLink", "https://app.example.com/?email-link=sent" );
+        assert.equal( component.step, "sent" );
+        assert.deepEqual( replaced, [ "/" ], "read once, like ?error=" );
+        component.askAgain();
+        assert.equal( component.step, "ask" );
+    } );
+
+    it( "explains a request that did not send, on the address form", () => {
+        for ( const outcome of [ "limited", "unavailable", "invalid-address", "expired" ] ) {
+            const { component } = start( "tiLoginEmailLink", `https://app.example.com/?email-link=${ outcome }` );
+            assert.equal( component.step, "ask" );
+            assert.equal( component.message, outcome );
+            component.askAgain();
+            assert.equal( component.message, "", "asking again clears it" );
+        }
+    } );
+
+    it( "ignores an outcome it does not know, which nothing it answers can carry", () => {
+        const { component } = start( "tiLoginEmailLink", "https://app.example.com/?email-link=%3Cscript%3E" );
+        assert.equal( component.step, "ask" );
+        assert.equal( component.message, "" );
+    } );
+
+    it( "has a block for every message the address form shows", () => {
+        for ( const outcome of [ "limited", "unavailable", "invalid-address", "expired" ] ) {
+            assert.ok( block().includes( `x-show="message === '${ outcome }'"` ), outcome );
+        }
+    } );
+
+} );
+
+describe( "tiLoginEmailLink — sending once", () => {
+
+    it( "holds the buttons down once a form is on its way, and lets them go on a page brought back from the cache", () => {
+        const { component } = start( "tiLoginEmailLink", "https://app.example.com/" );
+        assert.equal( component.sending, false );
+        component.markSending();
+        assert.equal( component.sending, true );
+        component.resetSending( { persisted: true } );
+        assert.equal( component.sending, false );
+        assert.equal( component.step, "ask" );
+    } );
+
+    it( "lets the buttons go after a while anyway, for a request that was stopped or lost", () => {
+        const { components, sandbox } = loadTiFramework();
+        const timers = [];
+        sandbox.setTimeout = ( callback, delay ) => timers.push( { callback, delay } ) && timers.length;
+        sandbox.clearTimeout = () => {};
+        const component = components.tiLoginEmailLink();
+        component.markSending();
+        assert.equal( component.sending, true );
+        assert.equal( timers.length, 1 );
+        assert.ok( timers[ 0 ].delay >= 3000 && timers[ 0 ].delay <= 15000, `long enough to stop a double click, short enough to retry: ${ timers[ 0 ].delay } ms` );
+        timers[ 0 ].callback();
+        assert.equal( component.sending, false );
+    } );
+
+    it( "keeps the link for the tab until it is posted, declined or found spent, so a reload of the Continue step finds it", async () => {
+        const posted = start( "tiLoginEmailLink", `https://app.example.com/#email-link=${ TOKEN }` );
+        await posted.settled;
+        posted.component.markSending();
+        assert.equal( posted.store.takeSignInLink(), null, "posted: whatever comes back, the link is spent" );
+
+        const declined = start( "tiLoginEmailLink", `https://app.example.com/#email-link=${ TOKEN }` );
+        await declined.settled;
+        assert.equal( declined.store.takeSignInLink(), TOKEN, "a reload finds it" );
+        declined.component.askAgain();
+        assert.equal( declined.store.takeSignInLink(), null, "declined" );
+
+        const spent = start( "tiLoginEmailLink", `https://app.example.com/#email-link=${ TOKEN }`, () => Promise.resolve( { isSuccessful: true, data: { email: null } } ) );
+        await spent.settled;
+        assert.equal( spent.store.takeSignInLink(), null, "a link that can sign nobody in is not kept" );
+
+        const asking = start( "tiLoginEmailLink", "https://app.example.com/" );
+        asking.store.signInLink = TOKEN;
+        asking.store.takeSignInLink();
+        asking.component.markSending();
+        assert.equal( asking.store.takeSignInLink(), null );
+    } );
+
+    it( "drops a Continue step that Back brought back after Continue was pressed, and keeps one left another way", async () => {
+        const { component, settled } = start( "tiLoginEmailLink", `https://app.example.com/#email-link=${ TOKEN }` );
+        await settled;
+        component.resetSending( { persisted: true } );
+        assert.equal( component.step, "confirm", "left by another link, the page keeps its unspent link" );
+        assert.equal( component.token, TOKEN );
+        component.markSending();
+        component.resetSending( { persisted: false } );
+        assert.equal( component.step, "confirm", "a first showing of the page keeps it" );
+        component.markSending();
+        component.resetSending( { persisted: true } );
+        assert.equal( component.step, "ask", "the press that left the page most likely spent it" );
+        assert.equal( component.token, "" );
+    } );
+
+} );
+
+describe( "a sign-in link and the shell", () => {
+
+    function shell( href, { bar = true } = {} ) {
+        const { stores, sandbox, documentListeners, windowListeners } = loadTiFramework();
+        const url = new URL( href );
+        const replaced = [];
+        const notified = [];
+        sandbox.URLSearchParams = URLSearchParams;
+        const location = { href: href, pathname: url.pathname, search: url.search, hash: url.hash };
+        sandbox.location = location;
+        sandbox.history = {
+            replaceState: ( state, title, next ) => {
+                replaced.push( next );
+                // As a browser does, so the address the next read sees is the rewritten one.
+                const now = new URL( next, href );
+                Object.assign( location, { href: now.href, pathname: now.pathname, search: now.search, hash: now.hash } );
+            }
+        };
+        let barPresent = bar;
+        sandbox.document.querySelector = ( selector ) => ( selector === "#ti-notifications" && barPresent ) ? {} : null;
+        const store = stores.tiApplication;
+        store.notify = ( message ) => notified.push( message );
+        store.configuration = { labels: {} };
+        return { store, sandbox, location, replaced, notified, documentListeners, windowListeners, showBar: () => {
+            barPresent = true;
+        } };
+    }
+
+    it( "takes the token out of the address bar as the shell starts, before a frame can push another address", () => {
+        const { store, replaced } = shell( `https://app.example.com/?keep=1#email-link=${ TOKEN }` );
+        store._stashSignInLink();
+        assert.deepEqual( replaced, [ "/?keep=1" ] );
+        assert.equal( store.takeSignInLink(), TOKEN, "the sign-in page takes it" );
+        assert.equal( store.takeSignInLink(), TOKEN, "and finds it again after a reload, which starts with nothing in the address" );
+        store.forgetSignInLink();
+        assert.equal( store.takeSignInLink(), null, "until it is forgotten" );
+        const script = fs.readFileSync( path.join( __dirname, "..", "bin", "static", "scripts", "ti-framework.js" ), "utf8" );
+        assert.match( script, /init\(\) \{\s*\/\/ First, before any frame can push another address over the one holding the token\.\s*this\._stashSignInLink\(\);/ );
+    } );
+
+    it( "in a browser already signed in, says how to use the link", () => {
+        const { store, notified } = shell( `https://app.example.com/#email-link=${ TOKEN }` );
+        store._stashSignInLink();
+        store._explainSignInLink();
+        assert.equal( notified.length, 1 );
+        assert.match( notified[ 0 ], /already signed in/ );
+        store._explainSignInLink();
+        assert.equal( notified.length, 1, "once" );
+        const script = fs.readFileSync( path.join( __dirname, "..", "bin", "static", "scripts", "ti-framework.js" ), "utf8" );
+        assert.match( script, /this\.isInitialized = true;\s*if \( this\.user \) \{\s*this\._explainSignInLink\(\);\s*this\.forgetSignInLink\(\);/, "asked once /me has said who is signed in, and nothing kept" );
+    } );
+
+    it( "loads the page again when a link is opened in a tab already showing it, which changes only the fragment", () => {
+        const { store, location, windowListeners } = shell( "https://app.example.com/" );
+        let reloads = 0;
+        location.reload = () => {
+            reloads += 1;
+        };
+        store.sendRequest = () => new Promise( () => {} );
+        store.init();
+        const hashchange = () => ( windowListeners.get( "hashchange" ) || [] ).forEach( ( handler ) => handler() );
+        assert.equal( ( windowListeners.get( "hashchange" ) || [] ).length, 1 );
+        location.hash = "#section";
+        hashchange();
+        assert.equal( reloads, 0, "any other fragment is the page's own" );
+        location.hash = `#email-link=${ TOKEN }`;
+        hashchange();
+        assert.equal( reloads, 1 );
+    } );
+
+    it( "waits for the notification bar, which may arrive after /me has answered", async () => {
+        const { store, notified, documentListeners, showBar } = shell( `https://app.example.com/#email-link=${ TOKEN }`, { bar: false } );
+        store._stashSignInLink();
+        store._explainSignInLink();
+        assert.equal( notified.length, 0, "notify would have dropped it" );
+        const settle = () => ( documentListeners.get( "htmx:afterSettle" ) || [] ).forEach( ( handler ) => handler() );
+        settle();
+        await new Promise( ( resolve ) => setTimeout( resolve, 5 ) );
+        assert.equal( notified.length, 0, "not while the bar is still missing" );
+        showBar();
+        settle();
+        settle();
+        await new Promise( ( resolve ) => setTimeout( resolve, 5 ) );
+        assert.equal( notified.length, 1, "once the bar is there, and only once" );
+    } );
+
+    it( "leaves any other address alone", () => {
+        for ( const href of [ "https://app.example.com/", "https://app.example.com/#section", "https://app.example.com/#email-link=" ] ) {
+            const { store, replaced, notified } = shell( href );
+            store._stashSignInLink();
+            store._explainSignInLink();
+            assert.deepEqual( replaced, [], href );
+            assert.deepEqual( notified, [], href );
+        }
+    } );
+
+} );

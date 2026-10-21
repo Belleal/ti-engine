@@ -17,6 +17,8 @@
 
 const { describe, it } = require( "node:test" );
 const assert = require( "node:assert/strict" );
+const fs = require( "node:fs" );
+const path = require( "node:path" );
 const { applyAuthMethodVisibility } = require( "#web-app-manager" );
 
 // A minimal login fragment carrying the same markers frame-login.html uses: a local form, an "or continue with"
@@ -123,6 +125,63 @@ describe( "applyAuthMethodVisibility", () => {
         const elapsedMs = Number( process.hrtime.bigint() - start ) / 1e6;
         assert.ok( !hasMarkers( out ), "stray markers should still be stripped" );
         assert.ok( elapsedMs < 500, `expected linear-time handling, took ${ elapsedMs.toFixed( 1 ) }ms` );
+    } );
+
+} );
+
+/**
+ * The e-mail link (1.57.0, CA-537) is a second form beside the local one, so the shipped fragment is used here rather
+ * than a sketch of it: what is checked is what a visitor gets. The "or" between the two forms shows only when both are
+ * enabled, and the "or continue with" divider whenever either form and a provider are.
+ */
+describe( "applyAuthMethodVisibility — the e-mail link, on the shipped sign-in page", () => {
+
+    const FRAGMENT = fs.readFileSync( path.join( __dirname, "..", "bin", "static", "fragments", "frame-login.html" ), "utf8" );
+
+    const hasEmailLink = ( html ) => html.includes( "action=\"/login/email-link\"" );
+    const hasFormDivider = ( html ) => html.includes( "x-text-label=\"interface.default.login.or\"" );
+    const hasContinueWith = ( html ) => html.includes( "interface.default.login.or-continue-with" );
+    const render = ( methods ) => applyAuthMethodVisibility( FRAGMENT, methods );
+
+    it( "e-mail link only: its form, and no divider of either kind", () => {
+        const out = render( [ "email-link" ] );
+        assert.ok( hasEmailLink( out ) );
+        assert.ok( !hasLocal( out ) && !hasGoogle( out ) && !hasAzure( out ) );
+        assert.ok( !hasFormDivider( out ) && !hasContinueWith( out ) );
+        assert.ok( !out.includes( "interface.default.login.no-sign-in-method" ) );
+        assert.ok( !hasMarkers( out ) );
+    } );
+
+    it( "e-mail link and local: both forms, the e-mail link first, with an \"or\" between them", () => {
+        const out = render( [ "local", "email-link" ] );
+        assert.ok( hasEmailLink( out ) && hasLocal( out ) );
+        assert.ok( hasFormDivider( out ) );
+        assert.ok( !hasContinueWith( out ) );
+        assert.ok( out.indexOf( "/login/email-link" ) < out.indexOf( "interface.default.login.or\"" ) );
+        assert.ok( out.indexOf( "interface.default.login.or\"" ) < out.indexOf( "/login/local" ) );
+        assert.ok( !hasMarkers( out ) );
+    } );
+
+    it( "e-mail link and a provider: the form, then \"or continue with\", then the provider", () => {
+        const out = render( [ "email-link", "openid-google" ] );
+        assert.ok( hasEmailLink( out ) && hasGoogle( out ) );
+        assert.ok( !hasLocal( out ) && !hasAzure( out ) );
+        assert.ok( hasContinueWith( out ) );
+        assert.ok( !hasFormDivider( out ) );
+        assert.ok( !hasMarkers( out ) );
+    } );
+
+    it( "everything: both forms with their \"or\", and the providers after \"or continue with\"", () => {
+        const out = render( [ "email-link", "local", "openid-google", "openid-azure" ] );
+        assert.ok( hasEmailLink( out ) && hasLocal( out ) && hasGoogle( out ) && hasAzure( out ) );
+        assert.ok( hasFormDivider( out ) && hasContinueWith( out ) );
+        assert.ok( !hasMarkers( out ) );
+    } );
+
+    it( "leaves the e-mail link out wherever it is not enabled, as before it existed", () => {
+        const out = render( [ "local", "openid-google" ] );
+        assert.ok( !hasEmailLink( out ) && !hasFormDivider( out ) );
+        assert.ok( !out.includes( "tiLoginEmailLink" ) );
     } );
 
 } );

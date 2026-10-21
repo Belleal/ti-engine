@@ -1,9 +1,14 @@
 import type { TiLocalizationLanguage } from "@ti-engine/core/localization";
+import type { TiAuthMethod } from "#auth-manager";
 export type TiSessionCallback = (error?: Error | null) => void;
 export type TiSession = {
     id: string;
     user?: Object;
     language?: TiLocalizationLanguage;
+    /**
+     * The method the session signed in with (1.57.0).
+     */
+    authMethod?: TiAuthMethod;
     cookie?: Object;
     oidc?: Object;
     csrfToken?: string;
@@ -193,6 +198,30 @@ export type TiNotificationRecipient = {
      * The deployment's language unless stated.
      */
     language?: TiLocalizationLanguage;
+};
+export type TiEmailLinkRequest = {
+    /**
+     * The address as the form sent it; checked and normalized by `EmailLink.normalizeAddress`.
+     */
+    email: any;
+    /**
+     * The client's network address, which the per-client hourly limit counts.
+     */
+    client?: string;
+    /**
+     * The language the request was answered in: the e-mail's, and the session's after it.
+     */
+    language?: string;
+};
+export type TiEmailLinkRedeemed = {
+    /**
+     * Trimmed and lower-cased.
+     */
+    address: string;
+    /**
+     * The language the link was asked for in.
+     */
+    language?: string;
 };
 export type TiNoticeDefinition = {
     /**
@@ -605,6 +634,7 @@ export type TiFeedbackItem = {
     statusChangedBy: string | null;
 };
 /** @import { TiLocalizationLanguage } from "@ti-engine/core/localization" */
+/** @import { TiAuthMethod } from "#auth-manager" */
 /**
  * @callback TiSessionCallback
  * @param {Error|null} [error]
@@ -615,6 +645,7 @@ export type TiFeedbackItem = {
  * @property {string} id
  * @property {Object} [user]
  * @property {TiLocalizationLanguage} [language]
+ * @property {TiAuthMethod} [authMethod] The method the session signed in with (1.57.0).
  * @property {Object} [cookie]
  * @property {Object} [oidc]
  * @property {string} [csrfToken]
@@ -745,6 +776,22 @@ export type TiFeedbackItem = {
  * @property {string} email
  * @property {string} [name] Shown beside the address.
  * @property {TiLocalizationLanguage} [language] The deployment's language unless stated.
+ */
+/**
+ * A request for a sign-in link, as the login handler passes it to `AuthManager#authenticate` and it reaches
+ * `EmailLink#request` (CA-537).
+ *
+ * @typedef {Object} TiEmailLinkRequest
+ * @property {*} email The address as the form sent it; checked and normalized by `EmailLink.normalizeAddress`.
+ * @property {string} [client] The client's network address, which the per-client hourly limit counts.
+ * @property {string} [language] The language the request was answered in: the e-mail's, and the session's after it.
+ */
+/**
+ * What a spent sign-in link signs in: `EmailLink#redeem` gives it to `AuthManager`, which makes the session's user of it.
+ *
+ * @typedef {Object} TiEmailLinkRedeemed
+ * @property {string} address Trimmed and lower-cased.
+ * @property {string} [language] The language the link was asked for in.
  */
 /**
  * A notice an application sends.

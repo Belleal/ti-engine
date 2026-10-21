@@ -164,8 +164,9 @@ const RE_HTMX_CONFIG = /\{ti-htmx-config-placeholder}/g;
 const RE_CSP_NONCE = /^[A-Za-z0-9+/=_-]{16,}$/;
 const TI_NESTED_FRAME_PLACEHOLDER = "ti-nested-frame-placeholder";
 const OAUTH_METHODS = [ "openid-google", "openid-azure" ];
-const ALL_METHODS = [ "local", "openid-google", "openid-azure" ];
-const RE_AUTH_MARKERS = /<!--\/?ti-auth-(?:divider|social|none|method(?::[a-z-]+)?)-->/g;
+const FORM_METHODS = [ "email-link", "local" ];
+const ALL_METHODS = [ ...FORM_METHODS, ...OAUTH_METHODS ];
+const RE_AUTH_MARKERS = /<!--\/?ti-auth-(?:divider|form-divider|social|none|method(?::[a-z-]+)?)-->/g;
 
 /**
  * Removes every `<openMarker>…<closeMarker>` span (inclusive) from `html` in a single linear pass. The markers are
@@ -203,13 +204,14 @@ function stripMarkerSpans( html, openMarker, closeMarker ) {
 /**
  * Gates the login-page authentication markup to the effective enabled methods. The login fragment delimits blocks
  * with HTML-comment markers: `<!--ti-auth-method:METHOD-->…<!--/ti-auth-method-->` around each method's control
- * (the `local` credentials form and each OpenID provider button), `<!--ti-auth-divider-->…<!--/ti-auth-divider-->`
- * around the "or continue with" separator, `<!--ti-auth-social-->…<!--/ti-auth-social-->` around the SSO button
- * group, and `<!--ti-auth-none-->…<!--/ti-auth-none-->` around a "no method configured" fallback. It removes the
- * block for any method that is not enabled, drops the social group when no SSO provider is enabled, shows the
- * divider only when a local form AND at least one SSO provider are both present, and shows the fallback only when
- * nothing is enabled. Any remaining markers are stripped so clean HTML ships. Fragments without these markers
- * (every non-login fragment) are returned unchanged.
+ * (the `email-link` and `local` forms and each OpenID provider button), `<!--ti-auth-form-divider-->…<!--/ti-auth-form-divider-->`
+ * around the "or" between the two forms, `<!--ti-auth-divider-->…<!--/ti-auth-divider-->` around the "or continue
+ * with" separator, `<!--ti-auth-social-->…<!--/ti-auth-social-->` around the SSO button group, and
+ * `<!--ti-auth-none-->…<!--/ti-auth-none-->` around a "no method configured" fallback. It removes the block for any
+ * method that is not enabled, drops the social group when no SSO provider is enabled, shows the "or" only when both
+ * forms are present, shows the "or continue with" divider only when a form AND at least one SSO provider are both
+ * present, and shows the fallback only when nothing is enabled. Any remaining markers are stripped so clean HTML
+ * ships. Fragments without these markers (every non-login fragment) are returned unchanged.
  *
  * @param {string} html
  * @param {string[]} [enabledMethods] The effective enabled authentication methods.
@@ -218,7 +220,7 @@ function stripMarkerSpans( html, openMarker, closeMarker ) {
 function applyAuthMethodVisibility( html, enabledMethods ) {
     let result = String( html );
     const enabled = Array.isArray( enabledMethods ) ? enabledMethods : [];
-    const localEnabled = enabled.includes( "local" );
+    const formsEnabled = FORM_METHODS.filter( ( method ) => enabled.includes( method ) ).length;
     const anyOAuth = OAUTH_METHODS.some( ( method ) => enabled.includes( method ) );
 
     // Drop the block for each authentication method that is not enabled.
@@ -233,13 +235,18 @@ function applyAuthMethodVisibility( html, enabledMethods ) {
         result = stripMarkerSpans( result, "<!--ti-auth-social-->", "<!--/ti-auth-social-->" );
     }
 
-    // Show the "or continue with" divider only when BOTH a local form and at least one SSO provider are present.
-    if ( !( localEnabled && anyOAuth ) ) {
+    // Show the "or" between the e-mail link and the local form only when both are present.
+    if ( formsEnabled < 2 ) {
+        result = stripMarkerSpans( result, "<!--ti-auth-form-divider-->", "<!--/ti-auth-form-divider-->" );
+    }
+
+    // Show the "or continue with" divider only when BOTH a form and at least one SSO provider are present.
+    if ( !( formsEnabled > 0 && anyOAuth ) ) {
         result = stripMarkerSpans( result, "<!--ti-auth-divider-->", "<!--/ti-auth-divider-->" );
     }
 
     // Show the "no method configured" fallback only when nothing is enabled.
-    if ( localEnabled || anyOAuth ) {
+    if ( formsEnabled > 0 || anyOAuth ) {
         result = stripMarkerSpans( result, "<!--ti-auth-none-->", "<!--/ti-auth-none-->" );
     }
 

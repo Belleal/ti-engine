@@ -3,6 +3,7 @@ import User = require("#user");
 import type { SettingsAuth } from "#web-server";
 export type TiAuthMethod = string;
 /** @import { SettingsAuth } from "#web-server" */
+/** @import { TiEmailLinkRequest } from "#definitions" */
 /**
  * Enum for specifying the authentication method.
  *
@@ -12,6 +13,7 @@ export type TiAuthMethod = string;
  */
 declare const authMethodEnum: import("@ti-engine/core/definitions").TiEnumOf<{
     LOCAL: string[];
+    EMAIL_LINK: string[];
     OPENID_AZURE: string[];
     OPENID_GOOGLE: string[];
 }>;
@@ -77,6 +79,10 @@ declare class AuthManager {
      * but a caller that invokes it without having just authenticated bypasses password verification entirely.
      * The framework's own login route always calls `authenticate()` first (see `web-handlers.js`); this method
      * is public on both `AuthManager` and `TiWebServer`, so any other caller must preserve that ordering itself.
+     * <br/>
+     * `EMAIL_LINK` is the exception: its `authenticate()` sent a link some minutes earlier, and this spends the
+     * token the link carried (`oidc.token`). That is its whole check, so it refuses a token that is malformed, unknown,
+     * already spent or expired with `E_SEC_INVALID_AUTH_TOKEN`.
      *
      * @method
      * @param {TiAuthMethod} authMethod
@@ -87,6 +93,19 @@ declare class AuthManager {
      * @public
      */
     authorize(authMethod: TiAuthMethod, currentUrl: URL, oidc: Object): Promise<User>;
+    /**
+     * The address a sign-in link would sign in, without spending it, or `null` when it could not sign anybody in. The
+     * sign-in page shows the address before the person continues, so that a link somebody else asked for, for their
+     * own address, is not followed into their account unnoticed. It reads and changes nothing else: no attempt is
+     * counted and the link stays as it was.
+     *
+     * @method
+     * @param {*} token
+     * @returns {Promise<string|null>}
+     * @throws {TiException.E_SEC_UNRECOGNIZED_AUTH_METHOD} (as a rejection) When the `email-link` method is not enabled.
+     * @public
+     */
+    peekEmailLink(token: any): Promise<string | null>;
     /**
      * Used to get the callback URL for the specified OAuth2 authentication method.
      *

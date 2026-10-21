@@ -92,6 +92,7 @@ const loadTiFramework = () => {
     const components = {};
     const directives = {};
     const documentListeners = new Map();
+    const windowListeners = new Map();
     const effects = [];
 
     const Alpine = {
@@ -132,6 +133,7 @@ const loadTiFramework = () => {
         Alpine: Alpine,
         document: documentStub,
         localStorage: createStorage(),
+        sessionStorage: createStorage(),
         // The host's timers; a test that needs to drive time replaces them on the returned sandbox.
         setTimeout: setTimeout,
         clearTimeout: clearTimeout
@@ -143,7 +145,9 @@ const loadTiFramework = () => {
     sandbox.innerHeight = 800;
     sandbox.scrollX = 0;
     sandbox.scrollY = 0;
-    sandbox.addEventListener = () => {};
+    sandbox.addEventListener = ( type, handler ) => {
+        windowListeners.set( type, ( windowListeners.get( type ) || [] ).concat( handler ) );
+    };
     sandbox.removeEventListener = () => {};
     sandbox.dispatchEvent = () => {};
 
@@ -152,7 +156,7 @@ const loadTiFramework = () => {
 
     ( documentListeners.get( "alpine:init" ) || [] ).forEach( ( handler ) => handler() );
 
-    return { stores: stores, components: components, directives: directives, sandbox: sandbox, documentListeners: documentListeners, effects: effects };
+    return { stores: stores, components: components, directives: directives, sandbox: sandbox, documentListeners: documentListeners, windowListeners: windowListeners, effects: effects };
 };
 
 module.exports = { loadTiFramework: loadTiFramework, SCRIPT_PATH: SCRIPT_PATH };

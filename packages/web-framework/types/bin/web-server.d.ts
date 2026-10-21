@@ -14,10 +14,41 @@ export type ApiConfig = {
 export type SettingsAuth = {
     enabledMethods: string[];
     local: SettingsAuthLocal;
+    emailLink?: SettingsAuthEmailLink;
     oauth2: {
         azure?: SettingsOAuth2Client;
         google?: SettingsOAuth2Client;
     };
+};
+export type SettingsAuthEmailLink = {
+    /**
+     * How long a link works, 15 unless stated; at most a day.
+     */
+    lifetimeMinutes?: number;
+    /**
+     * The e-mail domains that may sign in this way (see
+     * `TI_WEB_AUTH_EMAIL_LINK_ALLOWED_DOMAINS`). Empty or absent admits any domain.
+     */
+    allowedDomains?: string[];
+    /**
+     * How many links one address may be sent in an hour, 5 unless stated.
+     */
+    hourlyLimitPerAddress?: number;
+    /**
+     * How many links one client network may ask for in an hour, 30 unless
+     * stated: an IPv4 address, or an IPv6 address's `/64`.
+     */
+    hourlyLimitPerClient?: number;
+    /**
+     * How many links may be sent in an hour altogether, 100 unless stated. Below what
+     * the mail provider allows, so that the other notices keep a share of it.
+     */
+    hourlyLimitOverall?: number;
+    /**
+     * Whether a session signed in by e-mail link may hold the `admin` role its address
+     * earns on `auth.admins`; `false` unless stated, since a link proves only that its holder reads the mailbox.
+     */
+    grantsAdmin?: boolean;
 };
 export type SettingsAuthLocal = {
     /**
@@ -379,6 +410,10 @@ declare class TiWebServer extends ServiceConsumer {
      * user from the directory record named by `oidc.username`, verifying that the record exists and is not disabled
      * but performing no password comparison of its own; the framework's own login route calls `authenticate` first.
      * Calling this directly without that preceding step would mint a session for any known username.
+     * <br/>
+     * `email-link` is the exception: its `authenticate` sends a link, and this, given the link's `oidc.token`, is the
+     * whole check. It spends the token, and refuses one that is malformed, unknown, already spent or expired with
+     * `E_SEC_INVALID_AUTH_TOKEN`.
      *
      * @method
      * @param {TiAuthMethod} authMethod
@@ -388,6 +423,16 @@ declare class TiWebServer extends ServiceConsumer {
      * @public
      */
     authorize(authMethod: TiAuthMethod, currentUrl: URL, oidc: Object): Promise<User>;
+    /**
+     * The address a sign-in link would sign in, without spending it, or `null` when it could not sign anybody in (see
+     * {@link AuthManager#peekEmailLink}). The sign-in page asks before it shows Continue.
+     *
+     * @method
+     * @param {*} token
+     * @returns {Promise<string|null>}
+     * @public
+     */
+    peekEmailLink(token: any): Promise<string | null>;
     /**
      * Used to get a service mapping if such exists.
      *

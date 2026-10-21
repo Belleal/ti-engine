@@ -25,6 +25,7 @@ const helmet = require( "helmet" );
 const onHeaders = require( "on-headers" );
 const cache = require( "@ti-engine/core/cache" );
 const authMethod = require( "#auth-manager" ).authMethod;
+const EmailLink = require( "#email-link" );
 const authorization = require( "#authorization" );
 
 /** @import { TiAuthMethod } from "#auth-manager" */
@@ -551,9 +552,26 @@ module.exports.resourceProtectionHandler = ( instance ) => {
 };
 
 /**
+ * Whether the way a session signed in keeps the `admin` role from it. A sign-in link proves only that its holder can
+ * read the address's mail: a delegate, a forwarding rule or a shared inbox can, and so can whoever has broken into the
+ * mailbox. An allowlist written for accounts at an identity provider would hand all of them the role once the method is
+ * enabled for the public, so an e-mail-link session holds it only where `auth.emailLink.grantsAdmin` is `true`.
+ *
+ * @method
+ * @param {TiWebServer} instance
+ * @param {TiSession} session
+ * @returns {boolean}
+ * @private
+ */
+let isAdminWithheldByMethod = ( instance, session ) => {
+    return !!session && session.authMethod === authMethod.EMAIL_LINK && instance.serviceConfig?.auth?.emailLink?.grantsAdmin !== true;
+};
+
+/**
  * Reconciles the session's `admin` role against the allowlist, asking the application first whether it withholds the
  * role from this session ({@link TiWebServer#withholdsAdminRole}). The one way both sign-in paths and the per-request
- * refresh apply the role, so the hook cannot be honoured on one and missed on another.
+ * refresh apply the role, so the hook cannot be honoured on one and missed on another. A session the way it signed in
+ * keeps from the role ({@link isAdminWithheldByMethod}) does not hold it, whatever the hook says.
  * <br/>
  * A hook that throws withholds nothing: the allowlist's answer stands. Withholding on a failure would lock an
  * administrator out of the access that exists to repair the application, while not withholding only shows them a role
@@ -567,8 +585,8 @@ module.exports.resourceProtectionHandler = ( instance ) => {
  * @private
  */
 let applyAdminRoleFor = ( instance, session, request ) => {
-    let withheld = false;
-    if ( session && session.user && typeof instance.withholdsAdminRole === "function" ) {
+    let withheld = isAdminWithheldByMethod( instance, session );
+    if ( !withheld && session && session.user && typeof instance.withholdsAdminRole === "function" ) {
         try {
             withheld = instance.withholdsAdminRole( session, request ) === true;
         } catch ( error ) {
@@ -581,7 +599,43 @@ let applyAdminRoleFor = ( instance, session, request ) => {
 };
 
 /**
- *Handler for server-side authentication.
+ * Signs a user in: a regenerated session holding the user, their language and the method they signed in with, then the
+ * application's `augmentSession`, which may refuse, and the `admin` allowlist. The one way every sign-in method ends, so
+ * none of them can build its session differently from the others.
+ *
+ * @method
+ * @param {TiWebServer} instance
+ * @param {ExpressRequest} request
+ * @param {User} user
+ * @param {TiAuthMethod} method
+ * @returns {Promise<string>} Where to send the browser: `/`.
+ * @private
+ */
+let signInUser = ( instance, request, user, method ) => {
+    return regenerateAndSaveSession( request, "/", ( session ) => {
+        session.user = user.asJSON();
+        session.language = resolveSessionLanguage( user, instance, readLanguageChoice( request, instance ) );
+        session.authMethod = method;
+
+        // No sign-in carries an OpenID state past its end. express-session's `regenerate` starts an empty session, so
+        // this matters only to a store whose `regenerate` keeps data; it was the OpenID callback's own line until all
+        // three methods came to share this one.
+        delete session.oidc;
+
+        const signedIn = applyAdminRoleFor( instance, instance.augmentSession( session, request ), request );
+        if ( isAdminWithheldByMethod( instance, signedIn ) && authorization.isAdminIdentity( signedIn.user, instance.serviceConfig?.auth?.admins ) ) {
+            // Said once, at sign-in, so an operator who finds an administrator without the role learns why.
+            logger.log( `User '${ signedIn.user.userID }' is on the admin allowlist but signed in by e-mail link, which does not carry the admin role unless 'auth.emailLink.grantsAdmin' is true.`, logger.logSeverity.NOTICE );
+        }
+        return signedIn;
+    } );
+};
+
+/**
+ * Handler for server-side authentication: `POST /login/local` checks a username and password, `GET /login/<provider>`
+ * starts an OpenID sign-in, and `POST /login/email-link` asks for a sign-in link (`email`), reads which
+ * address a link would sign in without spending it (`token` with `peek`, answered as JSON), or spends one (`token`). Every sign-in ends the same way: a regenerated session, the application's `augmentSession`, the `admin`
+ * allowlist, and a `303` to `/`; every refusal is a `401`, which the error handler turns into `/?error=<code>`.
  *
  * @method
  * @param {TiWebServer} instance
@@ -597,17 +651,64 @@ module.exports.authenticationHandler = ( instance ) => {
             instance.authenticate( authMethod.LOCAL, { username: username, password: password } ).then( () => {
                 return instance.authorize( authMethod.LOCAL, new URL( request.originalUrl, getBaseUrl( request ) ), { username: username } );
             } ).then( ( user ) => {
-                return regenerateAndSaveSession( request, "/", ( session ) => {
-                    session.user = user.asJSON();
-                    session.language = resolveSessionLanguage( user, instance, readLanguageChoice( request, instance ) );
-
-                    return applyAdminRoleFor( instance, instance.augmentSession( session, request ), request );
-                } );
+                return signInUser( instance, request, user, authMethod.LOCAL );
             } ).then( ( redirectTo ) => {
                 response.redirect( exceptions.httpCode.C_303, convertUriToString( redirectTo ) );
             } ).catch( ( error ) => {
                 next( exceptions.raise( error, null, exceptions.httpCode.C_401 ) );
             } );
+        } else if ( method === authMethod.EMAIL_LINK && request.method === "POST" ) {
+            // One form asks for a link, the other spends one: the sign-in page posts the token it read from the link's
+            // fragment, after the person pressed a button (see the design record, §3.3). A token wins over an address.
+            const token = request.body && request.body.token;
+            if ( typeof token === "string" && token !== "" && request.body.peek === true ) {
+                // The sign-in page asks which address the link signs in before showing Continue (see EmailLink#peek).
+                // Only a JSON body can say `true`, so a plain form post never lands here.
+                Promise.resolve().then( () => {
+                    return instance.peekEmailLink( token );
+                } ).then( ( email ) => {
+                    response.set( "Cache-Control", "no-store" );
+                    response.status( exceptions.httpCode.C_200 ).send( { isSuccessful: true, data: { email: email } } );
+                } ).catch( ( error ) => {
+                    // Passed on as it is. The one refusal, the method not enabled, is already a 401; anything else is
+                    // the store failing, and as a 401 its data (the store's address, an error's stack) would be in the
+                    // answer, which the error handler withholds only from a server error.
+                    next( error );
+                } );
+            } else if ( typeof token === "string" && token !== "" ) {
+                Promise.resolve().then( () => {
+                    return instance.authorize( authMethod.EMAIL_LINK, new URL( request.originalUrl, getBaseUrl( request ) ), { token: token } );
+                } ).then( ( user ) => {
+                    return signInUser( instance, request, user, authMethod.EMAIL_LINK );
+                }, ( error ) => {
+                    // A link that can no longer sign anybody in is the e-mail link's own answer, which its block on the
+                    // sign-in page explains. Read here, from `authorize` alone: the code is shared, and an application's
+                    // `augmentSession` raising it must read "Sign-in failed" like any other refusal.
+                    const exception = exceptions.raise( error, null, exceptions.httpCode.C_401 );
+                    if ( exception.code === exceptions.exceptionCode.E_SEC_INVALID_AUTH_TOKEN ) {
+                        // Logged as every other refused sign-in is, since it never reaches the error handler; never the token.
+                        logger.log( "Refused an e-mail sign-in link: unknown, already used or expired.", logger.logSeverity.DEBUG, exception );
+                        return EmailLink.answerFor( EmailLink.OUTCOME.EXPIRED );
+                    }
+                    throw exception;
+                } ).then( ( redirectTo ) => {
+                    response.redirect( exceptions.httpCode.C_303, convertUriToString( redirectTo ) );
+                } ).catch( ( error ) => {
+                    next( exceptions.raise( error, null, exceptions.httpCode.C_401 ) );
+                } );
+            } else {
+                Promise.resolve().then( () => {
+                    return instance.authenticate( authMethod.EMAIL_LINK, {
+                        email: request.body && request.body.email,
+                        client: request.ip,
+                        language: resolveRequestLanguage( request, instance )
+                    } );
+                } ).then( ( result ) => {
+                    response.redirect( exceptions.httpCode.C_303, convertUriToString( result.redirectTo ) );
+                } ).catch( ( error ) => {
+                    next( exceptions.raise( error, null, exceptions.httpCode.C_401 ) );
+                } );
+            }
         } else if ( method === authMethod.OPENID_GOOGLE || method === authMethod.OPENID_AZURE ) {
             instance.authenticate( method, { baseUrl: getBaseUrl( request ) } ).then( ( result ) => {
                 return regenerateAndSaveSession( request, result.redirectTo, ( session ) => {
@@ -727,14 +828,7 @@ module.exports.authorizedOAuth2CallbackHandler = ( instance, authMethod ) => {
         }
 
         instance.authorize( authMethod, new URL( request.originalUrl, getBaseUrl( request ) ), oidc ).then( ( user ) => {
-            return regenerateAndSaveSession( request, "/", ( session ) => {
-                session.user = user.asJSON();
-                session.language = resolveSessionLanguage( user, instance, readLanguageChoice( request, instance ) );
-
-                delete session.oidc;
-
-                return applyAdminRoleFor( instance, instance.augmentSession( session, request ), request );
-            } );
+            return signInUser( instance, request, user, authMethod );
         } ).then( ( redirectTo ) => {
             response.redirect( exceptions.httpCode.C_303, convertUriToString( redirectTo ) );
         } ).catch( ( error ) => {

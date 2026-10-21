@@ -552,6 +552,30 @@ class NotificationService {
     }
 
     /**
+     * The deployment's public base URL, without a trailing slash, or `null` when none is set: then a notice goes
+     * without a link.
+     *
+     * @property
+     * @returns {string|null}
+     * @public
+     */
+    get publicUrl() {
+        return this.#publicUrl;
+    }
+
+    /**
+     * The name the transport gives itself, such as `log` or `cloudflare`, or `null` with none or a transport without
+     * one. `log` delivers nothing, which a feature that cannot work without mail needs to know.
+     *
+     * @property
+     * @returns {string|null}
+     * @public
+     */
+    get transportName() {
+        return ( this.#transport && typeof this.#transport.name === "string" ) ? this.#transport.name : null;
+    }
+
+    /**
      * Registers a notice an application sends. Registered at start-up, like a configuration document.
      *
      * <br/>
@@ -1036,30 +1060,33 @@ class NotificationService {
      * @public
      */
     sendTest( kind, recipient, data = {}, texts ) {
-        if ( this.#transport === null ) {
-            return Promise.reject( transports.transportError( "E_NOTICE_TRANSPORT_OFF", false ) );
-        }
-        if ( !this.#notices.has( kind ) ) {
-            return Promise.reject( transports.transportError( "E_NOTICE_UNKNOWN", false, kind ) );
-        }
-        const invalid = this.#invalidOccurrence( "test", recipient );
-        if ( invalid ) {
-            return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_GEN_INVALID_ARGUMENT_TYPE, { reason: invalid, kind: kind } ) );
-        }
-        const transport = this.#transport;
-        const id = String( recipient.id );
-        const edits = ( texts && typeof texts === "object" ) ? Promise.resolve( texts ) : this.#storedTexts();
-        return edits.then( ( resolved ) => {
-            const message = this.#compose( { kind: kind, recipient: recipient, data: data }, resolved );
-            return transport.send( message );
-        } ).then( ( result ) => {
-            logger.log( `Test notice '${ kind }' for recipient '${ id }' sent.`, logger.logSeverity.INFO );
-            return { messageId: ( result && typeof result.messageId === "string" ) ? result.messageId : null };
-        }, ( error ) => {
-            const code = ( error && typeof error.code === "string" ) ? error.code : "E_TRANSPORT_FAILED";
-            logger.log( `Test notice '${ kind }' for recipient '${ id }' failed with '${ code }'.`, logger.logSeverity.WARNING );
-            throw error;
+        const edits = ( texts && typeof texts === "object" ) ? () => Promise.resolve( texts ) : () => this.#storedTexts();
+        return this.#sendAtOnce( "Test notice", kind, recipient, data, edits );
+    }
+
+    /**
+     * Sends one notice straight away through the transport, past the outbox and the ledger, and makes one attempt: a
+     * notice that is useless once late, such as a sign-in link that expires in minutes. Nothing records it, nothing
+     * retries it, and the caller learns at once whether it went. It renders with the document's edited texts, or with
+     * the shipped labels alone when the document cannot be read, since a notice that must go now should not wait on it.
+     * <br/>
+     * The data is not stored anywhere, so it may carry what the outbox must not hold, such as a secret for the link.
+     *
+     * @method
+     * @param {string} kind A registered notice.
+     * @param {TiNotificationRecipient} recipient
+     * @param {Object} [data]
+     * @returns {Promise<{messageId: string|null}>}
+     * @throws {Error} (as a rejection) With `code` `E_NOTICE_TRANSPORT_OFF` while sending is off, `E_NOTICE_UNKNOWN` or `E_NOTICE_LABEL_MISSING`, or the transport's own code.
+     * @throws {TiException.E_GEN_INVALID_ARGUMENT_TYPE} (as a rejection) For a malformed recipient.
+     * @public
+     */
+    sendNow( kind, recipient, data = {} ) {
+        const edits = () => this.#storedTexts().catch( ( error ) => {
+            logger.log( `Notice '${ kind }': the edited texts could not be read, so it is sent with the shipped ones.`, logger.logSeverity.WARNING, loggableError( error ) );
+            return {};
         } );
+        return this.#sendAtOnce( "Notice", kind, recipient, data, edits );
     }
 
     /* Static interface */
@@ -1426,6 +1453,44 @@ class NotificationService {
             const severity = ( outcome === "sent" ) ? logger.logSeverity.INFO : logger.logSeverity.WARNING;
             logger.log( `Notification '${ pending.kind }' for recipient '${ pending.recipient.id }' ${ outcome }${ details.code ? ` ('${ details.code }')` : "" }.`, severity );
             return { status: outcome };
+        } );
+    }
+
+    /**
+     * Sends one notice through the transport, past the outbox and the ledger: what {@link NotificationService#sendTest}
+     * and {@link NotificationService#sendNow} share. Logs the outcome by the recipient's ID, never the address.
+     *
+     * @method
+     * @param {string} what How the log names the notice.
+     * @param {string} kind
+     * @param {TiNotificationRecipient} recipient
+     * @param {Object} data
+     * @param {function(): Promise<TiNoticeTexts>} edits The edited texts to render with.
+     * @returns {Promise<{messageId: string|null}>}
+     */
+    #sendAtOnce( what, kind, recipient, data, edits ) {
+        if ( this.#transport === null ) {
+            return Promise.reject( transports.transportError( "E_NOTICE_TRANSPORT_OFF", false ) );
+        }
+        if ( !this.#notices.has( kind ) ) {
+            return Promise.reject( transports.transportError( "E_NOTICE_UNKNOWN", false, kind ) );
+        }
+        const invalid = this.#invalidOccurrence( "now", recipient );
+        if ( invalid ) {
+            return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_GEN_INVALID_ARGUMENT_TYPE, { reason: invalid, kind: kind } ) );
+        }
+        const transport = this.#transport;
+        const id = String( recipient.id );
+        return edits().then( ( resolved ) => {
+            const message = this.#compose( { kind: kind, recipient: recipient, data: data || {} }, resolved );
+            return transport.send( message );
+        } ).then( ( result ) => {
+            logger.log( `${ what } '${ kind }' for recipient '${ id }' sent.`, logger.logSeverity.INFO );
+            return { messageId: ( result && typeof result.messageId === "string" ) ? result.messageId : null };
+        }, ( error ) => {
+            const code = ( error && typeof error.code === "string" ) ? error.code : "E_TRANSPORT_FAILED";
+            logger.log( `${ what } '${ kind }' for recipient '${ id }' failed with '${ code }'.`, logger.logSeverity.WARNING );
+            throw error;
         } );
     }
 

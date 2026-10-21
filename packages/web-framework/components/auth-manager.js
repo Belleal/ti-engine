@@ -23,8 +23,10 @@ const fs = require( "node:fs" );
 const openidClient = require( "openid-client" );
 const User = require( "#user" );
 const localUserDirectory = require( "#local-user-directory" );
+const EmailLink = require( "#email-link" );
 
 /** @import { SettingsAuth } from "#web-server" */
+/** @import { TiEmailLinkRequest } from "#definitions" */
 
 /**
  * Enum for specifying the authentication method.
@@ -35,6 +37,7 @@ const localUserDirectory = require( "#local-user-directory" );
  */
 const authMethodEnum = tools.enum( {
     LOCAL: [ "local", "local", "Local authentication with username and password." ],
+    EMAIL_LINK: [ "email-link", "email-link", "Authentication with a one-time link sent by e-mail." ],
     OPENID_AZURE: [ "openid-azure", "openid-azure", "Authentication to Azure Cloud using OpenID Connect." ],
     OPENID_GOOGLE: [ "openid-google", "openid-google", "Authentication to Google Cloud using OpenID Connect." ]
 } );
@@ -71,6 +74,8 @@ class AuthManager {
     };
     #clientConfigOAuth2Google = {};
     #clientConfigOAuth2Azure = {};
+    /** @type {EmailLink|null} */
+    #emailLink = null;
 
     // Whether the local user directory is genuinely usable: set true only after #loadLocalUserDirectory performs
     // a successful reconcile that produced at least one record. Every other outcome — no 'usersPath' configured,
@@ -134,6 +139,11 @@ class AuthManager {
             this.#authSettings.oauth2.azure.discoveryUrl = process.env.TI_AZURE_AUTH_DISCOVERY_URL || this.#authSettings.oauth2.azure.discoveryUrl;
             this.#authSettings.oauth2.azure.allowedDomains = AuthManager.toDomainList( process.env.TI_AZURE_AUTH_ALLOWED_DOMAINS || this.#authSettings.oauth2.azure.allowedDomains );
         }
+        if ( this.isAuthEnabled( authMethodEnum.EMAIL_LINK ) ) {
+            // `TI_WEB_AUTH_EMAIL_LINK_ALLOWED_DOMAINS` has already replaced the list (web-config-env); this normalizes it.
+            const emailLink = this.#authSettings.emailLink || {};
+            this.#emailLink = new EmailLink( Object.assign( {}, emailLink, { allowedDomains: AuthManager.toDomainList( emailLink.allowedDomains ) } ) );
+        }
     }
 
     /* Public interface */
@@ -150,6 +160,7 @@ class AuthManager {
         // instance boots with the remaining methods instead of crashing during discovery — e.g. a container
         // started without OAuth credentials falls back to whatever else is enabled rather than failing to start.
         this.#dropUnconfiguredOpenIDProviders();
+        this.#prepareEmailLink();
 
         let promises = [];
         if ( this.isAuthEnabled( authMethodEnum.LOCAL ) ) {
@@ -216,6 +227,8 @@ class AuthManager {
         switch ( authMethod ) {
             case authMethodEnum.LOCAL:
                 return this.#authenticateLocal( authDetails.username, authDetails.password );
+            case authMethodEnum.EMAIL_LINK:
+                return this.#requestEmailLink( authDetails );
             case authMethodEnum.OPENID_GOOGLE:
                 return this.#authenticateOpenID( authDetails.baseUrl, this.#authSettings.oauth2.google, this.#clientConfigOAuth2Google );
             case authMethodEnum.OPENID_AZURE:
@@ -235,6 +248,10 @@ class AuthManager {
      * but a caller that invokes it without having just authenticated bypasses password verification entirely.
      * The framework's own login route always calls `authenticate()` first (see `web-handlers.js`); this method
      * is public on both `AuthManager` and `TiWebServer`, so any other caller must preserve that ordering itself.
+     * <br/>
+     * `EMAIL_LINK` is the exception: its `authenticate()` sent a link some minutes earlier, and this spends the
+     * token the link carried (`oidc.token`). That is its whole check, so it refuses a token that is malformed, unknown,
+     * already spent or expired with `E_SEC_INVALID_AUTH_TOKEN`.
      *
      * @method
      * @param {TiAuthMethod} authMethod
@@ -268,6 +285,8 @@ class AuthManager {
                         name: record.name
                     } );
                 } );
+            case authMethodEnum.EMAIL_LINK:
+                return this.#redeemEmailLink( oidc );
             case authMethodEnum.OPENID_GOOGLE:
                 return this.#authorizeOpenID( authMethod, currentUrl, oidc, this.#authSettings.oauth2.google, this.#clientConfigOAuth2Google );
             case authMethodEnum.OPENID_AZURE:
@@ -276,6 +295,25 @@ class AuthManager {
                 throw exceptions.raise( exceptions.exceptionCode.E_SEC_UNRECOGNIZED_AUTH_METHOD );
             }
         }
+    }
+
+    /**
+     * The address a sign-in link would sign in, without spending it, or `null` when it could not sign anybody in. The
+     * sign-in page shows the address before the person continues, so that a link somebody else asked for, for their
+     * own address, is not followed into their account unnoticed. It reads and changes nothing else: no attempt is
+     * counted and the link stays as it was.
+     *
+     * @method
+     * @param {*} token
+     * @returns {Promise<string|null>}
+     * @throws {TiException.E_SEC_UNRECOGNIZED_AUTH_METHOD} (as a rejection) When the `email-link` method is not enabled.
+     * @public
+     */
+    peekEmailLink( token ) {
+        if ( !this.isAuthEnabled( authMethodEnum.EMAIL_LINK ) || this.#emailLink === null ) {
+            return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNRECOGNIZED_AUTH_METHOD, null, exceptions.httpCode.C_401 ) );
+        }
+        return this.#emailLink.peek( token );
     }
 
     /**
@@ -364,7 +402,9 @@ class AuthManager {
             return [];
         }
         const entries = ( Array.isArray( value ) ? value : [ value ] ).flatMap( ( entry ) => String( entry ).split( "," ) );
-        const domains = entries.map( ( entry ) => entry.trim().toLowerCase().replace( /^@/, "" ).trim() ).filter( ( entry ) => entry !== "" );
+        // An entry that is only `@` stays as it is, matching no domain: dropped, it could leave the list empty, which
+        // admits every domain.
+        const domains = entries.map( ( entry ) => entry.trim().toLowerCase() ).filter( ( entry ) => entry !== "" ).map( ( entry ) => entry.replace( /^@/, "" ).trim() || entry );
         return [ ...new Set( domains ) ];
     }
 
@@ -393,6 +433,73 @@ class AuthManager {
     }
 
     /**
+     * Prepares the `email-link` method: registers the notice that carries the link, or removes the method from the
+     * enabled ones, with a warning naming why, when no link could be sent — no transport, no public URL, or the
+     * notice's texts missing from the catalogue. A login page offering a form whose e-mail never arrives would be worse
+     * than one without it.
+     *
+     * @method
+     */
+    #prepareEmailLink() {
+        if ( !this.isAuthEnabled( authMethodEnum.EMAIL_LINK ) || this.#emailLink === null ) {
+            return;
+        }
+        const problem = this.#emailLink.readiness();
+        if ( problem !== null ) {
+            this.#authSettings.enabledMethods = this.#authSettings.enabledMethods.filter( ( method ) => method !== authMethodEnum.EMAIL_LINK );
+            logger.log( `Sign-in with a link sent by e-mail is enabled but cannot work: ${ problem }; skipping this method.`, logger.logSeverity.WARNING );
+            return;
+        }
+        this.#emailLink.registerNotice();
+        logger.log( `Enabled sign-in with a link sent by e-mail, ${ this.#describeAllowedDomains( this.#emailLink.settings ) }; a link works once, for ${ this.#emailLink.settings.lifetimeMinutes } minutes.`, logger.logSeverity.NOTICE );
+    }
+
+    /**
+     * Asks for a sign-in link. Resolves with where to send the browser, the sign-in page told how the request ended;
+     * a failure to send is one of those endings, not a rejection.
+     *
+     * @method
+     * @param {TiEmailLinkRequest} authDetails
+     * @returns {Promise<{redirectTo: string, outcome: string}>}
+     */
+    #requestEmailLink( authDetails ) {
+        if ( !this.isAuthEnabled( authMethodEnum.EMAIL_LINK ) || this.#emailLink === null ) {
+            return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNRECOGNIZED_AUTH_METHOD, null, exceptions.httpCode.C_401 ) );
+        }
+        const details = authDetails || {};
+        return this.#emailLink.request( { email: details.email, client: details.client, language: details.language } ).then( ( outcome ) => {
+            return { redirectTo: EmailLink.answerFor( outcome ), outcome: outcome };
+        } );
+    }
+
+    /**
+     * Spends a sign-in link's token and builds the user it signs in. The user ID is derived from the address rather
+     * than being it, because user IDs are written to the log (see {@link EmailLink.userIDOf}).
+     *
+     * @method
+     * @param {{token: *}} [details]
+     * @returns {Promise<User>}
+     */
+    #redeemEmailLink( details ) {
+        if ( !this.isAuthEnabled( authMethodEnum.EMAIL_LINK ) || this.#emailLink === null ) {
+            return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_SEC_UNRECOGNIZED_AUTH_METHOD, null, exceptions.httpCode.C_401 ) );
+        }
+        return this.#emailLink.redeem( details && details.token ).then( ( redeemed ) => {
+            if ( redeemed === null ) {
+                throw exceptions.raise( exceptions.exceptionCode.E_SEC_INVALID_AUTH_TOKEN, { details: "The sign-in link is unknown, already used or expired." }, exceptions.httpCode.C_401 );
+            }
+            // The address is the only name the method knows; an application's `augmentSession` may give a better one.
+            return new User( {
+                userID: EmailLink.userIDOf( redeemed.address ),
+                username: redeemed.address,
+                name: redeemed.address,
+                email: redeemed.address,
+                language: redeemed.language
+            } );
+        } );
+    }
+
+    /**
      * Checks whether an OpenID Connect provider has the minimum configuration required to initialize (a non-empty client ID).
      *
      * @method
@@ -409,7 +516,7 @@ class AuthManager {
      * `.env`, and this line is how an operator sees which of the two won.
      *
      * @method
-     * @param {SettingsOAuth2Client} oauth2
+     * @param {{allowedDomains: (string[]|undefined)}} oauth2 A provider's settings, or the e-mail link's.
      * @returns {string}
      */
     #describeAllowedDomains( oauth2 ) {

@@ -19,9 +19,10 @@ The web server configuration (host, port, TLS, cookies, etc.) is normally provid
 * `TI_WEB_COOKIE_SECRET` sets the session cookie signing secret. Set a stable, private value for durable sessions and multi-replica deployments (otherwise a random per-process value is used).
 * `TI_WEB_TLS_CERT_PATH` is also read by the container liveness probe (below), which verifies against that certificate.
 * `TI_WEB_SESSION_IDLE_TIMEOUT` (whole minutes) sets how long a signed-in session survives **without activity**, overriding `cookies.maxAge`. The window is rolling: every response re-stamps the cookie, so a session ends only after that long with no request at all. Note that a user typing into a form makes no requests, so set this comfortably longer than the longest form a user fills in one sitting. Defaults to 480 (eight hours).
-* `TI_WEB_AUTH_METHODS` (comma-separated) **replaces** the enabled authentication methods (`auth.enabledMethods`), e.g. `openid-google` or `local,openid-google`.
+* `TI_WEB_AUTH_METHODS` (comma-separated) **replaces** the enabled authentication methods (`auth.enabledMethods`), e.g. `openid-google`, `local,openid-google` or `email-link,openid-google`.
+* `TI_WEB_AUTH_EMAIL_LINK_ALLOWED_DOMAINS` (comma-separated) **replaces** `auth.emailLink.allowedDomains`, the e-mail domains that may sign in with a link. A value naming no domain leaves the configured list, since an empty list admits any domain. See [Sign-in with a link sent by e-mail](#sign-in-with-a-link-sent-by-e-mail).
 * `TI_WEB_AUTH_LOCAL_USERS_PATH` overrides the local user directory's file path (`auth.local.usersPath`), which backs `local` sign-in. An explicitly empty value means *no directory*, so every local sign-in is refused. See [Local (username/password) authentication](#local-usernamepassword-authentication).
-* `TI_WEB_AUTH_ADMINS` (comma-separated) **replaces** the admin allowlist (`auth.admins`). Entries are matched against the session user's user ID, username or email, so an OpenID deployment lists emails. An explicitly empty value means *no admins*.
+* `TI_WEB_AUTH_ADMINS` (comma-separated) **replaces** the admin allowlist (`auth.admins`). Entries are matched against the session user's user ID, username or email, so an OpenID deployment lists emails. An explicitly empty value means *no admins*. A session signed in by e-mail link does not hold the role unless `auth.emailLink.grantsAdmin` is `true` (1.57.0), see [Sign-in with a link sent by e-mail](#sign-in-with-a-link-sent-by-e-mail).
 * `TI_WEB_TRUSTED_ORIGINS` (comma-separated) **replaces** the trusted request origins (`trustedOrigins`) — needed behind proxies that do not present the real external origin.
 * `TI_WEB_STATIC_MAX_AGE` (whole seconds) overrides `staticCache.maxAge`. See [Static asset caching](#static-asset-caching).
 * `TI_WEB_STATIC_IMMUTABLE` (`true`/`false`) overrides `staticCache.immutable`.
@@ -173,6 +174,84 @@ On every boot, the file is read and reconciled into the running directory: an ad
 
 **There is no rate limiting, no lockout after repeated failures, and no password policy.** Treat `local` on an internet-facing deployment as a deliberate risk until those exist.
 
+## Sign-in with a link sent by e-mail
+
+`email-link` signs a person in with a link sent to their address: no password to keep, and no account with Google or
+Microsoft. It is for applications whose users are the public, such as parents. Enable it like any method
+(`TI_WEB_AUTH_METHODS=email-link`), and give the deployment what a link needs:
+
+* a notification transport that delivers (`TI_WEB_NOTIFY_TRANSPORT=cloudflare`, or an application's own through
+  `setTransport`, called in the application's constructor; not `log`, which delivers nothing), see
+  [E-mail notices](#e-mail-notices);
+* `TI_WEB_PUBLIC_URL`, which the link starts from;
+* the notice's texts, `interface.notice.sign-in-link.subject` and `.text` (placeholder `{minutes}`), in the
+  application's own catalogue: the framework ships them in English and Bulgarian, and an application copies or rewrites
+  them.
+
+Without any of the three the method is left out at start, with a warning naming what is missing.
+
+```jsonc
+"auth": {
+  "emailLink": {
+    "lifetimeMinutes": 15,        // how long a link works, at most a day
+    "allowedDomains": [],         // TI_WEB_AUTH_EMAIL_LINK_ALLOWED_DOMAINS; empty admits any domain
+    "hourlyLimitPerAddress": 5,   // links one address may be sent in an hour
+    "hourlyLimitPerClient": 30,   // links one client network (an IPv4 address, an IPv6 /64) may ask for in an hour
+    "hourlyLimitOverall": 100,    // links sent in an hour altogether: keep it below what the mail provider allows
+    "grantsAdmin": false          // whether an e-mail-link session may hold the admin role (see below)
+  }
+}
+```
+
+How it works:
+
+1. **Asking.** The sign-in page posts the address to `POST /login/email-link`. The server sends the `sign-in-link`
+   notice at once (one attempt, never queued), and answers `303` to `/?email-link=<outcome>`: `sent`, `limited`,
+   `invalid-address` or `unavailable`. **The answer never says whether an address may sign in**: one outside
+   `allowedDomains` is sent nothing and answered `sent`. (Its timing can tell an admitted domain from a refused one,
+   since only the first waits for the transport: that reveals the domain list, not anybody's account.) An address is
+   printable ASCII: a letter from another script or an invisible one could make somebody else's address pass for the
+   person's own on the Continue step, so a domain in another script is given in its ASCII form (`xn--…`). The limits
+   count an address by the inbox it reaches (without a `+tag`, and for Gmail without dots), a client by its network,
+   and every link sent, in one-hour windows.
+2. **The link** is `<publicUrl>/#email-link=<token>`: 32 random bytes in the fragment, which no server receives, so it
+   is in no access log. The store keeps only the token's SHA-256, with the address, and the value expires with the
+   link.
+3. **Following it.** The sign-in page takes the token out of the address bar, asks which address it signs in without
+   spending it (`POST /login/email-link` with `{ token, peek: true }` as JSON, answered `{ data: { email } }` through
+   `TiWebServer#peekEmailLink`), and
+   shows "You are signing in as …" with *Continue* and *Not you? Use another address*. Showing the address keeps a link
+   somebody asked for, for their own address, from signing the person into that account unnoticed. Pressing Continue
+   posts the token, once: the button holds once pressed. The tab keeps the token (`sessionStorage`) until it is posted
+   or declined, so a reload or the page's language switch still shows the Continue step, and a link opened in a tab
+   already showing the page loads it again. The click is deliberate: a mail scanner that opens the link,
+   even one that runs the page's script, presses nothing and spends nothing. A link opened in a browser that is already
+   signed in shows the application, not the sign-in page; the shell takes the token out of the address bar and says to
+   sign out and open the link again.
+4. **Spending it.** The first request to delete the stored entry wins; every later one, an expired or unknown token,
+   and one whose domain the list no longer admits, is refused with `E_SEC_INVALID_AUTH_TOKEN` and answered `303` to
+   `/?email-link=expired`, which the sign-in page explains. A request that certainly sent nothing gives its counts back
+   and deletes its link, so an outage uses up nobody's hour; one that may have gone through, as a relay timeout may,
+   keeps both, and the client's count always stands. A spent link signs in as the other methods do: `augmentSession`
+   may refuse, and the session records `authMethod: "email-link"`.
+5. **The `admin` role.** A link proves only that its holder can read the address's mail, which a delegate, a forwarding
+   rule or a shared inbox can too. So an e-mail-link session does not hold the role its address earns on `auth.admins`
+   unless `auth.emailLink.grantsAdmin` is `true`; the sign-in logs a NOTICE when it withholds one. An allowlist written
+   for Google or Microsoft accounts stays theirs when the method is enabled for the public.
+
+The session's user is `{ userID: "email:<32 hex of the address's SHA-256>", username: <address>, name: <address>,
+email: <address> }`, the address trimmed and lower-cased; an application's `augmentSession` may give a better name. The user ID is not the address because the framework writes user IDs to its log;
+it is stable, so whoever can guess an address can confirm it against the ID. The e-mail link's own log lines name an
+address or a client only by 16 hex digits of an HMAC-SHA-256 under a key made for each process, which no list of
+guesses reverses, and never hold a token.
+
+**Not covered.** The client limit counts `request.ip`: on Cloudflare the Worker makes it the address Cloudflare saw,
+elsewhere it is what the proxy in front reports. The per-address limit can be spent by anybody who knows the address,
+holding its sign-in for the rest of the hour (a link already received still works), and the overall limit by anybody
+with enough networks, holding everybody's; a challenge on the form is the application's remedy for both. The counters
+are read and written back, not incremented in the store, so instances sharing a store overwrite each other's counts:
+with several instances the limits are approximate (the Cloudflare template runs one).
+
 ## The login screen
 
 The login screen renders before sign-in, so none of an application's own fragments are in play. It has three slots an application fills by shipping a file of the same relative path in its own static directory; the static-path search is reverse-order, so the application's copy wins:
@@ -185,7 +264,7 @@ The login screen renders before sign-in, so none of an application's own fragmen
 
 Use the brand slot to name the application and say what it is for. Use the heading slot to title the card, and say which account to sign in with. Use the extra slot for anything a first-time visitor should read after the sign-in controls. No slot can change the sign-in controls themselves; those stay the framework's, gated to the enabled methods. The Microsoft button carries Microsoft's four-square logo and reads "Sign in with Microsoft", as Microsoft's branding guidelines ask; the method is still `openid-azure`.
 
-Every string on the screen goes through `x-text-label` under `interface.default.login.*`: `welcome`, `sign-in-prompt`, `username`, `username-placeholder`, `password`, `password-placeholder`, `sign-in`, `or-continue-with`, `sign-in-google`, `sign-in-azure`, `no-sign-in-method` and `error-sign-in-failed`. An application normally points `TI_LOCALIZATION_LABELS_PATH` at its own catalogue alone, so the framework's translations never reach it. It adds the keys it wants translated to its own catalogue, and a key it leaves out renders the English text written in the fragment.
+Every string on the screen goes through `x-text-label` under `interface.default.login.*`: `welcome`, `sign-in-prompt`, `username`, `username-placeholder`, `password`, `password-placeholder`, `sign-in`, `or-continue-with`, `sign-in-google`, `sign-in-azure`, `no-sign-in-method` and `error-sign-in-failed`, and for the e-mail link `email`, `email-placeholder`, `email-link-send`, `email-link-sent`, `email-link-other`, `email-link-confirm-prompt`, `email-link-signing-in-as`, `email-link-continue`, `email-link-not-you`, `email-link-expired`, `email-link-signed-in-already` (a notice, when a link is opened in a browser already signed in), `email-link-limited`, `email-link-unavailable`, `email-link-invalid-address` and `or` (between the e-mail link and the local form, when both are enabled). An application normally points `TI_LOCALIZATION_LABELS_PATH` at its own catalogue alone, so the framework's translations never reach it. It adds the keys it wants translated to its own catalogue, and a key it leaves out renders the English text written in the fragment.
 
 ## The busy indicator
 
@@ -481,6 +560,10 @@ await notifications.emit( "task.created", { key: "review:" + taskID + ":" + owne
   own settings, validated by its schema. `getOptions()` reads them over the defaults, one key at a time.
 * **A test send.** `sendTest( kind, recipient, data, texts )` sends one rendered notice through the transport, past the
   outbox and the ledger, so nothing records it and it never stops the real one.
+* **A send that cannot wait.** `sendNow( kind, recipient, data )` sends one notice the same way, with the document's
+  edited texts, or the shipped ones when the document cannot be read, and makes one attempt: for a notice that is
+  useless once late, such as a sign-in link. Its data is stored nowhere, so it may carry what the outbox must not.
+  `publicUrl` reports the base every link starts from, or `null`.
 * **Attachments.** A notice may declare `attachments: ( data, language, label ) => [ { filename, type, content } ]`,
   such as a calendar entry (`interview.ics`, `text/calendar; charset=utf-8; method=PUBLISH`), with `content` as text.
   `render` returns them as `attachments: [ { filename, type, disposition: "attachment", content } ]`, the content
