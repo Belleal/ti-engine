@@ -2,6 +2,53 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.58.0
+
+* feat(web-framework): **Send Feedback can carry a picture of the screen the person was on, with personal information
+  blanked** (CA-544; design record `docs/superpowers/specs/2026-10-21-web-framework-feedback-picture-design.md`).
+  * **Why.** A manager asked, through Feedback, to attach a screenshot. Boris decided on 2026-10-21: the application
+    takes the picture itself, with no upload button, limited in size and type, "especially important is to redact
+    personal information", and the form says so in small print.
+  * **When it is taken.** Opening Send Feedback is held through htmx's `htmx:confirm`. The screen being left is drawn,
+    and then the request goes on. This covers a link, the user menu and `openScreen`, which goes through `htmx.ajax`. It
+    is bounded at 4 seconds; past that, or on any failure, the form opens without a picture. Nothing is taken after a
+    reload of the form or from the form itself. On a narrow screen, the drawer used to reach it is closed at once and
+    left out.
+  * **What is blanked, in the copy only, never on the screen.**
+    * Text is kept only inside `x-text-label` (a catalogue label) or `data-ti-keep`, and `data-ti-redact` blanks even
+      that. Everything else becomes a grey bar of its length: what `x-text`, `x-html` or an application's own directive
+      wrote, and anything a server put into a fragment.
+    * Typed values become bullets.
+    * Images become grey boxes, and canvases, videos and frames are hidden.
+    * A chart loses its text and keeps its shapes.
+    * The user menu is left out.
+  * **The form.** "Attach a picture of the screen you were on" appears only when there is one, unticked. The small print
+    under it says what was blanked and asks the person to look at the picture before sending, which ticking the option
+    shows.
+  * **Limits.** WebP, or JPEG where the browser cannot write WebP, at most 1600 px a side and 1,000,000 bytes. The
+    quality steps down, then the size. `Feedback#readPicture` checks it all again on the server: a `data:` URL of
+    either type in strict base64, the file's own signature, the dimensions it states, and its size. Anything else is
+    422 `error.feedback.picture`, and nothing is kept. `POST /app/send-feedback` alone takes a body of up to 1.5 MB;
+    every other request keeps 1 MB.
+  * **Kept apart, shown to administrators.** The picture is the value `ti:feedback:picture:<id>`, written before the
+    item and deleted again if the item fails. The item records only `picture: { type, bytes, width, height }`. Only an
+    administrator may ask for it: `GET /app/feedback-picture?feedbackID=` (404 `error.feedback.picture-not-found` when
+    there is none). The Feedback screen loads it only when "Show the picture" is pressed. `eraseSentBy` deletes it
+    with its item. Also `Feedback#fetchPicture`, and the typedef `TiFeedbackPicture`.
+  * **The library** is modern-screenshot 4.7.0 (MIT). It is bundled as `bin/static/scripts/lib/modern-screenshot.min.js`,
+    pinned exactly and copied by the postinstall like htmx and Alpine, and loaded only when a picture is taken.
+    Measured in Chromium under the framework's CSP:
+    * with its defaults it throws, because embedding fonts inserts a `<style>` the policy refuses; it runs with
+      `font: false`, so the picture's text is drawn in the fallback typeface;
+    * html-to-image also runs, but has no hook on its copy to blank in.
+  * **Three things only a real screen showed** (Competence's evaluation screen, 1,053 elements):
+    * One `x-bind:class` attribute, a prefix XML cannot resolve, made the browser refuse the whole drawing, and the
+      picture came out empty. Such attributes are dropped from the copy.
+    * Every CSS custom property was copied onto every element, 296 declarations each: an 8.6 MB drawing that took 5 s.
+      Copying the standard properties alone, and leaving out what is not displayed, takes 0.7 s, with a byte-identical
+      picture.
+    * The copied fill colour painted the bars' characters over `color: transparent`.
+
 ## Version 1.57.0
 
 * feat(web-framework): **sign in with a link sent by e-mail**, the `email-link` method (CA-537; design record

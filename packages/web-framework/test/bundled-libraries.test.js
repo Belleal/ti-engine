@@ -24,7 +24,8 @@
  * release from 1.39.0 to 1.46.0 shipped htmx 2.0.10 and Alpine 3.17.3, and nothing noticed: CI's own install rewrites
  * the files before any test runs. Both are now pinned exactly, so the version installed, bundled and declared is one
  * version. These tests catch a pin moved without regenerating the files locally; CI's diff check after its install
- * catches it there.
+ * catches it there. modern-screenshot, which draws the picture of the screen sent with feedback (1.58.0, CA-544), is
+ * bundled the same way; its build states no version, so the installed package's manifest is read instead.
  */
 
 const { describe, it } = require( "node:test" );
@@ -38,8 +39,9 @@ const manifest = JSON.parse( fs.readFileSync( path.join( PACKAGE_ROOT, "package.
 
 // Each bundled file, the package it comes from, and the file inside that package the postinstall copies.
 const LIBRARIES = [
-    { file: "htmx.min.js", dependency: "htmx.org", dist: "htmx.org/dist/htmx.min.js" },
-    { file: "alpinejs-csp.min.js", dependency: "@alpinejs/csp", dist: "@alpinejs/csp/dist/cdn.min.js" }
+    { file: "htmx.min.js", dependency: "htmx.org", dist: "htmx.org/dist/htmx.min.js", statesVersion: true },
+    { file: "alpinejs-csp.min.js", dependency: "@alpinejs/csp", dist: "@alpinejs/csp/dist/cdn.min.js", statesVersion: true },
+    { file: "modern-screenshot.min.js", dependency: "modern-screenshot", dist: "modern-screenshot/dist/index.js", statesVersion: false }
 ];
 
 describe( "the bundled browser libraries", () => {
@@ -52,11 +54,17 @@ describe( "the bundled browser libraries", () => {
         } );
 
         it( `bundles the pinned ${ library.dependency } in ${ library.file }`, () => {
-            // Both libraries state their own version in the minified build, as `version:"x.y.z"`.
-            const bundled = fs.readFileSync( path.join( LIB, library.file ), "utf8" );
-            const stated = /version:"(\d+\.\d+\.\d+)"/.exec( bundled );
-            assert.ok( stated, `${ library.file } states no version` );
-            assert.equal( stated[ 1 ], manifest.dependencies[ library.dependency ] );
+            if ( library.statesVersion ) {
+                // htmx and Alpine state their own version in the minified build, as `version:"x.y.z"`.
+                const bundled = fs.readFileSync( path.join( LIB, library.file ), "utf8" );
+                const stated = /version:"(\d+\.\d+\.\d+)"/.exec( bundled );
+                assert.ok( stated, `${ library.file } states no version` );
+                assert.equal( stated[ 1 ], manifest.dependencies[ library.dependency ] );
+            } else {
+                // The copy is the installed file byte for byte (below), so the installed version is the bundled one.
+                const installed = JSON.parse( fs.readFileSync( require.resolve( `${ library.dependency }/package.json` ), "utf8" ) );
+                assert.equal( installed.version, manifest.dependencies[ library.dependency ] );
+            }
         } );
 
         it( `copies ${ library.file } byte for byte from the installed package`, () => {

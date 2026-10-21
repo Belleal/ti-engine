@@ -1,5 +1,5 @@
 export = Feedback;
-import type { TiFeedbackItem, TiFeedbackOptions, TiSessionSubject } from "#definitions";
+import type { TiFeedbackItem, TiFeedbackOptions, TiFeedbackPicture, TiSessionSubject } from "#definitions";
 /**
  * What a piece of feedback is.
  *
@@ -56,6 +56,21 @@ declare const PLACEHOLDERS: ReadonlyArray<string>;
  * @public
  */
 declare const TEXT_MAX: number;
+/**
+ * The largest picture of the screen, in bytes once decoded: 1,333,336 characters of base64, well inside the 2,000,000
+ * bytes D1 keeps in one row.
+ *
+ * @type {number}
+ * @public
+ */
+declare const PICTURE_MAX_BYTES: number;
+/**
+ * The longest side of a picture of the screen, in pixels.
+ *
+ * @type {number}
+ * @public
+ */
+declare const PICTURE_MAX_SIDE: number;
 /**
  * Feedback about the application: a suggestion, a problem, praise or anything else, from anyone signed in, read by the
  * allowlisted administrators on a screen of their own and e-mailed to them as it arrives. The sender may stay
@@ -133,6 +148,19 @@ declare class Feedback {
         isScreen: (screen: string) => boolean;
     }, feedbackID: string, now: string): TiFeedbackItem;
     /**
+     * Reads the picture of the screen a submission carries (CA-544), checking everything the browser was asked to keep
+     * to: a `data:` URL of WebP or JPEG in strict base64, whose bytes carry that type's own signature, state dimensions
+     * of 1 to {@link PICTURE_MAX_SIDE} pixels a side, and number at most {@link PICTURE_MAX_BYTES}. The browser blanks
+     * personal information before it draws the picture; the server can check only that it is the image it says.
+     *
+     * @method
+     * @param {*} value What the submission's `picture` held.
+     * @returns {TiFeedbackPicture|null} Null when there is none.
+     * @throws {TiException} 422 `error.feedback.picture` for anything else.
+     * @public
+     */
+    readPicture(value: any): TiFeedbackPicture | null;
+    /**
      * Whether a value is a status an administrator may give an item.
      *
      * @method
@@ -179,6 +207,21 @@ declare class Feedback {
      */
     fetch(feedbackID: string): Promise<TiFeedbackItem | null>;
     /**
+     * The picture of the screen sent with an item, or null: its type, its size in pixels and the image in base64. For
+     * the administrators' screen, which asks for one only when it is to be shown.
+     *
+     * @method
+     * @param {string} feedbackID
+     * @returns {Promise<{type: string, data: string, width: number, height: number}|null>}
+     * @public
+     */
+    fetchPicture(feedbackID: string): Promise<{
+        type: string;
+        data: string;
+        width: number;
+        height: number;
+    } | null>;
+    /**
      * Gives an item a status, under the item's key, so two administrators changing it at once leave one change.
      * Records who and when.
      *
@@ -202,8 +245,8 @@ declare class Feedback {
      */
     sentBy(subjectID: string): Promise<Array<TiFeedbackItem>>;
     /**
-     * Deletes the items a person sent under their own name, for their erasure: they are the person's own words. What
-     * they sent anonymously cannot be found, and stays.
+     * Deletes the items a person sent under their own name, for their erasure: they are the person's own words, and
+     * any picture of the screen sent with one goes with it. What they sent anonymously cannot be found, and stays.
      *
      * @method
      * @param {string} subjectID
@@ -255,6 +298,8 @@ declare namespace Feedback {
     export { NOTICE };
     export { PLACEHOLDERS };
     export { TEXT_MAX };
+    export { PICTURE_MAX_BYTES };
+    export { PICTURE_MAX_SIDE };
     export var _a: Readonly<Feedback>;
     export { _a as instance };
 }

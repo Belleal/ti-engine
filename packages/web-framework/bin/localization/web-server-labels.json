@@ -527,6 +527,18 @@
         "en": "Your name is not kept with it, so nobody can reply to you or ask you about it.",
         "bg": "Името Ви не се запазва с нея, така че никой не може да Ви отговори или да Ви попита за нея."
       },
+      "picture": {
+        "en": "Attach a picture of the screen you were on",
+        "bg": "Прикачи снимка на екрана, на който сте били"
+      },
+      "picture-note": {
+        "en": "Names, numbers and anything typed are blanked out before the picture is taken, and it shows only what was on the screen. Look at it before you send.",
+        "bg": "Имената, числата и всичко въведено се скриват, преди снимката да бъде направена, и тя показва само това, което е било на екрана. Прегледайте я, преди да изпратите."
+      },
+      "picture-alt": {
+        "en": "The picture of the screen that will be sent",
+        "bg": "Снимката на екрана, която ще бъде изпратена"
+      },
       "send": {
         "en": "Send",
         "bg": "Изпрати"
@@ -601,6 +613,18 @@
         "en": "Status saved.",
         "bg": "Статусът е запазен."
       },
+      "picture-show": {
+        "en": "Show the picture",
+        "bg": "Покажи снимката"
+      },
+      "picture-hide": {
+        "en": "Hide the picture",
+        "bg": "Скрий снимката"
+      },
+      "picture-alt": {
+        "en": "The picture of the screen the sender was on",
+        "bg": "Снимката на екрана, на който е бил подателят"
+      },
       "context": {
         "screen": {
           "en": "Screen",
@@ -642,6 +666,14 @@
       "not-found": {
         "en": "That feedback no longer exists.",
         "bg": "Тази обратна връзка вече не съществува."
+      },
+      "picture": {
+        "en": "The picture of the screen could not be accepted. Send the feedback without it.",
+        "bg": "Снимката на екрана не може да бъде приета. Изпратете обратната връзка без нея."
+      },
+      "picture-not-found": {
+        "en": "This picture is no longer available.",
+        "bg": "Тази снимка вече не е налична."
       }
     }
   }
