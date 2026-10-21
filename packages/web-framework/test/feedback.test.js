@@ -336,10 +336,23 @@ describe( "Feedback — a picture of the screen (CA-544)", () => {
         assert.deepEqual( Object.keys( cacheStub.values ), [] );
     } );
 
-    it( "deletes the picture again when its item cannot be written, so none is left without one", async ( t ) => {
+    it( "never keeps a picture its item does not lead to: the item is written first, and taken back if the picture fails", async ( t ) => {
+        // A picture is found, shown and erased only through its item. Written first, a failure or a restart before the
+        // item left it kept for good, beyond erasure (the review pass).
         const feedback = fresh();
         const write = cacheStub.setValue.bind( cacheStub );
-        t.mock.method( cacheStub, "setValue", ( key, value, expiration ) => key.startsWith( "ti:feedback:item:" ) ? Promise.reject( new Error( "store down" ) ) : write( key, value, expiration ) );
+        const order = [];
+        t.mock.method( cacheStub, "setValue", ( key, value, expiration ) => {
+            order.push( key.split( ":" )[ 2 ] );
+            return key.startsWith( "ti:feedback:picture:" ) ? Promise.reject( new Error( "store down" ) ) : write( key, value, expiration );
+        } );
+        await assert.rejects( feedback.submit( { kind: "problem", text: "Broken.", picture: PICTURES.webpAlpha }, SENDER ), /store down/ );
+        assert.deepEqual( order, [ "item", "picture" ] );
+        assert.deepEqual( Object.keys( cacheStub.values ), [], "the item taken back, so the person is told and sends again" );
+
+        // A failed item write stores nothing at all.
+        t.mock.restoreAll();
+        t.mock.method( cacheStub, "setValue", () => Promise.reject( new Error( "store down" ) ) );
         await assert.rejects( feedback.submit( { kind: "problem", text: "Broken.", picture: PICTURES.webpAlpha }, SENDER ), /store down/ );
         assert.deepEqual( Object.keys( cacheStub.values ), [] );
     } );

@@ -1535,8 +1535,29 @@ const configureApplication = () => {
          * @public
          */
         openScreen( screen ) {
+            // Read before closing: whether the sidebar is a drawer is the layout's, not whether it is open.
+            const drawer = this.navigationDrawer === true;
             // A screen opened from the drawer replaces the page under it, so the drawer has done its job (CA-406).
             this.closeNavigation();
+            const basePath = ( screen || "" ).split( "?" )[ 0 ];
+            const trail = Alpine.store( "tiScreenTrail" );
+            if ( basePath === "send-feedback" && window.htmx && trail && trail.wantsPicture() ) {
+                // The picture first: below, the new screen is named and its URL pushed before its request starts, and
+                // the screen drawn would be half Send Feedback's (CA-544, the review pass).
+                trail.holdFor( () => this.openScreenNow( screen ), drawer );
+                return;
+            }
+            this.openScreenNow( screen );
+        },
+
+        /**
+         * Opens a screen at once: {@link openScreen} past the picture of the screen being left.
+         *
+         * @method
+         * @param {string} screen
+         * @private
+         */
+        openScreenNow( screen ) {
             const [ basePath, ...queryParts ] = ( screen || "" ).split( "?" );
             const query = queryParts.length ? "?" + queryParts.join( "?" ) : "";
             if ( !basePath || !/^[\w-]+$/.test( basePath ) || !window.htmx ) {
@@ -2519,9 +2540,10 @@ const PICTURE_MEDIA = Object.freeze( [ "IMG", "CANVAS", "VIDEO", "IFRAME", "OBJE
 const PICTURE_TYPED_INPUTS = /^(|text|email|search|tel|url|number|password|date|datetime-local|month|time|week)$/;
 // Never walked: their text is not drawn.
 const PICTURE_UNDRAWN = Object.freeze( [ "STYLE", "SCRIPT", "TEMPLATE", "NOSCRIPT" ] );
-// An attribute XML reads as a prefix it has no namespace for, such as Alpine's `x-bind:class` or `x-on:click.outside`.
-// One is enough for the browser to refuse the whole drawing, and the picture comes out empty (measured on a real screen).
-const PICTURE_PREFIXED_ATTRIBUTE = /^(?!xmlns:|xlink:|xml:)[^:]+:/;
+// The attribute names XML reads: a plain name, or one of the prefixes it knows. Anything else, Alpine's `x-bind:class`,
+// its shorthands `:class` and `@click`, is enough for the browser to refuse the whole drawing, and the picture comes out
+// empty (measured on a real screen with `x-bind:class`).
+const PICTURE_PLAIN_ATTRIBUTE = /^(?:(?:xmlns|xlink|xml):)?[A-Za-z_][\w.-]*$/;
 // An image of nothing, the size of whatever it replaces.
 const PICTURE_EMPTY_IMAGE = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
 const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
@@ -2615,8 +2637,14 @@ const redactPicture = ( root ) => {
     } );
     elements.forEach( ( element ) => {
         const tag = String( element.tagName || "" ).toUpperCase();
-        Array.from( element.attributes || [] ).map( ( attribute ) => attribute.name ).filter( ( name ) => PICTURE_PREFIXED_ATTRIBUTE.test( name ) )
+        Array.from( element.attributes || [] ).map( ( attribute ) => attribute.name ).filter( ( name ) => !PICTURE_PLAIN_ATTRIBUTE.test( name ) )
             .forEach( ( name ) => element.removeAttribute( name ) );
+        if ( typeof element.closest === "function" && element.closest( PICTURE_REDACTED ) ) {
+            // What the rule above cannot see, such as a photo set as a CSS background, under an element the
+            // application marked: drawn grey, whatever its stylesheet says (measured: the photo was drawn without this).
+            element.style.setProperty( "background-image", "none", "important" );
+            element.style.setProperty( "background-color", "rgba( 128, 128, 128, 0.35 )", "important" );
+        }
         if ( isKept( element ) ) {
             return;
         }
@@ -2640,6 +2668,41 @@ const redactPicture = ( root ) => {
         }
     } );
     return root;
+};
+
+/**
+ * Blanks what reaches the drawing after the copy was redacted (CA-544, measured): the text of a pseudo-element's
+ * `content`, which the library writes into the drawing's stylesheet, and the text of an SVG symbol a `<use>` points to,
+ * which it copies in from the page. A `content` with a letter or a digit becomes x's, and anything computed, such as
+ * `attr()` or a counter, becomes "xxx"; a mark such as "›" or "•" stays.
+ *
+ * @method
+ * @param {Element} drawing The SVG the library is about to draw.
+ * @returns {Element} The same drawing.
+ * @public
+ */
+const redactDrawing = ( drawing ) => {
+    const wordy = /[\p{L}\p{N}]/u;
+    drawing.querySelectorAll( "style" ).forEach( ( style ) => {
+        style.textContent = String( style.textContent || "" ).replace( /content:\s*([^;}]+)/g, ( declaration, value ) => {
+            const trimmed = value.trim();
+            if ( trimmed === "none" || trimmed === "normal" ) {
+                return declaration;
+            }
+            const quote = trimmed.charAt( 0 );
+            const literal = ( trimmed.length >= 2 && ( quote === "\"" || quote === "'" ) && trimmed.charAt( trimmed.length - 1 ) === quote && !trimmed.slice( 1, -1 ).includes( quote ) )
+                ? trimmed.slice( 1, -1 )
+                : null;
+            if ( literal !== null && !wordy.test( literal ) ) {
+                return declaration;
+            }
+            return `content: "${ ( literal === null ) ? "xxx" : literal.replace( /[\p{L}\p{N}]/gu, "x" ).replace( /["\\]/g, "" ) }"`;
+        } );
+    } );
+    drawing.querySelectorAll( "defs text, defs tspan, symbol text, symbol tspan" ).forEach( ( text ) => {
+        text.textContent = "";
+    } );
+    return drawing;
 };
 
 let pictureLibrary = null;
@@ -2720,11 +2783,11 @@ const encodePicture = ( canvas ) => {
  * report names as the one they were on. The shell names the current screen after every swap; this keeps the one before
  * Send Feedback, in a variable of its own so that keeping it is no change the effect reacts to.
  * <br/>
- * It also takes the picture of that screen (CA-544). The shell's request for Send Feedback is held through htmx's
- * `htmx:confirm` while the screen being left is drawn from a copy, with personal information blanked
- * ({@link redactPicture}), and then issued. The picture stays here, in the browser, until the person sends it; leaving
- * Send Feedback drops it. It is not taken when there is no screen to take: a reload of Send Feedback, or Send Feedback
- * asked for from itself.
+ * It also takes the picture of that screen (CA-544). The way to Send Feedback is held while the screen being left is
+ * drawn from a copy, with personal information blanked ({@link redactPicture}), and then goes on: a link's request
+ * through htmx's `htmx:confirm`, and `openScreen` before it changes anything, since it names the new screen before its
+ * request starts. The picture stays here, in the browser, until the person sends it; leaving Send Feedback drops it. It
+ * is not taken when there is no screen to take: a reload of Send Feedback, or Send Feedback asked for from itself.
  *
  * @method
  * @returns {Object}
@@ -2733,6 +2796,9 @@ const encodePicture = ( canvas ) => {
 const configureStoreScreenTrail = () => {
     let last = "";
     let taking = null;
+    let holding = false;
+    // Requests started into `#ti-content`: a hold that sees the count move was overtaken by another screen.
+    let contentRequests = 0;
     return {
         previous: "",
         picture: null,
@@ -2752,6 +2818,58 @@ const configureStoreScreenTrail = () => {
                 last = screen;
             } );
             document.addEventListener( "htmx:confirm", ( event ) => this.holdForPicture( event ) );
+            document.addEventListener( "htmx:beforeRequest", ( event ) => {
+                const target = event.detail && event.detail.target;
+                if ( target && target.id === "ti-content" ) {
+                    contentRequests += 1;
+                }
+            } );
+        },
+
+        /**
+         * Whether opening Send Feedback now would take a picture: the application turned Feedback on, a screen was
+         * shown before, and it is not Send Feedback itself.
+         *
+         * @method
+         * @returns {boolean}
+         * @public
+         */
+        wantsPicture() {
+            const tiApplication = Alpine.store( "tiApplication" );
+            const features = tiApplication.configuration && tiApplication.configuration.features;
+            return !!features && features.feedback === true && last !== "" && last !== "send-feedback" && tiApplication.currentScreen !== "send-feedback";
+        },
+
+        /**
+         * Takes the picture, then goes on to Send Feedback. While it is drawn the shell shows it is busy, as for a
+         * request, since nothing else on the screen changes. A second way to Send Feedback meanwhile is the same one
+         * and is dropped, where it would have sent the form twice. If another screen was asked for meanwhile, that one
+         * wins: going on would replace it with Send Feedback and a picture of a screen already left (the review pass).
+         *
+         * @method
+         * @param {function(): void} proceed What opens Send Feedback.
+         * @param {boolean} [drawer] Whether the sidebar is a drawer, left out of the picture.
+         * @returns {boolean} False when a hold was already running, and this one was dropped.
+         * @public
+         */
+        holdFor( proceed, drawer = false ) {
+            if ( holding ) {
+                return false;
+            }
+            holding = true;
+            const tiApplication = Alpine.store( "tiApplication" );
+            const before = contentRequests;
+            tiApplication._beginRequest();
+            this.takePicture( { drawer: drawer } ).then( () => {
+                holding = false;
+                tiApplication._endRequest();
+                if ( contentRequests !== before ) {
+                    this.picture = null;
+                    return;
+                }
+                proceed();
+            } );
+            return true;
         },
 
         /**
@@ -2768,16 +2886,20 @@ const configureStoreScreenTrail = () => {
                 || String( detail.path || "" ).split( "?" )[ 0 ] !== "/app/send-feedback" ) {
                 return;
             }
-            const tiApplication = Alpine.store( "tiApplication" );
-            const features = tiApplication.configuration && tiApplication.configuration.features;
-            if ( !features || features.feedback !== true || tiApplication.currentScreen === "send-feedback" ) {
+            if ( holding ) {
+                // A second click while the first is held: the first goes on, this one would send the form twice.
+                event.preventDefault();
+                return;
+            }
+            if ( !this.wantsPicture() ) {
                 return;
             }
             event.preventDefault();
             // At once, as the request would: the drawer used to reach Send Feedback is not part of the screen.
+            const tiApplication = Alpine.store( "tiApplication" );
             const drawer = tiApplication.navigationDrawer === true;
             tiApplication.closeNavigation();
-            this.takePicture( { drawer: drawer } ).then( () => detail.issueRequest( true ) );
+            this.holdFor( () => detail.issueRequest( true ), drawer );
         },
 
         /**
@@ -2815,6 +2937,9 @@ const configureStoreScreenTrail = () => {
                 filter: ( node ) => !isLeftOutOfPicture( node, drawer ),
                 onCloneNode: ( copy ) => {
                     redactPicture( copy );
+                },
+                onCreateForeignObjectSvg: ( drawing ) => {
+                    redactDrawing( drawing );
                 }
             } ) ).then( encodePicture );
             const limit = new Promise( ( resolve ) => setTimeout( () => resolve( null ), PICTURE_TIME_LIMIT_MS ) );
@@ -2839,6 +2964,18 @@ const configureStoreScreenTrail = () => {
          */
         redact( root ) {
             return redactPicture( root );
+        },
+
+        /**
+         * Blanks what reaches the drawing after the copy was redacted: {@link redactDrawing}.
+         *
+         * @method
+         * @param {Element} drawing
+         * @returns {Element}
+         * @public
+         */
+        redactDrawing( drawing ) {
+            return redactDrawing( drawing );
         },
 
         /**

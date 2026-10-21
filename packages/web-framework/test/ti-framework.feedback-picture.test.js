@@ -121,12 +121,13 @@ const svg = ( tag, attributes, ...children ) => new FakeElement( tag, attributes
  */
 function pageCopy() {
     const parts = {
-        label: element( "h1", { "x-text-label": "interface.title", "x-bind:class": "titleClass", "x-on:click.outside": "close()", "xmlns:xlink": "http://www.w3.org/1999/xlink" }, "Team results" ),
+        label: element( "h1", { "x-text-label": "interface.title", "x-bind:class": "titleClass", "x-on:click.outside": "close()", ":key": "item.id", "@click": "open()", "xmlns:xlink": "http://www.w3.org/1999/xlink" }, "Team results" ),
         bound: element( "p", { "x-text": "employee.name" }, "Mary Sample" ),
         fromServer: element( "span", {}, "Ivan Petrov, 42" ),
         mixed: element( "p", {}, element( "b", { "x-text-label": "interface.name" }, "Name" ), " Ivan Petrov" ),
         keptBlock: element( "div", { "data-ti-keep": "" }, element( "span", { "x-text": "statusName" }, "In review" ) ),
         redactedBlock: element( "div", { "data-ti-redact": "" }, element( "span", { "x-text-label": "interface.secret" }, "Kept label made secret" ) ),
+        redactedPhoto: element( "div", { "data-ti-redact": "", class: "avatar" } ),
         email: element( "input", { type: "email", value: "mary@example.com" } ),
         untyped: element( "input", { value: "Mary" } ),
         checkbox: element( "input", { type: "checkbox", value: "on", checked: "" } ),
@@ -176,6 +177,13 @@ describe( "the copy of the page a picture is drawn from (CA-544)", () => {
         assert.equal( textOf( parts.redactedBlock ), "xxxx xxxxx xxxx xxxxxx" );
     } );
 
+    it( "draws what an application marked redacted grey, a photo set as a CSS background included", () => {
+        // The README promised it and nothing did it: the photo was drawn (measured, the review pass).
+        assert.equal( parts.redactedPhoto.styles[ "background-image" ], "none" );
+        assert.ok( parts.redactedPhoto.styles[ "background-color" ] );
+        assert.equal( parts.label.styles[ "background-image" ], undefined, "nothing else" );
+    } );
+
     it( "shows typed values as bullets and leaves a checkbox's state", () => {
         assert.equal( parts.email.getAttribute( "value" ), "••••••••••••••••" );
         assert.equal( parts.email.value, "••••••••••••••••" );
@@ -198,8 +206,9 @@ describe( "the copy of the page a picture is drawn from (CA-544)", () => {
         assert.equal( textOf( parts.select.childNodes[ 1 ] ), "xxxx xxxxxx" );
     } );
 
-    it( "drops every attribute with a prefix XML cannot resolve, which left the whole picture empty, and keeps the rest", () => {
-        // Measured on a real screen: one `x-bind:class` and the browser refused the drawing as XML.
+    it( "drops every attribute name XML cannot read, which left the whole picture empty, Alpine's shorthands too, and keeps the rest", () => {
+        // Measured on a real screen: one `x-bind:class` and the browser refused the drawing as XML. `:key` and `@click`
+        // were let through by the first rule, which wanted a name before the colon (the review pass).
         assert.deepEqual( parts.label.attributes.map( ( attribute ) => attribute.name ), [ "x-text-label", "xmlns:xlink" ] );
     } );
 
@@ -208,6 +217,29 @@ describe( "the copy of the page a picture is drawn from (CA-544)", () => {
         for ( const secret of [ "Mary", "Ivan", "Petrov", "42", "example.com", "typed", "mary.jpg", "Kept label" ] ) {
             assert.ok( !everything.includes( secret ), secret );
         }
+    } );
+
+} );
+
+describe( "the drawing, after the copy (CA-544)", () => {
+
+    it( "blanks a pseudo-element's words and anything it computes, and keeps a mark", () => {
+        // Measured: `content: attr(data-name)` and a literal both reached the picture, written into the drawing's own
+        // stylesheet after the copy was redacted (the review pass).
+        const { stores } = loadTiFramework();
+        const style = { textContent: ".a::before { content: 'Mary Sample — '; color: red; } .b::after { content: attr(data-name); } .c::before { content: \"›\"; } .d::before { content: none; } .e::after { content: counter(step) }" };
+        const symbolText = { textContent: "Ivan Petrov" };
+        stores.tiScreenTrail.redactDrawing( { querySelectorAll: ( selector ) => ( selector === "style" ) ? [ style ] : [ symbolText ] } );
+        assert.equal( style.textContent, ".a::before { content: \"xxxx xxxxxx — \"; color: red; } .b::after { content: \"xxx\"; } .c::before { content: \"›\"; } .d::before { content: none; } .e::after { content: \"xxx\"}" );
+        assert.equal( symbolText.textContent, "", "an SVG symbol's text, copied in for a <use>" );
+    } );
+
+    it( "asks for no larger a picture than the server takes", () => {
+        // Written on both sides; a change to one alone would have the server refuse every picture (the review pass).
+        const Feedback = require( "../components/feedback.js" );
+        const script = fs.readFileSync( path.join( __dirname, "..", "bin", "static", "scripts", "ti-framework.js" ), "utf8" );
+        assert.equal( Number( /const PICTURE_MAX_SIDE = (\d+);/.exec( script )[ 1 ] ), Feedback.PICTURE_MAX_SIDE );
+        assert.equal( Number( /const PICTURE_MAX_BYTES = (\d+);/.exec( script )[ 1 ] ), Feedback.PICTURE_MAX_BYTES );
     } );
 
 } );
@@ -357,6 +389,51 @@ describe( "Send Feedback waits for the picture of the screen being left (CA-544)
     it( "holds a request with its query, as htmx.ajax and a link both reach it", async () => {
         const shell = capturingShell();
         assert.equal( shell.confirm( { verb: "GET", path: "/app/send-feedback?from=menu", issueRequest: () => {} } ).prevented, true );
+    } );
+
+    it( "takes the picture when Send Feedback is opened through openScreen, before the new screen is named", async () => {
+        // openScreen names the screen and pushes its URL before its request starts, so the hold saw "already on Send
+        // Feedback" and took no picture: the sidebar's entries and What's new's links (the review pass).
+        const shell = capturingShell();
+        const opened = [];
+        shell.sandbox.history = { pushState: ( state, title, url ) => opened.push( url ) };
+        shell.sandbox.document.getElementById = () => null;
+        shell.sandbox.htmx = { ajax: ( verb, url ) => {
+            opened.push( `${ verb } ${ url }` );
+            return Promise.resolve();
+        } };
+        shell.stores.tiApplication.openScreen( "send-feedback" );
+        assert.equal( shell.drawn.length, 0, "the library is asked once the picture is under way" );
+        assert.equal( shell.stores.tiApplication.currentScreen, "reports", "the screen being left, while it is drawn" );
+        assert.deepEqual( opened, [] );
+        await settle();
+        assert.equal( shell.drawn.length, 1 );
+        assert.ok( shell.stores.tiScreenTrail.picture );
+        assert.deepEqual( opened, [ "/app/send-feedback", "get /app/send-feedback" ] );
+        assert.equal( shell.stores.tiApplication.currentScreen, "send-feedback" );
+    } );
+
+    it( "lets another screen asked for meanwhile win, and drops the picture of the screen left", async () => {
+        const shell = capturingShell();
+        shell.sendFeedback();
+        shell.documentListeners.get( "htmx:beforeRequest" ).forEach( ( handler ) => handler( { detail: { target: { id: "ti-content" } } } ) );
+        await settle();
+        assert.deepEqual( shell.issued, [], "Send Feedback would have replaced the screen asked for since" );
+        assert.equal( shell.stores.tiScreenTrail.picture, null );
+    } );
+
+    it( "sends the form once when it is asked for twice while the picture is drawn, and shows the shell busy meanwhile", async () => {
+        const shell = capturingShell();
+        const busy = [];
+        shell.stores.tiApplication._beginRequest = () => busy.push( "begin" );
+        shell.stores.tiApplication._endRequest = () => busy.push( "end" );
+        shell.sendFeedback();
+        assert.equal( shell.sendFeedback().prevented, true, "the second request is held back too" );
+        assert.deepEqual( busy, [ "begin" ], "busy while drawn: nothing else on the screen changes" );
+        await settle();
+        assert.deepEqual( shell.issued, [ true ], "once" );
+        assert.equal( shell.drawn.length, 1 );
+        assert.deepEqual( busy, [ "begin", "end" ] );
     } );
 
     it( "opens the form with no picture when drawing fails, or takes longer than 4 seconds", async () => {

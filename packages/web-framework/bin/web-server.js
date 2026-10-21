@@ -555,12 +555,11 @@ class TiWebServer extends ServiceConsumer {
                     this.#webServer.post( JOBS_ROUTE, webHandlers.jobsRunHandler( () => this.runJobTick() ) );
                 }
 
-                // Then the session, and everything that depends on it. Send Feedback alone takes a larger body: a picture of
-                // the screen rides on it in base64, up to 1,333,336 characters for its 1,000,000 bytes (CA-544), which the
-                // 1 MB every other request keeps would refuse. Read first here, the body is then skipped by the parser
-                // below, which leaves a finished request alone.
-                this.#webServer.post( "/app/send-feedback", express.json( { limit: FEEDBACK_BODY_LIMIT } ) );
-                this.#webServer.use( express.json( { limit: "1mb" } ) );
+                // Then the session, and everything that depends on it. Every JSON body but Send Feedback's is read here, at
+                // most 1 MB. Send Feedback's is read after the session, CSRF and sign-in checks, at most 1.5 MB (CA-544):
+                // a picture of the screen rides on it, and only someone signed in may make the server read that much.
+                const parseJSON = express.json( { limit: "1mb" } );
+                this.#webServer.use( ( request, response, next ) => TiWebServer.isFeedbackSubmission( request ) ? next() : parseJSON( request, response, next ) );
                 this.#webServer.use( express.urlencoded( { extended: false, limit: "100kb" } ) );
                 this.#webServer.use( cookieParser() );
                 const sessionHandler = session( {
@@ -599,6 +598,11 @@ class TiWebServer extends ServiceConsumer {
                 // AFTER the static handlers: an asset request carries the same session cookie, and there is no reason
                 // to re-derive a viewer's roles to serve them a stylesheet.
                 this.#webServer.use( webHandlers.sessionRefreshHandler( this ) );
+
+                // Send Feedback's body, now that the request is known to come from someone signed in (see above). The
+                // CSRF check before it reads the token from a header, so it needs no body.
+                const parseFeedbackJSON = express.json( { limit: FEEDBACK_BODY_LIMIT } );
+                this.#webServer.use( ( request, response, next ) => TiWebServer.isFeedbackSubmission( request ) ? parseFeedbackJSON( request, response, next ) : next() );
 
                 // Set up the web application routes:
                 this.defineWebApplicationRoutes();
@@ -873,6 +877,21 @@ class TiWebServer extends ServiceConsumer {
      */
     isAllowedHost( hostname ) {
         return this.#allowedHosts.includes( hostname );
+    }
+
+    /**
+     * Whether a request is a submission to Send Feedback, whose JSON body may carry a picture of the screen and is read
+     * only once the request is known to come from someone signed in (CA-544). As Express matches the route
+     * `/app/send-feedback`: any letter case, with or without a trailing slash.
+     *
+     * @method
+     * @static
+     * @param {Object} request
+     * @returns {boolean}
+     * @public
+     */
+    static isFeedbackSubmission( request ) {
+        return !!request && request.method === "POST" && /^\/app\/send-feedback\/?$/i.test( String( request.path || "" ) );
     }
 
     /**

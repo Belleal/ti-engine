@@ -488,11 +488,14 @@ class Feedback {
                 return cache.instance.setValue( KEY_ITEM + item.feedbackID, item ).then( () => item );
             }
             item.picture = { type: picture.type, bytes: picture.bytes, width: picture.width, height: picture.height };
-            // The picture first, so an item never names one that is not there; and gone again if the item is not written.
-            return cache.instance.setValue( KEY_PICTURE + item.feedbackID, { type: picture.type, data: picture.data } ).then( () => {
-                return cache.instance.setValue( KEY_ITEM + item.feedbackID, item ).catch( ( error ) => {
-                    return Promise.resolve().then( () => cache.instance.deleteValue( KEY_PICTURE + item.feedbackID ) ).catch( ( cleanup ) => {
-                        logger.log( `Feedback ${ item.feedbackID }: its picture could not be deleted after the item failed to save.`, logger.logSeverity.WARNING, cleanup );
+            // The item first. A picture is found and erased only through its item, so one written first and left alone
+            // by a failure or a restart would be kept for good, beyond any erasure. The other way round, the worst left
+            // is an item naming a picture that is not there, which reads as no longer available. A picture that cannot
+            // be written takes its item back, so the person is told and sends again.
+            return cache.instance.setValue( KEY_ITEM + item.feedbackID, item ).then( () => {
+                return cache.instance.setValue( KEY_PICTURE + item.feedbackID, { type: picture.type, data: picture.data } ).catch( ( error ) => {
+                    return Promise.resolve().then( () => cache.instance.deleteValue( KEY_ITEM + item.feedbackID ) ).catch( ( cleanup ) => {
+                        logger.log( `Feedback ${ item.feedbackID }: the item could not be deleted after its picture failed to save.`, logger.logSeverity.WARNING, cleanup );
                     } ).then( () => {
                         throw error;
                     } );

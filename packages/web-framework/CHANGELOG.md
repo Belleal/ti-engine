@@ -48,6 +48,29 @@ This document will contain the list of changes made to the framework. The format
       Copying the standard properties alone, and leaving out what is not displayed, takes 0.7 s, with a byte-identical
       picture.
     * The copied fill colour painted the bars' characters over `color: transparent`.
+  * **The separate review pass** found nine more. Each is fixed with a test that fails without it, or, for the last,
+    a guard:
+    * **`openScreen` took no picture.** It names the new screen before its request starts, so the hold saw "already on
+      Send Feedback". The sidebar's entries and What's new's links all go that way. `openScreen` now takes the picture
+      first, through the same hold.
+    * **A held request went on even after the person had moved elsewhere,** replacing the new screen. A double click
+      sent the form twice, and the hold showed nothing. Now:
+      * a request started into `#ti-content` meanwhile wins, and the picture is dropped;
+      * a second way to Send Feedback while held is dropped;
+      * the shell shows busy while the screen is drawn.
+    * **Alpine's shorthand attributes (`:key`, `@click`)** passed the first rule, which wanted a name before the colon,
+      and would leave the picture empty. Every attribute name XML cannot read is now dropped.
+    * **`data-ti-redact` blanked only text.** A photo set as a CSS background under it was drawn (measured). It is now
+      drawn grey.
+    * **A pseudo-element's `content` and a `<use>` symbol's text** reach the drawing after the copy is redacted
+      (measured: `attr(data-name)` and a literal both drawn). `onCreateForeignObjectSvg` now blanks both. A `content`
+      with no letter or digit, a mark, stays.
+    * **The picture was written before its item.** A failure or a restart between the two would have kept it beyond
+      erasure, since a picture is found only through its item. The item now comes first, and a picture that cannot be
+      written takes its item back.
+    * **Send Feedback's 1.5 MB body was read before sign-in.** Now only a signed-in request's is, after the session,
+      CSRF and sign-in checks. Every other route keeps reading at most 1 MB where it did.
+    * **The size limits were written in the browser and on the server with nothing tying them.** A test now does.
 
 ## Version 1.57.0
 

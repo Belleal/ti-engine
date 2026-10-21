@@ -40,11 +40,19 @@ screen in front of the reader. An upload button would let anyone attach any file
 
 ### 4.1 When it is taken
 
-- **When Send Feedback is opened, of the screen being left.** The shell's request for `/app/send-feedback` into
-  `#ti-content` is held through htmx's `htmx:confirm`, the picture is taken, and the request is issued.
-  - This catches the user menu's entry, an application's own link (`hx-get="/app/send-feedback"`) and
-    `tiApplication.openScreen( "send-feedback" )`, which goes through `htmx.ajax` and so raises the same event.
+- **When Send Feedback is opened, of the screen being left.** The way there is held, the picture is taken, and then it
+  goes on.
+  - **A link** (the user menu, an application's own `hx-get="/app/send-feedback"`) is held through htmx's
+    `htmx:confirm`, and then its request is issued.
+  - **`tiApplication.openScreen( "send-feedback" )`** takes the picture first, before it changes anything. It names the
+    new screen and pushes its URL before its request starts. Held at `htmx:confirm`, the hold saw "already on Send
+    Feedback" and took nothing (the review pass). The sidebar's entries and What's new's links go this way.
   - **Bounded at 4 seconds.** Past that, or on any failure, the form opens with no picture.
+  - **The shell shows busy** while the screen is drawn, since nothing else on it changes.
+  - **A second way to Send Feedback while held is the same one**, and is dropped: a double click would send the form
+    twice.
+  - **A request started into `#ti-content` meanwhile wins.** Going on would replace the screen the person asked for
+    since with Send Feedback, and a picture of a screen already left. The picture is dropped.
 - **Not taken when there is no screen to take**: a reload of `/app/send-feedback`, or a click on Send Feedback from
   Send Feedback itself.
 - **On a narrow screen the drawer closes first, and is left out.** There the sidebar is a drawer laid over the screen,
@@ -78,6 +86,11 @@ The picture is drawn from a copy of the page (§5). **Every rule applies to the 
   The framework's icons are CSS masks and stay.
 - **Chart text is blanked by the text rule** (SVG `text`), and its shapes stay. Without the names, a shape says
   nothing of whom it measures.
+- **What reaches the drawing after the copy is blanked too** (`onCreateForeignObjectSvg`, measured):
+  - A pseudo-element's `content` is written into the drawing's stylesheet. One with a letter or digit becomes x's, and
+    anything computed (`attr()`, a counter) becomes "xxx". A mark such as "›" stays.
+  - The text of an SVG symbol a `<use>` draws goes.
+- **`data-ti-redact` draws its element grey**, a photo set as a CSS background included.
 - **The user menu is left out entirely** (`.ti-sidebar-flyout`). It is the menu used to reach Send Feedback, not part
   of the screen being reported.
 - **So is what is not displayed**: templates, and anything whose computed `display` is `none`. It is never drawn, and
@@ -101,6 +114,8 @@ The picture is drawn from a copy of the page (§5). **Every rule applies to the 
   Anything else is 422 `error.feedback.picture`, and nothing is stored.
 - **`POST /app/send-feedback` alone takes a body of up to 1.5 MB**, enough for the picture in base64. Every other
   request keeps the 1 MB limit.
+  - **Read only from someone signed in.** The body is read after the session, CSRF and sign-in checks; the CSRF
+    token comes in a header. Read before them, anyone could have made the server parse 1.5 MB (the review pass).
 
 ### 4.4 Where it is kept, and who sees it
 
@@ -108,8 +123,10 @@ The picture is drawn from a copy of the page (§5). **Every rule applies to the 
   at most, under D1's 2,000,000-byte row.
 - **The item records only that it has one**: `picture: { type, bytes, width, height }`, or null. So the inbox, the
   e-mail and an export never carry the image by accident.
-- **The picture is written before the item.** If the item's write fails, the picture is deleted again, so no picture
-  is left without its item.
+- **The item is written first, then the picture.** A picture is found, shown and erased only through its item.
+  Written first, a failure or a restart between the two writes would have kept it for good, beyond any erasure (the
+  review pass). The other way round, the worst left is an item naming a picture that is not there, which reads as no
+  longer available. A picture that cannot be written takes its item back, and the person is told.
 - **Administrators only.** `GET /app/feedback-picture?feedbackID=<id>` answers `{ feedbackID, type, width, height,
   data }` to the `admin` role, like the inbox. The Feedback screen loads a picture only when asked to show it.
 - **It goes with its item**: `eraseSentBy` deletes both, under the item's key. An anonymous item cannot be found by
@@ -156,8 +173,9 @@ The picture is drawn from a copy of the page (§5). **Every rule applies to the 
 - **No picture of a whole scrolled page.** It is the screen in view, which is what "the screen I was on" means.
 - **No crop or brush.** The person can only send it or leave it out. The blanking is the protection, and the preview
   is the check.
-- **No CSS background image is blanked.** The framework sets none from data. An application that shows a photo as a
-  background marks its element `data-ti-redact`.
+- **No CSS background image is blanked unless marked.** The framework sets none from data, and blanking every one
+  would take a checkbox's tick with it. An application that shows a photo as a background marks its element
+  `data-ti-redact`.
 - **No retention timer.** A picture lives as long as its item, which is how long administrators keep feedback.
 - **The personal-data export lists the picture's metadata, not the image.** An application that wants the image in
   its export reads `Feedback#fetchPicture`.
