@@ -2640,10 +2640,13 @@ const redactPicture = ( root ) => {
         Array.from( element.attributes || [] ).map( ( attribute ) => attribute.name ).filter( ( name ) => !PICTURE_PLAIN_ATTRIBUTE.test( name ) )
             .forEach( ( name ) => element.removeAttribute( name ) );
         if ( typeof element.closest === "function" && element.closest( PICTURE_REDACTED ) ) {
-            // What the rule above cannot see, such as a photo set as a CSS background, under an element the
-            // application marked: drawn grey, whatever its stylesheet says (measured: the photo was drawn without this).
+            // What the rule above cannot see, such as a photo set as a CSS background, in what the application marked:
+            // no background image anywhere in it (measured: the photo was drawn without this), and the marked element
+            // grey. Grey on every descendant too would layer, darker the deeper the markup.
             element.style.setProperty( "background-image", "none", "important" );
-            element.style.setProperty( "background-color", "rgba( 128, 128, 128, 0.35 )", "important" );
+            if ( typeof element.matches === "function" && element.matches( PICTURE_REDACTED ) ) {
+                element.style.setProperty( "background-color", "rgba( 128, 128, 128, 0.35 )", "important" );
+            }
         }
         if ( isKept( element ) ) {
             return;
@@ -2671,10 +2674,82 @@ const redactPicture = ( root ) => {
 };
 
 /**
+ * The blank for a pseudo-element's `content` value: kept when it is `none`, `normal` or a single string with no letter
+ * and no digit (a mark such as "›" or "•"); a single string with words keeps its length as x's; anything else,
+ * `attr()`, a counter, an escape or several parts, is "xxx".
+ *
+ * @method
+ * @param {string} value The value as written, without the property name.
+ * @returns {string} The value to write in its place.
+ */
+const blankContentValue = ( value ) => {
+    const trimmed = String( value ).trim();
+    if ( trimmed === "none" || trimmed === "normal" ) {
+        return value;
+    }
+    const quote = trimmed.charAt( 0 );
+    const inner = trimmed.slice( 1, -1 );
+    const literal = ( trimmed.length >= 2 && ( quote === "\"" || quote === "'" ) && trimmed.charAt( trimmed.length - 1 ) === quote
+        && !inner.includes( quote ) && !inner.includes( "\\" ) ) ? inner : null;
+    if ( literal !== null && !/[\p{L}\p{N}]/u.test( literal ) ) {
+        return value;
+    }
+    return ` "${ ( literal === null ) ? "xxx" : literal.replace( /[\p{L}\p{N}]/gu, "x" ) }"`;
+};
+
+/**
+ * Rewrites every `content` declaration in a stylesheet with {@link blankContentValue}. A scanner, not a pattern: the
+ * property is found only where a declaration starts (never inside `justify-content`), and its value is read up to the
+ * `;` or `}` that ends it outside quotes, so a `;` in a string cuts nothing (the second review pass).
+ *
+ * @method
+ * @param {string} css
+ * @returns {string}
+ */
+const blankPseudoContent = ( css ) => {
+    let out = "";
+    let from = 0;
+    let at = css.indexOf( "content", from );
+    while ( at !== -1 ) {
+        let colon = at + 7;
+        while ( colon < css.length && /\s/.test( css.charAt( colon ) ) ) {
+            colon += 1;
+        }
+        const startsDeclaration = ( at === 0 || /[\s;{]/.test( css.charAt( at - 1 ) ) ) && css.charAt( colon ) === ":";
+        if ( !startsDeclaration ) {
+            at = css.indexOf( "content", at + 7 );
+            continue;
+        }
+        let end = colon + 1;
+        let quote = null;
+        while ( end < css.length ) {
+            const character = css.charAt( end );
+            if ( quote !== null ) {
+                if ( character === "\\" ) {
+                    end += 1;
+                } else if ( character === quote ) {
+                    quote = null;
+                }
+            } else if ( character === "\"" || character === "'" ) {
+                quote = character;
+            } else if ( character === ";" || character === "}" ) {
+                break;
+            }
+            end += 1;
+        }
+        out += css.slice( from, colon + 1 ) + blankContentValue( css.slice( colon + 1, end ) );
+        from = end;
+        at = css.indexOf( "content", end );
+    }
+    return out + css.slice( from );
+};
+
+/**
  * Blanks what reaches the drawing after the copy was redacted (CA-544, measured): the text of a pseudo-element's
- * `content`, which the library writes into the drawing's stylesheet, and the text of an SVG symbol a `<use>` points to,
- * which it copies in from the page. A `content` with a letter or a digit becomes x's, and anything computed, such as
- * `attr()` or a counter, becomes "xxx"; a mark such as "›" or "•" stays.
+ * `content`, which the library writes into the drawing's stylesheet; the text of an SVG symbol a `<use>` points to,
+ * which it copies in from the page; and a pseudo-element's background inside what an application marked
+ * `data-ti-redact`, which no inline style reaches. A `content` with a letter or a digit becomes x's, and anything
+ * computed, such as `attr()` or a counter, becomes "xxx"; a mark such as "›" or "•" stays.
  *
  * @method
  * @param {Element} drawing The SVG the library is about to draw.
@@ -2682,26 +2757,16 @@ const redactPicture = ( root ) => {
  * @public
  */
 const redactDrawing = ( drawing ) => {
-    const wordy = /[\p{L}\p{N}]/u;
     drawing.querySelectorAll( "style" ).forEach( ( style ) => {
-        style.textContent = String( style.textContent || "" ).replace( /content:\s*([^;}]+)/g, ( declaration, value ) => {
-            const trimmed = value.trim();
-            if ( trimmed === "none" || trimmed === "normal" ) {
-                return declaration;
-            }
-            const quote = trimmed.charAt( 0 );
-            const literal = ( trimmed.length >= 2 && ( quote === "\"" || quote === "'" ) && trimmed.charAt( trimmed.length - 1 ) === quote && !trimmed.slice( 1, -1 ).includes( quote ) )
-                ? trimmed.slice( 1, -1 )
-                : null;
-            if ( literal !== null && !wordy.test( literal ) ) {
-                return declaration;
-            }
-            return `content: "${ ( literal === null ) ? "xxx" : literal.replace( /[\p{L}\p{N}]/gu, "x" ).replace( /["\\]/g, "" ) }"`;
-        } );
+        style.textContent = blankPseudoContent( String( style.textContent || "" ) );
     } );
     drawing.querySelectorAll( "defs text, defs tspan, symbol text, symbol tspan" ).forEach( ( text ) => {
         text.textContent = "";
     } );
+    // Inside the drawing, which the page's policy does not reach: the library's own stylesheet is there too.
+    const marked = drawing.ownerDocument.createElementNS( SVG_NAMESPACE, "style" );
+    marked.textContent = "[data-ti-redact]::before, [data-ti-redact]::after, [data-ti-redact] *::before, [data-ti-redact] *::after { background-image: none !important; }";
+    drawing.appendChild( marked );
     return drawing;
 };
 
@@ -2797,8 +2862,9 @@ const configureStoreScreenTrail = () => {
     let last = "";
     let taking = null;
     let holding = false;
-    // Requests started into `#ti-content`: a hold that sees the count move was overtaken by another screen.
-    let contentRequests = 0;
+    // Navigations begun: a screen asked for into `#ti-content`, a history restore, Back or Forward. A hold that sees
+    // the count move was overtaken. Only a GET counts, so an autosave aimed at the screen does not cancel the click.
+    let navigationsBegun = 0;
     return {
         previous: "",
         picture: null,
@@ -2819,10 +2885,18 @@ const configureStoreScreenTrail = () => {
             } );
             document.addEventListener( "htmx:confirm", ( event ) => this.holdForPicture( event ) );
             document.addEventListener( "htmx:beforeRequest", ( event ) => {
-                const target = event.detail && event.detail.target;
-                if ( target && target.id === "ti-content" ) {
-                    contentRequests += 1;
+                const detail = event.detail || {};
+                const verb = String( ( detail.requestConfig && detail.requestConfig.verb ) || "get" ).toLowerCase();
+                if ( detail.target && detail.target.id === "ti-content" && verb === "get" ) {
+                    navigationsBegun += 1;
                 }
+            } );
+            // Back and Forward, and htmx's restore of a page from its history, request nothing the line above sees.
+            document.addEventListener( "htmx:historyRestore", () => {
+                navigationsBegun += 1;
+            } );
+            window.addEventListener( "popstate", () => {
+                navigationsBegun += 1;
             } );
         },
 
@@ -2858,12 +2932,16 @@ const configureStoreScreenTrail = () => {
             }
             holding = true;
             const tiApplication = Alpine.store( "tiApplication" );
-            const before = contentRequests;
+            const before = navigationsBegun;
             tiApplication._beginRequest();
-            this.takePicture( { drawer: drawer } ).then( () => {
+            // Through a promise from the start: a throw while setting up would otherwise leave the hold, and the
+            // shell's busy state, on for good, and every later way to Send Feedback dropped (the second review pass).
+            Promise.resolve().then( () => this.takePicture( { drawer: drawer } ) ).catch( () => {
+                this.picture = null;
+            } ).then( () => {
                 holding = false;
                 tiApplication._endRequest();
-                if ( contentRequests !== before ) {
+                if ( navigationsBegun !== before ) {
                     this.picture = null;
                     return;
                 }

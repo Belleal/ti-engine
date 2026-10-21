@@ -60,7 +60,7 @@ cacheStub.hashDeleteField = ( name, field ) => {
 };
 cacheStub.expireValue = () => Promise.resolve();
 
-const localUserDirectory = require( "../components/local-user-directory.js" );
+const localUserDirectory = require( "#local-user-directory" );
 fs.writeFileSync( USERS, JSON.stringify( [ { username: "tester", email: "tester@example.com", name: "Tester", passwordHash: localUserDirectory.hashPassword( PASSWORD ) } ] ) );
 
 const TiWebServer = require( "#web-server" );

@@ -51,8 +51,11 @@ screen in front of the reader. An upload button would let anyone attach any file
   - **The shell shows busy** while the screen is drawn, since nothing else on it changes.
   - **A second way to Send Feedback while held is the same one**, and is dropped: a double click would send the form
     twice.
-  - **A request started into `#ti-content` meanwhile wins.** Going on would replace the screen the person asked for
-    since with Send Feedback, and a picture of a screen already left. The picture is dropped.
+  - **A navigation begun meanwhile wins:** a GET into `#ti-content`, Back or Forward (`popstate`), or htmx's history
+    restore. Going on would replace the screen the person asked for since with Send Feedback, and a picture of a
+    screen already left. The picture is dropped. A POST into the screen, an autosave, is no navigation and cancels
+    nothing.
+  - **Whatever happens while the hold is set up, it is let go**, so a throw cannot leave it, and the busy state, on.
 - **Not taken when there is no screen to take**: a reload of `/app/send-feedback`, or a click on Send Feedback from
   Send Feedback itself.
 - **On a narrow screen the drawer closes first, and is left out.** There the sidebar is a drawer laid over the screen,
@@ -90,7 +93,11 @@ The picture is drawn from a copy of the page (§5). **Every rule applies to the 
   - A pseudo-element's `content` is written into the drawing's stylesheet. One with a letter or digit becomes x's, and
     anything computed (`attr()`, a counter) becomes "xxx". A mark such as "›" stays.
   - The text of an SVG symbol a `<use>` draws goes.
-- **`data-ti-redact` draws its element grey**, a photo set as a CSS background included.
+- **`data-ti-redact` draws its element grey**, a photo set as a CSS background included, and leaves no background
+  image inside it, a pseudo-element's included (a rule appended to the drawing). Only the marked element is grey:
+  grey on each descendant too layered with the markup's depth.
+- **The `content` rewrite is a scanner, not a pattern**: it finds the property only where a declaration starts, never
+  inside `justify-content`, and reads a value whole, so a `;` inside a string cuts nothing.
 - **The user menu is left out entirely** (`.ti-sidebar-flyout`). It is the menu used to reach Send Feedback, not part
   of the screen being reported.
 - **So is what is not displayed**: templates, and anything whose computed `display` is `none`. It is never drawn, and
@@ -114,8 +121,9 @@ The picture is drawn from a copy of the page (§5). **Every rule applies to the 
   Anything else is 422 `error.feedback.picture`, and nothing is stored.
 - **`POST /app/send-feedback` alone takes a body of up to 1.5 MB**, enough for the picture in base64. Every other
   request keeps the 1 MB limit.
-  - **Read only from someone signed in.** The body is read after the session, CSRF and sign-in checks; the CSRF
-    token comes in a header. Read before them, anyone could have made the server parse 1.5 MB (the review pass).
+  - **Read only from someone signed in.** The body is read after the session, CSRF and sign-in checks. Read before
+    them, anyone could have made the server parse 1.5 MB (the review pass). The cost, kept: on this one route the CSRF
+    token must come in the `x-xsrf-token` header, as the shell sends it, since the check finds no body yet.
 
 ### 4.4 Where it is kept, and who sees it
 
@@ -126,7 +134,9 @@ The picture is drawn from a copy of the page (§5). **Every rule applies to the 
 - **The item is written first, then the picture.** A picture is found, shown and erased only through its item.
   Written first, a failure or a restart between the two writes would have kept it for good, beyond any erasure (the
   review pass). The other way round, the worst left is an item naming a picture that is not there, which reads as no
-  longer available. A picture that cannot be written takes its item back, and the person is told.
+  longer available. A picture that cannot be written takes its item back, and the person is told; it is deleted
+  too, in case the failed write landed all the same. Both writes run under the item's key, which erasure takes, so
+  an erasure between them cannot leave the picture behind.
 - **Administrators only.** `GET /app/feedback-picture?feedbackID=<id>` answers `{ feedbackID, type, width, height,
   data }` to the `admin` role, like the inbox. The Feedback screen loads a picture only when asked to show it.
 - **It goes with its item**: `eraseSentBy` deletes both, under the item's key. An anonymous item cannot be found by

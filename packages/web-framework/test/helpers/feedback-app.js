@@ -20,7 +20,7 @@
  * reach Send Feedback's handler. The server loads it from `application.classPath`, relative to the working directory.
  */
 
-const TiWebAppManager = require( "../../bin/web-app-manager.js" );
+const TiWebAppManager = require( "#web-app-manager" );
 
 class FeedbackApplication extends TiWebAppManager {
     constructor() {

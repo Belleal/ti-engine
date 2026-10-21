@@ -649,7 +649,9 @@ class MyApplication extends TiWebAppManager {
     such as a photo set as a CSS background: it and everything in it are drawn grey.
 
   The picture is WebP (JPEG where the browser cannot write WebP), at most 1600 px a side and 1,000,000 bytes. The
-  server checks all of that again, and reads Send Feedback's larger body (up to 1.5 MB) only from someone signed in. It is kept apart from its item (`ti:feedback:picture:*`), shown only to
+  server checks all of that again, and reads Send Feedback's larger body (up to 1.5 MB) only from someone signed in.
+  Its CSRF token must therefore come in the `x-xsrf-token` header, as the shell sends it: a token in the body is not
+  read on this one route. It is kept apart from its item (`ti:feedback:picture:*`), shown only to
   administrators, on the Feedback screen when asked for, and erased with its item. The library that draws it,
   modern-screenshot, is bundled and loaded only when a picture is taken.
 * **Who a person is.** Override `resolveSubject( session )` to return `{ id, name }` from the application's own record;

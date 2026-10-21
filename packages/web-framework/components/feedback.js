@@ -491,16 +491,21 @@ class Feedback {
             // The item first. A picture is found and erased only through its item, so one written first and left alone
             // by a failure or a restart would be kept for good, beyond any erasure. The other way round, the worst left
             // is an item naming a picture that is not there, which reads as no longer available. A picture that cannot
-            // be written takes its item back, so the person is told and sends again.
-            return cache.instance.setValue( KEY_ITEM + item.feedbackID, item ).then( () => {
+            // be written takes its item back, so the person is told and sends again; and is deleted too, in case the
+            // write that failed landed all the same (a timeout). Under the item's key, which erasure takes, so an
+            // erasure between the two writes cannot leave the picture behind either (the second review pass).
+            return this.#lock.exclusively( item.feedbackID, () => cache.instance.setValue( KEY_ITEM + item.feedbackID, item ).then( () => {
                 return cache.instance.setValue( KEY_PICTURE + item.feedbackID, { type: picture.type, data: picture.data } ).catch( ( error ) => {
-                    return Promise.resolve().then( () => cache.instance.deleteValue( KEY_ITEM + item.feedbackID ) ).catch( ( cleanup ) => {
-                        logger.log( `Feedback ${ item.feedbackID }: the item could not be deleted after its picture failed to save.`, logger.logSeverity.WARNING, cleanup );
+                    return tools.whenAllSettled( [
+                        Promise.resolve().then( () => cache.instance.deleteValue( KEY_PICTURE + item.feedbackID ) ),
+                        Promise.resolve().then( () => cache.instance.deleteValue( KEY_ITEM + item.feedbackID ) )
+                    ] ).catch( ( cleanup ) => {
+                        logger.log( `Feedback ${ item.feedbackID }: what was written could not all be deleted after its picture failed to save.`, logger.logSeverity.WARNING, cleanup );
                     } ).then( () => {
                         throw error;
                     } );
                 } );
-            } ).then( () => item );
+            } ) ).then( () => item );
         } ).then( ( item ) => {
             this.received( item, { email: sender.email } );
             return item;

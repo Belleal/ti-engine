@@ -600,7 +600,8 @@ class TiWebServer extends ServiceConsumer {
                 this.#webServer.use( webHandlers.sessionRefreshHandler( this ) );
 
                 // Send Feedback's body, now that the request is known to come from someone signed in (see above). The
-                // CSRF check before it reads the token from a header, so it needs no body.
+                // CSRF check before it finds no body here, so on this one route the token must come in its header
+                // (`x-xsrf-token`, as the shell's `sendRequest` sends it), never in the body.
                 const parseFeedbackJSON = express.json( { limit: FEEDBACK_BODY_LIMIT } );
                 this.#webServer.use( ( request, response, next ) => TiWebServer.isFeedbackSubmission( request ) ? parseFeedbackJSON( request, response, next ) : next() );
 

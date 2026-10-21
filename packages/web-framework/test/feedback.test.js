@@ -357,6 +357,32 @@ describe( "Feedback — a picture of the screen (CA-544)", () => {
         assert.deepEqual( Object.keys( cacheStub.values ), [] );
     } );
 
+    it( "leaves no picture behind for an erasure that comes between the two writes, or a write that failed after landing", async ( t ) => {
+        // Outside the item's key, an erasure found the new item, deleted it and the picture not yet written, and the
+        // picture landed after; and a picture write that timed out having landed took only its item back (the second
+        // review pass).
+        const feedback = fresh();
+        const write = cacheStub.setValue.bind( cacheStub );
+        let erasure = null;
+        t.mock.method( cacheStub, "setValue", ( key, value, expiration ) => {
+            if ( key.startsWith( "ti:feedback:picture:" ) && erasure === null ) {
+                erasure = feedback.eraseSentBy( SUBJECT.id );
+                return new Promise( ( resolve ) => setTimeout( resolve, 10 ) ).then( () => write( key, value, expiration ) );
+            }
+            return write( key, value, expiration );
+        } );
+        await feedback.submit( { kind: "problem", text: "Mine.", picture: PICTURES.webpOpaque }, SENDER );
+        assert.equal( await erasure, 1, "the erasure waited for the item's key, then found it" );
+        assert.deepEqual( Object.keys( cacheStub.values ), [], "item and picture both gone" );
+
+        t.mock.restoreAll();
+        t.mock.method( cacheStub, "setValue", ( key, value, expiration ) => key.startsWith( "ti:feedback:picture:" )
+            ? write( key, value, expiration ).then( () => Promise.reject( new Error( "timed out" ) ) )
+            : write( key, value, expiration ) );
+        await assert.rejects( feedback.submit( { kind: "problem", text: "Broken.", picture: PICTURES.webpOpaque }, SENDER ), /timed out/ );
+        assert.deepEqual( Object.keys( cacheStub.values ), [] );
+    } );
+
     it( "goes with its item on erasure; an anonymous item's stays with it", async () => {
         const feedback = fresh();
         const named = await feedback.submit( { kind: "problem", text: "Mine.", picture: PICTURES.webpOpaque }, SENDER );

@@ -89,6 +89,9 @@ class FakeElement {
         existing.parentNode = null;
         this.childNodes[ index ] = replacement;
     }
+    matches( selector ) {
+        return this.closest( selector ) === this;
+    }
     closest( selector ) {
         const names = selector.split( "," ).map( ( part ) => {
             const match = /^\s*\[([\w-]+)\]\s*$/.exec( part );
@@ -182,6 +185,12 @@ describe( "the copy of the page a picture is drawn from (CA-544)", () => {
         assert.equal( parts.redactedPhoto.styles[ "background-image" ], "none" );
         assert.ok( parts.redactedPhoto.styles[ "background-color" ] );
         assert.equal( parts.label.styles[ "background-image" ], undefined, "nothing else" );
+        // Grey on the marked element alone: on every descendant too, the layers darkened with the markup's depth (the
+        // second review pass). Inside, only the background images go.
+        const inner = parts.redactedBlock.childNodes[ 0 ];
+        assert.ok( parts.redactedBlock.styles[ "background-color" ] );
+        assert.equal( inner.styles[ "background-image" ], "none" );
+        assert.equal( inner.styles[ "background-color" ], undefined );
     } );
 
     it( "shows typed values as bullets and leaves a checkbox's state", () => {
@@ -229,14 +238,37 @@ describe( "the drawing, after the copy (CA-544)", () => {
         const { stores } = loadTiFramework();
         const style = { textContent: ".a::before { content: 'Mary Sample — '; color: red; } .b::after { content: attr(data-name); } .c::before { content: \"›\"; } .d::before { content: none; } .e::after { content: counter(step) }" };
         const symbolText = { textContent: "Ivan Petrov" };
-        stores.tiScreenTrail.redactDrawing( { querySelectorAll: ( selector ) => ( selector === "style" ) ? [ style ] : [ symbolText ] } );
+        const appended = [];
+        const drawing = {
+            querySelectorAll: ( selector ) => ( selector === "style" ) ? [ style ] : [ symbolText ],
+            ownerDocument: { createElementNS: ( namespace, tag ) => ( { namespace, tag, textContent: "" } ) },
+            appendChild: ( child ) => appended.push( child )
+        };
+        stores.tiScreenTrail.redactDrawing( drawing );
         assert.equal( style.textContent, ".a::before { content: \"xxxx xxxxxx — \"; color: red; } .b::after { content: \"xxx\"; } .c::before { content: \"›\"; } .d::before { content: none; } .e::after { content: \"xxx\"}" );
         assert.equal( symbolText.textContent, "", "an SVG symbol's text, copied in for a <use>" );
+        // A pseudo-element's background inside what is marked redacted, which no inline style reaches (measured).
+        assert.equal( appended.length, 1 );
+        assert.equal( appended[ 0 ].tag, "style" );
+        assert.match( appended[ 0 ].textContent, /^\[data-ti-redact\]::before, \[data-ti-redact\]::after, \[data-ti-redact\] \*::before, \[data-ti-redact\] \*::after \{ background-image: none !important; \}$/ );
+    } );
+
+    it( "rewrites only the content property, and reads its value whole, quotes and all", () => {
+        // The first rule was a pattern: it rewrote justify-content and align-content, and cut a value at a ";" in its
+        // string, leaving a quote open that swallowed every rule after it (the second review pass, measured).
+        const { stores } = loadTiFramework();
+        const style = { textContent: ".a::before { content: '›'; display: flex; justify-content: space-between; align-content: center; --content: 'Mary'; } .b::after { content: 'a; b}'; color: red; } .c::before{content:'Ivan'} .content-box { place-content: center; }" };
+        stores.tiScreenTrail.redactDrawing( {
+            querySelectorAll: ( selector ) => ( selector === "style" ) ? [ style ] : [],
+            ownerDocument: { createElementNS: () => ( {} ) },
+            appendChild: () => {}
+        } );
+        assert.equal( style.textContent, ".a::before { content: '›'; display: flex; justify-content: space-between; align-content: center; --content: 'Mary'; } .b::after { content: \"x; x}\"; color: red; } .c::before{content: \"xxxx\"} .content-box { place-content: center; }" );
     } );
 
     it( "asks for no larger a picture than the server takes", () => {
         // Written on both sides; a change to one alone would have the server refuse every picture (the review pass).
-        const Feedback = require( "../components/feedback.js" );
+        const Feedback = require( "#feedback" );
         const script = fs.readFileSync( path.join( __dirname, "..", "bin", "static", "scripts", "ti-framework.js" ), "utf8" );
         assert.equal( Number( /const PICTURE_MAX_SIDE = (\d+);/.exec( script )[ 1 ] ), Feedback.PICTURE_MAX_SIDE );
         assert.equal( Number( /const PICTURE_MAX_BYTES = (\d+);/.exec( script )[ 1 ] ), Feedback.PICTURE_MAX_BYTES );
@@ -420,6 +452,44 @@ describe( "Send Feedback waits for the picture of the screen being left (CA-544)
         await settle();
         assert.deepEqual( shell.issued, [], "Send Feedback would have replaced the screen asked for since" );
         assert.equal( shell.stores.tiScreenTrail.picture, null );
+    } );
+
+    it( "is overtaken by Back, Forward or a history restore, and not by a save aimed at the screen", async () => {
+        // Back and a restore request nothing the first count saw, and a POST into the screen cancelled the click
+        // (the second review pass).
+        for ( const [ name, fire ] of [
+            [ "Back", ( shell ) => shell.windowListeners.get( "popstate" ).forEach( ( handler ) => handler( {} ) ) ],
+            [ "a restore", ( shell ) => shell.documentListeners.get( "htmx:historyRestore" ).forEach( ( handler ) => handler( {} ) ) ]
+        ] ) {
+            const shell = capturingShell();
+            shell.sendFeedback();
+            fire( shell );
+            await settle();
+            assert.deepEqual( shell.issued, [], name );
+        }
+        const saving = capturingShell();
+        saving.sendFeedback();
+        saving.documentListeners.get( "htmx:beforeRequest" ).forEach( ( handler ) => handler( { detail: { target: { id: "ti-content" }, requestConfig: { verb: "post" } } } ) );
+        await settle();
+        assert.deepEqual( saving.issued, [ true ], "a save is no navigation" );
+    } );
+
+    it( "lets go of the hold whatever happens while it is set up", async () => {
+        // A throw there left the hold and the busy state on for good, and every later way to Send Feedback dropped.
+        const shell = capturingShell();
+        const busy = [];
+        shell.stores.tiApplication._beginRequest = () => busy.push( "begin" );
+        shell.stores.tiApplication._endRequest = () => busy.push( "end" );
+        const takePicture = shell.stores.tiScreenTrail.takePicture;
+        shell.stores.tiScreenTrail.takePicture = () => {
+            throw new Error( "broken" );
+        };
+        shell.sendFeedback();
+        await settle();
+        assert.deepEqual( busy, [ "begin", "end" ] );
+        assert.deepEqual( shell.issued, [ true ], "the form still opens, with no picture" );
+        shell.stores.tiScreenTrail.takePicture = takePicture;
+        assert.equal( shell.sendFeedback().prevented, true, "held again, not dropped" );
     } );
 
     it( "sends the form once when it is asked for twice while the picture is drawn, and shows the shell busy meanwhile", async () => {

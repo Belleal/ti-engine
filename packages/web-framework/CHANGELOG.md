@@ -71,6 +71,25 @@ This document will contain the list of changes made to the framework. The format
     * **Send Feedback's 1.5 MB body was read before sign-in.** Now only a signed-in request's is, after the session,
       CSRF and sign-in checks. Every other route keeps reading at most 1 MB where it did.
     * **The size limits were written in the browser and on the server with nothing tying them.** A test now does.
+  * **A second review pass**, over those fixes, found ten more. Each is fixed with a test that fails without it,
+    except one trade-off, kept and stated:
+    * **The `content` rewrite was a pattern** that matched inside `justify-content` and `align-content`, and cut a
+      value at a `;` in its string, leaving a quote open. It is now a scanner that finds the property only where a
+      declaration starts and reads the value whole, quotes and all.
+    * **An erasure between the item's and the picture's writes left the picture behind.** Both writes now run under
+      the item's key, which erasure takes. A picture write that failed after landing (a timeout) deletes the picture
+      too.
+    * **Back, Forward and htmx's history restore did not overtake a hold**, and a POST into the screen did. Only a
+      GET into `#ti-content`, a restore or `popstate` counts now.
+    * **A throw while the hold was being set up left it on for good.** It is now released whatever happens.
+    * **A pseudo-element's background under `data-ti-redact` was still drawn.** A rule in the drawing now removes it
+      (measured: a `data:` photo in `::before`).
+    * **Grey layered on every descendant of a redacted element.** Only the marked element is grey now; inside it only
+      the background images go.
+    * The hold's counter shared its name with the module's map of requests, and two new files used relative paths
+      where `#aliases` exist.
+    * **Kept, and stated: on Send Feedback the CSRF token must come in the `x-xsrf-token` header.** The body is read
+      after the CSRF check, so a token in it is not seen there. The shell sends the header.
 
 ## Version 1.57.0
 
