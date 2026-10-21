@@ -210,7 +210,7 @@ declare class Feedback {
     fetch(feedbackID: string): Promise<TiFeedbackItem | null>;
     /**
      * The picture of the screen sent with an item, or null: its type, its size in pixels and the image in base64. For
-     * the administrators' screen, which asks for one only when it is to be shown.
+     * the administrators' screen, which asks for one only when it is to be shown. Null for an anonymous item.
      *
      * @method
      * @param {string} feedbackID

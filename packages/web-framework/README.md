@@ -648,7 +648,9 @@ class MyApplication extends TiWebAppManager {
   * **Mark a text `data-ti-keep`** when it is not personal and the picture is less useful without it, such as a status
     name. **Mark an element `data-ti-redact`** when it shows something personal through a means the rule cannot see:
     a photo set as a CSS background, a grade shown by a chip's colour and place, an answer by a checked radio, a score
-    by a bar's length. It is drawn as one grey box of its size, and nothing in it is drawn (1.58.1).
+    by a bar's length. It is drawn as one grey box of its size, and nothing in it is drawn (1.58.1). Mark the element
+    around a value, whose size does not depend on it: a control, an image or an SVG shape marked itself is hidden
+    instead, and its size, a bar's fill for one, is still its own.
   * **Anonymous feedback carries no picture** (1.58.1). A picture of one's own screen shows what only that person
     sees and their own name's length, which can say who sent it. Ticking "Send anonymously" unticks and disables the
     option, with a note saying why, and the server does not read a picture sent with anonymous feedback.

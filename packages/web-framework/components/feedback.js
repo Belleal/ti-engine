@@ -485,9 +485,9 @@ class Feedback {
     submit( params, sender ) {
         return Promise.resolve().then( () => {
             const item = this.newItem( params || {}, sender, tools.getUUID(), new Date().toISOString() );
-            // Anonymous feedback keeps nothing of the sender, and a picture of their own screen would say who they are:
-            // what only they see, and their own name's length. The form never offers one; one sent all the same is not
-            // read, and nothing of it is kept (1.58.1).
+            // Anonymous feedback names nobody, and a picture of the sender's own screen could: what only they see, and
+            // their own name's length. The form never offers one; one sent all the same is not read, and nothing of it
+            // is kept (1.58.1).
             const picture = ( item.anonymous === true ) ? null : this.readPicture( ( params || {} ).picture );
             if ( picture === null ) {
                 return cache.instance.setValue( KEY_ITEM + item.feedbackID, item ).then( () => item );
@@ -550,7 +550,7 @@ class Feedback {
 
     /**
      * The picture of the screen sent with an item, or null: its type, its size in pixels and the image in base64. For
-     * the administrators' screen, which asks for one only when it is to be shown.
+     * the administrators' screen, which asks for one only when it is to be shown. Null for an anonymous item.
      *
      * @method
      * @param {string} feedbackID
@@ -559,7 +559,8 @@ class Feedback {
      */
     fetchPicture( feedbackID ) {
         return this.fetch( feedbackID ).then( ( item ) => {
-            if ( item === null || !item.picture || typeof item.picture !== "object" ) {
+            // Never an anonymous item's, though 1.58.0 kept one: it could say who sent the item (1.58.1).
+            if ( item === null || item.anonymous === true || !item.picture || typeof item.picture !== "object" ) {
                 return null;
             }
             return Promise.resolve().then( () => cache.instance.getValue( KEY_PICTURE + item.feedbackID ) ).then( ( stored ) => {

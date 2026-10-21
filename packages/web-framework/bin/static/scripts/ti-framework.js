@@ -2534,6 +2534,8 @@ const PICTURE_EXCLUDED_DRAWER = ".ti-sidebar, .ti-navigation-scrim";
 const PICTURE_KEPT = "[x-text-label], [data-ti-keep]";
 // Blanked whatever it holds, a kept label included.
 const PICTURE_REDACTED = "[data-ti-redact]";
+// Elements that draw their value in their own box, so a mark on one hides it rather than greying it.
+const PICTURE_UNBOXED = Object.freeze( [ "INPUT", "SELECT", "TEXTAREA", "PROGRESS", "METER", "IMG", "CANVAS", "VIDEO", "IFRAME", "OBJECT", "EMBED" ] );
 // What the picture blanks as a whole, unless kept: anything that draws an image of its own.
 const PICTURE_MEDIA = Object.freeze( [ "IMG", "CANVAS", "VIDEO", "IFRAME", "OBJECT", "EMBED" ] );
 // The inputs that show what was typed. A checkbox or a radio button shows only its state, and keeps it.
@@ -2550,7 +2552,7 @@ const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
 
 /**
  * Whether the picture leaves a node out altogether: the menu used to reach Send Feedback, a template, and anything not
- * displayed. Drawing what is not shown cost Competence's evaluation screen half its 1,053 elements and seconds.
+ * displayed. Drawing what is not shown cost a real screen of 1,053 elements half of them, and seconds.
  * `display: contents` draws its children, so only `none` counts.
  *
  * @method
@@ -2665,16 +2667,20 @@ const redactPicture = ( root ) => {
             // What an application marked shows something the rules above cannot see: a photo set as a CSS background, a
             // grade by its colour, an answer by its checked state, a score by a bar's length. So it is one grey box of
             // its own size, and nothing in it is drawn. 1.58.0 blanked only the text and the background images in it,
-            // which left every grade and consent answer on Competence's evaluation screen readable (its review pass).
-            // Grey on the outermost mark alone: on every element in it too, the layers darkened with the markup's depth.
-            if ( isOutermostRedacted( element ) ) {
-                element.style.setProperty( "background-image", "none", "important" );
+            // which left a grade's colour and a checked answer readable (1.58.1). No background image anywhere in it,
+            // drawn or not: the library fetches and embeds each one it finds. Grey on the outermost mark alone: on every
+            // element in it too, the layers darkened with the markup's depth.
+            element.style.setProperty( "background-image", "none", "important" );
+            if ( isOutermostRedacted( element ) && !PICTURE_UNBOXED.includes( tag ) && element.namespaceURI !== SVG_NAMESPACE ) {
                 element.style.setProperty( "background-color", "rgba( 128, 128, 128, 0.35 )", "important" );
                 element.style.setProperty( "background-clip", "border-box", "important" );
                 element.style.setProperty( "border-color", "transparent", "important" );
+                element.style.setProperty( "border-image", "none", "important" );
                 element.style.setProperty( "box-shadow", "none", "important" );
                 element.style.setProperty( "outline", "none", "important" );
             } else {
+                // Inside a mark; or a control or a shape marked itself, which draws its value in its own box (a checked
+                // dot, a progress bar, a shape's fill) and so cannot be a plain one: hidden, its size kept.
                 element.style.setProperty( "visibility", "hidden", "important" );
             }
         }

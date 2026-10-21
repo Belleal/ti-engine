@@ -98,7 +98,9 @@ The picture is drawn from a copy of the page (§5). **Every rule applies to the 
   it, a mark within included, is `visibility: hidden`, and so is every pseudo-element in it, through a rule appended to
   the drawing: the library writes each pseudo-element's computed `visibility: visible` there, which beats inheritance.
   Hidden, not removed, so the box keeps its size. Only the outermost mark is grey: grey on each descendant too layered
-  with the markup's depth.
+  with the markup's depth. No background image anywhere in a mark, drawn or not, since the library fetches and embeds
+  each one it finds. A control, an image or an SVG shape marked itself draws its value in its own box, so it is hidden
+  instead, its size kept: an application marks the element around a value, whose size does not depend on it.
   - **Why a box, not only blanked text.** 1.58.0 blanked a mark's text and background images and drew the rest.
     Competence 3.144.0's review pass found what that leaves: a grade read from its chip's colour and place, an answer
     from a checked radio beside a kept label, a score from a bar's length. Text is not the only way a screen says a
@@ -150,7 +152,8 @@ The picture is drawn from a copy of the page (§5). **Every rule applies to the 
 - **Never with anonymous feedback** (1.58.1). A picture of one's own screen shows what only that person sees, such as
   the sidebar's sections for their roles, and their own name as a bar of its length; together they can say who sent
   it. The form unticks and disables the option when "Send anonymously" is ticked, and `Feedback#submit` does not read
-  a picture sent with anonymous feedback all the same, so nothing of it is kept.
+  a picture sent with anonymous feedback all the same, so nothing of it is kept. An anonymous item's picture that
+  1.58.0 kept is neither listed nor served.
 
 ### 4.5 The form
 

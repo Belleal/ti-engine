@@ -194,27 +194,21 @@ describe( "the copy of the page a picture is drawn from (CA-544)", () => {
     } );
 
     it( "draws what an application marked as one grey box of its size, with nothing in it drawn", () => {
-        // 1.58.0 blanked only the text and the background images inside a mark: on Competence's evaluation screen every
-        // grade still read from its chip's colour and place, and a consent answer from its checked radio beside a kept
-        // label (its review pass). Hidden, not removed, so the box keeps its size.
+        // 1.58.0 blanked only the text and the background images inside a mark: a grade still read from its chip's
+        // colour and place, and an answer from its checked radio beside a kept label (1.58.1). Hidden, not removed, so
+        // the box keeps its size.
         const { stores } = loadTiFramework();
-        const chip = ( grade, selected ) => element( "span", { class: selected ? "ti-grade-chip selected" : "ti-grade-chip", "data-grade": grade }, grade );
-        const answer = element( "input", { type: "radio", name: "consent", value: "granted", checked: "" } );
+        const chip = ( grade, selected ) => element( "span", { class: selected ? "chip selected" : "chip", "data-grade": grade }, grade );
+        const answer = element( "input", { type: "radio", name: "answer", value: "yes", checked: "" } );
         const nested = element( "div", { "data-ti-redact": "" }, element( "span", {}, "Mary" ) );
         const bars = svg( "svg", {}, svg( "rect", { width: "80" } ) );
-        const mark = element( "div", { "data-ti-redact": "", class: "grades" }, "Self ", chip( "S", false ), chip( "R", true ), chip( "U", false ),
-            element( "label", {}, answer, element( "span", { "x-text-label": "interface.consent.grant" }, "Yes" ) ), nested, bars );
-        const outside = element( "span", { class: "ti-grade-chip", "data-grade": "N" }, "N" );
+        const photo = element( "span", { class: "avatar" } );
+        const mark = element( "div", { "data-ti-redact": "", class: "grades" }, "Self ", chip( "A", false ), chip( "B", true ), chip( "C", false ),
+            element( "label", {}, answer, element( "span", { "x-text-label": "interface.answer.yes" }, "Yes" ) ), nested, bars, photo );
+        const outside = element( "span", { class: "chip", "data-grade": "D" }, "D" );
         const body = element( "body", {}, mark, outside );
         body.ownerDocument = { createElement: ( tag ) => new FakeElement( tag ) };
-        stores.tiScreenTrail.redact( body );
-
-        assert.ok( mark.styles[ "background-color" ], "the box is grey" );
-        assert.equal( mark.styles[ "background-image" ], "none" );
-        assert.equal( mark.styles[ "border-color" ], "transparent", "a border can carry a grade's colour" );
-        assert.equal( mark.styles[ "box-shadow" ], "none" );
-        assert.equal( mark.styles.outline, "none" );
-        assert.equal( mark.styles.visibility, undefined, "the box itself is drawn" );
+        // The page's own elements in the mark, listed before the text in them is turned into bars.
         const inside = [];
         const collect = ( node ) => node.childNodes.forEach( ( child ) => {
             if ( child.nodeType === 1 ) {
@@ -223,13 +217,45 @@ describe( "the copy of the page a picture is drawn from (CA-544)", () => {
             }
         } );
         collect( mark );
-        assert.ok( inside.length >= 12, `${ inside.length } elements inside` );
+        stores.tiScreenTrail.redact( body );
+
+        assert.ok( mark.styles[ "background-color" ], "the box is grey" );
+        assert.equal( mark.styles[ "background-image" ], "none" );
+        assert.equal( mark.styles[ "border-color" ], "transparent", "a border can carry a grade's colour" );
+        assert.equal( mark.styles[ "border-image" ], "none" );
+        assert.equal( mark.styles[ "box-shadow" ], "none" );
+        assert.equal( mark.styles.outline, "none" );
+        assert.equal( mark.styles.visibility, undefined, "the box itself is drawn" );
+        assert.ok( inside.length >= 9, `${ inside.length } elements inside` );
         for ( const each of inside ) {
             assert.equal( each.styles.visibility, "hidden", `${ each.tagName } ${ each.getAttribute( "class" ) || "" } is drawn` );
+            // Drawn or not, the library fetches and embeds every background image it finds (1.58.1's review pass).
+            assert.equal( each.styles[ "background-image" ], "none", `${ each.tagName } ${ each.getAttribute( "class" ) || "" } keeps its background image` );
         }
         assert.equal( nested.styles[ "background-color" ], undefined, "a mark inside a mark is not a second, darker box" );
-        assert.equal( textOf( mark.childNodes[ 0 ] ), "xxxx ", "the text directly in the mark is a bar, hidden with the rest" );
+        assert.equal( textOf( mark.childNodes[ 0 ] ), "xxxx ", "the text directly in the mark is a bar" );
+        assert.equal( mark.childNodes[ 0 ].styles.visibility, "hidden", "and hidden with the rest: its length is the text's" );
         assert.equal( outside.styles.visibility, undefined, "nothing outside the mark" );
+    } );
+
+    it( "hides a control, an image or a shape marked itself, which would draw its value in its own box", () => {
+        // A checked radio's dot, a progress bar's fill, a shape's fill and geometry are drawn by the element's own box,
+        // which a grey background does not cover (1.58.1's review pass). Hidden, it keeps its size.
+        const { stores } = loadTiFramework();
+        const radio = element( "input", { type: "radio", checked: "", "data-ti-redact": "" } );
+        const progress = element( "progress", { value: "73", max: "100", "data-ti-redact": "" } );
+        const photo = element( "img", { src: "/photos/mary.jpg", "data-ti-redact": "" } );
+        const shape = svg( "rect", { width: "80", fill: "green", "data-ti-redact": "" } );
+        const box = element( "div", { "data-ti-redact": "" } );
+        const body = element( "body", {}, radio, progress, photo, svg( "svg", {}, shape ), box );
+        body.ownerDocument = { createElement: ( tag ) => new FakeElement( tag ) };
+        stores.tiScreenTrail.redact( body );
+        for ( const [ name, marked ] of Object.entries( { radio, progress, photo, shape } ) ) {
+            assert.equal( marked.styles.visibility, "hidden", name );
+            assert.equal( marked.styles[ "border-color" ], undefined, `${ name } is hidden, not made a box` );
+        }
+        assert.ok( box.styles[ "background-color" ], "an element that draws only its children is the grey box" );
+        assert.equal( box.styles.visibility, undefined );
     } );
 
     it( "shows typed values as bullets and leaves a checkbox's state", () => {
@@ -665,7 +691,7 @@ describe( "the Send Feedback form and the picture (CA-544)", () => {
 
     it( "never attaches a picture to anonymous feedback, which it would name", async () => {
         // A picture of one's own screen shows what only they see and their own name's length: anonymous feedback with
-        // one could say who sent it (1.58.1, competence's review pass).
+        // one could say who sent it (1.58.1).
         const { component, stores, requests } = form();
         stores.tiScreenTrail.picture = { url: "data:image/webp;base64,AAAA", type: "image/webp" };
         component.setAttachPicture( true );

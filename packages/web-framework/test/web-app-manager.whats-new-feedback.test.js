@@ -242,6 +242,22 @@ describe( "TiWebAppManager — Feedback requests", () => {
         }
     } );
 
+    it( "never lists or shows an anonymous item's picture, though 1.58.0 kept one", async () => {
+        // 1.58.0 kept a picture with anonymous feedback, and a picture of the sender's own screen could say who they are.
+        // 1.58.1 keeps none; one already stored must not reach an administrator either.
+        const app = new FeatureApp();
+        const sent = await app.processServiceRequest( USER, "send-feedback", { kind: "problem", text: "Broken.", picture: PICTURES.webpOpaque } );
+        const key = "ti:feedback:item:" + sent.feedbackID;
+        // As 1.58.0 stored one: the item anonymous, its picture written beside it.
+        await cacheStub.setValue( key, Object.assign( await cacheStub.getValue( key ), { anonymous: true, submittedBy: null, senderName: null } ) );
+        assert.ok( await cacheStub.getValue( "ti:feedback:picture:" + sent.feedbackID ), "the picture is there" );
+
+        const { items } = await app.processDataRequest( ADMIN, "feedback-inbox" );
+        assert.equal( items.find( ( item ) => item.feedbackID === sent.feedbackID ).picture, null );
+        const missing = await rejection( app.processDataRequest( ADMIN, "feedback-picture", { query: { feedbackID: sent.feedbackID } } ) );
+        assert.deepEqual( [ missing.httpCode, missing.data.details ], [ 404, "error.feedback.picture-not-found" ] );
+    } );
+
     it( "refuses feedback whose picture is not one it accepts, with the label the browser shows", async () => {
         const app = new FeatureApp();
         const refused = await rejection( app.processServiceRequest( USER, "send-feedback", { kind: "problem", text: "Broken.", picture: "data:image/png;base64,AAAA" } ) );
