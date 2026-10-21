@@ -84,7 +84,7 @@ The picture is drawn from a copy of the page (§5). **Every rule applies to the 
   a `select` shows its option's text, blanked by the text rule.
 - **Images are blanked unless kept:**
   - `img` becomes a grey box of its size;
-  - `canvas`, `video`, `iframe`, `object` and `embed` likewise.
+  - `canvas`, `video`, `iframe`, `object` and `embed` are hidden, showing what lies behind them.
 
   The framework's icons are CSS masks and stay.
 - **Chart text is blanked by the text rule** (SVG `text`), and its shapes stay. Without the names, a shape says

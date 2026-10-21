@@ -2951,8 +2951,9 @@ const configureStoreScreenTrail = () => {
         },
 
         /**
-         * Holds the shell's request for Send Feedback until the screen being left is drawn. Every way to the screen
-         * raises the event: a link's `hx-get`, the user menu, and `openScreen`, which goes through `htmx.ajax`.
+         * Holds the shell's request for Send Feedback until the screen being left is drawn: a link's `hx-get` and the
+         * user menu. `openScreen` is held before this, through `holdFor`, because by the time its request raises the
+         * event it has already named Send Feedback as the screen, and `wantsPicture` would see nothing to take.
          *
          * @method
          * @param {CustomEvent} event `htmx:confirm`.

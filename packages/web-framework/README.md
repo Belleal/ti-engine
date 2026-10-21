@@ -640,7 +640,7 @@ class MyApplication extends TiWebAppManager {
     else, including what `x-text`, `x-html` or the application's own directives write, becomes a grey bar of the same
     length. `data-ti-redact` blanks even what those would keep.
   * **Typed values** become bullets.
-  * **Images, canvases and videos** become grey boxes.
+  * **Images** become grey boxes; **canvases, videos and frames** are hidden.
   * **Chart text** goes, and the chart's shapes stay.
   * **A pseudo-element's words** (`content`) become x's, and so does anything computed there, such as `attr()`. A mark
     such as "›" stays. An SVG symbol's text, which a `<use>` draws, goes.

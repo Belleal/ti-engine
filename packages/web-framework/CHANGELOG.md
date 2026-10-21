@@ -9,8 +9,8 @@ This document will contain the list of changes made to the framework. The format
   * **Why.** A manager asked, through Feedback, to attach a screenshot. Boris decided on 2026-10-21: the application
     takes the picture itself, with no upload button, limited in size and type, "especially important is to redact
     personal information", and the form says so in small print.
-  * **When it is taken.** Opening Send Feedback is held through htmx's `htmx:confirm`. The screen being left is drawn,
-    and then the request goes on. This covers a link, the user menu and `openScreen`, which goes through `htmx.ajax`. It
+  * **When it is taken.** Opening Send Feedback is held: a link and the user menu at htmx's `htmx:confirm`, and
+    `openScreen` before it names the new screen. The screen being left is drawn, and then the request goes on. It
     is bounded at 4 seconds; past that, or on any failure, the form opens without a picture. Nothing is taken after a
     reload of the form or from the form itself. On a narrow screen, the drawer used to reach it is closed at once and
     left out.
@@ -30,11 +30,12 @@ This document will contain the list of changes made to the framework. The format
     either type in strict base64, the file's own signature, the dimensions it states, and its size. Anything else is
     422 `error.feedback.picture`, and nothing is kept. `POST /app/send-feedback` alone takes a body of up to 1.5 MB;
     every other request keeps 1 MB.
-  * **Kept apart, shown to administrators.** The picture is the value `ti:feedback:picture:<id>`, written before the
-    item and deleted again if the item fails. The item records only `picture: { type, bytes, width, height }`. Only an
-    administrator may ask for it: `GET /app/feedback-picture?feedbackID=` (404 `error.feedback.picture-not-found` when
-    there is none). The Feedback screen loads it only when "Show the picture" is pressed. `eraseSentBy` deletes it
-    with its item. Also `Feedback#fetchPicture`, and the typedef `TiFeedbackPicture`.
+  * **Kept apart, shown to administrators.** The picture is the value `ti:feedback:picture:<id>`, written after the
+    item, under the item's key; a picture that cannot be written takes its item back. The item records only
+    `picture: { type, bytes, width, height }`. Only an administrator may ask for it:
+    `GET /app/feedback-picture?feedbackID=` (404 `error.feedback.picture-not-found` when there is none). The Feedback
+    screen loads it only when "Show the picture" is pressed. `eraseSentBy` deletes it with its item. Also
+    `Feedback#fetchPicture`, and the typedef `TiFeedbackPicture`.
   * **The library** is modern-screenshot 4.7.0 (MIT). It is bundled as `bin/static/scripts/lib/modern-screenshot.min.js`,
     pinned exactly and copied by the postinstall like htmx and Alpine, and loaded only when a picture is taken.
     Measured in Chromium under the framework's CSP:
