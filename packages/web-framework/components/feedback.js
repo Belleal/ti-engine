@@ -472,18 +472,23 @@ class Feedback {
 
     /**
      * Stores a new item and e-mails the administrators. The e-mail is raised after the write and never waited for: the
-     * item is kept whatever the e-mail does.
+     * item is kept whatever the e-mail does. A picture of the screen is kept with a named item only; an anonymous
+     * item's is not read.
      *
      * @method
-     * @param {Object} params `{ kind, text, anonymous, screen, browser }` as sent.
+     * @param {Object} params `{ kind, text, anonymous, screen, browser, picture }` as sent.
      * @param {Object} sender As for {@link Feedback#newItem}, plus the sender's `email`, which is not written to.
      * @returns {Promise<TiFeedbackItem>}
+     * @throws {TiException} 422 `error.feedback.picture` for a named item's picture that is not one.
      * @public
      */
     submit( params, sender ) {
         return Promise.resolve().then( () => {
             const item = this.newItem( params || {}, sender, tools.getUUID(), new Date().toISOString() );
-            const picture = this.readPicture( ( params || {} ).picture );
+            // Anonymous feedback names nobody, and a picture of the sender's own screen could: what only they see, and
+            // their own name's length. The form never offers one; one sent all the same is not read, and nothing of it
+            // is kept (1.58.1).
+            const picture = ( item.anonymous === true ) ? null : this.readPicture( ( params || {} ).picture );
             if ( picture === null ) {
                 return cache.instance.setValue( KEY_ITEM + item.feedbackID, item ).then( () => item );
             }
@@ -545,7 +550,7 @@ class Feedback {
 
     /**
      * The picture of the screen sent with an item, or null: its type, its size in pixels and the image in base64. For
-     * the administrators' screen, which asks for one only when it is to be shown.
+     * the administrators' screen, which asks for one only when it is to be shown. Null for an anonymous item.
      *
      * @method
      * @param {string} feedbackID
@@ -554,7 +559,8 @@ class Feedback {
      */
     fetchPicture( feedbackID ) {
         return this.fetch( feedbackID ).then( ( item ) => {
-            if ( item === null || !item.picture || typeof item.picture !== "object" ) {
+            // Never an anonymous item's, though 1.58.0 kept one: it could say who sent the item (1.58.1).
+            if ( item === null || item.anonymous === true || !item.picture || typeof item.picture !== "object" ) {
                 return null;
             }
             return Promise.resolve().then( () => cache.instance.getValue( KEY_PICTURE + item.feedbackID ) ).then( ( stored ) => {

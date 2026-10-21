@@ -2,6 +2,47 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.58.1
+
+* fix(web-framework): **what an application marks `data-ti-redact` is one grey box in the picture of the screen, and
+  anonymous feedback carries no picture** (CA-544; found by the review pass of Competence 3.144.0, which adopts 1.58.0).
+  * **What was wrong.**
+    * `data-ti-redact` blanked only the text and the background images inside the marked element, and drew the rest.
+      On Competence's evaluation screen every grade still read from its chip's colour and place, and the consent
+      answer from its checked radio beside a kept "Yes". The README had promised "it and everything in it are drawn
+      grey".
+    * "Send anonymously" and the picture were independent. A picture of one's own screen shows what only that person
+      sees, such as the sidebar's sections for their roles, and their own name as a bar of its length; together they
+      can say who sent it.
+  * **Why it survived.** The tests looked for text and images in a mark, and the Chromium run looked at a screen whose
+    data was words. Neither met a value shown as a colour, a place or a checked state.
+  * **What changed.**
+    * The outermost mark is drawn as a grey box of its size: background grey with no image, border transparent, no
+      shadow or outline. Nothing in it is drawn: every element in it, a mark within included, is `visibility: hidden`,
+      and so is every pseudo-element in it, through the rule appended to the drawing, since the library writes each
+      pseudo-element's computed `visibility: visible` there. Hidden, not removed, so the box keeps its size.
+    * A control, an image or an SVG shape marked itself draws its value in its own box (a checked dot, a progress
+      bar's fill, a shape's fill), so it is hidden instead, its size kept. Mark the element around a value.
+    * No background image anywhere in a mark: drawn or not, the library fetches and embeds each one it finds.
+    * Ticking "Send anonymously" unticks and disables the picture, and a note under it says why: "A picture can show
+      who you are, so anonymous feedback is sent without one." (`interface.send-feedback.picture-anonymous`, EN and
+      BG). The form sends no picture with anonymous feedback, and `Feedback#submit` does not read one sent all the
+      same: nothing of it is kept, and it is not refused either.
+    * An anonymous item's picture, which 1.58.0 kept, is neither listed in the inbox nor served by
+      `Feedback#fetchPicture` and `GET /app/feedback-picture`.
+  * **The review pass** (`code-review` at high on this change) raised six findings. Five are fixed above, each with a
+    test that fails without it: a marked control or shape still drew its value; background images inside a mark were
+    fetched; an anonymous picture kept by 1.58.0 stayed readable; a comment said anonymous feedback "keeps nothing of
+    the sender", which it now says only of names; and a consumer's name in a comment and a test. Declined: walking the
+    ancestors once per node instead of asking `closest` at each step. Measured in Chromium on a 1,055-element screen,
+    the whole redaction takes 13.3 ms (median of 7; at most 19.4 ms), against 0.72 s for the drawing and a 4 s limit.
+  * **An application marks** whatever shows a person's data as a shape, a colour or a checked state; the framework
+    cannot tell which ones are data. Competence 3.144.0 marks its grades, scores, profile radar and consent answers.
+  * **Measured** in Chromium, Competence on this build, an employee's own evaluation with five self-grades set: every
+    graded cell drawn as a plain grey box with no grade's colour or selection, labels and buttons readable. Anonymous
+    ticked: the option unticked and disabled, the note shown, and the item stored with `picture: null`. No CSP
+    violation, no console error.
+
 ## Version 1.58.0
 
 * feat(web-framework): **Send Feedback can carry a picture of the screen the person was on, with personal information

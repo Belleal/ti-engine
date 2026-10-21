@@ -2534,6 +2534,8 @@ const PICTURE_EXCLUDED_DRAWER = ".ti-sidebar, .ti-navigation-scrim";
 const PICTURE_KEPT = "[x-text-label], [data-ti-keep]";
 // Blanked whatever it holds, a kept label included.
 const PICTURE_REDACTED = "[data-ti-redact]";
+// Elements that draw their value in their own box, so a mark on one hides it rather than greying it.
+const PICTURE_UNBOXED = Object.freeze( [ "INPUT", "SELECT", "TEXTAREA", "PROGRESS", "METER", "IMG", "CANVAS", "VIDEO", "IFRAME", "OBJECT", "EMBED" ] );
 // What the picture blanks as a whole, unless kept: anything that draws an image of its own.
 const PICTURE_MEDIA = Object.freeze( [ "IMG", "CANVAS", "VIDEO", "IFRAME", "OBJECT", "EMBED" ] );
 // The inputs that show what was typed. A checkbox or a radio button shows only its state, and keeps it.
@@ -2550,7 +2552,7 @@ const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
 
 /**
  * Whether the picture leaves a node out altogether: the menu used to reach Send Feedback, a template, and anything not
- * displayed. Drawing what is not shown cost Competence's evaluation screen half its 1,053 elements and seconds.
+ * displayed. Drawing what is not shown cost a real screen of 1,053 elements half of them, and seconds.
  * `display: contents` draws its children, so only `none` counts.
  *
  * @method
@@ -2570,13 +2572,31 @@ const isLeftOutOfPicture = ( node, drawer = false ) => {
 };
 
 /**
+ * Whether an element is a mark `data-ti-redact` with no mark around it: the one drawn as a grey box, while everything
+ * inside it, a mark within included, is not drawn at all.
+ *
+ * @method
+ * @param {Element} element An element of the copy.
+ * @returns {boolean}
+ * @private
+ */
+const isOutermostRedacted = ( element ) => {
+    if ( typeof element.matches !== "function" || !element.matches( PICTURE_REDACTED ) ) {
+        return false;
+    }
+    const parent = element.parentNode;
+    return !( parent && parent.nodeType === 1 && typeof parent.closest === "function" && parent.closest( PICTURE_REDACTED ) );
+};
+
+/**
  * Blanks personal information in a copy of the page before it is drawn as a picture of the screen (CA-544). It changes
  * the copy only, never the screen. Text is blanked unless it is known not to be data: only a catalogue label
- * (`x-text-label`) and what an application marked `data-ti-keep` are kept, and `data-ti-redact` blanks even those. So
- * what `x-text`, `x-html` or an application's own directive wrote, and anything a server put into a fragment, is
- * blanked by default. A blanked text keeps its length, each character a grey `x`, so the layout still reads and no
- * character of it remains. Typed values become bullets, images grey boxes; chart text goes, chart shapes stay. It also
- * drops every attribute with a prefix XML cannot resolve, which would otherwise leave the picture empty.
+ * (`x-text-label`) and what an application marked `data-ti-keep` are kept. So what `x-text`, `x-html` or an
+ * application's own directive wrote, and anything a server put into a fragment, is blanked by default. A blanked text
+ * keeps its length, each character a grey `x`, so the layout still reads and no character of it remains. Typed values
+ * become bullets, images grey boxes; chart text goes, chart shapes stay. What an application marked `data-ti-redact`
+ * is one grey box of its size, with nothing in it drawn: no text, colour, checked state or shape. It also drops every
+ * attribute with a prefix XML cannot resolve, which would otherwise leave the picture empty.
  *
  * @method
  * @param {Node} root The copy of the page.
@@ -2633,6 +2653,10 @@ const redactPicture = ( root ) => {
         bar.style.setProperty( "-webkit-text-fill-color", "transparent" );
         bar.style.setProperty( "background-color", "rgba( 128, 128, 128, 0.35 )" );
         bar.style.setProperty( "border-radius", "3px" );
+        if ( typeof parent.closest === "function" && parent.closest( PICTURE_REDACTED ) ) {
+            // Inside a mark the bar is made after the elements were listed, so it is hidden here: its length is the text's.
+            bar.style.setProperty( "visibility", "hidden", "important" );
+        }
         parent.replaceChild( bar, text );
     } );
     elements.forEach( ( element ) => {
@@ -2640,12 +2664,24 @@ const redactPicture = ( root ) => {
         Array.from( element.attributes || [] ).map( ( attribute ) => attribute.name ).filter( ( name ) => !PICTURE_PLAIN_ATTRIBUTE.test( name ) )
             .forEach( ( name ) => element.removeAttribute( name ) );
         if ( typeof element.closest === "function" && element.closest( PICTURE_REDACTED ) ) {
-            // What the rule above cannot see, such as a photo set as a CSS background, in what the application marked:
-            // no background image anywhere in it (measured: the photo was drawn without this), and the marked element
-            // grey. Grey on every descendant too would layer, darker the deeper the markup.
+            // What an application marked shows something the rules above cannot see: a photo set as a CSS background, a
+            // grade by its colour, an answer by its checked state, a score by a bar's length. So it is one grey box of
+            // its own size, and nothing in it is drawn. 1.58.0 blanked only the text and the background images in it,
+            // which left a grade's colour and a checked answer readable (1.58.1). No background image anywhere in it,
+            // drawn or not: the library fetches and embeds each one it finds. Grey on the outermost mark alone: on every
+            // element in it too, the layers darkened with the markup's depth.
             element.style.setProperty( "background-image", "none", "important" );
-            if ( typeof element.matches === "function" && element.matches( PICTURE_REDACTED ) ) {
+            if ( isOutermostRedacted( element ) && !PICTURE_UNBOXED.includes( tag ) && element.namespaceURI !== SVG_NAMESPACE ) {
                 element.style.setProperty( "background-color", "rgba( 128, 128, 128, 0.35 )", "important" );
+                element.style.setProperty( "background-clip", "border-box", "important" );
+                element.style.setProperty( "border-color", "transparent", "important" );
+                element.style.setProperty( "border-image", "none", "important" );
+                element.style.setProperty( "box-shadow", "none", "important" );
+                element.style.setProperty( "outline", "none", "important" );
+            } else {
+                // Inside a mark; or a control or a shape marked itself, which draws its value in its own box (a checked
+                // dot, a progress bar, a shape's fill) and so cannot be a plain one: hidden, its size kept.
+                element.style.setProperty( "visibility", "hidden", "important" );
             }
         }
         if ( isKept( element ) ) {
@@ -2747,7 +2783,7 @@ const blankPseudoContent = ( css ) => {
 /**
  * Blanks what reaches the drawing after the copy was redacted (CA-544, measured): the text of a pseudo-element's
  * `content`, which the library writes into the drawing's stylesheet; the text of an SVG symbol a `<use>` points to,
- * which it copies in from the page; and a pseudo-element's background inside what an application marked
+ * which it copies in from the page; and whatever a pseudo-element draws inside what an application marked
  * `data-ti-redact`, which no inline style reaches. A `content` with a letter or a digit becomes x's, and anything
  * computed, such as `attr()` or a counter, becomes "xxx"; a mark such as "›" or "•" stays.
  *
@@ -2763,9 +2799,11 @@ const redactDrawing = ( drawing ) => {
     drawing.querySelectorAll( "defs text, defs tspan, symbol text, symbol tspan" ).forEach( ( text ) => {
         text.textContent = "";
     } );
-    // Inside the drawing, which the page's policy does not reach: the library's own stylesheet is there too.
+    // Inside the drawing, which the page's policy does not reach: the library's own stylesheet is there too. It writes
+    // each pseudo-element's computed `visibility: visible` there, which beats what the element inherits, so a
+    // pseudo-element in a mark is hidden here: a status dot drawn in `::before` would otherwise show through the box.
     const marked = drawing.ownerDocument.createElementNS( SVG_NAMESPACE, "style" );
-    marked.textContent = "[data-ti-redact]::before, [data-ti-redact]::after, [data-ti-redact] *::before, [data-ti-redact] *::after { background-image: none !important; }";
+    marked.textContent = "[data-ti-redact]::before, [data-ti-redact]::after, [data-ti-redact] *::before, [data-ti-redact] *::after { visibility: hidden !important; background-image: none !important; }";
     drawing.appendChild( marked );
     return drawing;
 };
@@ -3176,7 +3214,8 @@ const configureScreenWhatsNew = () => {
  * What it is, the text, and whether to send it anonymously. A problem carries the screen the person was on, which
  * `tiScreenTrail` kept, the browser, and on the server the version and language; the form says so before it is sent.
  * When `tiScreenTrail` drew that screen, the person may attach the picture (CA-544): off until ticked, shown once
- * ticked, and with the small print saying what was blanked.
+ * ticked, and with the small print saying what was blanked. Never with anonymous feedback: a picture of one's own screen
+ * shows what only that person sees, and their own name's length, so it would say who sent it.
  * The screen is read when the feedback is sent rather than when the form opens: the shell names the current screen
  * after the swap, which can come after the form's own start.
  *
@@ -3223,6 +3262,9 @@ const configureScreenSendFeedback = () => {
 
         setAnonymous( checked ) {
             this.anonymous = checked === true;
+            if ( this.anonymous ) {
+                this.attachPicture = false;
+            }
         },
 
         // Whether there is a picture of the screen to offer: none after a reload here, or when it could not be drawn.
@@ -3236,7 +3278,7 @@ const configureScreenSendFeedback = () => {
         },
 
         setAttachPicture( checked ) {
-            this.attachPicture = checked === true;
+            this.attachPicture = checked === true && !this.anonymous;
         },
 
         get remainingText() {
@@ -3268,7 +3310,7 @@ const configureScreenSendFeedback = () => {
             }
             this.busy = true;
             const body = { kind: this.kind, text: this.text.trim(), anonymous: this.anonymous, screen: this.isProblem ? this.aboutScreen : "", browser: this.isProblem ? browserName() : "" };
-            if ( this.attachPicture && this.hasPicture ) {
+            if ( this.attachPicture && this.hasPicture && !this.anonymous ) {
                 body.picture = this.pictureURL;
             }
             tiApplication.sendRequest( "/app/send-feedback", "POST", body ).then( () => {

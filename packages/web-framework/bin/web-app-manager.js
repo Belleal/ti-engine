@@ -1211,7 +1211,8 @@ class TiWebAppManager {
                         senderName: ( item.anonymous === true ) ? "" : String( item.senderName || "" ),
                         context: ( item.context && typeof item.context === "object" ) ? item.context : null,
                         // That there is a picture, and its size: the screen asks for the image only to show it (CA-544).
-                        picture: ( item.picture && typeof item.picture === "object" )
+                        // Never an anonymous item's, though 1.58.0 kept one: it could say who sent it (1.58.1).
+                        picture: ( item.picture && typeof item.picture === "object" && item.anonymous !== true )
                             ? { type: String( item.picture.type || "" ), width: Number( item.picture.width ) || 0, height: Number( item.picture.height ) || 0 }
                             : null,
                         statusChangedAt: item.statusChangedAt || null

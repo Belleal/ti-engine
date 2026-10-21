@@ -535,6 +535,10 @@
         "en": "Names, numbers and anything typed are blanked out before the picture is taken, and it shows only what was on the screen. Look at it before you send.",
         "bg": "Имената, числата и всичко въведено се скриват, преди снимката да бъде направена, и тя показва само това, което е било на екрана. Прегледайте я, преди да изпратите."
       },
+      "picture-anonymous": {
+        "en": "A picture can show who you are, so anonymous feedback is sent without one.",
+        "bg": "Снимката може да покаже кой сте, затова анонимната обратна връзка се изпраща без нея."
+      },
       "picture-alt": {
         "en": "The picture of the screen that will be sent",
         "bg": "Снимката на екрана, която ще бъде изпратена"

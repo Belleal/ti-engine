@@ -186,11 +186,76 @@ describe( "the copy of the page a picture is drawn from (CA-544)", () => {
         assert.ok( parts.redactedPhoto.styles[ "background-color" ] );
         assert.equal( parts.label.styles[ "background-image" ], undefined, "nothing else" );
         // Grey on the marked element alone: on every descendant too, the layers darkened with the markup's depth (the
-        // second review pass). Inside, only the background images go.
+        // second review pass). Inside, nothing is drawn (1.58.1).
         const inner = parts.redactedBlock.childNodes[ 0 ];
         assert.ok( parts.redactedBlock.styles[ "background-color" ] );
-        assert.equal( inner.styles[ "background-image" ], "none" );
+        assert.equal( inner.styles.visibility, "hidden" );
         assert.equal( inner.styles[ "background-color" ], undefined );
+    } );
+
+    it( "draws what an application marked as one grey box of its size, with nothing in it drawn", () => {
+        // 1.58.0 blanked only the text and the background images inside a mark: a grade still read from its chip's
+        // colour and place, and an answer from its checked radio beside a kept label (1.58.1). Hidden, not removed, so
+        // the box keeps its size.
+        const { stores } = loadTiFramework();
+        const chip = ( grade, selected ) => element( "span", { class: selected ? "chip selected" : "chip", "data-grade": grade }, grade );
+        const answer = element( "input", { type: "radio", name: "answer", value: "yes", checked: "" } );
+        const nested = element( "div", { "data-ti-redact": "" }, element( "span", {}, "Mary" ) );
+        const bars = svg( "svg", {}, svg( "rect", { width: "80" } ) );
+        const photo = element( "span", { class: "avatar" } );
+        const mark = element( "div", { "data-ti-redact": "", class: "grades" }, "Self ", chip( "A", false ), chip( "B", true ), chip( "C", false ),
+            element( "label", {}, answer, element( "span", { "x-text-label": "interface.answer.yes" }, "Yes" ) ), nested, bars, photo );
+        const outside = element( "span", { class: "chip", "data-grade": "D" }, "D" );
+        const body = element( "body", {}, mark, outside );
+        body.ownerDocument = { createElement: ( tag ) => new FakeElement( tag ) };
+        // The page's own elements in the mark, listed before the text in them is turned into bars.
+        const inside = [];
+        const collect = ( node ) => node.childNodes.forEach( ( child ) => {
+            if ( child.nodeType === 1 ) {
+                inside.push( child );
+                collect( child );
+            }
+        } );
+        collect( mark );
+        stores.tiScreenTrail.redact( body );
+
+        assert.ok( mark.styles[ "background-color" ], "the box is grey" );
+        assert.equal( mark.styles[ "background-image" ], "none" );
+        assert.equal( mark.styles[ "border-color" ], "transparent", "a border can carry a grade's colour" );
+        assert.equal( mark.styles[ "border-image" ], "none" );
+        assert.equal( mark.styles[ "box-shadow" ], "none" );
+        assert.equal( mark.styles.outline, "none" );
+        assert.equal( mark.styles.visibility, undefined, "the box itself is drawn" );
+        assert.ok( inside.length >= 9, `${ inside.length } elements inside` );
+        for ( const each of inside ) {
+            assert.equal( each.styles.visibility, "hidden", `${ each.tagName } ${ each.getAttribute( "class" ) || "" } is drawn` );
+            // Drawn or not, the library fetches and embeds every background image it finds (1.58.1's review pass).
+            assert.equal( each.styles[ "background-image" ], "none", `${ each.tagName } ${ each.getAttribute( "class" ) || "" } keeps its background image` );
+        }
+        assert.equal( nested.styles[ "background-color" ], undefined, "a mark inside a mark is not a second, darker box" );
+        assert.equal( textOf( mark.childNodes[ 0 ] ), "xxxx ", "the text directly in the mark is a bar" );
+        assert.equal( mark.childNodes[ 0 ].styles.visibility, "hidden", "and hidden with the rest: its length is the text's" );
+        assert.equal( outside.styles.visibility, undefined, "nothing outside the mark" );
+    } );
+
+    it( "hides a control, an image or a shape marked itself, which would draw its value in its own box", () => {
+        // A checked radio's dot, a progress bar's fill, a shape's fill and geometry are drawn by the element's own box,
+        // which a grey background does not cover (1.58.1's review pass). Hidden, it keeps its size.
+        const { stores } = loadTiFramework();
+        const radio = element( "input", { type: "radio", checked: "", "data-ti-redact": "" } );
+        const progress = element( "progress", { value: "73", max: "100", "data-ti-redact": "" } );
+        const photo = element( "img", { src: "/photos/mary.jpg", "data-ti-redact": "" } );
+        const shape = svg( "rect", { width: "80", fill: "green", "data-ti-redact": "" } );
+        const box = element( "div", { "data-ti-redact": "" } );
+        const body = element( "body", {}, radio, progress, photo, svg( "svg", {}, shape ), box );
+        body.ownerDocument = { createElement: ( tag ) => new FakeElement( tag ) };
+        stores.tiScreenTrail.redact( body );
+        for ( const [ name, marked ] of Object.entries( { radio, progress, photo, shape } ) ) {
+            assert.equal( marked.styles.visibility, "hidden", name );
+            assert.equal( marked.styles[ "border-color" ], undefined, `${ name } is hidden, not made a box` );
+        }
+        assert.ok( box.styles[ "background-color" ], "an element that draws only its children is the grey box" );
+        assert.equal( box.styles.visibility, undefined );
     } );
 
     it( "shows typed values as bullets and leaves a checkbox's state", () => {
@@ -247,10 +312,11 @@ describe( "the drawing, after the copy (CA-544)", () => {
         stores.tiScreenTrail.redactDrawing( drawing );
         assert.equal( style.textContent, ".a::before { content: \"xxxx xxxxxx — \"; color: red; } .b::after { content: \"xxx\"; } .c::before { content: \"›\"; } .d::before { content: none; } .e::after { content: \"xxx\"}" );
         assert.equal( symbolText.textContent, "", "an SVG symbol's text, copied in for a <use>" );
-        // A pseudo-element's background inside what is marked redacted, which no inline style reaches (measured).
+        // Whatever a pseudo-element draws inside what is marked redacted, which no inline style reaches (measured): the
+        // library writes each one's computed `visibility: visible`, which beats what it would inherit (1.58.1).
         assert.equal( appended.length, 1 );
         assert.equal( appended[ 0 ].tag, "style" );
-        assert.match( appended[ 0 ].textContent, /^\[data-ti-redact\]::before, \[data-ti-redact\]::after, \[data-ti-redact\] \*::before, \[data-ti-redact\] \*::after \{ background-image: none !important; \}$/ );
+        assert.match( appended[ 0 ].textContent, /^\[data-ti-redact\]::before, \[data-ti-redact\]::after, \[data-ti-redact\] \*::before, \[data-ti-redact\] \*::after \{ visibility: hidden !important; background-image: none !important; \}$/ );
     } );
 
     it( "rewrites only the content property, and reads its value whole, quotes and all", () => {
@@ -621,6 +687,35 @@ describe( "the Send Feedback form and the picture (CA-544)", () => {
         assert.equal( requests[ 1 ].body.picture, "data:image/webp;base64,AAAA" );
         assert.equal( stores.tiScreenTrail.picture, null, "sent once" );
         assert.equal( component.attachPicture, false );
+    } );
+
+    it( "never attaches a picture to anonymous feedback, which it would name", async () => {
+        // A picture of one's own screen shows what only they see and their own name's length: anonymous feedback with
+        // one could say who sent it (1.58.1).
+        const { component, stores, requests } = form();
+        stores.tiScreenTrail.picture = { url: "data:image/webp;base64,AAAA", type: "image/webp" };
+        component.setAttachPicture( true );
+        component.setAnonymous( true );
+        assert.equal( component.attachPicture, false, "ticking anonymous unticks the picture" );
+        component.setAttachPicture( true );
+        assert.equal( component.attachPicture, false, "and it cannot be ticked again while anonymous" );
+        component.attachPicture = true;
+        component.send();
+        await settle();
+        assert.equal( requests[ 0 ].body.anonymous, true );
+        assert.equal( "picture" in requests[ 0 ].body, false, "nor sent, whatever the state says" );
+
+        component.another();
+        component.setKind( "problem" );
+        component.setText( "Named." );
+        component.setAnonymous( true );
+        component.setAnonymous( false );
+        component.setAttachPicture( true );
+        assert.equal( component.attachPicture, true, "named again, it can be attached" );
+
+        const html = fs.readFileSync( path.join( FRAGMENTS, "frame-send-feedback.html" ), "utf8" );
+        assert.match( html, /<input type="checkbox" id="ti-feedback-picture"[^>]*x-bind:disabled="anonymous"/ );
+        assert.match( html, /<small class="ti-feedback-picture-note" x-show="anonymous" x-text-label="interface\.send-feedback\.picture-anonymous">/ );
     } );
 
     it( "says what was blanked beside the option, and shows the picture only once it is ticked", () => {

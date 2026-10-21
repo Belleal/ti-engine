@@ -180,12 +180,14 @@ declare class Feedback {
     newestFirst(items: Array<TiFeedbackItem>): Array<TiFeedbackItem>;
     /**
      * Stores a new item and e-mails the administrators. The e-mail is raised after the write and never waited for: the
-     * item is kept whatever the e-mail does.
+     * item is kept whatever the e-mail does. A picture of the screen is kept with a named item only; an anonymous
+     * item's is not read.
      *
      * @method
-     * @param {Object} params `{ kind, text, anonymous, screen, browser }` as sent.
+     * @param {Object} params `{ kind, text, anonymous, screen, browser, picture }` as sent.
      * @param {Object} sender As for {@link Feedback#newItem}, plus the sender's `email`, which is not written to.
      * @returns {Promise<TiFeedbackItem>}
+     * @throws {TiException} 422 `error.feedback.picture` for a named item's picture that is not one.
      * @public
      */
     submit(params: Object, sender: Object): Promise<TiFeedbackItem>;
@@ -208,7 +210,7 @@ declare class Feedback {
     fetch(feedbackID: string): Promise<TiFeedbackItem | null>;
     /**
      * The picture of the screen sent with an item, or null: its type, its size in pixels and the image in base64. For
-     * the administrators' screen, which asks for one only when it is to be shown.
+     * the administrators' screen, which asks for one only when it is to be shown. Null for an anonymous item.
      *
      * @method
      * @param {string} feedbackID
