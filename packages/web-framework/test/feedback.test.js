@@ -329,6 +329,20 @@ describe( "Feedback — a picture of the screen (CA-544)", () => {
         assert.equal( await feedback.fetchPicture( "no-such-item" ), null );
     } );
 
+    it( "keeps no picture with anonymous feedback, whatever is sent with it", async () => {
+        // A picture of one's own screen shows what only they see and their own name's length, so with anonymous feedback
+        // it would say who sent it. The form never offers one; one sent all the same is not read (1.58.1).
+        const feedback = fresh();
+        const item = await feedback.submit( { kind: "problem", text: "Broken.", anonymous: true, picture: PICTURES.webpOpaque }, SENDER );
+        assert.equal( item.anonymous, true );
+        assert.equal( item.picture, null );
+        assert.equal( ( await cacheStub.getValue( "ti:feedback:item:" + item.feedbackID ) ).picture, null );
+        assert.deepEqual( Object.keys( cacheStub.values ).filter( ( key ) => key.startsWith( "ti:feedback:picture:" ) ), [], "nothing of it is kept" );
+
+        const malformed = await feedback.submit( { kind: "problem", text: "Broken.", anonymous: true, picture: "data:image/png;base64,AAAA" }, SENDER );
+        assert.equal( malformed.picture, null, "not read, so not refused either" );
+    } );
+
     it( "refuses the whole submission for a malformed picture, and keeps nothing", async () => {
         const feedback = fresh();
         await assert.rejects( feedback.submit( { kind: "problem", text: "Broken.", picture: "data:image/png;base64,AAAA" }, SENDER ),
@@ -383,14 +397,15 @@ describe( "Feedback — a picture of the screen (CA-544)", () => {
         assert.deepEqual( Object.keys( cacheStub.values ), [] );
     } );
 
-    it( "goes with its item on erasure; an anonymous item's stays with it", async () => {
+    it( "goes with its item on erasure; an anonymous item stays, with none", async () => {
         const feedback = fresh();
         const named = await feedback.submit( { kind: "problem", text: "Mine.", picture: PICTURES.webpOpaque }, SENDER );
         const anonymous = await feedback.submit( { kind: "problem", text: "Nobody's.", anonymous: true, picture: PICTURES.jpeg }, SENDER );
         assert.equal( await feedback.eraseSentBy( SUBJECT.id ), 1 );
         assert.equal( await cacheStub.getValue( "ti:feedback:picture:" + named.feedbackID ), undefined );
         assert.equal( await cacheStub.getValue( "ti:feedback:item:" + named.feedbackID ), undefined );
-        assert.ok( await feedback.fetchPicture( anonymous.feedbackID ) );
+        assert.ok( await cacheStub.getValue( "ti:feedback:item:" + anonymous.feedbackID ), "what was sent anonymously cannot be traced, and stays" );
+        assert.equal( await feedback.fetchPicture( anonymous.feedbackID ), null, "anonymous feedback carries no picture (1.58.1)" );
     } );
 
 } );

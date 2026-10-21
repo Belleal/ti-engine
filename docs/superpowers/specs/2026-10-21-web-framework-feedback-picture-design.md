@@ -5,7 +5,7 @@
 | **Date** | 2026-10-21 |
 | **Packages** | `packages/web-framework` |
 | **Status** | Decided by Boris on 2026-10-21 (§3); the rules in §4 follow from the decision and the measurements in §5. |
-| **Version target** | web-framework `1.58.0` |
+| **Version target** | web-framework `1.58.0`; `data-ti-redact` as one box and no picture with anonymous feedback in `1.58.1` |
 | **Author** | Boris Kostadinov (with Claude) |
 | **Tracking** | YouTrack [`CA-544`](https://belleal.youtrack.cloud/issue/CA-544), under [`CA-11`](https://belleal.youtrack.cloud/issue/CA-11) |
 
@@ -93,9 +93,16 @@ The picture is drawn from a copy of the page (§5). **Every rule applies to the 
   - A pseudo-element's `content` is written into the drawing's stylesheet. One with a letter or digit becomes x's, and
     anything computed (`attr()`, a counter) becomes "xxx". A mark such as "›" stays.
   - The text of an SVG symbol a `<use>` draws goes.
-- **`data-ti-redact` draws its element grey**, a photo set as a CSS background included, and leaves no background
-  image inside it, a pseudo-element's included (a rule appended to the drawing). Only the marked element is grey:
-  grey on each descendant too layered with the markup's depth.
+- **`data-ti-redact` draws its element as one grey box of its size, and nothing in it is drawn** (1.58.1). The
+  outermost mark's background is grey, with no image, its border transparent, no shadow or outline. Every element in
+  it, a mark within included, is `visibility: hidden`, and so is every pseudo-element in it, through a rule appended to
+  the drawing: the library writes each pseudo-element's computed `visibility: visible` there, which beats inheritance.
+  Hidden, not removed, so the box keeps its size. Only the outermost mark is grey: grey on each descendant too layered
+  with the markup's depth.
+  - **Why a box, not only blanked text.** 1.58.0 blanked a mark's text and background images and drew the rest.
+    Competence 3.144.0's review pass found what that leaves: a grade read from its chip's colour and place, an answer
+    from a checked radio beside a kept label, a score from a bar's length. Text is not the only way a screen says a
+    value, and the text rule cannot know which shapes and colours are data; the application can, and marks them.
 - **The `content` rewrite is a scanner, not a pattern**: it finds the property only where a declaration starts, never
   inside `justify-content`, and reads a value whole, so a `;` inside a string cuts nothing.
 - **The user menu is left out entirely** (`.ti-sidebar-flyout`). It is the menu used to reach Send Feedback, not part
@@ -139,8 +146,11 @@ The picture is drawn from a copy of the page (§5). **Every rule applies to the 
   an erasure between them cannot leave the picture behind.
 - **Administrators only.** `GET /app/feedback-picture?feedbackID=<id>` answers `{ feedbackID, type, width, height,
   data }` to the `admin` role, like the inbox. The Feedback screen loads a picture only when asked to show it.
-- **It goes with its item**: `eraseSentBy` deletes both, under the item's key. An anonymous item cannot be found by
-  erasure, and its picture stays with it.
+- **It goes with its item**: `eraseSentBy` deletes both, under the item's key.
+- **Never with anonymous feedback** (1.58.1). A picture of one's own screen shows what only that person sees, such as
+  the sidebar's sections for their roles, and their own name as a bar of its length; together they can say who sent
+  it. The form unticks and disables the option when "Send anonymously" is ticked, and `Feedback#submit` does not read
+  a picture sent with anonymous feedback all the same, so nothing of it is kept.
 
 ### 4.5 The form
 
@@ -148,6 +158,8 @@ The picture is drawn from a copy of the page (§5). **Every rule applies to the 
 - **The small print sits under the option and is always shown with it:** "Names, numbers and anything typed are
   blanked out before the picture is taken, and it shows only what was on the screen. Look at it before you send."
 - **Ticking the option shows the picture**, at the width of the form.
+- **Ticking "Send anonymously" unticks and disables it**, and a second note says why: "A picture can show who you
+  are, so anonymous feedback is sent without one." (1.58.1)
 
 ## 5. Measured (Chromium, the framework's CSP verbatim)
 
@@ -186,6 +198,13 @@ The picture is drawn from a copy of the page (§5). **Every rule applies to the 
 - **No CSS background image is blanked unless marked.** The framework sets none from data, and blanking every one
   would take a checkbox's tick with it. An application that shows a photo as a background marks its element
   `data-ti-redact`.
+- **No shape, colour or checked state is blanked unless marked.** A chart's bars, a status pill's colour, a chosen
+  option: the framework cannot tell which of them are data. An application marks the ones that are a person's, as
+  Competence marks its grades, scores, profile radar and consent answers (3.144.0).
+- **A blanked text keeps its length.** It keeps the layout readable; a name's length says little on its own, and the
+  one picture where it could say who sent it, the sender's own under anonymous feedback, is no longer taken.
+- **A sticky element on a scrolled screen is drawn where it would sit unscrolled** (measured on Competence's evaluation
+  screen: the bottom action bar drawn mid-picture). Layout, not privacy, and as in 1.58.0.
 - **No retention timer.** A picture lives as long as its item, which is how long administrators keep feedback.
 - **The personal-data export lists the picture's metadata, not the image.** An application that wants the image in
   its export reads `Feedback#fetchPicture`.

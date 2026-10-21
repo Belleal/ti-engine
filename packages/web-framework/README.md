@@ -641,12 +641,17 @@ class MyApplication extends TiWebAppManager {
     length. `data-ti-redact` blanks even what those would keep.
   * **Typed values** become bullets.
   * **Images** become grey boxes; **canvases, videos and frames** are hidden.
-  * **Chart text** goes, and the chart's shapes stay.
+  * **Chart text** goes, and the chart's shapes stay. So does every other shape, colour and checked state: the rule
+    cannot tell which of them are data, and the application marks those that are.
   * **A pseudo-element's words** (`content`) become x's, and so does anything computed there, such as `attr()`. A mark
     such as "›" stays. An SVG symbol's text, which a `<use>` draws, goes.
   * **Mark a text `data-ti-keep`** when it is not personal and the picture is less useful without it, such as a status
-    name. **Mark an element `data-ti-redact`** when it shows something personal through a means the rule cannot see,
-    such as a photo set as a CSS background: it and everything in it are drawn grey.
+    name. **Mark an element `data-ti-redact`** when it shows something personal through a means the rule cannot see:
+    a photo set as a CSS background, a grade shown by a chip's colour and place, an answer by a checked radio, a score
+    by a bar's length. It is drawn as one grey box of its size, and nothing in it is drawn (1.58.1).
+  * **Anonymous feedback carries no picture** (1.58.1). A picture of one's own screen shows what only that person
+    sees and their own name's length, which can say who sent it. Ticking "Send anonymously" unticks and disables the
+    option, with a note saying why, and the server does not read a picture sent with anonymous feedback.
 
   The picture is WebP (JPEG where the browser cannot write WebP), at most 1600 px a side and 1,000,000 bytes. The
   server checks all of that again, and reads Send Feedback's larger body (up to 1.5 MB) only from someone signed in.
