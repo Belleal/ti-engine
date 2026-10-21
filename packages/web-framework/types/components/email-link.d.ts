@@ -99,9 +99,10 @@ declare class EmailLink {
      * failure to store or to send is logged and answered as {@link OUTCOME}`.UNAVAILABLE`.
      * <br/>
      * **The outcome never says whether the address may sign in.** An address outside `allowedDomains` is sent nothing
-     * and answered `sent`, like one inside it. Over either hourly limit nothing is sent, whatever the address. A request
-     * that certainly sent nothing gives back what it counted, so an outage does not use up anybody's hour; one whose
-     * send may have gone through keeps its counts and its link, since the e-mail may still arrive.
+     * and answered `sent`, like one inside it. Over any hourly limit nothing is sent, whatever the address. A request
+     * that certainly sent nothing gives back what it counted against the address and overall, so an outage does not use
+     * up anybody's hour; one whose send may have gone through keeps its counts and its link, since the e-mail may still
+     * arrive. The client's count is never given back: it bounds how often one network may ask, whatever came of it.
      *
      * @method
      * @param {TiEmailLinkRequest} [request]
@@ -156,7 +157,7 @@ declare class EmailLink {
     /**
      * An address as the method keeps it: trimmed and lower-cased, or `null` when it is not one. Lower-cased whole,
      * although a mailbox's local part may in principle be case-sensitive: no provider a person is likely to use treats
-     * it so, and two spellings of one address must be one person.
+     * it so, and two spellings of one address must be one person. Printable ASCII only (see {@link PRINTABLE_ASCII}).
      *
      * @method
      * @param {*} value

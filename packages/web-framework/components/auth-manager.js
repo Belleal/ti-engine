@@ -402,7 +402,9 @@ class AuthManager {
             return [];
         }
         const entries = ( Array.isArray( value ) ? value : [ value ] ).flatMap( ( entry ) => String( entry ).split( "," ) );
-        const domains = entries.map( ( entry ) => entry.trim().toLowerCase().replace( /^@/, "" ).trim() ).filter( ( entry ) => entry !== "" );
+        // An entry that is only `@` stays as it is, matching no domain: dropped, it could leave the list empty, which
+        // admits every domain.
+        const domains = entries.map( ( entry ) => entry.trim().toLowerCase() ).filter( ( entry ) => entry !== "" ).map( ( entry ) => entry.replace( /^@/, "" ).trim() || entry );
         return [ ...new Set( domains ) ];
     }
 
@@ -486,9 +488,11 @@ class AuthManager {
             if ( redeemed === null ) {
                 throw exceptions.raise( exceptions.exceptionCode.E_SEC_INVALID_AUTH_TOKEN, { details: "The sign-in link is unknown, already used or expired." }, exceptions.httpCode.C_401 );
             }
+            // The address is the only name the method knows; an application's `augmentSession` may give a better one.
             return new User( {
                 userID: EmailLink.userIDOf( redeemed.address ),
                 username: redeemed.address,
+                name: redeemed.address,
                 email: redeemed.address,
                 language: redeemed.language
             } );

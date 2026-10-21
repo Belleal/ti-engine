@@ -1056,6 +1056,8 @@ const configureComponentTooltip = () => {
 const configureApplication = () => {
     const STORAGE_KEY_COLLAPSED = "ti-sidebar-collapsed";
     const STORAGE_KEY_THEME = "ti-theme";
+    // Per tab, until the link is spent or declined: see `_stashSignInLink`.
+    const STORAGE_KEY_SIGN_IN_LINK = "ti-sign-in-link";
     const DEFAULT_THEME = "daylight";
 
     /**
@@ -1187,6 +1189,13 @@ const configureApplication = () => {
         init() {
             // First, before any frame can push another address over the one holding the token.
             this._stashSignInLink();
+            // A link opened in a tab already showing the page changes only the fragment, which loads nothing: load the
+            // page again, so it starts with the link as it would in a new tab.
+            window.addEventListener( "hashchange", () => {
+                if ( this._signInLinkInAddress() ) {
+                    window.location.reload();
+                }
+            } );
 
             document.addEventListener( "ti:error", ( event ) => {
                 this.notify( this.formatException( event.detail ) );
@@ -1219,6 +1228,7 @@ const configureApplication = () => {
                 this.isInitialized = true;
                 if ( this.user ) {
                     this._explainSignInLink();
+                    this.forgetSignInLink();
                 }
             } ).catch( ( error ) => {
                 if ( error?.name === "AbortError" || error?.isAborted ) {
@@ -1242,8 +1252,7 @@ const configureApplication = () => {
          * @private
          */
         _stashSignInLink() {
-            const hash = String( window.location.hash || "" ).replace( /^#/, "" );
-            const token = hash ? new URLSearchParams( hash ).get( "email-link" ) : null;
+            const token = this._signInLinkInAddress();
             if ( !token ) {
                 return;
             }
@@ -1251,10 +1260,31 @@ const configureApplication = () => {
             if ( window.history && typeof window.history.replaceState === "function" ) {
                 window.history.replaceState( null, "", window.location.pathname + window.location.search );
             }
+            // Kept for this tab too, until the link is spent or declined: a reload of the Continue step, or the sign-in
+            // page's own language switch, starts the page again with nothing in the address, and the link that still
+            // works would be lost without a word.
+            try {
+                sessionStorage.setItem( STORAGE_KEY_SIGN_IN_LINK, token );
+            } catch {
+                // sessionStorage may be unavailable (private browsing, security policy): the link lasts the page.
+            }
         },
 
         /**
-         * The sign-in link's token the page was opened with, once: the sign-in page's e-mail link block takes it.
+         * The token in the address bar's `#email-link=`, or `null`.
+         *
+         * @method
+         * @returns {string|null}
+         * @private
+         */
+        _signInLinkInAddress() {
+            const hash = String( window.location.hash || "" ).replace( /^#/, "" );
+            return ( hash ? new URLSearchParams( hash ).get( "email-link" ) : null ) || null;
+        },
+
+        /**
+         * The sign-in link's token the page was opened with, or that this tab kept from an earlier load, until
+         * {@link forgetSignInLink}: the sign-in page's e-mail link block takes it.
          *
          * @method
          * @returns {string|null}
@@ -1263,9 +1293,31 @@ const configureApplication = () => {
         takeSignInLink() {
             // The shell's init has normally done this already; again here, it only finds nothing to take.
             this._stashSignInLink();
-            const token = this.signInLink;
+            let token = this.signInLink;
             this.signInLink = null;
-            return token;
+            if ( !token ) {
+                try {
+                    token = sessionStorage.getItem( STORAGE_KEY_SIGN_IN_LINK );
+                } catch {
+                    token = null;
+                }
+            }
+            return token || null;
+        },
+
+        /**
+         * Drops the sign-in link's token this tab kept: it was posted, declined, or can no longer sign anybody in.
+         *
+         * @method
+         * @public
+         */
+        forgetSignInLink() {
+            this.signInLink = null;
+            try {
+                sessionStorage.removeItem( STORAGE_KEY_SIGN_IN_LINK );
+            } catch {
+                // Nothing was kept.
+            }
         },
 
         /**
@@ -2833,7 +2885,8 @@ const configureLoginError = () => {
  * steps, `ask` (the address form), `sent` and `confirm`.
  * <br/>
  * The link lands here with its token in the fragment, `#email-link=<token>`, which no server sees. The token is taken
- * out of the address bar at once, so it is not left in the history, and the person presses Continue to post it: a mail
+ * out of the address bar at once, so it is not left in the history, and kept for the tab until it is posted or declined,
+ * so a reload or the page's language switch still finds it. The person presses Continue to post it: a mail
  * scanner that opened the link, and perhaps ran this script, presses nothing and so spends nothing. First the page asks
  * the server which address the link signs in, without spending it, and shows it: a link somebody sent for their own
  * address would otherwise sign the person into that account unnoticed. A link that can no longer sign anybody in goes
@@ -2881,6 +2934,7 @@ const configureLoginEmailLink = () => {
                 if ( typeof email === "string" && email !== "" ) {
                     this.email = email;
                 } else {
+                    Alpine.store( "tiApplication" ).forgetSignInLink();
                     this.token = "";
                     this.message = "expired";
                     this.step = "ask";
@@ -2893,6 +2947,7 @@ const configureLoginEmailLink = () => {
         },
 
         askAgain() {
+            Alpine.store( "tiApplication" ).forgetSignInLink();
             this.token = "";
             this.email = "";
             this.message = "";
@@ -2904,6 +2959,10 @@ const configureLoginEmailLink = () => {
          * and came back saying the link had expired, over the sign-in that had just worked.
          */
         markSending() {
+            if ( this.step === "confirm" ) {
+                // Posted: whatever comes back, the link is spent or was already.
+                Alpine.store( "tiApplication" ).forgetSignInLink();
+            }
             this.sending = true;
             clearTimeout( this.sendingTimer );
             this.sendingTimer = setTimeout( () => {

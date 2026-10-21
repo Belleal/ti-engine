@@ -16,6 +16,7 @@
 */
 
 /** @import { TiLocalizationLanguage } from "@ti-engine/core/localization" */
+/** @import { TiAuthMethod } from "#auth-manager" */
 
 /**
  * @callback TiSessionCallback
@@ -28,6 +29,7 @@
  * @property {string} id
  * @property {Object} [user]
  * @property {TiLocalizationLanguage} [language]
+ * @property {TiAuthMethod} [authMethod] The method the session signed in with (1.57.0).
  * @property {Object} [cookie]
  * @property {Object} [oidc]
  * @property {string} [csrfToken]

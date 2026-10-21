@@ -18,6 +18,7 @@
 "use strict";
 
 const { createHash, createHmac, randomBytes } = require( "node:crypto" );
+const { isIPv4, isIPv6 } = require( "node:net" );
 const cache = require( "@ti-engine/core/cache" );
 const tools = require( "@ti-engine/core/tools" );
 const logger = require( "@ti-engine/core/logger" );
@@ -31,7 +32,7 @@ const notificationService = require( "#notification-service" );
 // delete is what spends a token. The token itself is never stored, so a read of the store hands out no link.
 const KEY_TOKEN = "ti:auth:email-link:token:";
 
-// + `address:` or `client:` and 32 hex of the SHA-256 of what is counted → `{ count, resetAt }`.
+// + `address:`, `client:` or `overall:` and 32 hex of the SHA-256 of what is counted → `{ count, resetAt }`.
 const KEY_LIMIT = "ti:auth:email-link:limit:";
 
 /**
@@ -90,7 +91,8 @@ const DEFAULTS = Object.freeze( {
     lifetimeMinutes: 15,
     allowedDomains: Object.freeze( [] ),
     hourlyLimitPerAddress: 5,
-    hourlyLimitPerClient: 30
+    hourlyLimitPerClient: 30,
+    hourlyLimitOverall: 100
 } );
 
 // RFC 5321 caps a path at 256 octets, the angle brackets included.
@@ -101,6 +103,12 @@ const ADDRESS_MAX = 254;
 // `@` has one place to match, and the domain's labels exclude the dot, so each dot has one place too: it runs in linear
 // time, as feedback's ADDRESS does (CodeQL js/polynomial-redos).
 const ADDRESS = /^[^\s\p{Cc}@<>",;:()[\]\\]+@[^\s\p{Cc}@<>",;:()[\]\\.]+(?:\.[^\s\p{Cc}@<>",;:()[\]\\.]+)+$/u;
+
+// An address is printable ASCII too. The confirm step shows the address a link signs in, so that a link somebody else
+// asked for is not followed unnoticed; a letter from another script (a Cyrillic `а` for a Latin `a`) or an invisible
+// one would let their address pass for the person's own there. A domain in another script is written in its ASCII
+// form, and few transports deliver to a local part outside ASCII.
+const PRINTABLE_ASCII = /^[\x21-\x7e]+$/;
 
 // 32 random bytes, base64url without padding.
 const TOKEN_BYTES = 32;
@@ -114,11 +122,16 @@ const LIMIT_WINDOW = 3600;
 // reader of the log. A subject therefore matches across one process's lines, not across restarts.
 const SUBJECT_KEY = randomBytes( 32 );
 
-// The failures after which nothing was sent for certain: raised before the transport was asked, or the relay's own
-// refusal. Anything else, above all the relay's E_RELAY_UNAVAILABLE (a timeout, a dropped connection, an answer it
+// The failures after which nothing was sent for certain: raised before the transport was asked, or the provider's
+// refusal to take the message for now. A failure the transport marks `transient: false` (the relay's own refusals,
+// such as a missing mail binding, and the provider's verdict that the message will never go) is one too (see
+// isNotSent). Anything else, above all the relay's E_RELAY_UNAVAILABLE (a timeout, a dropped connection, an answer it
 // could not read), may have followed a delivery, so its link is kept and its counts stand.
 const NOT_SENT = Object.freeze( [ "E_NOTICE_TRANSPORT_OFF", "E_NOTICE_UNKNOWN", "E_NOTICE_LABEL_MISSING", "E_NOTICE_ATTACHMENT_INVALID",
     "E_RATE_LIMIT_EXCEEDED", "E_DAILY_LIMIT_EXCEEDED" ] );
+
+// The domains whose mailboxes ignore dots in the local part: Gmail's.
+const DOTLESS_DOMAINS = Object.freeze( [ "gmail.com", "googlemail.com" ] );
 
 /**
  * The SHA-256 of a value, in hex.
@@ -145,10 +158,84 @@ function tokenKeyOf( token ) {
 }
 
 /**
+ * Whether a failed send certainly sent nothing: a code in {@link NOT_SENT}, or a transport's own word that the message
+ * will never go.
+ *
+ * @method
+ * @param {*} error
+ * @returns {boolean}
+ * @private
+ */
+function isNotSent( error ) {
+    return !!error && ( NOT_SENT.includes( error.code ) || error.transient === false );
+}
+
+/**
+ * The mailbox an address reaches, as the per-address limit counts it: without a `+tag`, and for Gmail without the dots
+ * and in `gmail.com`. Every such spelling reaches one inbox, and counted apart each would bring the inbox five more
+ * links an hour. Only the count uses it: the link goes to the address as given, and the address is the user.
+ *
+ * @method
+ * @param {string} address As {@link EmailLink.normalizeAddress} returns it.
+ * @returns {string}
+ * @private
+ */
+function mailboxOf( address ) {
+    const at = address.lastIndexOf( "@" );
+    let local = address.slice( 0, at );
+    let domain = address.slice( at + 1 );
+    const plus = local.indexOf( "+" );
+    if ( plus > 0 ) {
+        local = local.slice( 0, plus );
+    }
+    if ( DOTLESS_DOMAINS.includes( domain ) ) {
+        domain = DOTLESS_DOMAINS[ 0 ];
+        local = local.replaceAll( ".", "" ) || local;
+    }
+    return local + "@" + domain;
+}
+
+/**
+ * The network a client is counted by: an IPv4 address as it is, an IPv6 one by its `/64`. A single host is usually
+ * given a whole `/64`, so counting each IPv6 address apart would give it as many hourly limits as it cares to use
+ * addresses. An IPv4 address written as IPv6 (`::ffff:192.0.2.1`) is the IPv4 address.
+ *
+ * @method
+ * @param {*} client The request's `ip`.
+ * @returns {string}
+ * @private
+ */
+function networkOf( client ) {
+    const text = String( client || "" ).trim().toLowerCase().replace( /%.*$/, "" );
+    if ( isIPv4( text ) ) {
+        return text;
+    }
+    if ( !isIPv6( text ) ) {
+        return text === "" ? "unknown" : text;
+    }
+    // Eight groups of 16 bits, with `::` filled in and a trailing IPv4 part read as two groups.
+    let written = text;
+    const tail = written.slice( written.lastIndexOf( ":" ) + 1 );
+    if ( isIPv4( tail ) ) {
+        const octets = tail.split( "." ).map( Number );
+        written = written.slice( 0, written.length - tail.length ) + ( ( octets[ 0 ] << 8 ) | octets[ 1 ] ).toString( 16 ) + ":" + ( ( octets[ 2 ] << 8 ) | octets[ 3 ] ).toString( 16 );
+    }
+    const gap = written.indexOf( "::" );
+    const head = ( gap === -1 ? written : written.slice( 0, gap ) ).split( ":" ).filter( ( group ) => group !== "" );
+    const rest = ( gap === -1 ) ? [] : written.slice( gap + 2 ).split( ":" ).filter( ( group ) => group !== "" );
+    const groups = ( gap === -1 ) ? head : [ ...head, ...new Array( 8 - head.length - rest.length ).fill( "0" ), ...rest ];
+    const numbers = groups.map( ( group ) => parseInt( group, 16 ) );
+    if ( numbers.slice( 0, 5 ).every( ( number ) => number === 0 ) && numbers[ 5 ] === 0xffff ) {
+        return [ numbers[ 6 ] >> 8, numbers[ 6 ] & 0xff, numbers[ 7 ] >> 8, numbers[ 7 ] & 0xff ].join( "." );
+    }
+    return numbers.slice( 0, 4 ).map( ( number ) => number.toString( 16 ) ).join( ":" ) + "::/64";
+}
+
+/**
  * Where a limit keeps its count of a value.
  *
  * @method
- * @param {"address"|"client"} kind
+ * @param {"address"|"client"|"overall"} kind
  * @param {string} value
  * @returns {string}
  * @private
@@ -293,9 +380,10 @@ class EmailLink {
      * failure to store or to send is logged and answered as {@link OUTCOME}`.UNAVAILABLE`.
      * <br/>
      * **The outcome never says whether the address may sign in.** An address outside `allowedDomains` is sent nothing
-     * and answered `sent`, like one inside it. Over either hourly limit nothing is sent, whatever the address. A request
-     * that certainly sent nothing gives back what it counted, so an outage does not use up anybody's hour; one whose
-     * send may have gone through keeps its counts and its link, since the e-mail may still arrive.
+     * and answered `sent`, like one inside it. Over any hourly limit nothing is sent, whatever the address. A request
+     * that certainly sent nothing gives back what it counted against the address and overall, so an outage does not use
+     * up anybody's hour; one whose send may have gone through keeps its counts and its link, since the e-mail may still
+     * arrive. The client's count is never given back: it bounds how often one network may ask, whatever came of it.
      *
      * @method
      * @param {TiEmailLinkRequest} [request]
@@ -308,30 +396,40 @@ class EmailLink {
             return Promise.resolve( OUTCOME.INVALID_ADDRESS );
         }
         const subject = EmailLink.subjectOf( address );
-        const clientValue = String( client || "unknown" );
+        const network = networkOf( client );
+        const mailbox = mailboxOf( address );
         const counted = [];
         const progress = { sending: false };
-        return this.#count( "client", clientValue, this.#settings.hourlyLimitPerClient ).then( ( withinClient ) => {
+        return this.#count( "client", network, this.#settings.hourlyLimitPerClient ).then( ( withinClient ) => {
             if ( !withinClient ) {
-                logger.log( `E-mail sign-in: client '${ EmailLink.subjectOf( clientValue ) }' is over its hourly limit; no link was sent.`, logger.logSeverity.NOTICE );
+                logger.log( `E-mail sign-in: client '${ EmailLink.subjectOf( network ) }' is over its hourly limit; no link was sent.`, logger.logSeverity.NOTICE );
                 return OUTCOME.LIMITED;
             }
-            counted.push( [ "client", clientValue ] );
-            return this.#count( "address", address, this.#settings.hourlyLimitPerAddress ).then( ( withinAddress ) => {
+            return this.#count( "address", mailbox, this.#settings.hourlyLimitPerAddress ).then( ( withinAddress ) => {
                 if ( !withinAddress ) {
                     logger.log( `E-mail sign-in: address '${ subject }' is over its hourly limit; no link was sent.`, logger.logSeverity.NOTICE );
                     return OUTCOME.LIMITED;
                 }
-                counted.push( [ "address", address ] );
+                counted.push( [ "address", mailbox ] );
                 if ( !this.#isDomainAllowed( address ) ) {
                     // The domain is what an operator acts on, a missing entry in the list; the address is somebody's.
                     logger.log( `E-mail sign-in: address '${ subject }' is in the domain '${ domainOf( address ) }', which may not sign in; no link was sent.`, logger.logSeverity.INFO );
                     return OUTCOME.SENT;
                 }
-                return this.#issueAndSend( address, subject, language, progress );
+                // Last, so that only a request about to send counts: the overall limit bounds the mail, which every
+                // address and network together could otherwise multiply, and keeps the provider's quota for the other notices.
+                return this.#count( "overall", "", this.#settings.hourlyLimitOverall ).then( ( withinOverall ) => {
+                    if ( !withinOverall ) {
+                        logger.log( "E-mail sign-in: the overall hourly limit is reached; no link was sent.", logger.logSeverity.WARNING );
+                        // Nothing was sent, and the person did nothing to earn the count: their address's hour stays whole.
+                        return this.#uncount( "address", mailbox ).catch( () => undefined ).then( () => OUTCOME.LIMITED );
+                    }
+                    counted.push( [ "overall", "" ] );
+                    return this.#issueAndSend( address, subject, language, progress );
+                } );
             } );
         } ).catch( ( error ) => {
-            const sentNothing = !progress.sending || NOT_SENT.includes( error && error.code );
+            const sentNothing = !progress.sending || isNotSent( error );
             logger.log( `E-mail sign-in: a link for address '${ subject }' could not be sent (${ ( error && error.code ) || "unknown" })${ sentNothing ? "" : "; it may have gone, so its link is kept and it counts" }.`, logger.logSeverity.WARNING, { stack: error && error.stack } );
             if ( !sentNothing ) {
                 return OUTCOME.UNAVAILABLE;
@@ -429,7 +527,8 @@ class EmailLink {
             lifetimeMinutes: pick( "lifetimeMinutes", ( value ) => isCount( value ) && value <= 1440 ),
             allowedDomains: Object.freeze( Array.isArray( given.allowedDomains ) ? [ ...given.allowedDomains ] : [] ),
             hourlyLimitPerAddress: pick( "hourlyLimitPerAddress", isCount ),
-            hourlyLimitPerClient: pick( "hourlyLimitPerClient", isCount )
+            hourlyLimitPerClient: pick( "hourlyLimitPerClient", isCount ),
+            hourlyLimitOverall: pick( "hourlyLimitOverall", isCount )
         };
         return { settings: Object.freeze( resolved ), warnings: warnings };
     }
@@ -437,7 +536,7 @@ class EmailLink {
     /**
      * An address as the method keeps it: trimmed and lower-cased, or `null` when it is not one. Lower-cased whole,
      * although a mailbox's local part may in principle be case-sensitive: no provider a person is likely to use treats
-     * it so, and two spellings of one address must be one person.
+     * it so, and two spellings of one address must be one person. Printable ASCII only (see {@link PRINTABLE_ASCII}).
      *
      * @method
      * @param {*} value
@@ -449,7 +548,7 @@ class EmailLink {
             return null;
         }
         const address = value.trim().toLowerCase();
-        return ( address.length <= ADDRESS_MAX && ADDRESS.test( address ) ) ? address : null;
+        return ( address.length <= ADDRESS_MAX && PRINTABLE_ASCII.test( address ) && ADDRESS.test( address ) ) ? address : null;
     }
 
     /**
@@ -488,7 +587,7 @@ class EmailLink {
      * whether the request is within the limit; one over it is not counted, so the window is not stretched.
      *
      * @method
-     * @param {"address"|"client"} kind
+     * @param {"address"|"client"|"overall"} kind
      * @param {string} value
      * @param {number} limit
      * @returns {Promise<boolean>}
@@ -513,7 +612,7 @@ class EmailLink {
      * Gives back one request a limit counted, when nothing was sent for it. A window that has ended has nothing to give.
      *
      * @method
-     * @param {"address"|"client"} kind
+     * @param {"address"|"client"|"overall"} kind
      * @param {string} value
      * @returns {Promise<void>}
      */
@@ -589,7 +688,7 @@ class EmailLink {
             const recipient = { id: `email-link-${ subject }`, email: address, language: entry.language };
             progress.sending = true;
             return notificationService.instance.sendNow( NOTICE, recipient, { token: token, minutes: this.#settings.lifetimeMinutes } ).catch( ( error ) => {
-                if ( !NOT_SENT.includes( error && error.code ) ) {
+                if ( !isNotSent( error ) ) {
                     throw error;
                 }
                 return Promise.resolve( cache.instance.deleteValue( key ) ).catch( () => undefined ).then( () => {

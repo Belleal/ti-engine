@@ -25,7 +25,9 @@
       "lifetimeMinutes": 15,
       "allowedDomains": [],
       "hourlyLimitPerAddress": 5,
-      "hourlyLimitPerClient": 30
+      "hourlyLimitPerClient": 30,
+      "hourlyLimitOverall": 100,
+      "grantsAdmin": false
     },
     "oauth2": {
       "azure": {

@@ -117,6 +117,15 @@ describe( "EmailLink — the address", () => {
         assert.equal( EmailLink.normalizeAddress( [ "a@b.c" ] ), null, "a repeated form field arrives as a list" );
     } );
 
+    it( "refuses an address outside printable ASCII, which could pass for another on the confirm step", () => {
+        // A Cyrillic `а` for a Latin `a`, and invisible characters: a zero-width space, a right-to-left override, a soft hyphen.
+        const refused = [ "p\u0430rent@example.com", "parent@ex\u0430mple.com", "par\u200bent@example.com", "parent@example.com\u202e",
+            "par\u00adent@example.com", "parent@\u043f\u0440\u0438\u043c\u0435\u0440.\u0431\u0433", "\u00e9l\u00e8ve@example.fr" ];
+        refused.forEach( ( value ) => assert.equal( EmailLink.normalizeAddress( value ), null, JSON.stringify( value ) ) );
+        assert.equal( EmailLink.normalizeAddress( "parent@xn--e1afmkfd.xn--90ae" ), "parent@xn--e1afmkfd.xn--90ae", "a domain in another script, in its ASCII form" );
+        assert.equal( EmailLink.normalizeAddress( "a!#$%&'*+-/=?^_`{|}~@example.com" ), "a!#$%&'*+-/=?^_`{|}~@example.com" );
+    } );
+
     it( "refuses an address over 254 characters", () => {
         const local = "a".repeat( 64 );
         const domain = ( "b".repeat( 60 ) + "." ).repeat( 3 ) + "bg";
@@ -141,16 +150,17 @@ describe( "EmailLink — the settings", () => {
 
     it( "takes the defaults when nothing is configured", () => {
         const { settings, warnings } = EmailLink.resolveSettings( undefined );
-        assert.deepEqual( { ...settings, allowedDomains: [ ...settings.allowedDomains ] }, { lifetimeMinutes: 15, allowedDomains: [], hourlyLimitPerAddress: 5, hourlyLimitPerClient: 30 } );
+        assert.deepEqual( { ...settings, allowedDomains: [ ...settings.allowedDomains ] }, { lifetimeMinutes: 15, allowedDomains: [], hourlyLimitPerAddress: 5, hourlyLimitPerClient: 30, hourlyLimitOverall: 100 } );
         assert.deepEqual( warnings, [] );
     } );
 
     it( "takes a malformed value's default with a warning, and keeps the rest", () => {
-        const { settings, warnings } = EmailLink.resolveSettings( { lifetimeMinutes: 0, hourlyLimitPerAddress: 3, hourlyLimitPerClient: "9" } );
+        const { settings, warnings } = EmailLink.resolveSettings( { lifetimeMinutes: 0, hourlyLimitPerAddress: 3, hourlyLimitPerClient: "9", hourlyLimitOverall: -1 } );
         assert.equal( settings.lifetimeMinutes, 15 );
         assert.equal( settings.hourlyLimitPerAddress, 3 );
         assert.equal( settings.hourlyLimitPerClient, 30 );
-        assert.equal( warnings.length, 2 );
+        assert.equal( settings.hourlyLimitOverall, 100 );
+        assert.equal( warnings.length, 3 );
     } );
 
     it( "has no setting for the sign-in page, which is always /, where every sign-in's failure goes too", () => {
@@ -231,6 +241,57 @@ describe( "EmailLink — asking for a link", () => {
         assert.equal( EmailLink.DEFAULTS.hourlyLimitPerClient, 30 );
     } );
 
+    it( "counts an IPv6 client by its /64, which a single host is usually given whole", async () => {
+        const link = new EmailLink( { hourlyLimitPerClient: 2 } ).registerNotice();
+        assert.equal( await link.request( { email: "p1@example.com", client: "2001:db8:1:2::1" } ), "sent" );
+        assert.equal( await link.request( { email: "p2@example.com", client: "2001:db8:1:2:aaaa:bbbb:cccc:dddd" } ), "sent" );
+        assert.equal( await link.request( { email: "p3@example.com", client: "2001:0DB8:0001:0002:ffff::9" } ), "limited", "another address in the same /64" );
+        assert.equal( await link.request( { email: "p3@example.com", client: "2001:db8:1:3::1" } ), "sent", "the next /64 is another network" );
+    } );
+
+    it( "counts an IPv4 address written as IPv6 as the IPv4 address", async () => {
+        const link = new EmailLink( { hourlyLimitPerClient: 2 } ).registerNotice();
+        assert.equal( await link.request( { email: "p1@example.com", client: "203.0.113.7" } ), "sent" );
+        assert.equal( await link.request( { email: "p2@example.com", client: "::ffff:203.0.113.7" } ), "sent" );
+        assert.equal( await link.request( { email: "p3@example.com", client: "::FFFF:cb00:7107" } ), "limited" );
+        assert.equal( await link.request( { email: "p3@example.com", client: "203.0.113.8" } ), "sent", "another IPv4 address is another client" );
+    } );
+
+    it( "counts the spellings that reach one inbox as one address, and sends to the address as given", async () => {
+        const link = new EmailLink( { hourlyLimitPerAddress: 2 } ).registerNotice();
+        assert.equal( await link.request( { email: "parent.name@gmail.com", client: "198.51.100.1" } ), "sent" );
+        assert.equal( await link.request( { email: "ParentName+school@googlemail.com", client: "198.51.100.2" } ), "sent" );
+        assert.equal( await link.request( { email: "p.a.r.e.n.t.n.a.m.e@gmail.com", client: "198.51.100.3" } ), "limited", "Gmail ignores dots and the tag" );
+        assert.equal( await link.request( { email: "parent+a@example.com", client: "198.51.100.4" } ), "sent" );
+        assert.equal( await link.request( { email: "parent+b@example.com", client: "198.51.100.5" } ), "sent" );
+        assert.equal( await link.request( { email: "parent@example.com", client: "198.51.100.6" } ), "limited", "a tag reaches the same inbox anywhere" );
+        assert.equal( await link.request( { email: "pa.rent@example.com", client: "198.51.100.7" } ), "sent", "elsewhere a dot makes another address" );
+        assert.deepEqual( sent.map( ( message ) => message.to ), [ "parent.name@gmail.com", "parentname+school@googlemail.com", "parent+a@example.com", "parent+b@example.com", "pa.rent@example.com" ] );
+    } );
+
+    it( "sends at most so many links an hour overall, a hundred unless stated, counting only what it sends", async () => {
+        const time = clock();
+        const link = new EmailLink( { hourlyLimitOverall: 2, allowedDomains: [ "example.com" ] }, { now: time.now } ).registerNotice();
+        assert.equal( await link.request( { email: "p1@other.org", client: "198.51.100.1" } ), "sent", "answered so, but nothing was sent" );
+        assert.equal( await link.request( { email: "p1@example.com", client: "198.51.100.1" } ), "sent" );
+        assert.equal( await link.request( { email: "p2@example.com", client: "198.51.100.2" } ), "sent" );
+        assert.equal( await link.request( { email: "p3@example.com", client: "198.51.100.3" } ), "limited" );
+        assert.equal( sent.length, 2 );
+        time.advance( 60 * 60 * 1000 );
+        assert.equal( await link.request( { email: "p3@example.com", client: "198.51.100.3" } ), "sent" );
+        assert.equal( EmailLink.DEFAULTS.hourlyLimitOverall, 100 );
+    } );
+
+    it( "gives the address its count back when the overall limit refuses it, since nothing was sent", async () => {
+        const link = new EmailLink( { hourlyLimitOverall: 1, hourlyLimitPerAddress: 2 } ).registerNotice();
+        assert.equal( await link.request( { email: "p1@example.com", client: "198.51.100.1" } ), "sent" );
+        for ( let i = 0; i < 3; i++ ) {
+            assert.equal( await link.request( { email: "p2@example.com", client: `198.51.100.${ 10 + i }` } ), "limited" );
+        }
+        const counted = Object.entries( cacheStub.values ).filter( ( [ key ] ) => key.startsWith( "ti:auth:email-link:limit:address:" ) ).map( ( [ , entry ] ) => entry.value.count );
+        assert.deepEqual( counted.sort(), [ 0, 1 ], "p1's one link, and nothing for p2" );
+    } );
+
     it( "counts concurrent requests one at a time, so a burst cannot pass the limit together", async () => {
         const link = new EmailLink( { hourlyLimitPerAddress: 2 } ).registerNotice();
         const outcomes = await Promise.all( [ 1, 2, 3, 4, 5 ].map( ( i ) => link.request( { email: "parent@example.com", client: `198.51.100.${ i }` } ) ) );
@@ -259,15 +320,35 @@ describe( "EmailLink — asking for a link", () => {
         assert.equal( await link.request( { email: "parent@example.com", client: "203.0.113.7" } ), "limited", "a slow relay is no way past the limit" );
     } );
 
-    it( "gives back what it counted when nothing could be sent, so an outage uses up nobody's hour", async () => {
-        const link = new EmailLink( { hourlyLimitPerAddress: 2, hourlyLimitPerClient: 2 } ).registerNotice();
+    it( "gives back what it counted against the address and overall when nothing could be sent, so an outage uses up nobody's hour", async () => {
+        const link = new EmailLink( { hourlyLimitPerAddress: 2, hourlyLimitOverall: 2 } ).registerNotice();
         for ( let i = 0; i < 4; i++ ) {
             failNext = Object.assign( new Error( "rate limit" ), { code: "E_RATE_LIMIT_EXCEEDED", transient: true } );
-            assert.equal( await link.request( { email: "parent@example.com", client: "203.0.113.7" } ), "unavailable" );
+            assert.equal( await link.request( { email: "parent@example.com", client: `198.51.100.${ i }` } ), "unavailable" );
         }
         assert.equal( await link.request( { email: "parent@example.com", client: "203.0.113.7" } ), "sent", "the relay is back, and the hour is whole" );
-        assert.equal( await link.request( { email: "parent@example.com", client: "203.0.113.7" } ), "sent" );
-        assert.equal( await link.request( { email: "parent@example.com", client: "203.0.113.7" } ), "limited", "what was sent still counts" );
+        assert.equal( await link.request( { email: "parent@example.com", client: "203.0.113.8" } ), "sent" );
+        assert.equal( await link.request( { email: "parent@example.com", client: "203.0.113.9" } ), "limited", "what was sent still counts" );
+    } );
+
+    it( "never gives back the client's count, which bounds how often one network may ask, whatever came of it", async () => {
+        const link = new EmailLink( { hourlyLimitPerClient: 2 } ).registerNotice();
+        for ( let i = 0; i < 2; i++ ) {
+            failNext = Object.assign( new Error( "daily limit" ), { code: "E_DAILY_LIMIT_EXCEEDED", transient: true } );
+            assert.equal( await link.request( { email: `p${ i }@example.com`, client: "203.0.113.7" } ), "unavailable" );
+        }
+        assert.equal( await link.request( { email: "p9@example.com", client: "203.0.113.7" } ), "limited" );
+    } );
+
+    it( "takes a transport's word that a message will never go as nothing sent: the link is deleted, the address's count given back", async () => {
+        // The relay's own refusals (a missing mail binding, a message it will not take) and the provider's permanent ones.
+        const link = new EmailLink( { hourlyLimitPerAddress: 2 } ).registerNotice();
+        for ( const code of [ "E_MAIL_BINDING_MISSING", "E_MAIL_INVALID", "E_RECIPIENT_SUPPRESSED" ] ) {
+            failNext = Object.assign( new Error( code ), { code: code, transient: false } );
+            assert.equal( await link.request( { email: "parent@example.com", client: "203.0.113.7" } ), "unavailable", code );
+        }
+        assert.deepEqual( tokenKeys(), [] );
+        assert.equal( await link.request( { email: "parent@example.com", client: "203.0.113.7" } ), "sent", "the address's hour is whole" );
     } );
 
     it( "answers unavailable when the store fails, rather than rejecting", async ( t ) => {
@@ -497,6 +578,7 @@ describe( "AuthManager — the email-link method", () => {
         const user = ( await auth.authorize( "email-link", new URL( "https://app.example.com/login/email-link" ), { token: token } ) ).asJSON();
         assert.equal( user.userID, EmailLink.userIDOf( "parent@example.com" ) );
         assert.equal( user.username, "parent@example.com" );
+        assert.equal( user.name, "parent@example.com", "the only name the method knows, so the sidebar is not blank" );
         assert.equal( user.email, "parent@example.com" );
         assert.equal( user.language, "bg" );
 

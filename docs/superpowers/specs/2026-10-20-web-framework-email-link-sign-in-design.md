@@ -51,7 +51,9 @@ A fourth method, `email-link`, enabled like the others (`auth.enabledMethods`, `
     "lifetimeMinutes": 15,        // how long a link works
     "allowedDomains": [],         // as an OpenID provider's: empty admits any domain
     "hourlyLimitPerAddress": 5,   // links one address may be sent in an hour
-    "hourlyLimitPerClient": 30    // links one client address may ask for in an hour
+    "hourlyLimitPerClient": 30,   // links one client network may ask for in an hour
+    "hourlyLimitOverall": 100,    // links sent in an hour altogether
+    "grantsAdmin": false          // whether an e-mail-link session may hold the admin role
   }
 }
 ```
@@ -66,19 +68,29 @@ failure too (`/?error=`), so a page of its own would split the two.
 
 `POST /login/email-link` with `email` (and the CSRF token, as every form):
 
-1. The address is trimmed and lower-cased, and checked against a pattern that runs in linear time: one `@`, no
-   whitespace, control character or `<>",;:()[]\`, a domain of at least two labels. At most 254 characters.
-2. The client's address and then the e-mail address are counted, each in a one-hour window that starts with the first
-   request (`{ count, resetAt }`, a value expiring at `resetAt`). Over either limit, nothing is sent.
-3. An address outside `allowedDomains` is sent nothing, and answered as if it had been.
+1. The address is trimmed and lower-cased, and checked against a pattern that runs in linear time: printable ASCII, one
+   `@`, none of `<>",;:()[]\`, a domain of at least two labels. At most 254 characters. ASCII because the Continue step
+   shows the address (§3.3): a Cyrillic `а` for a Latin `a`, or an invisible character, would let somebody else's
+   address pass for the person's own there. A domain in another script is given in its ASCII form.
+2. The client's network and then the e-mail address are counted, each in a one-hour window that starts with the first
+   request (`{ count, resetAt }`, a value expiring at `resetAt`). Over either limit, nothing is sent. The network is an
+   IPv4 address, or an IPv6 address's `/64`: a host is usually given a whole `/64`, and counted address by address it
+   would have as many limits as it cared to use. The address is counted by the inbox it reaches, without a `+tag` and,
+   for Gmail, without dots; the link still goes to the address as given, and the address is the user.
+3. An address outside `allowedDomains` is sent nothing, and answered as if it had been. Otherwise the link counts
+   against an overall hourly limit too, which bounds the mail every address and network together could ask for and
+   keeps the provider's quota for the other notices; over it, nothing is sent and the answer is `limited`.
 4. Otherwise a token of 32 random bytes is made, and stored under the SHA-256 of the token, never the token itself,
    with the address, the language the request was answered in, and the moment it expires. The value expires then too.
 5. The `sign-in-link` notice is sent at once, past the outbox and the ledger, through a new
    `NotificationService#sendNow`. Its link is `<publicUrl>/#email-link=<token>`.
 6. The browser is sent back to `/?email-link=<outcome>`: `sent`, `limited`, `invalid-address` or `unavailable`
    (the store or the transport failed). A failure that certainly sent nothing — raised before the transport was asked,
-   or the relay's own refusal — deletes the token and gives back the request's counts. One that may have followed a
-   delivery, as a relay timeout may, keeps both: the e-mail may still arrive, and a slow relay is no way past a limit.
+   the provider's refusal to take it for now, or any failure the transport marks `transient: false` (the relay's own
+   refusals, the provider's verdict that the message will never go) — deletes the token and gives back what the
+   request counted against the address and overall. One that may have followed a delivery, as a relay timeout may,
+   keeps both: the e-mail may still arrive, and a slow relay is no way past a limit. The client's count always stands:
+   it bounds how often one network may ask, whatever came of it.
 
 **The answer never says whether an address may sign in.** A refused domain reads `sent`, like an admitted one. Whether
 the application will accept the person is decided at the end (§3.4), when they hold a link. The time the answer takes
@@ -109,10 +121,17 @@ posted the token by itself, would be spent by the scanner, and the person would 
 3. An entry past its `expiresAt` is refused (the store's own expiry is a backstop, not the check), and so is an address
    whose domain the list no longer admits: the list can be narrowed while a link is out, as an OpenID sign-in's domain
    is checked when it completes.
-4. The user is `{ userID: "email:" + the first 32 hex digits of the address's SHA-256, username: address, email:
-   address, language }`. The user ID is not the address because the framework writes user IDs to its log.
-5. The session is regenerated exactly as for the other methods: `augmentSession` may refuse, the `admin` allowlist
-   applies, the session language follows the same rules.
+4. The user is `{ userID: "email:" + the first 32 hex digits of the address's SHA-256, username: address, name:
+   address, email: address, language }`. The user ID is not the address because the framework writes user IDs to its
+   log; the name is, since it is the only one the method knows, and the sidebar showed an empty name without it.
+5. The session is regenerated exactly as for the other methods: `augmentSession` may refuse, the session language
+   follows the same rules, and the session records the method it signed in with (`authMethod`, for every method).
+6. **The `admin` allowlist does not apply unless `grantsAdmin` is `true`.** A link proves that its holder can read the
+   address's mail, and so can a delegate, a forwarding rule, a shared inbox or whoever has broken into the mailbox. An
+   allowlist written for Google or Microsoft accounts (VEDA's lists its founders' addresses) would otherwise become a
+   list of mailboxes to break into the moment the method is enabled for the public. The role is withheld at sign-in
+   and on every request, whatever the application's `withholdsAdminRole` says, and the sign-in logs a NOTICE when an
+   allowlisted address is refused it, so an operator learns why.
 
 A token that is malformed, unknown, already spent or expired is refused by `authorize` with
 `E_SEC_INVALID_AUTH_TOKEN`, and the handler answers that refusal, read from `authorize` alone, with a `303` to
@@ -124,8 +143,9 @@ link again. Every other refusal goes the way the other methods' do, a `401` the 
 
 The method is dropped, with a warning naming the reason, when sending cannot work: no transport, the `log` transport
 (which delivers nothing, so every request would read `sent` and no link would ever arrive), no `publicUrl` (the link
-would have no address), or the notice's subject or text not found in the deployment's language. Sending is checked
-again on every request, since an application may switch the transport.
+would have no address), or the notice's subject or text not found in the deployment's language. Only a transport
+removed since start is caught on every request (`E_NOTICE_TRANSPORT_OFF`); an application that switches to `log`
+after start, or drops `publicUrl`, is not.
 
 ### 3.6 What is logged
 
@@ -144,8 +164,11 @@ instance and at every sign-in, so it is pseudonymous: an address someone guesses
   `invalid-address` or `unavailable`), the link sent, and continuing from a link. The address form is the one shown
   before the script runs, so the page works without it.
 - The shell takes a link's token out of the address bar as it starts, before any frame can push another address, and
-  keeps it for the block to take (`tiApplication.takeSignInLink`). In a browser already signed in, `/` shows the
-  application, so nothing takes it: the shell then says to sign out and open the link again.
+  keeps it for the block to take (`tiApplication.takeSignInLink`), in `sessionStorage` too until it is posted or
+  declined (`forgetSignInLink`): a reload of the Continue step, or the page's language switch, starts the page again
+  with nothing in the address. A link opened in a tab already showing the page changes only the fragment, which loads
+  nothing, so the shell loads the page again on a `hashchange` that carries one. In a browser already signed in, `/`
+  shows the application, so nothing takes it: the shell then says to sign out and open the link again, and forgets it.
 - Its strings are `interface.default.login.email*` and `interface.default.login.or`, in English and Bulgarian. The
   notice's are `interface.notice.sign-in-link.{subject,text}`. An application carries those it wants in its catalogue,
   as for every framework string; the notice's two are required (§3.5).
@@ -172,8 +195,13 @@ instance and at every sign-in, so it is pseudonymous: an address someone guesses
 - **The client limit counts `request.ip`**, which under `trust proxy` is what the proxy in front reports. Behind a
   proxy that passes a client's own `X-Forwarded-For` through, a client can choose its address; the per-address limit
   still holds.
-- **The counters are not atomic across instances.** Two instances can each admit a request the other has counted; the
-  limit can be exceeded by the number of instances, not more.
+- **The counters are not atomic across instances.** A count is read and written back, and the lock that orders this
+  holds within one process: instances sharing a store overwrite each other's counts, so with several instances a
+  limit is approximate, and a burst spread across them can pass it several times over. Atomic increments in every
+  cache provider (Redis `INCR`, a D1 upsert) would end it; the Cloudflare template runs one instance.
+- **The overall limit can be spent by someone else** with enough networks, holding everybody's sign-in for the rest
+  of the hour. Without it, the same person could spend the provider's daily quota, which stops every notice until the
+  next day and harms the sender's reputation; a challenge on the form is the remedy here too.
 - **The per-address limit can be spent by someone else.** It is what keeps an address from being flooded with links,
   and its price is that whoever asks five times in an hour holds that address's sign-in for the rest of the hour. A
   link already received still works. Counting per address and client together would end that and reopen the flood;
@@ -228,4 +256,18 @@ instance and at every sign-in, so it is pseudonymous: an address someone guesses
   expired-link redirect skipping the log every other refused sign-in gets (DEBUG, without the token), a stale changelog
   line, and the limit key and expiry written twice. Declined: making `notify` itself queue a message until the
   notification bar exists, which would change every early notice in the framework, not this one.
+- **An independent review**, a security reviewer and a correctness reviewer working apart, with a live server on a
+  local D1 state service and Chromium, found eleven things. Fixed: the `admin` allowlist granting the role to
+  whoever reads a listed mailbox (§3.4, step 6); the client limit counting each IPv6 address apart, the per-address
+  limit counting each spelling of one Gmail inbox apart, and nothing bounding the mail overall (§3.2); addresses
+  outside ASCII passing for another on the Continue step (§3.2); the peek answering a store failure as a 401 that
+  carried the store's address (it keeps its own status now, and the error handler withholds a server error's data);
+  the relay's own refusals and the provider's permanent ones kept as "may have been sent" (any `transient: false`
+  failure is nothing sent now); a link opened in a tab already on `/` doing nothing, and a reload or the language
+  switch losing the Continue step (§3.7); a blank name in the sidebar (§3.4, step 4); an allowed-domains value of
+  just `@` emptying the list, which admits every domain (`toDomainList` keeps such an entry, matching nothing); and
+  two claims here that the code did not bear out (§3.5, §5). Declined: giving no count back on the provider's
+  rate-limit and daily-limit refusals, since nothing was sent (the client's count now stands, which bounds the
+  attempts); and answering the spend's and the local form's failures to a JSON caller without data, which belongs to
+  the error handler for every method, not to this one.
 

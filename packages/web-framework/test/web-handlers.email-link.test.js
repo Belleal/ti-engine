@@ -171,10 +171,32 @@ describe( "POST /login/email-link — which address a link signs in", () => {
     } );
 
     it( "answers the question with a 401 when the method is not enabled", async () => {
-        const refusal = Object.assign( new Error( "disabled" ), { code: 2004 } );
+        // As AuthManager#peekEmailLink refuses.
+        const refusal = exceptions.raise( exceptions.exceptionCode.E_SEC_UNRECOGNIZED_AUTH_METHOD, null, exceptions.httpCode.C_401 );
         const server = instance( { peekEmailLink: () => Promise.reject( refusal ) } );
         const answer = await post( server, mockRequest( { body: { token: TOKEN, peek: true } } ) );
         assert.equal( answer.next.httpCode, 401 );
+    } );
+
+    it( "passes a failing store on as the server error it is, so the answer carries none of its details", async () => {
+        // As a 401 it was the client's error, and the error handler put its data, the store's address, in the answer.
+        const failure = exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE, { details: "The state service at 'http://127.0.0.1:8799' could not be reached for '/v1/values/get': connect ECONNREFUSED 127.0.0.1:8799" } );
+        const server = instance( { peekEmailLink: () => Promise.reject( failure ) } );
+        const request = mockRequest( { body: { token: TOKEN, peek: true } } );
+        const answer = await post( server, request );
+        assert.notEqual( answer.next.httpCode, 401 );
+
+        const sent = await new Promise( ( resolve ) => {
+            const response = {
+                set: () => response,
+                redirect: ( status, location ) => resolve( { status, location } ),
+                status: ( status ) => ( { send: ( body ) => resolve( { status, body } ), type: () => ( { send: ( body ) => resolve( { status, body } ) } ), end: () => resolve( { status } ) } )
+            };
+            const asJSON = Object.assign( {}, request, { get: ( name ) => ( { host: "app.example.com", accept: "application/json" } )[ String( name ).toLowerCase() ], accepts: () => false } );
+            webHandlers.defaultErrorHandler()( answer.next, asJSON, response, () => undefined );
+        } );
+        assert.ok( sent.status >= 500, `a server error, not ${ sent.status }` );
+        assert.ok( !JSON.stringify( sent.body ).includes( "8799" ), "the store's address stays out of the answer" );
     } );
 
 } );
@@ -194,7 +216,36 @@ describe( "POST /login/email-link — spending a link", () => {
         assert.equal( request.session.user.email, "parent@example.com" );
         assert.equal( request.session.language, "bg" );
         assert.deepEqual( server.calls.augmented, [ request ], "augmentSession is asked, with the request" );
-        assert.ok( request.session.user.roles.includes( "admin" ), "the allowlist applies to an e-mail sign-in too" );
+        assert.equal( request.session.authMethod, "email-link", "the session says how it signed in" );
+    } );
+
+    it( "does not give the admin role to an e-mail sign-in on the allowlist, and says why in the log", async ( t ) => {
+        // A link proves only that its holder reads the address's mail; the allowlist was written for accounts.
+        const logger = require( "@ti-engine/core/logger" );
+        const logged = [];
+        t.mock.method( logger, "log", ( message, severity ) => logged.push( { message: String( message ), severity } ) );
+        const request = mockRequest( { body: { token: TOKEN } } );
+        await post( instance(), request );
+        assert.ok( !request.session.user.roles.includes( "admin" ) );
+        assert.ok( logged.some( ( entry ) => entry.message.includes( "grantsAdmin" ) && entry.severity === logger.logSeverity.NOTICE ) );
+        assert.ok( !logged.some( ( entry ) => entry.message.includes( "parent@example.com" ) ), "the log names the user by ID" );
+    } );
+
+    it( "gives it where the deployment says an e-mail sign-in may hold it", async () => {
+        const request = mockRequest( { body: { token: TOKEN } } );
+        await post( instance( { serviceConfig: { auth: { admins: [ "parent@example.com" ], emailLink: { grantsAdmin: true } } } } ), request );
+        assert.ok( request.session.user.roles.includes( "admin" ) );
+    } );
+
+    it( "keeps the role from an e-mail-link session on every request too, whatever the application's hook says", () => {
+        const server = instance( { refreshSession: () => undefined, withholdsAdminRole: () => false } );
+        const session = { authMethod: "email-link", user: { userID: "email:0123", email: "parent@example.com", roles: [ "admin" ] } };
+        webHandlers.sessionRefreshHandler( server )( { session: session }, {}, () => undefined );
+        assert.deepEqual( session.user.roles, [], "a role it holds is taken away" );
+
+        const local = { authMethod: "local", user: { userID: "parent", email: "parent@example.com", roles: [] } };
+        webHandlers.sessionRefreshHandler( server )( { session: local }, {}, () => undefined );
+        assert.deepEqual( local.user.roles, [ "admin" ], "another method's session holds it as before" );
     } );
 
     it( "sends a link that cannot be used back to the sign-in page, which says it has expired, and logs it without the token", async ( t ) => {

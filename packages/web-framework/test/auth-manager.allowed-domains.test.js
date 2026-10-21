@@ -78,6 +78,14 @@ describe( "AuthManager.toDomainList", () => {
         assert.deepEqual( AuthManager.toDomainList( true ), [ "true" ] );
     } );
 
+    it( "keeps an entry that is only an @, which would otherwise leave the list empty", () => {
+        // `TI_WEB_AUTH_EMAIL_LINK_ALLOWED_DOMAINS="@"` passed the guard against an empty value and then, stripped of
+        // its `@`, became the empty list that admits every domain (CA-537 review).
+        assert.deepEqual( AuthManager.toDomainList( "@" ), [ "@" ] );
+        assert.deepEqual( AuthManager.toDomainList( " @ , example.com" ), [ "@", "example.com" ] );
+        assert.equal( AuthManager.isIdentityDomainAllowed( { userID: "x", email: "someone@anywhere.test" }, AuthManager.toDomainList( "@" ) ), false );
+    } );
+
 } );
 
 describe( "AuthManager.isIdentityDomainAllowed", () => {

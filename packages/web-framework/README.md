@@ -22,7 +22,7 @@ The web server configuration (host, port, TLS, cookies, etc.) is normally provid
 * `TI_WEB_AUTH_METHODS` (comma-separated) **replaces** the enabled authentication methods (`auth.enabledMethods`), e.g. `openid-google`, `local,openid-google` or `email-link,openid-google`.
 * `TI_WEB_AUTH_EMAIL_LINK_ALLOWED_DOMAINS` (comma-separated) **replaces** `auth.emailLink.allowedDomains`, the e-mail domains that may sign in with a link. A value naming no domain leaves the configured list, since an empty list admits any domain. See [Sign-in with a link sent by e-mail](#sign-in-with-a-link-sent-by-e-mail).
 * `TI_WEB_AUTH_LOCAL_USERS_PATH` overrides the local user directory's file path (`auth.local.usersPath`), which backs `local` sign-in. An explicitly empty value means *no directory*, so every local sign-in is refused. See [Local (username/password) authentication](#local-usernamepassword-authentication).
-* `TI_WEB_AUTH_ADMINS` (comma-separated) **replaces** the admin allowlist (`auth.admins`). Entries are matched against the session user's user ID, username or email, so an OpenID deployment lists emails. An explicitly empty value means *no admins*.
+* `TI_WEB_AUTH_ADMINS` (comma-separated) **replaces** the admin allowlist (`auth.admins`). Entries are matched against the session user's user ID, username or email, so an OpenID deployment lists emails. An explicitly empty value means *no admins*. A session signed in by e-mail link does not hold the role unless `auth.emailLink.grantsAdmin` is `true` (1.57.0), see [Sign-in with a link sent by e-mail](#sign-in-with-a-link-sent-by-e-mail).
 * `TI_WEB_TRUSTED_ORIGINS` (comma-separated) **replaces** the trusted request origins (`trustedOrigins`) — needed behind proxies that do not present the real external origin.
 * `TI_WEB_STATIC_MAX_AGE` (whole seconds) overrides `staticCache.maxAge`. See [Static asset caching](#static-asset-caching).
 * `TI_WEB_STATIC_IMMUTABLE` (`true`/`false`) overrides `staticCache.immutable`.
@@ -196,7 +196,9 @@ Without any of the three the method is left out at start, with a warning naming 
     "lifetimeMinutes": 15,        // how long a link works, at most a day
     "allowedDomains": [],         // TI_WEB_AUTH_EMAIL_LINK_ALLOWED_DOMAINS; empty admits any domain
     "hourlyLimitPerAddress": 5,   // links one address may be sent in an hour
-    "hourlyLimitPerClient": 30    // links one client network address may ask for in an hour
+    "hourlyLimitPerClient": 30,   // links one client network (an IPv4 address, an IPv6 /64) may ask for in an hour
+    "hourlyLimitOverall": 100,    // links sent in an hour altogether: keep it below what the mail provider allows
+    "grantsAdmin": false          // whether an e-mail-link session may hold the admin role (see below)
   }
 }
 ```
@@ -207,7 +209,11 @@ How it works:
    notice at once (one attempt, never queued), and answers `303` to `/?email-link=<outcome>`: `sent`, `limited`,
    `invalid-address` or `unavailable`. **The answer never says whether an address may sign in**: one outside
    `allowedDomains` is sent nothing and answered `sent`. (Its timing can tell an admitted domain from a refused one,
-   since only the first waits for the transport: that reveals the domain list, not anybody's account.)
+   since only the first waits for the transport: that reveals the domain list, not anybody's account.) An address is
+   printable ASCII: a letter from another script or an invisible one could make somebody else's address pass for the
+   person's own on the Continue step, so a domain in another script is given in its ASCII form (`xn--…`). The limits
+   count an address by the inbox it reaches (without a `+tag`, and for Gmail without dots), a client by its network,
+   and every link sent, in one-hour windows.
 2. **The link** is `<publicUrl>/#email-link=<token>`: 32 random bytes in the fragment, which no server receives, so it
    is in no access log. The store keeps only the token's SHA-256, with the address, and the value expires with the
    link.
@@ -216,7 +222,9 @@ How it works:
    `TiWebServer#peekEmailLink`), and
    shows "You are signing in as …" with *Continue* and *Not you? Use another address*. Showing the address keeps a link
    somebody asked for, for their own address, from signing the person into that account unnoticed. Pressing Continue
-   posts the token, once: the button holds once pressed. The click is deliberate: a mail scanner that opens the link,
+   posts the token, once: the button holds once pressed. The tab keeps the token (`sessionStorage`) until it is posted
+   or declined, so a reload or the page's language switch still shows the Continue step, and a link opened in a tab
+   already showing the page loads it again. The click is deliberate: a mail scanner that opens the link,
    even one that runs the page's script, presses nothing and spends nothing. A link opened in a browser that is already
    signed in shows the application, not the sign-in page; the shell takes the token out of the address bar and says to
    sign out and open the link again.
@@ -224,20 +232,25 @@ How it works:
    and one whose domain the list no longer admits, is refused with `E_SEC_INVALID_AUTH_TOKEN` and answered `303` to
    `/?email-link=expired`, which the sign-in page explains. A request that certainly sent nothing gives its counts back
    and deletes its link, so an outage uses up nobody's hour; one that may have gone through, as a relay timeout may,
-   keeps both. A spent link signs in as the other methods do: `augmentSession` may refuse, the
-   `admin` allowlist applies.
+   keeps both, and the client's count always stands. A spent link signs in as the other methods do: `augmentSession`
+   may refuse, and the session records `authMethod: "email-link"`.
+5. **The `admin` role.** A link proves only that its holder can read the address's mail, which a delegate, a forwarding
+   rule or a shared inbox can too. So an e-mail-link session does not hold the role its address earns on `auth.admins`
+   unless `auth.emailLink.grantsAdmin` is `true`; the sign-in logs a NOTICE when it withholds one. An allowlist written
+   for Google or Microsoft accounts stays theirs when the method is enabled for the public.
 
-The session's user is `{ userID: "email:<32 hex of the address's SHA-256>", username: <address>, email: <address> }`,
-the address trimmed and lower-cased. The user ID is not the address because the framework writes user IDs to its log;
+The session's user is `{ userID: "email:<32 hex of the address's SHA-256>", username: <address>, name: <address>,
+email: <address> }`, the address trimmed and lower-cased; an application's `augmentSession` may give a better name. The user ID is not the address because the framework writes user IDs to its log;
 it is stable, so whoever can guess an address can confirm it against the ID. The e-mail link's own log lines name an
 address or a client only by 16 hex digits of an HMAC-SHA-256 under a key made for each process, which no list of
 guesses reverses, and never hold a token.
 
 **Not covered.** The client limit counts `request.ip`: on Cloudflare the Worker makes it the address Cloudflare saw,
 elsewhere it is what the proxy in front reports. The per-address limit can be spent by anybody who knows the address,
-holding its sign-in for the rest of the hour (a link already received still works); a challenge on the form is the
-application's remedy. The counters are kept per instance between reads, so several instances can each admit a request
-the others counted.
+holding its sign-in for the rest of the hour (a link already received still works), and the overall limit by anybody
+with enough networks, holding everybody's; a challenge on the form is the application's remedy for both. The counters
+are read and written back, not incremented in the store, so instances sharing a store overwrite each other's counts:
+with several instances the limits are approximate (the Cloudflare template runs one).
 
 ## The login screen
 

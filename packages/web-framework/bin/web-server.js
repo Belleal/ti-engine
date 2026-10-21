@@ -98,8 +98,12 @@ const localization = require( "@ti-engine/core/localization" );
  * @property {string[]} [allowedDomains] The e-mail domains that may sign in this way (see
  *           `TI_WEB_AUTH_EMAIL_LINK_ALLOWED_DOMAINS`). Empty or absent admits any domain.
  * @property {number} [hourlyLimitPerAddress] How many links one address may be sent in an hour, 5 unless stated.
- * @property {number} [hourlyLimitPerClient] How many links one client network address may ask for in an hour, 30
- *           unless stated.
+ * @property {number} [hourlyLimitPerClient] How many links one client network may ask for in an hour, 30 unless
+ *           stated: an IPv4 address, or an IPv6 address's `/64`.
+ * @property {number} [hourlyLimitOverall] How many links may be sent in an hour altogether, 100 unless stated. Below what
+ *           the mail provider allows, so that the other notices keep a share of it.
+ * @property {boolean} [grantsAdmin] Whether a session signed in by e-mail link may hold the `admin` role its address
+ *           earns on `auth.admins`; `false` unless stated, since a link proves only that its holder reads the mailbox.
  */
 
 /**

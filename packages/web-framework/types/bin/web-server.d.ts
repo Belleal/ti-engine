@@ -35,10 +35,20 @@ export type SettingsAuthEmailLink = {
      */
     hourlyLimitPerAddress?: number;
     /**
-     * How many links one client network address may ask for in an hour, 30
-     * unless stated.
+     * How many links one client network may ask for in an hour, 30 unless
+     * stated: an IPv4 address, or an IPv6 address's `/64`.
      */
     hourlyLimitPerClient?: number;
+    /**
+     * How many links may be sent in an hour altogether, 100 unless stated. Below what
+     * the mail provider allows, so that the other notices keep a share of it.
+     */
+    hourlyLimitOverall?: number;
+    /**
+     * Whether a session signed in by e-mail link may hold the `admin` role its address
+     * earns on `auth.admins`; `false` unless stated, since a link proves only that its holder reads the mailbox.
+     */
+    grantsAdmin?: boolean;
 };
 export type SettingsAuthLocal = {
     /**

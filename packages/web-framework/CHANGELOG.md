@@ -12,23 +12,32 @@ This document will contain the list of changes made to the framework. The format
   * **Asking.** `POST /login/email-link` with `email` sends the new `sign-in-link` notice at once and answers `303` to
     `/?email-link=sent|limited|invalid-address|unavailable`. An address outside `auth.emailLink.allowedDomains`
     (`TI_WEB_AUTH_EMAIL_LINK_ALLOWED_DOMAINS`; a value naming no domain leaves the list) is sent nothing and answered
-    `sent`, so the answer never says who may sign in. Five links an address and thirty a client network address an
-    hour, unless configured.
+    `sent`, so the answer never says who may sign in. Five links an address (counted by the inbox it reaches: no
+    `+tag`, and no dots for Gmail), thirty a client network (an IPv4 address, an IPv6 `/64`) and a hundred altogether
+    an hour, unless configured (`hourlyLimitPerAddress`, `hourlyLimitPerClient`, `hourlyLimitOverall`). An address is
+    printable ASCII, so nobody else's can pass for the person's own on the Continue step.
   * **The link** carries 32 random bytes in its fragment, which no server receives; the store keeps only their
     SHA-256, expiring with the link (15 minutes unless configured). The sign-in page takes the token out of the address
     bar, asks which address it signs in without spending it (`{ token, peek: true }` as JSON) and shows it, with "Not
     you?" beside Continue: a link somebody asked for, for their own address, cannot sign the person into it unnoticed.
     The token is posted when the person presses Continue, once (both forms hold their button once sent), so a mail
-    scanner that opens the link spends nothing. In a browser already signed in, the shell takes the token out of the
-    address bar and says to sign out and open the link again.
+    scanner that opens the link spends nothing. The tab keeps the token until it is posted or declined, so a reload or
+    the page's language switch keeps the Continue step, and a link opened in a tab already on the page loads it again.
+    In a browser already signed in, the shell takes the token out of the address bar and says to sign out and open the
+    link again.
   * **Spending it.** The first request to delete the stored entry wins (Redis's `DEL` count, D1's `deleted`); a second
     use, an unknown or an expired token, or a domain the list no longer admits, is refused with
     `E_SEC_INVALID_AUTH_TOKEN` and answered `303` to `/?email-link=expired`, which the sign-in page explains; an
     application refusing with the same code still reads "Sign-in failed". Then the sign-in is every method's, through
     one `signInUser` that local, e-mail link and OpenID sign-ins now share: `augmentSession`, the allowlist, `303` to
-    `/`. The user is `email:` and 32 hex of the address's SHA-256, with the address as username and e-mail. A request
-    that certainly sent nothing gives its counts back and deletes its link; one that may have gone through (a relay
-    timeout) keeps both.
+    `/`, with the method in `session.authMethod`. The user is `email:` and 32 hex of the address's SHA-256, with the
+    address as username, name and e-mail. A request that certainly sent nothing (raised before the transport was
+    asked, the provider's refusal, or any failure marked `transient: false`) gives back its address's and the overall
+    count and deletes its link; one that may have gone through (a relay timeout) keeps both. The client's count always
+    stands.
+  * **No `admin` role by e-mail link** unless `auth.emailLink.grantsAdmin` is `true`: a link proves only that its
+    holder reads the mailbox, so an allowlist written for Google or Microsoft accounts does not become a list of
+    mailboxes to break into when the method is enabled for the public. The sign-in logs a NOTICE when it withholds one.
   * **Fails closed.** Without a transport that delivers (`log` does not), `publicUrl` or the notice's texts in the
     deployment's language, the method is left out at start with a warning naming what is missing. Nothing logged holds
     an address, a client address or a token: a log line names them by an HMAC under a key made for each process,
@@ -43,9 +52,12 @@ This document will contain the list of changes made to the framework. The format
 
 * feat(web-server): `peekEmailLink( token )`, the address a sign-in link would sign in, without spending it.
 
-Tests: 80 new (1139 in the package): `email-link.test.js`, `web-handlers.email-link.test.js`,
-`frame-login.email-link.test.js`, and new cases in `web-app-manager.auth-visibility.test.js` and
-`web-server-env-overrides.test.js`.
+* fix(auth): **an allowed-domains entry that is only `@` matches nothing**, for the OpenID providers' lists too. Stripped
+  of its `@` it became blank and was dropped, and a list left empty admits every domain.
+
+Tests: 95 new (1154 in the package): `email-link.test.js`, `web-handlers.email-link.test.js`,
+`frame-login.email-link.test.js`, and new cases in `web-app-manager.auth-visibility.test.js`,
+`web-server-env-overrides.test.js` and `auth-manager.allowed-domains.test.js`.
 
 ## Version 1.56.1
 

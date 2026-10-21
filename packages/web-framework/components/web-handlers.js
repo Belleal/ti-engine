@@ -552,9 +552,26 @@ module.exports.resourceProtectionHandler = ( instance ) => {
 };
 
 /**
+ * Whether the way a session signed in keeps the `admin` role from it. A sign-in link proves only that its holder can
+ * read the address's mail: a delegate, a forwarding rule or a shared inbox can, and so can whoever has broken into the
+ * mailbox. An allowlist written for accounts at an identity provider would hand all of them the role once the method is
+ * enabled for the public, so an e-mail-link session holds it only where `auth.emailLink.grantsAdmin` is `true`.
+ *
+ * @method
+ * @param {TiWebServer} instance
+ * @param {TiSession} session
+ * @returns {boolean}
+ * @private
+ */
+let isAdminWithheldByMethod = ( instance, session ) => {
+    return !!session && session.authMethod === authMethod.EMAIL_LINK && instance.serviceConfig?.auth?.emailLink?.grantsAdmin !== true;
+};
+
+/**
  * Reconciles the session's `admin` role against the allowlist, asking the application first whether it withholds the
  * role from this session ({@link TiWebServer#withholdsAdminRole}). The one way both sign-in paths and the per-request
- * refresh apply the role, so the hook cannot be honoured on one and missed on another.
+ * refresh apply the role, so the hook cannot be honoured on one and missed on another. A session the way it signed in
+ * keeps from the role ({@link isAdminWithheldByMethod}) does not hold it, whatever the hook says.
  * <br/>
  * A hook that throws withholds nothing: the allowlist's answer stands. Withholding on a failure would lock an
  * administrator out of the access that exists to repair the application, while not withholding only shows them a role
@@ -568,8 +585,8 @@ module.exports.resourceProtectionHandler = ( instance ) => {
  * @private
  */
 let applyAdminRoleFor = ( instance, session, request ) => {
-    let withheld = false;
-    if ( session && session.user && typeof instance.withholdsAdminRole === "function" ) {
+    let withheld = isAdminWithheldByMethod( instance, session );
+    if ( !withheld && session && session.user && typeof instance.withholdsAdminRole === "function" ) {
         try {
             withheld = instance.withholdsAdminRole( session, request ) === true;
         } catch ( error ) {
@@ -582,28 +599,35 @@ let applyAdminRoleFor = ( instance, session, request ) => {
 };
 
 /**
- * Signs a user in: a regenerated session holding the user and their language, then the application's `augmentSession`,
- * which may refuse, and the `admin` allowlist. The one way every sign-in method ends, so none of them can build its
- * session differently from the others.
+ * Signs a user in: a regenerated session holding the user, their language and the method they signed in with, then the
+ * application's `augmentSession`, which may refuse, and the `admin` allowlist. The one way every sign-in method ends, so
+ * none of them can build its session differently from the others.
  *
  * @method
  * @param {TiWebServer} instance
  * @param {ExpressRequest} request
  * @param {User} user
+ * @param {TiAuthMethod} method
  * @returns {Promise<string>} Where to send the browser: `/`.
  * @private
  */
-let signInUser = ( instance, request, user ) => {
+let signInUser = ( instance, request, user, method ) => {
     return regenerateAndSaveSession( request, "/", ( session ) => {
         session.user = user.asJSON();
         session.language = resolveSessionLanguage( user, instance, readLanguageChoice( request, instance ) );
+        session.authMethod = method;
 
         // No sign-in carries an OpenID state past its end. express-session's `regenerate` starts an empty session, so
         // this matters only to a store whose `regenerate` keeps data; it was the OpenID callback's own line until all
         // three methods came to share this one.
         delete session.oidc;
 
-        return applyAdminRoleFor( instance, instance.augmentSession( session, request ), request );
+        const signedIn = applyAdminRoleFor( instance, instance.augmentSession( session, request ), request );
+        if ( isAdminWithheldByMethod( instance, signedIn ) && authorization.isAdminIdentity( signedIn.user, instance.serviceConfig?.auth?.admins ) ) {
+            // Said once, at sign-in, so an operator who finds an administrator without the role learns why.
+            logger.log( `User '${ signedIn.user.userID }' is on the admin allowlist but signed in by e-mail link, which does not carry the admin role unless 'auth.emailLink.grantsAdmin' is true.`, logger.logSeverity.NOTICE );
+        }
+        return signedIn;
     } );
 };
 
@@ -627,7 +651,7 @@ module.exports.authenticationHandler = ( instance ) => {
             instance.authenticate( authMethod.LOCAL, { username: username, password: password } ).then( () => {
                 return instance.authorize( authMethod.LOCAL, new URL( request.originalUrl, getBaseUrl( request ) ), { username: username } );
             } ).then( ( user ) => {
-                return signInUser( instance, request, user );
+                return signInUser( instance, request, user, authMethod.LOCAL );
             } ).then( ( redirectTo ) => {
                 response.redirect( exceptions.httpCode.C_303, convertUriToString( redirectTo ) );
             } ).catch( ( error ) => {
@@ -646,13 +670,16 @@ module.exports.authenticationHandler = ( instance ) => {
                     response.set( "Cache-Control", "no-store" );
                     response.status( exceptions.httpCode.C_200 ).send( { isSuccessful: true, data: { email: email } } );
                 } ).catch( ( error ) => {
-                    next( exceptions.raise( error, null, exceptions.httpCode.C_401 ) );
+                    // Passed on as it is. The one refusal, the method not enabled, is already a 401; anything else is
+                    // the store failing, and as a 401 its data (the store's address, an error's stack) would be in the
+                    // answer, which the error handler withholds only from a server error.
+                    next( error );
                 } );
             } else if ( typeof token === "string" && token !== "" ) {
                 Promise.resolve().then( () => {
                     return instance.authorize( authMethod.EMAIL_LINK, new URL( request.originalUrl, getBaseUrl( request ) ), { token: token } );
                 } ).then( ( user ) => {
-                    return signInUser( instance, request, user );
+                    return signInUser( instance, request, user, authMethod.EMAIL_LINK );
                 }, ( error ) => {
                     // A link that can no longer sign anybody in is the e-mail link's own answer, which its block on the
                     // sign-in page explains. Read here, from `authorize` alone: the code is shared, and an application's
@@ -801,7 +828,7 @@ module.exports.authorizedOAuth2CallbackHandler = ( instance, authMethod ) => {
         }
 
         instance.authorize( authMethod, new URL( request.originalUrl, getBaseUrl( request ) ), oidc ).then( ( user ) => {
-            return signInUser( instance, request, user );
+            return signInUser( instance, request, user, authMethod );
         } ).then( ( redirectTo ) => {
             response.redirect( exceptions.httpCode.C_303, convertUriToString( redirectTo ) );
         } ).catch( ( error ) => {

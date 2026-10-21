@@ -1,9 +1,14 @@
 import type { TiLocalizationLanguage } from "@ti-engine/core/localization";
+import type { TiAuthMethod } from "#auth-manager";
 export type TiSessionCallback = (error?: Error | null) => void;
 export type TiSession = {
     id: string;
     user?: Object;
     language?: TiLocalizationLanguage;
+    /**
+     * The method the session signed in with (1.57.0).
+     */
+    authMethod?: TiAuthMethod;
     cookie?: Object;
     oidc?: Object;
     csrfToken?: string;
@@ -629,6 +634,7 @@ export type TiFeedbackItem = {
     statusChangedBy: string | null;
 };
 /** @import { TiLocalizationLanguage } from "@ti-engine/core/localization" */
+/** @import { TiAuthMethod } from "#auth-manager" */
 /**
  * @callback TiSessionCallback
  * @param {Error|null} [error]
@@ -639,6 +645,7 @@ export type TiFeedbackItem = {
  * @property {string} id
  * @property {Object} [user]
  * @property {TiLocalizationLanguage} [language]
+ * @property {TiAuthMethod} [authMethod] The method the session signed in with (1.57.0).
  * @property {Object} [cookie]
  * @property {Object} [oidc]
  * @property {string} [csrfToken]
