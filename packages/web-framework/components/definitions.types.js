@@ -466,6 +466,17 @@
  */
 
 /**
+ * A picture of the screen sent with a piece of feedback, as `Feedback#readPicture` checked it (CA-544).
+ *
+ * @typedef {Object} TiFeedbackPicture
+ * @property {"image/webp"|"image/jpeg"} type
+ * @property {string} data The image in base64.
+ * @property {number} bytes Its size decoded, at most 1,000,000.
+ * @property {number} width In pixels, 1 to 1600.
+ * @property {number} height In pixels, 1 to 1600.
+ */
+
+/**
  * A piece of feedback about the application.
  *
  * @typedef {Object} TiFeedbackItem
@@ -477,6 +488,8 @@
  * @property {string|null} senderName Null when anonymous.
  * @property {string} submittedAt ISO-8601.
  * @property {TiFeedbackContext|null} context A problem's only.
+ * @property {{type: string, bytes: number, width: number, height: number}|null} picture That a picture of the screen came
+ * with it, and what it is; the image itself is kept apart (CA-544).
  * @property {"new"|"in-progress"|"done"|"declined"} status
  * @property {string|null} statusChangedAt
  * @property {string|null} statusChangedBy The administrator's user ID.

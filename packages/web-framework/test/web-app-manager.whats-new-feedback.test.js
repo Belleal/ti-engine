@@ -19,7 +19,8 @@
  * Covers What's new and Feedback as an application meets them through `TiWebAppManager` (1.56.0, CA-528): nothing until
  * the application enables them; then the screens, the requests, who may make each, the subject hook, the default user
  * menu, and the flag the browser reads. The screens' English is checked against the framework's catalogue, as the
- * sign-in screen's is.
+ * sign-in screen's is. And the picture of the screen sent with feedback (1.58.0, CA-544): sent, kept apart, and shown to
+ * administrators only.
  */
 
 const { describe, it, beforeEach } = require( "node:test" );
@@ -33,6 +34,7 @@ const cacheStub = installInMemoryCache();
 const exceptions = require( "@ti-engine/core/exceptions" );
 const TiWebAppManager = require( "../bin/web-app-manager.js" );
 const feedback = require( "../components/feedback.js" );
+const PICTURES = require( "./helpers/feedback-pictures" );
 
 const FRAGMENTS = path.join( __dirname, "..", "bin", "static", "fragments" );
 const CATALOGUE = JSON.parse( fs.readFileSync( path.join( __dirname, "..", "bin", "localization", "web-server-labels.json" ), "utf8" ) );
@@ -93,7 +95,7 @@ describe( "TiWebAppManager — What's new and Feedback are the application's cho
 
     it( "offers neither, nor their menu entries, to an application that did not enable them", async () => {
         const app = new PlainApp();
-        for ( const view of [ "whats-new", "whats-new-status", "feedback-inbox" ] ) {
+        for ( const view of [ "whats-new", "whats-new-status", "feedback-inbox", "feedback-picture" ] ) {
             assert.equal( ( await rejection( app.processDataRequest( ADMIN, view ) ) ).code, exceptions.exceptionCode.E_WEB_INVALID_REQUEST_URI, view );
         }
         for ( const service of [ "whats-new-seen", "send-feedback", "feedback-status" ] ) {
@@ -215,6 +217,35 @@ describe( "TiWebAppManager — Feedback requests", () => {
         assert.equal( byText[ "Anonymous." ].senderName, "" );
         assert.equal( byText[ "Anonymous." ].anonymous, true );
         assert.ok( !( "submittedBy" in byText[ "Named." ] ), "the inbox has no use for the sender's ID" );
+    } );
+
+    it( "keeps a picture of the screen sent with feedback, says in the inbox only that there is one, and shows it to an administrator alone", async () => {
+        const app = new FeatureApp();
+        const sent = await app.processServiceRequest( USER, "send-feedback", { kind: "problem", text: "Broken.", screen: "reports", picture: PICTURES.webpOpaque } );
+        const plain = await app.processServiceRequest( USER, "send-feedback", { kind: "suggestion", text: "Idea." } );
+
+        const { items } = await app.processDataRequest( ADMIN, "feedback-inbox" );
+        const byID = Object.fromEntries( items.map( ( item ) => [ item.feedbackID, item ] ) );
+        assert.deepEqual( byID[ sent.feedbackID ].picture, { type: "image/webp", width: 40, height: 30 } );
+        assert.equal( byID[ plain.feedbackID ].picture, null );
+        assert.ok( !JSON.stringify( items ).includes( PICTURES.webpOpaque.split( "," )[ 1 ].slice( 0, 64 ) ), "the list never carries the image" );
+
+        const query = { query: { feedbackID: sent.feedbackID } };
+        assert.equal( ( await rejection( app.processDataRequest( USER, "feedback-picture", query ) ) ).httpCode, 403, "not even the sender" );
+        assert.equal( ( await rejection( app.processDataRequest( null, "feedback-picture", query ) ) ).httpCode, 401 );
+        const picture = await app.processDataRequest( ADMIN, "feedback-picture", query );
+        assert.deepEqual( picture, { feedbackID: sent.feedbackID, type: "image/webp", width: 40, height: 30, data: PICTURES.webpOpaque.split( "," )[ 1 ] } );
+
+        for ( const feedbackID of [ plain.feedbackID, "no-such-item", "*", "" ] ) {
+            const missing = await rejection( app.processDataRequest( ADMIN, "feedback-picture", { query: { feedbackID: feedbackID } } ) );
+            assert.deepEqual( [ missing.httpCode, missing.data.details ], [ 404, "error.feedback.picture-not-found" ], feedbackID );
+        }
+    } );
+
+    it( "refuses feedback whose picture is not one it accepts, with the label the browser shows", async () => {
+        const app = new FeatureApp();
+        const refused = await rejection( app.processServiceRequest( USER, "send-feedback", { kind: "problem", text: "Broken.", picture: "data:image/png;base64,AAAA" } ) );
+        assert.deepEqual( [ refused.httpCode, refused.data.details ], [ 422, "error.feedback.picture" ] );
     } );
 
     it( "lets an administrator alone give an item a status, recorded under their user ID", async () => {

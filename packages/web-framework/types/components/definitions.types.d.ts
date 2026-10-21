@@ -602,6 +602,25 @@ export type TiFeedbackContext = {
      */
     browser: string;
 };
+export type TiFeedbackPicture = {
+    type: "image/webp" | "image/jpeg";
+    /**
+     * The image in base64.
+     */
+    data: string;
+    /**
+     * Its size decoded, at most 1,000,000.
+     */
+    bytes: number;
+    /**
+     * In pixels, 1 to 1600.
+     */
+    width: number;
+    /**
+     * In pixels, 1 to 1600.
+     */
+    height: number;
+};
 export type TiFeedbackItem = {
     feedbackID: string;
     kind: "suggestion" | "problem" | "praise" | "other";
@@ -626,6 +645,16 @@ export type TiFeedbackItem = {
      * A problem's only.
      */
     context: TiFeedbackContext | null;
+    /**
+     * That a picture of the screen came
+     * with it, and what it is; the image itself is kept apart (CA-544).
+     */
+    picture: {
+        type: string;
+        bytes: number;
+        width: number;
+        height: number;
+    } | null;
     status: "new" | "in-progress" | "done" | "declined";
     statusChangedAt: string | null;
     /**
@@ -1040,6 +1069,16 @@ export type TiFeedbackItem = {
  * @property {string} browser The browser's own description, at most 200 characters.
  */
 /**
+ * A picture of the screen sent with a piece of feedback, as `Feedback#readPicture` checked it (CA-544).
+ *
+ * @typedef {Object} TiFeedbackPicture
+ * @property {"image/webp"|"image/jpeg"} type
+ * @property {string} data The image in base64.
+ * @property {number} bytes Its size decoded, at most 1,000,000.
+ * @property {number} width In pixels, 1 to 1600.
+ * @property {number} height In pixels, 1 to 1600.
+ */
+/**
  * A piece of feedback about the application.
  *
  * @typedef {Object} TiFeedbackItem
@@ -1051,6 +1090,8 @@ export type TiFeedbackItem = {
  * @property {string|null} senderName Null when anonymous.
  * @property {string} submittedAt ISO-8601.
  * @property {TiFeedbackContext|null} context A problem's only.
+ * @property {{type: string, bytes: number, width: number, height: number}|null} picture That a picture of the screen came
+ * with it, and what it is; the image itself is kept apart (CA-544).
  * @property {"new"|"in-progress"|"done"|"declined"} status
  * @property {string|null} statusChangedAt
  * @property {string|null} statusChangedBy The administrator's user ID.

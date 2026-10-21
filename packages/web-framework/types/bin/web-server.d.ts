@@ -453,6 +453,18 @@ declare class TiWebServer extends ServiceConsumer {
      */
     isAllowedHost(hostname: string): boolean;
     /**
+     * Whether a request is a submission to Send Feedback, whose JSON body may carry a picture of the screen and is read
+     * only once the request is known to come from someone signed in (CA-544). As Express matches the route
+     * `/app/send-feedback`: any letter case, with or without a trailing slash.
+     *
+     * @method
+     * @static
+     * @param {Object} request
+     * @returns {boolean}
+     * @public
+     */
+    static isFeedbackSubmission(request: Object): boolean;
+    /**
      * Used to check if the specified route is unprotected (i.e., does not require authentication). The default unprotected routes are:
      * - /
      * - /static/...

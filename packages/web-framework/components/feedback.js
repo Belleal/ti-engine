@@ -25,11 +25,15 @@ const exceptions = require( "@ti-engine/core/exceptions" );
 const localization = require( "@ti-engine/core/localization" );
 const notificationService = require( "#notification-service" );
 
-/** @import { TiFeedbackItem, TiFeedbackOptions, TiSessionSubject } from "#definitions" */
+/** @import { TiFeedbackItem, TiFeedbackOptions, TiFeedbackPicture, TiSessionSubject } from "#definitions" */
 
 // + feedback ID → the item. A value, never a JSON document: erasure deletes items, and D1 cannot delete a document.
 // One document holding every item would be one read, but D1 keeps a document in one row, capped near 2 MB.
 const KEY_ITEM = "ti:feedback:item:";
+
+// + feedback ID → the picture of the screen sent with it (CA-544), `{ type, data }` with the image in base64. Apart from
+// the item, so the inbox, the e-mail and an export never carry it, and a value for the same reason as the item.
+const KEY_PICTURE = "ti:feedback:picture:";
 
 // How many items the inbox reads at once. `1 + n` reads on D1, where the state service has no batch read; eight at a
 // time keeps a long list from opening hundreds of requests at once.
@@ -105,6 +109,27 @@ const TEXT_MAX = 4000;
  */
 const BROWSER_MAX = 200;
 
+/**
+ * The largest picture of the screen, in bytes once decoded: 1,333,336 characters of base64, well inside the 2,000,000
+ * bytes D1 keeps in one row.
+ *
+ * @type {number}
+ * @public
+ */
+const PICTURE_MAX_BYTES = 1000000;
+
+/**
+ * The longest side of a picture of the screen, in pixels.
+ *
+ * @type {number}
+ * @public
+ */
+const PICTURE_MAX_SIDE = 1600;
+
+// A picture as the browser sends it: a data URL of one of the two types, in strict base64. Linear: one character class,
+// then at most two `=` before the end.
+const PICTURE_DATA_URL = /^data:(image\/webp|image\/jpeg);base64,([A-Za-z0-9+/]*={0,2})$/;
+
 // An allowlist entry that is an e-mail address. An entry is matched against a sign-in's user ID, user name or e-mail,
 // so not every entry is one, and only one that is can be written to. The domain's labels exclude the dot, so each dot
 // has one place to match: with `[^@\s]+\.[^@\s]+` an entry such as "a@a." and "a." repeated took quadratic time
@@ -142,6 +167,79 @@ function labelIn( key, language, fallback = "" ) {
     }
     const system = localization.getLabel( key, localization.getSystemLanguage(), null );
     return ( typeof system === "string" ) ? system : fallback;
+}
+
+/**
+ * The width and height a WebP file states, or null when it is not one this module accepts: a RIFF container whose size
+ * is exactly the file's, holding a lossy (`VP8 `), lossless (`VP8L`) or extended (`VP8X`) image. Requiring the stated
+ * size keeps anything from riding after the image.
+ *
+ * @method
+ * @param {Buffer} bytes
+ * @returns {{width: number, height: number}|null}
+ * @private
+ */
+function webpDimensions( bytes ) {
+    if ( bytes.length < 30 || bytes.toString( "latin1", 0, 4 ) !== "RIFF" || bytes.toString( "latin1", 8, 12 ) !== "WEBP" || bytes.readUInt32LE( 4 ) + 8 !== bytes.length ) {
+        return null;
+    }
+    const chunk = bytes.toString( "latin1", 12, 16 );
+    if ( chunk === "VP8 " && bytes[ 23 ] === 0x9d && bytes[ 24 ] === 0x01 && bytes[ 25 ] === 0x2a ) {
+        return { width: bytes.readUInt16LE( 26 ) & 0x3fff, height: bytes.readUInt16LE( 28 ) & 0x3fff };
+    }
+    if ( chunk === "VP8L" && bytes[ 20 ] === 0x2f ) {
+        const bits = bytes.readUInt32LE( 21 );
+        return { width: ( bits & 0x3fff ) + 1, height: ( ( bits >>> 14 ) & 0x3fff ) + 1 };
+    }
+    if ( chunk === "VP8X" ) {
+        return { width: bytes.readUIntLE( 24, 3 ) + 1, height: bytes.readUIntLE( 27, 3 ) + 1 };
+    }
+    return null;
+}
+
+/**
+ * The width and height a JPEG file states in its first frame header, or null when it is not one: it must start with
+ * the start-of-image marker, end with the end-of-image marker, and reach a frame header before its scan.
+ *
+ * @method
+ * @param {Buffer} bytes
+ * @returns {{width: number, height: number}|null}
+ * @private
+ */
+function jpegDimensions( bytes ) {
+    if ( bytes.length < 4 || bytes[ 0 ] !== 0xff || bytes[ 1 ] !== 0xd8 || bytes[ 2 ] !== 0xff || bytes[ bytes.length - 2 ] !== 0xff || bytes[ bytes.length - 1 ] !== 0xd9 ) {
+        return null;
+    }
+    let offset = 2;
+    while ( offset + 4 <= bytes.length ) {
+        if ( bytes[ offset ] !== 0xff ) {
+            return null;
+        }
+        const marker = bytes[ offset + 1 ];
+        if ( marker === 0xff ) {
+            // A fill byte before the marker.
+            offset += 1;
+            continue;
+        }
+        if ( marker === 0xda || marker === 0xd9 ) {
+            // The scan, or the end, before any frame header.
+            return null;
+        }
+        if ( marker === 0x01 || ( marker >= 0xd0 && marker <= 0xd7 ) ) {
+            offset += 2;
+            continue;
+        }
+        const length = bytes.readUInt16BE( offset + 2 );
+        if ( length < 2 ) {
+            return null;
+        }
+        // Every start-of-frame marker but DHT (C4), JPG (C8) and DAC (CC), which share the range.
+        if ( marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc ) {
+            return ( offset + 9 <= bytes.length ) ? { width: bytes.readUInt16BE( offset + 7 ), height: bytes.readUInt16BE( offset + 5 ) } : null;
+        }
+        offset += 2 + length;
+    }
+    return null;
 }
 
 /**
@@ -305,10 +403,45 @@ class Feedback {
             senderName: named ? String( subject.name || "" ) : null,
             submittedAt: now,
             context: context,
+            picture: null,
             status: STATUS.NEW,
             statusChangedAt: null,
             statusChangedBy: null
         };
+    }
+
+    /**
+     * Reads the picture of the screen a submission carries (CA-544), checking everything the browser was asked to keep
+     * to: a `data:` URL of WebP or JPEG in strict base64, whose bytes carry that type's own signature, state dimensions
+     * of 1 to {@link PICTURE_MAX_SIDE} pixels a side, and number at most {@link PICTURE_MAX_BYTES}. The browser blanks
+     * personal information before it draws the picture; the server can check only that it is the image it says.
+     *
+     * @method
+     * @param {*} value What the submission's `picture` held.
+     * @returns {TiFeedbackPicture|null} Null when there is none.
+     * @throws {TiException} 422 `error.feedback.picture` for anything else.
+     * @public
+     */
+    readPicture( value ) {
+        if ( value === undefined || value === null || value === "" ) {
+            return null;
+        }
+        const match = ( typeof value === "string" && value.length <= 64 + Math.ceil( PICTURE_MAX_BYTES / 3 ) * 4 ) ? PICTURE_DATA_URL.exec( value ) : null;
+        if ( !match ) {
+            throw refuse( "error.feedback.picture" );
+        }
+        const type = match[ 1 ];
+        const data = match[ 2 ];
+        const bytes = Buffer.from( data, "base64" );
+        // Node decodes loose base64 without complaint: only the canonical encoding of what it decoded is accepted.
+        if ( bytes.length === 0 || bytes.length > PICTURE_MAX_BYTES || bytes.toString( "base64" ) !== data ) {
+            throw refuse( "error.feedback.picture" );
+        }
+        const size = ( type === "image/webp" ) ? webpDimensions( bytes ) : jpegDimensions( bytes );
+        if ( !size || size.width < 1 || size.height < 1 || size.width > PICTURE_MAX_SIDE || size.height > PICTURE_MAX_SIDE ) {
+            throw refuse( "error.feedback.picture" );
+        }
+        return { type: type, data: data, bytes: bytes.length, width: size.width, height: size.height };
     }
 
     /**
@@ -350,10 +483,32 @@ class Feedback {
     submit( params, sender ) {
         return Promise.resolve().then( () => {
             const item = this.newItem( params || {}, sender, tools.getUUID(), new Date().toISOString() );
-            return cache.instance.setValue( KEY_ITEM + item.feedbackID, item ).then( () => {
-                this.received( item, { email: sender.email } );
-                return item;
-            } );
+            const picture = this.readPicture( ( params || {} ).picture );
+            if ( picture === null ) {
+                return cache.instance.setValue( KEY_ITEM + item.feedbackID, item ).then( () => item );
+            }
+            item.picture = { type: picture.type, bytes: picture.bytes, width: picture.width, height: picture.height };
+            // The item first. A picture is found and erased only through its item, so one written first and left alone
+            // by a failure or a restart would be kept for good, beyond any erasure. The other way round, the worst left
+            // is an item naming a picture that is not there, which reads as no longer available. A picture that cannot
+            // be written takes its item back, so the person is told and sends again; and is deleted too, in case the
+            // write that failed landed all the same (a timeout). Under the item's key, which erasure takes, so an
+            // erasure between the two writes cannot leave the picture behind either (the second review pass).
+            return this.#lock.exclusively( item.feedbackID, () => cache.instance.setValue( KEY_ITEM + item.feedbackID, item ).then( () => {
+                return cache.instance.setValue( KEY_PICTURE + item.feedbackID, { type: picture.type, data: picture.data } ).catch( ( error ) => {
+                    return tools.whenAllSettled( [
+                        Promise.resolve().then( () => cache.instance.deleteValue( KEY_PICTURE + item.feedbackID ) ),
+                        Promise.resolve().then( () => cache.instance.deleteValue( KEY_ITEM + item.feedbackID ) )
+                    ] ).catch( ( cleanup ) => {
+                        logger.log( `Feedback ${ item.feedbackID }: what was written could not all be deleted after its picture failed to save.`, logger.logSeverity.WARNING, cleanup );
+                    } ).then( () => {
+                        throw error;
+                    } );
+                } );
+            } ) ).then( () => item );
+        } ).then( ( item ) => {
+            this.received( item, { email: sender.email } );
+            return item;
         } );
     }
 
@@ -385,6 +540,29 @@ class Feedback {
         }
         return Promise.resolve().then( () => cache.instance.getValue( KEY_ITEM + id ) ).then( ( item ) => {
             return ( item && typeof item === "object" && item.feedbackID === id ) ? item : null;
+        } );
+    }
+
+    /**
+     * The picture of the screen sent with an item, or null: its type, its size in pixels and the image in base64. For
+     * the administrators' screen, which asks for one only when it is to be shown.
+     *
+     * @method
+     * @param {string} feedbackID
+     * @returns {Promise<{type: string, data: string, width: number, height: number}|null>}
+     * @public
+     */
+    fetchPicture( feedbackID ) {
+        return this.fetch( feedbackID ).then( ( item ) => {
+            if ( item === null || !item.picture || typeof item.picture !== "object" ) {
+                return null;
+            }
+            return Promise.resolve().then( () => cache.instance.getValue( KEY_PICTURE + item.feedbackID ) ).then( ( stored ) => {
+                if ( !stored || typeof stored !== "object" || typeof stored.data !== "string" || stored.type !== item.picture.type ) {
+                    return null;
+                }
+                return { type: stored.type, data: stored.data, width: item.picture.width, height: item.picture.height };
+            } );
         } );
     }
 
@@ -432,8 +610,8 @@ class Feedback {
     }
 
     /**
-     * Deletes the items a person sent under their own name, for their erasure: they are the person's own words. What
-     * they sent anonymously cannot be found, and stays.
+     * Deletes the items a person sent under their own name, for their erasure: they are the person's own words, and
+     * any picture of the screen sent with one goes with it. What they sent anonymously cannot be found, and stays.
      *
      * @method
      * @param {string} subjectID
@@ -442,8 +620,10 @@ class Feedback {
      */
     eraseSentBy( subjectID ) {
         return this.sentBy( subjectID ).then( ( items ) => {
-            return tools.whenAllSettled( items.map( ( item ) => this.#lock.exclusively( item.feedbackID, () => cache.instance.deleteValue( KEY_ITEM + item.feedbackID ) ) ) )
-                .then( () => items.length );
+            return tools.whenAllSettled( items.map( ( item ) => this.#lock.exclusively( item.feedbackID, () => tools.whenAllSettled( [
+                ( item.picture ) ? cache.instance.deleteValue( KEY_PICTURE + item.feedbackID ) : null,
+                cache.instance.deleteValue( KEY_ITEM + item.feedbackID )
+            ] ) ) ) ).then( () => items.length );
         } );
     }
 
@@ -534,4 +714,6 @@ Feedback.EVENT = EVENT;
 Feedback.NOTICE = NOTICE;
 Feedback.PLACEHOLDERS = PLACEHOLDERS;
 Feedback.TEXT_MAX = TEXT_MAX;
+Feedback.PICTURE_MAX_BYTES = PICTURE_MAX_BYTES;
+Feedback.PICTURE_MAX_SIDE = PICTURE_MAX_SIDE;
 Feedback.instance = Object.freeze( instance );

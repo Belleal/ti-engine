@@ -4437,6 +4437,29 @@ html.ti-busy .ti-busy-indicator-glyph {
     color: var(--fg-secondary);
 }
 
+/* The picture of the screen (CA-544): the option, its small print, and the picture itself once ticked. */
+.ti-feedback-picture {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.ti-feedback-picture-note {
+    display: block;
+    font-size: var(--fs-xs);
+    line-height: 1.45;
+    color: var(--fg-secondary);
+}
+
+.ti-feedback-picture-preview,
+.ti-feedback-item-picture-image {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+}
+
 .ti-feedback-actions {
     display: flex;
     justify-content: flex-end;
@@ -4552,6 +4575,13 @@ html.ti-busy .ti-busy-indicator-glyph {
     color: var(--fg-primary);
     white-space: pre-line;
     overflow-wrap: anywhere;
+}
+
+.ti-feedback-item-picture {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
 }
 
 .ti-feedback-item-context {

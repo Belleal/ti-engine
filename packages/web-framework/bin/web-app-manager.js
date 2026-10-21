@@ -749,6 +749,9 @@ class TiWebAppManager {
         if ( this.#feedbackEnabled && view === "feedback-inbox" ) {
             return this.#loadFeedbackInbox( session );
         }
+        if ( this.#feedbackEnabled && view === "feedback-picture" ) {
+            return this.#loadFeedbackPicture( session, options && options.query );
+        }
         return new Promise( ( resolve, reject ) => {
             if ( view === "config" ) {
                 // The catalogue's address rather than the catalogue: this answer is `no-store` and fetched on every
@@ -1166,11 +1169,11 @@ class TiWebAppManager {
 
     /**
      * Stores a piece of feedback from anyone signed in and e-mails the administrators. A problem's screen must be one
-     * this application has.
+     * this application has. A picture of the screen, when the person attached one, is checked and kept apart (CA-544).
      *
      * @method
      * @param {TiSession} session
-     * @param {Object} params `{ kind, text, anonymous, screen, browser }`.
+     * @param {Object} params `{ kind, text, anonymous, screen, browser, picture }`.
      * @returns {Promise<{feedbackID: string}>}
      */
     #sendFeedback( session, params ) {
@@ -1207,9 +1210,36 @@ class TiWebAppManager {
                         anonymous: item.anonymous === true,
                         senderName: ( item.anonymous === true ) ? "" : String( item.senderName || "" ),
                         context: ( item.context && typeof item.context === "object" ) ? item.context : null,
+                        // That there is a picture, and its size: the screen asks for the image only to show it (CA-544).
+                        picture: ( item.picture && typeof item.picture === "object" )
+                            ? { type: String( item.picture.type || "" ), width: Number( item.picture.width ) || 0, height: Number( item.picture.height ) || 0 }
+                            : null,
                         statusChangedAt: item.statusChangedAt || null
                     } ) )
                 } );
+            } ).catch( ( error ) => reject( exceptions.raise( error ) ) );
+        } );
+    }
+
+    /**
+     * The picture of the screen sent with a piece of feedback, for the administrators' screen (CA-544): the image in
+     * base64, its type and size. Administrators only, like the screen.
+     *
+     * @method
+     * @param {TiSession} session
+     * @param {Object} [query] `{ feedbackID }`.
+     * @returns {Promise<{feedbackID: string, type: string, width: number, height: number, data: string}>}
+     * @throws {TiException} (as a rejection) 404 `error.feedback.picture-not-found` when the item has none.
+     */
+    #loadFeedbackPicture( session, query ) {
+        return new Promise( ( resolve, reject ) => {
+            this.#requireAdmin( session );
+            const feedbackID = String( ( query && query.feedbackID ) || "" );
+            feedback.instance.fetchPicture( feedbackID ).then( ( picture ) => {
+                if ( picture === null ) {
+                    throw exceptions.raise( exceptions.exceptionCode.E_APP_RESOURCE_NOT_FOUND, { details: "error.feedback.picture-not-found" }, exceptions.httpCode.C_404 );
+                }
+                resolve( { feedbackID: feedbackID, type: picture.type, width: picture.width, height: picture.height, data: picture.data } );
             } ).catch( ( error ) => reject( exceptions.raise( error ) ) );
         } );
     }

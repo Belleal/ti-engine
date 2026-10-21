@@ -1535,8 +1535,29 @@ const configureApplication = () => {
          * @public
          */
         openScreen( screen ) {
+            // Read before closing: whether the sidebar is a drawer is the layout's, not whether it is open.
+            const drawer = this.navigationDrawer === true;
             // A screen opened from the drawer replaces the page under it, so the drawer has done its job (CA-406).
             this.closeNavigation();
+            const basePath = ( screen || "" ).split( "?" )[ 0 ];
+            const trail = Alpine.store( "tiScreenTrail" );
+            if ( basePath === "send-feedback" && window.htmx && trail && trail.wantsPicture() ) {
+                // The picture first: below, the new screen is named and its URL pushed before its request starts, and
+                // the screen drawn would be half Send Feedback's (CA-544, the review pass).
+                trail.holdFor( () => this.openScreenNow( screen ), drawer );
+                return;
+            }
+            this.openScreenNow( screen );
+        },
+
+        /**
+         * Opens a screen at once: {@link openScreen} past the picture of the screen being left.
+         *
+         * @method
+         * @param {string} screen
+         * @private
+         */
+        openScreenNow( screen ) {
             const [ basePath, ...queryParts ] = ( screen || "" ).split( "?" );
             const query = queryParts.length ? "?" + queryParts.join( "?" ) : "";
             if ( !basePath || !/^[\w-]+$/.test( basePath ) || !window.htmx ) {
@@ -2469,9 +2490,369 @@ const configureStoreWhatsNew = () => ( {
 } );
 
 /**
+ * The longest side of a picture of the screen, in pixels (CA-544). The server refuses a larger one.
+ *
+ * @type {number}
+ */
+const PICTURE_MAX_SIDE = 1600;
+
+/**
+ * The largest picture of the screen, in bytes. The server refuses a larger one.
+ *
+ * @type {number}
+ */
+const PICTURE_MAX_BYTES = 1000000;
+
+/**
+ * How long Send Feedback waits for the picture before it opens without one, in milliseconds.
+ *
+ * @type {number}
+ */
+const PICTURE_TIME_LIMIT_MS = 4000;
+
+/**
+ * The library that draws the picture from a copy of the page, loaded only when one is taken: nobody who never opens
+ * Send Feedback downloads it. A script a trusted script inserts runs under `'strict-dynamic'` without a nonce of its own.
+ *
+ * @type {string}
+ */
+const PICTURE_LIBRARY = "/static/scripts/lib/modern-screenshot.min.js";
+
+/**
+ * The qualities a picture is written at, best first, until it is small enough.
+ *
+ * @type {ReadonlyArray<number>}
+ */
+const PICTURE_QUALITIES = Object.freeze( [ 0.82, 0.7, 0.55 ] );
+
+// What the picture leaves out altogether: the menu used to reach Send Feedback is not part of the screen being reported.
+const PICTURE_EXCLUDED = ".ti-sidebar-flyout";
+// Left out too on a narrow screen, where the sidebar is a drawer laid over the screen rather than a column of it: the
+// person opened it to reach Send Feedback, and it was still sliding shut as the copy was made (measured at 390px).
+const PICTURE_EXCLUDED_DRAWER = ".ti-sidebar, .ti-navigation-scrim";
+// Text the picture keeps: a catalogue label, whose expression is a key and never data, or what an application marked.
+const PICTURE_KEPT = "[x-text-label], [data-ti-keep]";
+// Blanked whatever it holds, a kept label included.
+const PICTURE_REDACTED = "[data-ti-redact]";
+// What the picture blanks as a whole, unless kept: anything that draws an image of its own.
+const PICTURE_MEDIA = Object.freeze( [ "IMG", "CANVAS", "VIDEO", "IFRAME", "OBJECT", "EMBED" ] );
+// The inputs that show what was typed. A checkbox or a radio button shows only its state, and keeps it.
+const PICTURE_TYPED_INPUTS = /^(|text|email|search|tel|url|number|password|date|datetime-local|month|time|week)$/;
+// Never walked: their text is not drawn.
+const PICTURE_UNDRAWN = Object.freeze( [ "STYLE", "SCRIPT", "TEMPLATE", "NOSCRIPT" ] );
+// The attribute names XML reads: a plain name, or one of the prefixes it knows. Anything else, Alpine's `x-bind:class`,
+// its shorthands `:class` and `@click`, is enough for the browser to refuse the whole drawing, and the picture comes out
+// empty (measured on a real screen with `x-bind:class`).
+const PICTURE_PLAIN_ATTRIBUTE = /^(?:(?:xmlns|xlink|xml):)?[A-Za-z_][\w.-]*$/;
+// An image of nothing, the size of whatever it replaces.
+const PICTURE_EMPTY_IMAGE = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+const SVG_NAMESPACE = "http://www.w3.org/2000/svg";
+
+/**
+ * Whether the picture leaves a node out altogether: the menu used to reach Send Feedback, a template, and anything not
+ * displayed. Drawing what is not shown cost Competence's evaluation screen half its 1,053 elements and seconds.
+ * `display: contents` draws its children, so only `none` counts.
+ *
+ * @method
+ * @param {Node} node An element of the page, or a text.
+ * @param {boolean} [drawer] Whether the sidebar is a drawer, which the picture then leaves out with its scrim.
+ * @returns {boolean}
+ */
+const isLeftOutOfPicture = ( node, drawer = false ) => {
+    if ( !node || node.nodeType !== 1 ) {
+        return false;
+    }
+    if ( String( node.tagName ).toUpperCase() === "TEMPLATE" || ( typeof node.matches === "function"
+        && ( node.matches( PICTURE_EXCLUDED ) || ( drawer && node.matches( PICTURE_EXCLUDED_DRAWER ) ) ) ) ) {
+        return true;
+    }
+    return window.getComputedStyle( node ).display === "none";
+};
+
+/**
+ * Blanks personal information in a copy of the page before it is drawn as a picture of the screen (CA-544). It changes
+ * the copy only, never the screen. Text is blanked unless it is known not to be data: only a catalogue label
+ * (`x-text-label`) and what an application marked `data-ti-keep` are kept, and `data-ti-redact` blanks even those. So
+ * what `x-text`, `x-html` or an application's own directive wrote, and anything a server put into a fragment, is
+ * blanked by default. A blanked text keeps its length, each character a grey `x`, so the layout still reads and no
+ * character of it remains. Typed values become bullets, images grey boxes; chart text goes, chart shapes stay. It also
+ * drops every attribute with a prefix XML cannot resolve, which would otherwise leave the picture empty.
+ *
+ * @method
+ * @param {Node} root The copy of the page.
+ * @returns {Node} The same copy.
+ * @public
+ */
+const redactPicture = ( root ) => {
+    const isKept = ( node ) => {
+        const element = ( node.nodeType === 1 ) ? node : node.parentNode;
+        if ( !element || element.nodeType !== 1 || typeof element.closest !== "function" ) {
+            return false;
+        }
+        return !element.closest( PICTURE_REDACTED ) && element.closest( PICTURE_KEPT ) !== null;
+    };
+    const texts = [];
+    const elements = [];
+    // Collected first and changed after: changing a tree while walking it skips nodes.
+    const walk = ( node ) => {
+        Array.from( node.childNodes || [] ).forEach( ( child ) => {
+            if ( child.nodeType === 3 ) {
+                texts.push( child );
+            } else if ( child.nodeType === 1 && !PICTURE_UNDRAWN.includes( String( child.tagName ).toUpperCase() ) ) {
+                elements.push( child );
+                walk( child );
+            }
+        } );
+    };
+    if ( root && root.nodeType === 1 ) {
+        elements.push( root );
+    }
+    walk( root );
+    const owner = root.ownerDocument;
+    texts.forEach( ( text ) => {
+        const parent = text.parentNode;
+        if ( !parent || String( text.data || "" ).trim() === "" || isKept( text ) ) {
+            return;
+        }
+        const tag = String( parent.tagName || "" ).toUpperCase();
+        if ( tag === "TEXTAREA" ) {
+            // Its value, below.
+            return;
+        }
+        const blanked = String( text.data ).replace( /\S/g, "x" );
+        if ( parent.namespaceURI === SVG_NAMESPACE || tag === "OPTION" ) {
+            // Nothing can be put around text in SVG or an option: a chart's label goes, an option's reads as x.
+            text.data = ( parent.namespaceURI === SVG_NAMESPACE ) ? "" : blanked;
+            return;
+        }
+        const bar = owner.createElement( "span" );
+        bar.textContent = blanked;
+        bar.style.setProperty( "color", "transparent" );
+        // The library copies each element's computed fill colour, which paints text over `color`: without this the bar
+        // showed its x's (measured).
+        bar.style.setProperty( "-webkit-text-fill-color", "transparent" );
+        bar.style.setProperty( "background-color", "rgba( 128, 128, 128, 0.35 )" );
+        bar.style.setProperty( "border-radius", "3px" );
+        parent.replaceChild( bar, text );
+    } );
+    elements.forEach( ( element ) => {
+        const tag = String( element.tagName || "" ).toUpperCase();
+        Array.from( element.attributes || [] ).map( ( attribute ) => attribute.name ).filter( ( name ) => !PICTURE_PLAIN_ATTRIBUTE.test( name ) )
+            .forEach( ( name ) => element.removeAttribute( name ) );
+        if ( typeof element.closest === "function" && element.closest( PICTURE_REDACTED ) ) {
+            // What the rule above cannot see, such as a photo set as a CSS background, in what the application marked:
+            // no background image anywhere in it (measured: the photo was drawn without this), and the marked element
+            // grey. Grey on every descendant too would layer, darker the deeper the markup.
+            element.style.setProperty( "background-image", "none", "important" );
+            if ( typeof element.matches === "function" && element.matches( PICTURE_REDACTED ) ) {
+                element.style.setProperty( "background-color", "rgba( 128, 128, 128, 0.35 )", "important" );
+            }
+        }
+        if ( isKept( element ) ) {
+            return;
+        }
+        if ( tag === "INPUT" && PICTURE_TYPED_INPUTS.test( String( element.getAttribute( "type" ) || "" ).toLowerCase() ) ) {
+            const masked = String( element.value || element.getAttribute( "value" ) || "" ).replace( /\S/g, "•" );
+            element.value = masked;
+            element.setAttribute( "value", masked );
+        } else if ( tag === "TEXTAREA" ) {
+            const masked = String( element.value || element.textContent || "" ).replace( /\S/g, "•" );
+            element.value = masked;
+            element.textContent = masked;
+        } else if ( tag === "IMG" ) {
+            element.removeAttribute( "srcset" );
+            element.setAttribute( "src", PICTURE_EMPTY_IMAGE );
+            element.style.setProperty( "background-color", "rgba( 128, 128, 128, 0.35 )" );
+        } else if ( PICTURE_MEDIA.includes( tag ) ) {
+            element.style.setProperty( "visibility", "hidden" );
+        } else if ( element.namespaceURI === SVG_NAMESPACE && String( element.tagName ).toLowerCase() === "image" ) {
+            element.removeAttribute( "href" );
+            element.removeAttribute( "xlink:href" );
+        }
+    } );
+    return root;
+};
+
+/**
+ * The blank for a pseudo-element's `content` value: kept when it is `none`, `normal` or a single string with no letter
+ * and no digit (a mark such as "›" or "•"); a single string with words keeps its length as x's; anything else,
+ * `attr()`, a counter, an escape or several parts, is "xxx".
+ *
+ * @method
+ * @param {string} value The value as written, without the property name.
+ * @returns {string} The value to write in its place.
+ */
+const blankContentValue = ( value ) => {
+    const trimmed = String( value ).trim();
+    if ( trimmed === "none" || trimmed === "normal" ) {
+        return value;
+    }
+    const quote = trimmed.charAt( 0 );
+    const inner = trimmed.slice( 1, -1 );
+    const literal = ( trimmed.length >= 2 && ( quote === "\"" || quote === "'" ) && trimmed.charAt( trimmed.length - 1 ) === quote
+        && !inner.includes( quote ) && !inner.includes( "\\" ) ) ? inner : null;
+    if ( literal !== null && !/[\p{L}\p{N}]/u.test( literal ) ) {
+        return value;
+    }
+    return ` "${ ( literal === null ) ? "xxx" : literal.replace( /[\p{L}\p{N}]/gu, "x" ) }"`;
+};
+
+/**
+ * Rewrites every `content` declaration in a stylesheet with {@link blankContentValue}. A scanner, not a pattern: the
+ * property is found only where a declaration starts (never inside `justify-content`), and its value is read up to the
+ * `;` or `}` that ends it outside quotes, so a `;` in a string cuts nothing (the second review pass).
+ *
+ * @method
+ * @param {string} css
+ * @returns {string}
+ */
+const blankPseudoContent = ( css ) => {
+    let out = "";
+    let from = 0;
+    let at = css.indexOf( "content", from );
+    while ( at !== -1 ) {
+        let colon = at + 7;
+        while ( colon < css.length && /\s/.test( css.charAt( colon ) ) ) {
+            colon += 1;
+        }
+        const startsDeclaration = ( at === 0 || /[\s;{]/.test( css.charAt( at - 1 ) ) ) && css.charAt( colon ) === ":";
+        if ( !startsDeclaration ) {
+            at = css.indexOf( "content", at + 7 );
+            continue;
+        }
+        let end = colon + 1;
+        let quote = null;
+        while ( end < css.length ) {
+            const character = css.charAt( end );
+            if ( quote !== null ) {
+                if ( character === "\\" ) {
+                    end += 1;
+                } else if ( character === quote ) {
+                    quote = null;
+                }
+            } else if ( character === "\"" || character === "'" ) {
+                quote = character;
+            } else if ( character === ";" || character === "}" ) {
+                break;
+            }
+            end += 1;
+        }
+        out += css.slice( from, colon + 1 ) + blankContentValue( css.slice( colon + 1, end ) );
+        from = end;
+        at = css.indexOf( "content", end );
+    }
+    return out + css.slice( from );
+};
+
+/**
+ * Blanks what reaches the drawing after the copy was redacted (CA-544, measured): the text of a pseudo-element's
+ * `content`, which the library writes into the drawing's stylesheet; the text of an SVG symbol a `<use>` points to,
+ * which it copies in from the page; and a pseudo-element's background inside what an application marked
+ * `data-ti-redact`, which no inline style reaches. A `content` with a letter or a digit becomes x's, and anything
+ * computed, such as `attr()` or a counter, becomes "xxx"; a mark such as "›" or "•" stays.
+ *
+ * @method
+ * @param {Element} drawing The SVG the library is about to draw.
+ * @returns {Element} The same drawing.
+ * @public
+ */
+const redactDrawing = ( drawing ) => {
+    drawing.querySelectorAll( "style" ).forEach( ( style ) => {
+        style.textContent = blankPseudoContent( String( style.textContent || "" ) );
+    } );
+    drawing.querySelectorAll( "defs text, defs tspan, symbol text, symbol tspan" ).forEach( ( text ) => {
+        text.textContent = "";
+    } );
+    // Inside the drawing, which the page's policy does not reach: the library's own stylesheet is there too.
+    const marked = drawing.ownerDocument.createElementNS( SVG_NAMESPACE, "style" );
+    marked.textContent = "[data-ti-redact]::before, [data-ti-redact]::after, [data-ti-redact] *::before, [data-ti-redact] *::after { background-image: none !important; }";
+    drawing.appendChild( marked );
+    return drawing;
+};
+
+let pictureLibrary = null;
+
+/**
+ * Loads the picture library once, on the first picture.
+ *
+ * @method
+ * @returns {Promise<Object>} The library's global.
+ */
+const loadPictureLibrary = () => {
+    if ( window.modernScreenshot ) {
+        return Promise.resolve( window.modernScreenshot );
+    }
+    if ( pictureLibrary === null ) {
+        pictureLibrary = new Promise( ( resolve, reject ) => {
+            const script = document.createElement( "script" );
+            script.src = PICTURE_LIBRARY;
+            script.async = true;
+            script.addEventListener( "load", () => ( window.modernScreenshot ) ? resolve( window.modernScreenshot ) : reject( new Error( "The picture library did not load." ) ) );
+            script.addEventListener( "error", () => {
+                // So the next picture asks again, rather than for ever answering this failure.
+                pictureLibrary = null;
+                reject( new Error( "The picture library could not be loaded." ) );
+            } );
+            document.head.appendChild( script );
+        } );
+    }
+    return pictureLibrary;
+};
+
+/**
+ * Writes a drawn page as a picture the server accepts: WebP, or JPEG where the browser cannot write WebP (it then
+ * answers another type, as Safari does), at most {@link PICTURE_MAX_BYTES}. The quality steps down first, then the size,
+ * by a quarter, up to three times.
+ *
+ * @method
+ * @param {HTMLCanvasElement} canvas
+ * @returns {Promise<{url: string, type: string, bytes: number, width: number, height: number}|null>} Null when nothing
+ * small enough could be written.
+ */
+const encodePicture = ( canvas ) => {
+    const toBlob = ( source, type, quality ) => new Promise( ( resolve ) => source.toBlob( resolve, type, quality ) );
+    const shrink = ( source ) => {
+        const smaller = document.createElement( "canvas" );
+        smaller.width = Math.max( 1, Math.round( source.width * 0.75 ) );
+        smaller.height = Math.max( 1, Math.round( source.height * 0.75 ) );
+        smaller.getContext( "2d" ).drawImage( source, 0, 0, smaller.width, smaller.height );
+        return smaller;
+    };
+    const attempt = ( source, type, qualityIndex, shrinks ) => {
+        if ( qualityIndex >= PICTURE_QUALITIES.length ) {
+            return ( shrinks >= 3 ) ? Promise.resolve( null ) : attempt( shrink( source ), type, 0, shrinks + 1 );
+        }
+        return toBlob( source, type, PICTURE_QUALITIES[ qualityIndex ] ).then( ( blob ) => {
+            if ( !blob ) {
+                return null;
+            }
+            if ( blob.type !== type ) {
+                return ( type === "image/webp" ) ? attempt( source, "image/jpeg", qualityIndex, shrinks ) : null;
+            }
+            if ( blob.size > PICTURE_MAX_BYTES ) {
+                return attempt( source, type, qualityIndex + 1, shrinks );
+            }
+            return new Promise( ( resolve, reject ) => {
+                const reader = new FileReader();
+                reader.addEventListener( "load", () => resolve( { url: String( reader.result ), type: type, bytes: blob.size, width: source.width, height: source.height } ) );
+                reader.addEventListener( "error", () => reject( reader.error ) );
+                reader.readAsDataURL( blob );
+            } );
+        } );
+    };
+    return attempt( canvas, "image/webp", 0, 0 );
+};
+
+/**
  * Returns the store that remembers the screen a person left for Send Feedback, `tiScreenTrail`: the screen a problem
  * report names as the one they were on. The shell names the current screen after every swap; this keeps the one before
  * Send Feedback, in a variable of its own so that keeping it is no change the effect reacts to.
+ * <br/>
+ * It also takes the picture of that screen (CA-544). The way to Send Feedback is held while the screen being left is
+ * drawn from a copy, with personal information blanked ({@link redactPicture}), and then goes on: a link's request
+ * through htmx's `htmx:confirm`, and `openScreen` before it changes anything, since it names the new screen before its
+ * request starts. The picture stays here, in the browser, until the person sends it; leaving Send Feedback drops it. It
+ * is not taken when there is no screen to take: a reload of Send Feedback, or Send Feedback asked for from itself.
  *
  * @method
  * @returns {Object}
@@ -2479,8 +2860,14 @@ const configureStoreWhatsNew = () => ( {
  */
 const configureStoreScreenTrail = () => {
     let last = "";
+    let taking = null;
+    let holding = false;
+    // Navigations begun: a screen asked for into `#ti-content`, a history restore, Back or Forward. A hold that sees
+    // the count move was overtaken. Only a GET counts, so an autosave aimed at the screen does not cancel the click.
+    let navigationsBegun = 0;
     return {
         previous: "",
+        picture: null,
 
         init() {
             Alpine.effect( () => {
@@ -2490,9 +2877,194 @@ const configureStoreScreenTrail = () => {
                 }
                 if ( screen === "send-feedback" ) {
                     this.previous = last;
+                } else {
+                    // Left without sending: the picture was of a screen they have since moved on from.
+                    this.picture = null;
                 }
                 last = screen;
             } );
+            document.addEventListener( "htmx:confirm", ( event ) => this.holdForPicture( event ) );
+            document.addEventListener( "htmx:beforeRequest", ( event ) => {
+                const detail = event.detail || {};
+                const verb = String( ( detail.requestConfig && detail.requestConfig.verb ) || "get" ).toLowerCase();
+                if ( detail.target && detail.target.id === "ti-content" && verb === "get" ) {
+                    navigationsBegun += 1;
+                }
+            } );
+            // Back and Forward, and htmx's restore of a page from its history, request nothing the line above sees.
+            document.addEventListener( "htmx:historyRestore", () => {
+                navigationsBegun += 1;
+            } );
+            window.addEventListener( "popstate", () => {
+                navigationsBegun += 1;
+            } );
+        },
+
+        /**
+         * Whether opening Send Feedback now would take a picture: the application turned Feedback on, a screen was
+         * shown before, and it is not Send Feedback itself.
+         *
+         * @method
+         * @returns {boolean}
+         * @public
+         */
+        wantsPicture() {
+            const tiApplication = Alpine.store( "tiApplication" );
+            const features = tiApplication.configuration && tiApplication.configuration.features;
+            return !!features && features.feedback === true && last !== "" && last !== "send-feedback" && tiApplication.currentScreen !== "send-feedback";
+        },
+
+        /**
+         * Takes the picture, then goes on to Send Feedback. While it is drawn the shell shows it is busy, as for a
+         * request, since nothing else on the screen changes. A second way to Send Feedback meanwhile is the same one
+         * and is dropped, where it would have sent the form twice. If another screen was asked for meanwhile, that one
+         * wins: going on would replace it with Send Feedback and a picture of a screen already left (the review pass).
+         *
+         * @method
+         * @param {function(): void} proceed What opens Send Feedback.
+         * @param {boolean} [drawer] Whether the sidebar is a drawer, left out of the picture.
+         * @returns {boolean} False when a hold was already running, and this one was dropped.
+         * @public
+         */
+        holdFor( proceed, drawer = false ) {
+            if ( holding ) {
+                return false;
+            }
+            holding = true;
+            const tiApplication = Alpine.store( "tiApplication" );
+            const before = navigationsBegun;
+            tiApplication._beginRequest();
+            // Through a promise from the start: a throw while setting up would otherwise leave the hold, and the
+            // shell's busy state, on for good, and every later way to Send Feedback dropped (the second review pass).
+            Promise.resolve().then( () => this.takePicture( { drawer: drawer } ) ).catch( () => {
+                this.picture = null;
+            } ).then( () => {
+                holding = false;
+                tiApplication._endRequest();
+                if ( navigationsBegun !== before ) {
+                    this.picture = null;
+                    return;
+                }
+                proceed();
+            } );
+            return true;
+        },
+
+        /**
+         * Holds the shell's request for Send Feedback until the screen being left is drawn: a link's `hx-get` and the
+         * user menu. `openScreen` is held before this, through `holdFor`, because by the time its request raises the
+         * event it has already named Send Feedback as the screen, and `wantsPicture` would see nothing to take.
+         *
+         * @method
+         * @param {CustomEvent} event `htmx:confirm`.
+         * @public
+         */
+        holdForPicture( event ) {
+            const detail = event && event.detail;
+            if ( !detail || typeof detail.issueRequest !== "function" || String( detail.verb || "" ).toLowerCase() !== "get"
+                || String( detail.path || "" ).split( "?" )[ 0 ] !== "/app/send-feedback" ) {
+                return;
+            }
+            if ( holding ) {
+                // A second click while the first is held: the first goes on, this one would send the form twice.
+                event.preventDefault();
+                return;
+            }
+            if ( !this.wantsPicture() ) {
+                return;
+            }
+            event.preventDefault();
+            // At once, as the request would: the drawer used to reach Send Feedback is not part of the screen.
+            const tiApplication = Alpine.store( "tiApplication" );
+            const drawer = tiApplication.navigationDrawer === true;
+            tiApplication.closeNavigation();
+            this.holdFor( () => detail.issueRequest( true ), drawer );
+        },
+
+        /**
+         * Draws the screen as it is, at most {@link PICTURE_MAX_SIDE} pixels on its longer side and
+         * {@link PICTURE_MAX_BYTES} bytes, and keeps it as `picture`. Never rejects: past
+         * {@link PICTURE_TIME_LIMIT_MS}, or on any failure, there is no picture.
+         *
+         * @method
+         * @param {Object} [options]
+         * @param {boolean} [options.drawer] Whether the sidebar is a drawer, left out of the picture.
+         * @returns {Promise<void>}
+         * @public
+         */
+        takePicture( { drawer = false } = {} ) {
+            if ( taking ) {
+                return taking;
+            }
+            this.picture = null;
+            const width = Math.max( 1, window.innerWidth || 0 );
+            const height = Math.max( 1, window.innerHeight || 0 );
+            const scale = Math.min( window.devicePixelRatio || 1, PICTURE_MAX_SIDE / Math.max( width, height ) );
+            // The standard properties alone: the custom ones are already resolved into them, and copied onto every
+            // element they were 296 declarations each, an 8.6 MB drawing that took 5 s; without them 0.7 s (measured).
+            const properties = Array.from( window.getComputedStyle( document.documentElement ) ).filter( ( name ) => !String( name ).startsWith( "--" ) );
+            const drawing = loadPictureLibrary().then( ( library ) => library.domToCanvas( document.body, {
+                width: width,
+                height: height,
+                scale: scale,
+                backgroundColor: window.getComputedStyle( document.body ).backgroundColor,
+                // Embedding web fonts inserts a <style> the CSP refuses, and the library then throws (measured). The
+                // picture's text is drawn in the fallback typeface instead; most of it is blanked anyway.
+                font: false,
+                includeStyleProperties: properties,
+                features: { restoreScrollPosition: true, copyScrollbar: false },
+                filter: ( node ) => !isLeftOutOfPicture( node, drawer ),
+                onCloneNode: ( copy ) => {
+                    redactPicture( copy );
+                },
+                onCreateForeignObjectSvg: ( drawing ) => {
+                    redactDrawing( drawing );
+                }
+            } ) ).then( encodePicture );
+            const limit = new Promise( ( resolve ) => setTimeout( () => resolve( null ), PICTURE_TIME_LIMIT_MS ) );
+            taking = Promise.race( [ drawing, limit ] ).then( ( picture ) => {
+                this.picture = picture || null;
+            }, () => {
+                this.picture = null;
+            } ).then( () => {
+                taking = null;
+            } );
+            return taking;
+        },
+
+        /**
+         * Blanks personal information in a copy of the page, as every picture does: {@link redactPicture}. Here for an
+         * application's own test of what its screens keep.
+         *
+         * @method
+         * @param {Node} root
+         * @returns {Node}
+         * @public
+         */
+        redact( root ) {
+            return redactPicture( root );
+        },
+
+        /**
+         * Blanks what reaches the drawing after the copy was redacted: {@link redactDrawing}.
+         *
+         * @method
+         * @param {Element} drawing
+         * @returns {Element}
+         * @public
+         */
+        redactDrawing( drawing ) {
+            return redactDrawing( drawing );
+        },
+
+        /**
+         * Forgets the picture: once sent, or when another piece of feedback starts.
+         *
+         * @method
+         * @public
+         */
+        dropPicture() {
+            this.picture = null;
         }
     };
 };
@@ -2603,6 +3175,8 @@ const configureScreenWhatsNew = () => {
  * <br/>
  * What it is, the text, and whether to send it anonymously. A problem carries the screen the person was on, which
  * `tiScreenTrail` kept, the browser, and on the server the version and language; the form says so before it is sent.
+ * When `tiScreenTrail` drew that screen, the person may attach the picture (CA-544): off until ticked, shown once
+ * ticked, and with the small print saying what was blanked.
  * The screen is read when the feedback is sent rather than when the form opens: the shell names the current screen
  * after the swap, which can come after the form's own start.
  *
@@ -2621,6 +3195,7 @@ const configureScreenSendFeedback = () => {
         kind: "",
         text: "",
         anonymous: false,
+        attachPicture: false,
         busy: false,
         sent: false,
 
@@ -2648,6 +3223,20 @@ const configureScreenSendFeedback = () => {
 
         setAnonymous( checked ) {
             this.anonymous = checked === true;
+        },
+
+        // Whether there is a picture of the screen to offer: none after a reload here, or when it could not be drawn.
+        get hasPicture() {
+            const picture = Alpine.store( "tiScreenTrail" ).picture;
+            return !!( picture && typeof picture.url === "string" && picture.url !== "" );
+        },
+
+        get pictureURL() {
+            return this.hasPicture ? Alpine.store( "tiScreenTrail" ).picture.url : "";
+        },
+
+        setAttachPicture( checked ) {
+            this.attachPicture = checked === true;
         },
 
         get remainingText() {
@@ -2679,9 +3268,15 @@ const configureScreenSendFeedback = () => {
             }
             this.busy = true;
             const body = { kind: this.kind, text: this.text.trim(), anonymous: this.anonymous, screen: this.isProblem ? this.aboutScreen : "", browser: this.isProblem ? browserName() : "" };
+            if ( this.attachPicture && this.hasPicture ) {
+                body.picture = this.pictureURL;
+            }
             tiApplication.sendRequest( "/app/send-feedback", "POST", body ).then( () => {
                 this.busy = false;
                 this.sent = true;
+                // Sent once: the next piece of feedback is about something else.
+                Alpine.store( "tiScreenTrail" ).dropPicture();
+                this.attachPicture = false;
                 tiApplication.notify( label( "interface.send-feedback.sent-toast", "Thank you: your feedback was sent." ) );
             } ).catch( ( error ) => {
                 this.busy = false;
@@ -2693,6 +3288,7 @@ const configureScreenSendFeedback = () => {
             this.kind = "";
             this.text = "";
             this.anonymous = false;
+            this.attachPicture = false;
             this.sent = false;
         }
     };
@@ -2702,7 +3298,8 @@ const configureScreenSendFeedback = () => {
  * Returns a configuration object for the administrators' Feedback screen, "frame-feedback-inbox.html".
  * <br/>
  * Every piece of feedback, newest first, filtered by status (New until asked otherwise) and by kind, each with who sent
- * it, the text, a problem's context, and a select that gives it a status in place.
+ * it, the text, a problem's context, and a select that gives it a status in place. A picture of the screen sent with an
+ * item is loaded only when it is asked for, and kept for the screen's life (CA-544).
  *
  * @method
  * @returns {Object}
@@ -2722,6 +3319,8 @@ const configureScreenFeedbackInbox = () => {
         busy: true,
         statusFilter: "new",
         kindFilter: "",
+        // Feedback ID → `{ shown, url }` for each picture asked for.
+        pictures: {},
 
         init() {
             loadWhenInitialized( this, () => this.load() );
@@ -2820,6 +3419,51 @@ const configureScreenFeedbackInbox = () => {
                 { key: "language", name: label( "interface.feedback-inbox.context.language", "Language" ), value: String( context.language || "—" ).toUpperCase() },
                 { key: "browser", name: label( "interface.feedback-inbox.context.browser", "Browser" ), value: context.browser || "—" }
             ];
+        },
+
+        hasPicture( item ) {
+            return !!( item && item.picture );
+        },
+
+        pictureShown( item ) {
+            const picture = this.pictures[ item.feedbackID ];
+            return !!( picture && picture.shown && picture.url );
+        },
+
+        pictureURL( item ) {
+            const picture = this.pictures[ item.feedbackID ];
+            return ( picture && picture.url ) ? picture.url : "";
+        },
+
+        pictureButtonText( item ) {
+            return this.pictureShown( item )
+                ? label( "interface.feedback-inbox.picture-hide", "Hide the picture" )
+                : label( "interface.feedback-inbox.picture-show", "Show the picture" );
+        },
+
+        pictureExpanded( item ) {
+            return this.pictureShown( item ) ? "true" : "false";
+        },
+
+        togglePicture( item ) {
+            const id = item.feedbackID;
+            const picture = this.pictures[ id ];
+            if ( picture && picture.url ) {
+                this.pictures[ id ] = { shown: !picture.shown, url: picture.url };
+                return;
+            }
+            if ( picture && picture.loading ) {
+                return;
+            }
+            this.pictures[ id ] = { loading: true };
+            tiApplication.sendRequest( "/app/feedback-picture?feedbackID=" + encodeURIComponent( id ) ).then( ( result ) => {
+                const data = ( result && result.data && typeof result.data === "object" ) ? result.data : {};
+                const ok = ( data.type === "image/webp" || data.type === "image/jpeg" ) && typeof data.data === "string" && data.data !== "";
+                this.pictures[ id ] = ok ? { shown: true, url: `data:${ data.type };base64,${ data.data }` } : {};
+            } ).catch( ( error ) => {
+                this.pictures[ id ] = {};
+                tiApplication.notify( tiApplication.formatException( error ) );
+            } );
         },
 
         setStatus( item, status ) {

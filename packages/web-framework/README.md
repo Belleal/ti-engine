@@ -633,11 +633,33 @@ class MyApplication extends TiWebAppManager {
   and the browser. Feedback (`feedback-inbox`, `admin` only) lists every item newest first with a status. Each new item
   raises `feedback.received`, which the `feedback-received` notice sends to every allowlisted administrator whose
   entry is an e-mail address, never the sender, once the application's `notifications` document has a rule for it.
+* **A picture of the screen** (1.58.0). When Send Feedback is opened, the screen being left is drawn, in the browser,
+  before the form replaces it. The form offers it, unticked, with small print saying what was blanked, and shows it
+  once ticked. Only then is it sent. Personal information is blanked in the copy that is drawn, never on the screen:
+  * **Text** is kept only inside an element with `x-text-label` (a catalogue label) or `data-ti-keep`. Everything
+    else, including what `x-text`, `x-html` or the application's own directives write, becomes a grey bar of the same
+    length. `data-ti-redact` blanks even what those would keep.
+  * **Typed values** become bullets.
+  * **Images** become grey boxes; **canvases, videos and frames** are hidden.
+  * **Chart text** goes, and the chart's shapes stay.
+  * **A pseudo-element's words** (`content`) become x's, and so does anything computed there, such as `attr()`. A mark
+    such as "›" stays. An SVG symbol's text, which a `<use>` draws, goes.
+  * **Mark a text `data-ti-keep`** when it is not personal and the picture is less useful without it, such as a status
+    name. **Mark an element `data-ti-redact`** when it shows something personal through a means the rule cannot see,
+    such as a photo set as a CSS background: it and everything in it are drawn grey.
+
+  The picture is WebP (JPEG where the browser cannot write WebP), at most 1600 px a side and 1,000,000 bytes. The
+  server checks all of that again, and reads Send Feedback's larger body (up to 1.5 MB) only from someone signed in.
+  Its CSRF token must therefore come in the `x-xsrf-token` header, as the shell sends it: a token in the body is not
+  read on this one route. It is kept apart from its item (`ti:feedback:picture:*`), shown only to
+  administrators, on the Feedback screen when asked for, and erased with its item. The library that draws it,
+  modern-screenshot, is bundled and loaded only when a picture is taken.
 * **Who a person is.** Override `resolveSubject( session )` to return `{ id, name }` from the application's own record;
   the default is the session user's ID and name. The marker and the feedback are kept under that ID, and
   `@ti-engine/web-framework/whats-new` (`markerOf`, `forget`) and `@ti-engine/web-framework/feedback` (`sentBy`,
   `eraseSentBy`) are what a personal-data export and erasure call.
-* **Storage.** Every record is a value in the state store (`ti:whats-new:*`, `ti:feedback:item:*`), never a JSON
+* **Storage.** Every record is a value in the state store (`ti:whats-new:*`, `ti:feedback:item:*`,
+  `ti:feedback:picture:*`), never a JSON
   document, because D1 cannot delete a document. Nothing needs a partition spec.
 * **Texts.** The screens carry their English; an application translates them by holding the keys in its own catalogue
   (`interface.whats-new.*`, `interface.feedback.*`, `interface.send-feedback.*`, `interface.feedback-inbox.*`,

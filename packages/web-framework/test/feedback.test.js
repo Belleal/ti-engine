@@ -18,7 +18,8 @@
 /**
  * Covers feedback about the application (1.56.0, CA-528): what an item keeps of its sender and its context, how it is
  * stored and listed, a status change, a person's export and erasure, and the e-mail to the allowlisted administrators.
- * Every item is a value, because erasure deletes it and D1 cannot delete a document.
+ * Every item is a value, because erasure deletes it and D1 cannot delete a document. And the picture of the screen that
+ * may come with it (1.58.0, CA-544): what the server accepts, where it is kept, and that it goes with its item.
  */
 
 const { describe, it, beforeEach, before, after } = require( "node:test" );
@@ -32,6 +33,7 @@ const cacheStub = installInMemoryCache();
 const localization = require( "@ti-engine/core/localization" );
 const NotificationService = require( "../components/notification-service.js" );
 const Feedback = require( "../components/feedback.js" );
+const PICTURES = require( "./helpers/feedback-pictures" );
 
 // The framework's own catalogue, so the e-mail is rendered with the texts it ships.
 const CATALOGUE = JSON.parse( fs.readFileSync( path.join( __dirname, "..", "bin", "localization", "web-server-labels.json" ), "utf8" ) );
@@ -54,7 +56,7 @@ describe( "Feedback — what an item keeps", () => {
         const item = fresh().newItem( { kind: "suggestion", text: "  More colour.  " }, SENDER, "f-1", NOW );
         assert.deepEqual( item, {
             feedbackID: "f-1", kind: "suggestion", text: "More colour.", anonymous: false, submittedBy: "TD000003", senderName: "Jane Doe",
-            submittedAt: NOW, context: null, status: "new", statusChangedAt: null, statusChangedBy: null
+            submittedAt: NOW, context: null, picture: null, status: "new", statusChangedAt: null, statusChangedBy: null
         } );
     } );
 
@@ -179,6 +181,216 @@ describe( "Feedback — storage, status and personal data", () => {
         assert.equal( await feedback.fetch( named.feedbackID ), null );
         assert.ok( await feedback.fetch( anonymous.feedbackID ), "an anonymous item cannot be found, and stays" );
         assert.equal( ( await feedback.fetchAll() ).length, 2 );
+    } );
+
+} );
+
+/**
+ * A WebP file's header as its container states it, with filler for the rest: what the server reads of one.
+ *
+ * @param {"VP8 "|"VP8L"|"VP8X"} format
+ * @param {number} width
+ * @param {number} height
+ * @param {number} [filler] Bytes after the header.
+ * @returns {Buffer}
+ */
+function webpOf( format, width, height, filler = 16 ) {
+    const body = Buffer.alloc( 10 + filler );
+    if ( format === "VP8 " ) {
+        body.set( [ 0x9d, 0x01, 0x2a ], 3 );
+        body.writeUInt16LE( width & 0x3fff, 6 );
+        body.writeUInt16LE( height & 0x3fff, 8 );
+    } else if ( format === "VP8L" ) {
+        body[ 0 ] = 0x2f;
+        body.writeUInt32LE( ( ( ( width - 1 ) & 0x3fff ) | ( ( ( height - 1 ) & 0x3fff ) << 14 ) ) >>> 0, 1 );
+    } else {
+        body.writeUIntLE( width - 1, 4, 3 );
+        body.writeUIntLE( height - 1, 7, 3 );
+    }
+    const size = Buffer.alloc( 4 );
+    size.writeUInt32LE( body.length );
+    const chunk = Buffer.concat( [ Buffer.from( format, "latin1" ), size, body ] );
+    const riff = Buffer.alloc( 4 );
+    riff.writeUInt32LE( 4 + chunk.length );
+    return Buffer.concat( [ Buffer.from( "RIFF", "latin1" ), riff, Buffer.from( "WEBP", "latin1" ), chunk ] );
+}
+
+/**
+ * A JPEG file's markers as a browser writes them: start, an APP0 segment, a frame header, a scan and the end.
+ *
+ * @param {number} width
+ * @param {number} height
+ * @param {Object} [options]
+ * @param {boolean} [options.scanFirst] The scan before the frame header.
+ * @param {boolean} [options.unended] No end-of-image marker.
+ * @returns {Buffer}
+ */
+function jpegOf( width, height, { scanFirst = false, unended = false } = {} ) {
+    const app0 = Buffer.from( [ 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01, 0x01, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00 ] );
+    const frame = Buffer.from( [ 0xff, 0xc0, 0x00, 0x11, 0x08, 0, 0, 0, 0, 0x03, 0x01, 0x22, 0x00, 0x02, 0x11, 0x01, 0x03, 0x11, 0x01 ] );
+    frame.writeUInt16BE( height, 5 );
+    frame.writeUInt16BE( width, 7 );
+    const scan = Buffer.from( [ 0xff, 0xda, 0x00, 0x08, 0x01, 0x01, 0x00, 0x00, 0x3f, 0x00, 0x12, 0x34 ] );
+    const parts = [ Buffer.from( [ 0xff, 0xd8 ] ), app0 ].concat( scanFirst ? [ scan, frame ] : [ frame, scan ] );
+    if ( !unended ) {
+        parts.push( Buffer.from( [ 0xff, 0xd9 ] ) );
+    }
+    return Buffer.concat( parts );
+}
+
+const dataURL = ( type, bytes ) => `data:${ type };base64,${ bytes.toString( "base64" ) }`;
+const refusesPicture = ( action ) => assert.throws( action, ( error ) => error.httpCode === 422 && error.data.details === "error.feedback.picture" );
+
+describe( "Feedback — a picture of the screen (CA-544)", () => {
+
+    beforeEach( () => {
+        cacheStub.storage = {};
+        cacheStub.values = {};
+    } );
+
+    it( "reads the pictures browsers write, WebP and JPEG, with their size", () => {
+        const feedback = fresh();
+        for ( const [ name, url ] of Object.entries( PICTURES ) ) {
+            const picture = feedback.readPicture( url );
+            assert.deepEqual( [ picture.type, picture.width, picture.height ], [ name === "jpeg" ? "image/jpeg" : "image/webp", 40, 30 ], name );
+            assert.equal( picture.bytes, Buffer.from( url.split( "," )[ 1 ], "base64" ).length );
+            assert.equal( picture.data, url.split( "," )[ 1 ] );
+        }
+    } );
+
+    it( "reads lossy, lossless and extended WebP, up to 1600 pixels a side", () => {
+        const feedback = fresh();
+        for ( const format of [ "VP8 ", "VP8L", "VP8X" ] ) {
+            const picture = feedback.readPicture( dataURL( "image/webp", webpOf( format, 1600, 900 ) ) );
+            assert.deepEqual( [ picture.width, picture.height ], [ 1600, 900 ], format );
+        }
+        assert.deepEqual( [ "width", "height" ].map( ( side ) => feedback.readPicture( dataURL( "image/jpeg", jpegOf( 1200, 1600 ) ) )[ side ] ), [ 1200, 1600 ] );
+    } );
+
+    it( "has none when none was sent", () => {
+        for ( const value of [ undefined, null, "" ] ) {
+            assert.equal( fresh().readPicture( value ), null );
+        }
+    } );
+
+    it( "refuses anything but a WebP or JPEG that is what it says, within its limits", () => {
+        const feedback = fresh();
+        const tooLarge = webpOf( "VP8X", 800, 600, Feedback.PICTURE_MAX_BYTES );
+        const trailing = Buffer.concat( [ webpOf( "VP8X", 800, 600 ), Buffer.from( "<script>" ) ] );
+        const jpeg = PICTURES.jpeg.split( "," )[ 1 ];
+        const cases = {
+            "a PNG": dataURL( "image/png", Buffer.from( "89504e470d0a1a0a", "hex" ) ),
+            "an SVG, which can carry script": "data:image/svg+xml;base64," + Buffer.from( "<svg xmlns='http://www.w3.org/2000/svg'/>" ).toString( "base64" ),
+            "a JPEG called WebP": "data:image/webp;base64," + jpeg,
+            "a WebP called JPEG": PICTURES.webpOpaque.replace( "image/webp", "image/jpeg" ),
+            "base64 with a line break": "data:image/jpeg;base64," + jpeg.slice( 0, 40 ) + "\n" + jpeg.slice( 40 ),
+            "base64 without its padding": "data:image/jpeg;base64," + jpeg.replace( /=+$/, "" ),
+            "a parameter in the data URL": PICTURES.jpeg.replace( "image/jpeg;", "image/jpeg;charset=utf-8;" ),
+            "wider than 1600 pixels": dataURL( "image/webp", webpOf( "VP8L", 1601, 900 ) ),
+            "taller than 1600 pixels": dataURL( "image/jpeg", jpegOf( 900, 1601 ) ),
+            "no pixels at all": dataURL( "image/webp", webpOf( "VP8 ", 0, 600 ) ),
+            "over 1,000,000 bytes": dataURL( "image/webp", tooLarge ),
+            "something after the image": dataURL( "image/webp", trailing ),
+            "a JPEG that never ends": dataURL( "image/jpeg", jpegOf( 800, 600, { unended: true } ) ),
+            "a JPEG whose scan comes before its frame": dataURL( "image/jpeg", jpegOf( 800, 600, { scanFirst: true } ) ),
+            "nothing after the comma": "data:image/webp;base64,",
+            "an object": { type: "image/webp", data: "AAAA" },
+            "a number": 42
+        };
+        assert.ok( tooLarge.length > Feedback.PICTURE_MAX_BYTES );
+        for ( const [ name, value ] of Object.entries( cases ) ) {
+            refusesPicture( () => feedback.readPicture( value ), name );
+        }
+    } );
+
+    it( "keeps the picture apart from the item, which says only that it has one", async () => {
+        const feedback = fresh();
+        const item = await feedback.submit( { kind: "problem", text: "Broken.", picture: PICTURES.webpOpaque }, SENDER );
+        const data = PICTURES.webpOpaque.split( "," )[ 1 ];
+        assert.deepEqual( item.picture, { type: "image/webp", bytes: Buffer.from( data, "base64" ).length, width: 40, height: 30 } );
+        const stored = await cacheStub.getValue( "ti:feedback:item:" + item.feedbackID );
+        assert.deepEqual( stored.picture, item.picture );
+        assert.deepEqual( await cacheStub.getValue( "ti:feedback:picture:" + item.feedbackID ), { type: "image/webp", data: data } );
+        assert.ok( !JSON.stringify( await feedback.fetchAll() ).includes( data.slice( 0, 64 ) ), "the list never carries the image" );
+        assert.deepEqual( Object.keys( cacheStub.storage ), [], "values, never documents" );
+
+        const plain = await feedback.submit( { kind: "suggestion", text: "Idea." }, SENDER );
+        assert.equal( plain.picture, null );
+        assert.equal( await cacheStub.getValue( "ti:feedback:picture:" + plain.feedbackID ), undefined );
+    } );
+
+    it( "answers a picture by its item, and only for an item that has one", async () => {
+        const feedback = fresh();
+        const item = await feedback.submit( { kind: "problem", text: "Broken.", picture: PICTURES.jpeg }, SENDER );
+        const plain = await feedback.submit( { kind: "suggestion", text: "Idea." }, SENDER );
+        assert.deepEqual( await feedback.fetchPicture( item.feedbackID ), { type: "image/jpeg", data: PICTURES.jpeg.split( "," )[ 1 ], width: 40, height: 30 } );
+        assert.equal( await feedback.fetchPicture( plain.feedbackID ), null );
+        assert.equal( await feedback.fetchPicture( "*" ), null );
+        assert.equal( await feedback.fetchPicture( "no-such-item" ), null );
+    } );
+
+    it( "refuses the whole submission for a malformed picture, and keeps nothing", async () => {
+        const feedback = fresh();
+        await assert.rejects( feedback.submit( { kind: "problem", text: "Broken.", picture: "data:image/png;base64,AAAA" }, SENDER ),
+            ( error ) => error.httpCode === 422 && error.data.details === "error.feedback.picture" );
+        assert.deepEqual( Object.keys( cacheStub.values ), [] );
+    } );
+
+    it( "never keeps a picture its item does not lead to: the item is written first, and taken back if the picture fails", async ( t ) => {
+        // A picture is found, shown and erased only through its item. Written first, a failure or a restart before the
+        // item left it kept for good, beyond erasure (the review pass).
+        const feedback = fresh();
+        const write = cacheStub.setValue.bind( cacheStub );
+        const order = [];
+        t.mock.method( cacheStub, "setValue", ( key, value, expiration ) => {
+            order.push( key.split( ":" )[ 2 ] );
+            return key.startsWith( "ti:feedback:picture:" ) ? Promise.reject( new Error( "store down" ) ) : write( key, value, expiration );
+        } );
+        await assert.rejects( feedback.submit( { kind: "problem", text: "Broken.", picture: PICTURES.webpAlpha }, SENDER ), /store down/ );
+        assert.deepEqual( order, [ "item", "picture" ] );
+        assert.deepEqual( Object.keys( cacheStub.values ), [], "the item taken back, so the person is told and sends again" );
+
+        // A failed item write stores nothing at all.
+        t.mock.restoreAll();
+        t.mock.method( cacheStub, "setValue", () => Promise.reject( new Error( "store down" ) ) );
+        await assert.rejects( feedback.submit( { kind: "problem", text: "Broken.", picture: PICTURES.webpAlpha }, SENDER ), /store down/ );
+        assert.deepEqual( Object.keys( cacheStub.values ), [] );
+    } );
+
+    it( "leaves no picture behind for an erasure that comes between the two writes, or a write that failed after landing", async ( t ) => {
+        // Outside the item's key, an erasure found the new item, deleted it and the picture not yet written, and the
+        // picture landed after; and a picture write that timed out having landed took only its item back (the second
+        // review pass).
+        const feedback = fresh();
+        const write = cacheStub.setValue.bind( cacheStub );
+        let erasure = null;
+        t.mock.method( cacheStub, "setValue", ( key, value, expiration ) => {
+            if ( key.startsWith( "ti:feedback:picture:" ) && erasure === null ) {
+                erasure = feedback.eraseSentBy( SUBJECT.id );
+                return new Promise( ( resolve ) => setTimeout( resolve, 10 ) ).then( () => write( key, value, expiration ) );
+            }
+            return write( key, value, expiration );
+        } );
+        await feedback.submit( { kind: "problem", text: "Mine.", picture: PICTURES.webpOpaque }, SENDER );
+        assert.equal( await erasure, 1, "the erasure waited for the item's key, then found it" );
+        assert.deepEqual( Object.keys( cacheStub.values ), [], "item and picture both gone" );
+
+        t.mock.restoreAll();
+        t.mock.method( cacheStub, "setValue", ( key, value, expiration ) => key.startsWith( "ti:feedback:picture:" )
+            ? write( key, value, expiration ).then( () => Promise.reject( new Error( "timed out" ) ) )
+            : write( key, value, expiration ) );
+        await assert.rejects( feedback.submit( { kind: "problem", text: "Broken.", picture: PICTURES.webpOpaque }, SENDER ), /timed out/ );
+        assert.deepEqual( Object.keys( cacheStub.values ), [] );
+    } );
+
+    it( "goes with its item on erasure; an anonymous item's stays with it", async () => {
+        const feedback = fresh();
+        const named = await feedback.submit( { kind: "problem", text: "Mine.", picture: PICTURES.webpOpaque }, SENDER );
+        const anonymous = await feedback.submit( { kind: "problem", text: "Nobody's.", anonymous: true, picture: PICTURES.jpeg }, SENDER );
+        assert.equal( await feedback.eraseSentBy( SUBJECT.id ), 1 );
+        assert.equal( await cacheStub.getValue( "ti:feedback:picture:" + named.feedbackID ), undefined );
+        assert.equal( await cacheStub.getValue( "ti:feedback:item:" + named.feedbackID ), undefined );
+        assert.ok( await feedback.fetchPicture( anonymous.feedbackID ) );
     } );
 
 } );
