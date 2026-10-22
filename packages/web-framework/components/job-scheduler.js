@@ -21,6 +21,7 @@ const cache = require( "@ti-engine/core/cache" );
 const tools = require( "@ti-engine/core/tools" );
 const logger = require( "@ti-engine/core/logger" );
 const exceptions = require( "@ti-engine/core/exceptions" );
+const timeZone = require( "@ti-engine/core/time-zone" );
 
 /** @import { TiJobDefinition, TiJobSchedule, TiJobTimeOfDay, TiJobsReport } from "#definitions" */
 
@@ -127,8 +128,9 @@ class JobScheduler {
 
     /**
      * Whether a job is due at a moment: its current period began after it last ran, or it never has. An hourly job's
-     * period begins on the hour, a daily job's at its time of day, both in UTC. A job first seen after its time of
-     * day runs on that first tick rather than waiting a day.
+     * period begins on the hour, a daily job's at its time of day, both on the deployment's clock (core's
+     * `time-zone`, UTC unless one is set). A job first seen after its time of day runs on that first tick rather than
+     * waiting a day.
      *
      * @method
      * @param {TiJobSchedule} job
@@ -142,23 +144,38 @@ class JobScheduler {
     }
 
     /**
-     * The moment the period holding `now` began, in milliseconds.
+     * The moment the period holding `now` began, in milliseconds, on a zone's clock (CA-550).
+     * <br/>
+     * A daily job's `at` is a time on the deployment's clock: `"06:00"` is 06:00 where the organization is, across both
+     * daylight-saving changes, where it used to be 06:00 UTC, 08:00 or 09:00 in Sofia. A time the clock shows twice is
+     * its first showing, so the job runs once in the repeated hour; a time it skips is read in the offset before the
+     * change, so 03:30 on Sofia's spring night begins the period at 04:30 (core's `instantOf`).
+     * <br/>
+     * An hourly job's period begins on the zone's hour (core's `hourStartIn`): the UTC hour in every whole-hour zone,
+     * the half past in a half-hour one, and every real hour, the repeated one included.
      *
      * @method
      * @param {TiJobSchedule} job
      * @param {Date} now
+     * @param {string} [zone] The deployment's unless stated.
      * @returns {number}
      * @public
      */
-    static periodStart( job, now ) {
-        const year = now.getUTCFullYear();
-        const month = now.getUTCMonth();
-        const day = now.getUTCDate();
+    static periodStart( job, now, zone = timeZone.getTimeZone() ) {
+        const instant = now.getTime();
         if ( job.every === PERIOD_HOUR ) {
-            return Date.UTC( year, month, day, now.getUTCHours() );
+            return timeZone.hourStartIn( instant, zone );
         }
-        const today = Date.UTC( year, month, day, job.at.hours, job.at.minutes );
-        return ( now.getTime() >= today ) ? today : Date.UTC( year, month, day - 1, job.at.hours, job.at.minutes );
+        const clock = timeZone.wallClockIn( instant, zone );
+        const at = `${ String( job.at.hours ).padStart( 2, "0" ) }:${ String( job.at.minutes ).padStart( 2, "0" ) }`;
+        const today = clock.slice( 0, 10 );
+        const start = timeZone.instantOf( today, at, zone );
+        if ( instant >= start ) {
+            return start;
+        }
+        // Date arithmetic on the wall-clock date, through UTC midnight, which no zone moves.
+        const [ year, month, day ] = today.split( "-" ).map( Number );
+        return timeZone.instantOf( new Date( Date.UTC( year, month - 1, day - 1 ) ).toISOString().slice( 0, 10 ), at, zone );
     }
 
     /**

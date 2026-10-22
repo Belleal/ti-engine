@@ -27,8 +27,8 @@ the header block verbatim from an existing file in the same package.
 ```
 ti-engine/                         npm workspace root (v1.3.1; workspaces = packages/*)
 ├── packages/
-│   ├── core/          v1.19.1     Framework foundation (pluggable cache backend — Redis or HTTP, optional messaging, lifecycle, utils) + the D1 state service + shipped TypeScript declarations
-│   ├── web-framework/ v1.58.1     Express server + auth (incl. real local auth, per-provider allowed domains, sign-in with a link sent by e-mail) + admin config-management + config drift + Profile/About + ti-charts + role gate + TI_WEB_* env overrides + /health + route seams + content-addressed immutable fragments + opt-in Server-Timing + start-up gate + busy indicator + CSP source additions + no overscroll bounce + the sidebar as a drawer on a narrow screen + the interface language chosen on the sign-in screen + a config change's author by name + only the newest screen lands in `#ti-content` + e-mail notices raised by configurable rules over events, with editable texts, a branded HTML layout, attached files and a per-deployment interval for what waits + scheduled jobs + What's new and Feedback screens an application turns on, Feedback with a picture of the screen, personal information blanked
+│   ├── core/          v1.20.0     Framework foundation (pluggable cache backend — Redis or HTTP, optional messaging, lifecycle, utils) + the D1 state service + the deployment's time zone + shipped TypeScript declarations
+│   ├── web-framework/ v1.59.0     Express server + auth (incl. real local auth, per-provider allowed domains, sign-in with a link sent by e-mail) + admin config-management + config drift + Profile/About + ti-charts + role gate + TI_WEB_* env overrides + /health + route seams + content-addressed immutable fragments + opt-in Server-Timing + start-up gate + busy indicator + CSP source additions + no overscroll bounce + the sidebar as a drawer on a narrow screen + the interface language chosen on the sign-in screen + a config change's author by name + only the newest screen lands in `#ti-content` + e-mail notices raised by configurable rules over events, with editable texts, a branded HTML layout, attached files and a per-deployment interval for what waits + scheduled jobs + What's new and Feedback screens an application turns on, Feedback with a picture of the screen, personal information blanked
 │   ├── web-content/   v0.5.2      Content-publishing engine — path-index routing, deny-by-default visibility, SEO documents, feeds, email capture with an optional Turnstile check (WIP)
 │   ├── cloudflare/    v0.6.1      The Cloudflare edge — the Worker in front of an application's container, assembled: scanner probes answered there, forwarding headers made true, the container's environment and egress, the order every request is decided in, the mail relay and the jobs cron, and the template a new application copies (WIP)
 │   └── tester/        v1.3.5      Reference/example service implementation + the docker-build target
@@ -43,7 +43,7 @@ ti-engine/                         npm workspace root (v1.3.1; workspaces = pack
 
 Dependency direction: `core` is standalone → `web-framework` depends on `core` → **`web-content` depends on both**, and `tester` on `core` alone. **`cloudflare` depends on nothing**: it runs in the Worker in front of an application's container, not in the container. `@cloudflare/containers` and core's state service stay the application's, which passes in what the Worker needs from them (`getContainer`, the state service, the sweep). Keep framework concerns in `core`/`web-framework` and application concerns in the consumer. Each package has its own independent semver version and `CHANGELOG.md`.
 
-Internal dependencies are declared `*` — **except `web-framework` → `@ti-engine/core`, which is `>=1.19.0`** (1.42.2; `>=1.18.0` from 1.42.0). It calls `localization.getSystemLanguage()` on every sign-in, and against an older core that throws and refuses everyone; its config store runs on `tools.KeyedLock` (1.19.0); `*` also let a consumer's lockfile keep the old core when it installed the new web-framework. Raise that floor whenever web-framework starts relying on a newer core API. **A dependency-update tool loosens both
+Internal dependencies are declared `*` — **except `web-framework` → `@ti-engine/core`, which is `>=1.20.0`** (1.59.0; `>=1.19.0` from 1.42.2, `>=1.18.0` from 1.42.0). It calls `localization.getSystemLanguage()` on every sign-in, and against an older core that throws and refuses everyone; its config store runs on `tools.KeyedLock` (1.19.0); `/app/config`, its jobs and its notice intervals read `@ti-engine/core/time-zone` (1.20.0); `*` also let a consumer's lockfile keep the old core when it installed the new web-framework. Raise that floor whenever web-framework starts relying on a newer core API. **A dependency-update tool loosens both
 pins** — it turned `>=1.19.0` into `*` and `@alpinejs/csp` `3.17.4` into `^3.17.4` in 06a86a9, and the second failed
 `test/bundled-libraries.test.js` on `master`; restore them after any bulk update (1.51.0, CA-480). The root `package-lock.json` is gitignored and CI runs `npm install`, so a range change needs no lockfile commit — but `npm install` also runs web-framework's `postinstall`, which rewrites `bin/static/scripts/lib/alpinejs-csp.min.js` and `htmx.min.js` from the installed packages; restore them unless refreshing them is the point.
 
@@ -104,7 +104,7 @@ history and older PR bodies; it is no longer the working branch.
 
 ---
 
-## Package: core (v1.19.1)
+## Package: core (v1.20.0)
 
 **Role**: Foundational framework. All other packages depend on it. Standalone (no intra-repo deps).
 
@@ -145,9 +145,30 @@ history and older PR bodies; it is no longer the working branch.
 | `design/state-protocol.md` | The contract `HttpCacheProvider` speaks, plus the D1 mapping and the shipped implementation (§6) |
 | `integrations/redis-integration.js` | ioredis client with connection pooling (RedisJSON: `JSON.MERGE`, `JSON.MGET`) |
 
-**Public exports** (`package.json` `exports`): `.` (start-instance), `./tools`, `./cache`, `./exceptions`, `./logger`, `./localization`, `./service-instance`, `./service-consumer`, `./service-provider`, `./state-service` (1.17.0), `./definitions` (the shared typedefs).
+**Public exports** (`package.json` `exports`): `.` (start-instance), `./tools`, `./cache`, `./exceptions`, `./logger`, `./localization`, `./service-instance`, `./service-consumer`, `./service-provider`, `./state-service` (1.17.0), `./time-zone` (1.20.0), `./definitions` (the shared typedefs).
 
-**Since the skill's last sync (1.9.0 → 1.19.0):**
+**Since the skill's last sync (1.9.0 → 1.20.0):**
+- **1.20.0 — the deployment's time zone** (CA-550; design record
+  `docs/superpowers/specs/2026-10-22-application-time-zone-design.md`). `localization.timeZone`,
+  `TI_LOCALIZATION_TIME_ZONE`, names the zone every calendar day of an application is a date in. **Instants stay UTC**.
+  `utils/time-zone.js` (`./time-zone`, `#time-zone`) has:
+  - `getTimeZone()` (UTC when unset), `isTimeZoneSet()`, `verifyTimeZone()` and `resolveTimeZone( name )`;
+  - `today( now?, zone? )`, `dateIn( instant, zone? )`, `wallClockIn( instant, zone? )`, `instantOf( date, time, zone? )`
+    and `hourStartIn( instant, zone? )`, the instant the zone's current hour began. web-framework's hourly job and
+    hourly notice interval both begin there.
+
+  Three rules to keep:
+  - **A calendar day is never a timestamp's first ten characters**, and never `new Date().toISOString().slice( 0, 10 )`:
+    that is the UTC date, which turns over at 02:00 or 03:00 in Sofia.
+  - **A name the runtime does not know stops `start-instance`** before the service is built, and web-framework's
+    `TiWebServer` when built. So does a fixed offset (`+02:00`), which Node accepts but which is no place's zone. Unset,
+    nothing changes.
+  - **On a daylight-saving night**, a wall-clock time shown twice is its first showing, and one skipped is read in the
+    offset before the change. `test/time-zone.test.js` pins both on Sofia's 2026 dates.
+
+  The name is the runtime's own, which can be a legacy alias: Node 24.22 writes `Asia/Kolkata` as `Asia/Calcutta`.
+  The setting is frozen at load, so a test sets `TI_LOCALIZATION_TIME_ZONE` at the top of its file, as the
+  `TI_LOCALIZATION_LANGUAGE` tests do, and passes `zone` to ask about any other.
 - **1.19.0 — `tools.KeyedLock` and `tools.whenAllSettled`**, the per-key lock and the write-settling helper that
   web-framework's config store kept privately from 1.42.0 (CA-192). They moved here for competence's evaluations,
   cycles and interview slots (CA-188 to CA-191). The config store runs on both from web-framework 1.42.2.
@@ -314,7 +335,7 @@ module.exports.service = function (serviceDefinition, serviceParams, serviceCall
 
 **Test commands**:
 ```bash
-npm test    # node --test — 244 tests / 58 suites: 24 test files, plus the five test/fixtures/
+npm test    # node --test — 252 tests / 59 suites: 25 test files, plus the five test/fixtures/
             # modules, which node's default pattern runs as files too (each counts as one test)
             # (auditing-json-console, cache-capabilities, cache-get-values, cache-provider-selection,
             #  cache-store, d1-state-service, d1-state-service.partitions, d1-state-service.differential,
@@ -335,7 +356,7 @@ npm test    # node --test — 244 tests / 58 suites: 24 test files, plus the fiv
 
 ---
 
-## Package: web-framework (v1.58.1)
+## Package: web-framework (v1.59.0)
 
 **Role**: Express.js web server + authentication layer + a reusable **admin config-management subsystem** for web-facing UIs + a CSP-safe **charting primitive library** (`ti-charts.js`) + the container-deployment surface (`TI_WEB_*` env overrides, `GET /health`) and the **route-registration seams** (1.17.0) a subclass uses to mount its own routes — what `web-content` is built on.
 
@@ -356,7 +377,7 @@ npm test    # node --test — 244 tests / 58 suites: 24 test files, plus the fiv
 | `components/web-config-env.js` | `applyWebConfigEnvOverrides( config, env = process.env )` (`#web-config-env`, 1.14.0+) — the pure `TI_WEB_*` override layer over the merged server config; `TI_WEB_PUBLIC_URL`, `TI_WEB_NOTIFY_*` and `TI_WEB_JOBS_*` since 1.52.0 |
 | `components/notification-service.js` | `NotificationService.instance`, exported as `./notifications` (1.52.0, CA-486): `registerNotice` / `registerEvent`, `configDocument( defaults, metadata )` (the `notifications` document's schema, validator and default), `emit` (rules → notices), `notify` (one notice, once per key, under a `KeyedLock`), `drain` (the dispatcher, one pass at a time), `forget( id )`, `render( kind, recipient, data, texts )`. Since 1.53.0 (CA-490): the document's optional `texts` (edits by label key and language, only what was edited) win over the shipped labels, `editableTexts()` lists what may be edited, `registerNotice` takes `placeholders` and `labels`, `format` gets a `label( key )`; `options` in the application's schema (`configDocument( defaults, metadata, { options } )`, read by `getOptions()`); `setLayout( { name, colors, font, action, footer } )` for a table-based HTML e-mail that fetches nothing; `sendTest()` past the outbox and ledger, and since 1.57.0 `sendNow( kind, recipient, data )` the same way with one attempt and the shipped texts when the document cannot be read (both through the private `#sendAtOnce`), plus the `publicUrl` and `transportName` getters. Since 1.54.0 (CA-496): the document's optional `sendEveryHours` (1, 2, 3, 4, 6, 8, 12 or 24, counted from midnight UTC; every hour when absent, read by `getSendEveryHours()`) sets how often a job tick sends what waits, through `sendDue( now )`, which records each pass at `ti:notify:last-pass` and drains anyway when that record cannot be read. A write's own notices still go straight after it. Outbox and ledger are **values**, never JSON documents: D1 cannot delete a document. Keys are `ti:notify:{pending,done}:<16 hex of the recipient ID's SHA-256>:<SHA-256 of the key>`. No log line or ledger entry holds an address or a text, and a recipient ID with `@` is refused |
 | `components/notification-transports.js` | `#notification-transports` (1.52.0): `createLogTransport()`, `createRelayTransport( url )` (POSTs to the Worker's relay; anything but its own answer is a transient `E_RELAY_UNAVAILABLE`), `transportError`, `TRANSIENT_CODES`, `DAILY_LIMIT_CODE` |
-| `components/job-scheduler.js` | `JobScheduler.instance`, exported as `./jobs` (1.52.0): `registerJob( name, { every: "hour"\|"day", at, run } )` and `runDueJobs( now )`, which runs each job whose UTC period began since its last recorded run (`ti:jobs:last:<name>`, a value), one tick at a time. `TiWebServer` provides the tick: `TI_WEB_JOBS_TRIGGER` `internal` (default; a 15-minute timer, unref'd), `route` (`POST /_ti/jobs/run` after the start-up gate and before the session, **refused at construction without `TI_WEB_JOBS_BEHIND_WORKER=true`**), or `off`; `runJobTick()` is jobs then `sendDue( now )`, whose report is `null` on a tick inside an interval already passed (1.54.0) |
+| `components/job-scheduler.js` | `JobScheduler.instance`, exported as `./jobs` (1.52.0): `registerJob( name, { every: "hour"\|"day", at, run } )` and `runDueJobs( now )`, which runs each job whose period began since its last recorded run; **a daily job's `at` and an hourly job's hour are on the deployment's clock** (1.59.0, CA-550: core's `time-zone`, UTC when unset; `periodStart( job, now, zone? )`) (`ti:jobs:last:<name>`, a value), one tick at a time. `TiWebServer` provides the tick: `TI_WEB_JOBS_TRIGGER` `internal` (default; a 15-minute timer, unref'd), `route` (`POST /_ti/jobs/run` after the start-up gate and before the session, **refused at construction without `TI_WEB_JOBS_BEHIND_WORKER=true`**), or `off`; `runJobTick()` is jobs then `sendDue( now )`, whose report is `null` on a tick inside an interval already passed (1.54.0) |
 | `components/whats-new.js` | `WhatsNew.instance`, exported as `./whats-new` (1.56.0, CA-528): an application's release notes and which a person is shown. `configure( { notes, baseline, audiences } )` (through `TiWebAppManager#enableWhatsNew`) validates the notes against `notesSchema( audiences )` plus order and duplicate IDs (`validateNotes`, which an application's own test can call) and **throws**, so a malformed file stops the start. A note's audience is `everyone`, `admin` or a name the application maps to its role codes, compared strictly (`2` is not `"2"`). The release record `ti:whats-new:release` (`{ version, previous, since }`, the rules CA-526 settled: restart keeps it, upgrade shifts it, rollback keeps only an older previous, no record reads as `baseline`) is read once per process and kept in memory only when the store fails. The marker is `ti:whats-new:seen:<16 hex of the subject ID's SHA-256>`; `markerOf` / `forget` serve export and erasure |
 | `components/feedback.js` | `Feedback.instance`, exported as `./feedback` (1.56.0, CA-528): `enable( { dateLocales } )` registers the `feedback.received` event and the `feedback-received` notice (link `/app/feedback-inbox`); the server calls `configure( { admins } )` with `auth.admins` after the `TI_WEB_*` overrides and keeps only address-shaped entries. Items are values `ti:feedback:item:<uuid>`; `fetchAll` is `matchKeys` plus reads **eight at a time** (the D1 provider has no batch read); `fetch` answers only an ID matching `^[A-Za-z0-9-]{1,64}$`, so a glob character cannot read another key; the address check's domain labels exclude the dot, so it runs in linear time (`[^@\s]+\.[^@\s]+` was quadratic on a crafted entry, CodeQL `js/polynomial-redos`); `setStatus` holds the item's key; `sentBy` / `eraseSentBy` never find an anonymous item. `received` writes to every recipient but the sender (anonymous excludes nobody), recipient ID `administrator-` + 12 hex, and never rejects. Since 1.58.0 (CA-544) a submission may carry `picture`, a `data:` URL that `readPicture` checks (WebP or JPEG, strict base64, the file's own signature and stated dimensions, 1–1600 px a side, ≤ 1,000,000 bytes; else 422 `error.feedback.picture`). It is the value `ti:feedback:picture:<id>`, `{ type, data }`, written **after** the item, which a failed picture write takes back: a picture is found and erased only through its item, so one written first could outlive erasure. The item keeps only `picture: { type, bytes, width, height }`. `fetchPicture` reads it; `eraseSentBy` deletes it with its item |
 | `components/user.js` | User object model |
@@ -373,7 +394,32 @@ npm test    # node --test — 244 tests / 58 suites: 24 test files, plus the fiv
 
 **Public exports** (`package.json` `exports`) — **ten**: `./config-management` (config-service), `./web-application` (web-app-manager), `./web-server`, `./authorization`, `./config-drift`, `./definitions`, since 1.52.0 `./notifications` and `./jobs`, and since 1.56.0 `./whats-new` and `./feedback`. `./authorization`, `./config-drift` and `./definitions` are easy to forget and a consumer does import them: competence reaches for `./authorization` and `./config-drift` directly. Anything not on this list fails with `ERR_PACKAGE_PATH_NOT_EXPORTED`, so **adding a module a consumer needs means adding its `exports` entry** — that is the API surface, and changing it is a breaking change for every consumer.
 
-**Since the skill's last sync (1.25.1 → 1.58.1):**
+**Since the skill's last sync (1.25.1 → 1.59.0):**
+- **The deployment's time zone reaches every screen, daily job and notice interval** (1.59.0, CA-550, with core
+  1.20.0; design record `docs/superpowers/specs/2026-10-22-application-time-zone-design.md`).
+  - **`/app/config` carries `timeZone`**: the zone, or `null` when `TI_LOCALIZATION_TIME_ZONE` is unset.
+  - **`tiToolbox` reads it:**
+    - `getTimeZone()` is the zone, or `undefined`, which `Intl` reads as the device's.
+    - `clock( at? )` is `{ date, minutes }`, and `today( at? )` is its date.
+    - `dayOf( value )` is a timestamp's day in the zone. Only a string with a time **and an offset** is a timestamp;
+      anything else passes through.
+    - `formatDate` writes `dayOf( value )`, so the Feedback inbox and What's new date their items where the
+      organization is.
+    - **A calendar date stays itself.** Never add `timeZone` to the formatting of a `YYYY-MM-DD`: its local midnight,
+      read in a zone west of the device's, names the day before.
+    - Before the configuration arrives, without a zone, or with one the browser lacks, every reading is the device's
+      clock, as before.
+  - **A daily job's `at` is local**, and an hourly job's period begins on the zone's hour, every real hour.
+  - **Notice intervals count from the zone's midnight**, and read a daylight-saving night as the jobs do. A one-hour
+    interval is every real hour (`hourStartIn`); a longer one begins at its boundary's first showing, so it is never
+    cut in two. A provider's daily limit stays on UTC. The feedback e-mail's date is the zone's day, and it never
+    rejects.
+  - **`TiWebServer` refuses an unknown zone** when built, as `start-instance` does.
+  - **An application that sets the zone states each job's `at` in local time.**
+  - Tests:
+    - `test/time-zone.server.test.js`, with Sofia set at the file's top;
+    - `test/ti-framework.time-zone.test.js`, with the device in Los Angeles through `TZ`;
+    - `test/web-server.time-zone.test.js`, with an unknown zone, which the server refuses to be built on.
 - **A picture of the screen with Send Feedback, personal information blanked** (1.58.0, CA-544; design record
   `docs/superpowers/specs/2026-10-21-web-framework-feedback-picture-design.md`). `tiScreenTrail.holdFor( proceed )`
   draws the screen being left with the bundled modern-screenshot (loaded on first use; under `'strict-dynamic'` a script
@@ -1325,7 +1371,7 @@ Token: YouTrack → Profile → Account Security → New token (scope: YouTrack)
 2. **Extending the web UI**: subclass `TiWebAppManager`, add an HTML fragment + matching Alpine component; reuse framework CSS primitives; obey the Alpine CSP rules (no inline styles, no `?.`).
 3. **Config-management, from a consumer's side**: a consuming application registers a config document (schema + file default + semantic validators + optional composite editor) through `TiWebAppManager.registerConfigDocument` / `registerConfigEditor`. Those seams live here; the documents themselves live in the consumer. Changing either seam is a breaking change for every consumer, so treat the `exports` map and these signatures as API.
 4. **Testing**: Node.js built-in `node --test` (no external framework); each package's `test/` directory. `npm test`
-   at the root fans out across workspaces — **2075 tests today: core 244, web-framework 1209, web-content 433,
+   at the root fans out across workspaces — **2103 tests today: core 252, web-framework 1229, web-content 433,
    cloudflare 189, tester none** (it is a runnable service, not a unit-tested one). The three checks that gate a push are in
    `CLAUDE.md` → *Definition of done*: `npm test`, `npm run lint` (0 errors; ESLint runs `@eslint/js`'s
    recommended rules with `no-unused-vars` turned down to a **warning** — `no-control-regex` is an error, measured in

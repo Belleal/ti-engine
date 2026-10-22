@@ -47,8 +47,9 @@ declare class JobScheduler {
     runDueJobs(now?: Date): Promise<TiJobsReport>;
     /**
      * Whether a job is due at a moment: its current period began after it last ran, or it never has. An hourly job's
-     * period begins on the hour, a daily job's at its time of day, both in UTC. A job first seen after its time of
-     * day runs on that first tick rather than waiting a day.
+     * period begins on the hour, a daily job's at its time of day, both on the deployment's clock (core's
+     * `time-zone`, UTC unless one is set). A job first seen after its time of day runs on that first tick rather than
+     * waiting a day.
      *
      * @method
      * @param {TiJobSchedule} job
@@ -59,15 +60,24 @@ declare class JobScheduler {
      */
     static isDue(job: TiJobSchedule, lastRun: number, now: Date): boolean;
     /**
-     * The moment the period holding `now` began, in milliseconds.
+     * The moment the period holding `now` began, in milliseconds, on a zone's clock (CA-550).
+     * <br/>
+     * A daily job's `at` is a time on the deployment's clock: `"06:00"` is 06:00 where the organization is, across both
+     * daylight-saving changes, where it used to be 06:00 UTC, 08:00 or 09:00 in Sofia. A time the clock shows twice is
+     * its first showing, so the job runs once in the repeated hour; a time it skips is read in the offset before the
+     * change, so 03:30 on Sofia's spring night begins the period at 04:30 (core's `instantOf`).
+     * <br/>
+     * An hourly job's period begins on the zone's hour (core's `hourStartIn`): the UTC hour in every whole-hour zone,
+     * the half past in a half-hour one, and every real hour, the repeated one included.
      *
      * @method
      * @param {TiJobSchedule} job
      * @param {Date} now
+     * @param {string} [zone] The deployment's unless stated.
      * @returns {number}
      * @public
      */
-    static periodStart(job: TiJobSchedule, now: Date): number;
+    static periodStart(job: TiJobSchedule, now: Date, zone?: string): number;
     /**
      * Reads a time of day written `HH:MM`, 24-hour.
      *

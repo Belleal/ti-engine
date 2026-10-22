@@ -34,6 +34,7 @@ const settingsEnum = tools.enum( {
     GCLOUD_PROJECT_ID: [ "gcloudIntegration.projectID", "projectID", "" ],
     LOCALIZATION_LABELS_PATH: [ "localization.labelsPath", "labelsPath", "" ],
     LOCALIZATION_LANGUAGE: [ "localization.language", "language", "" ],
+    LOCALIZATION_TIME_ZONE: [ "localization.timeZone", "timeZone", "" ],
     MEMORY_CACHE_AUTH_KEY: [ "memoryCache.authKey", "authKey", "" ],
     MEMORY_CACHE_PROVIDER: [ "memoryCache.provider", "provider", "" ],
     MEMORY_CACHE_REDIS_DB: [ "memoryCache.redisDB", "redisDB", "" ],
@@ -80,6 +81,8 @@ if ( settings.localization ) {
         ? process.env.TI_LOCALIZATION_LABELS_PATH.split( "," ).map( ( p ) => p.trim() ).filter( Boolean )
         : settings.localization.labelsPath;
     settings.localization.language = ( process.env.TI_LOCALIZATION_LANGUAGE !== undefined ) ? process.env.TI_LOCALIZATION_LANGUAGE : settings.localization.language;
+    // An IANA zone, the one every calendar day is a date in; see `#time-zone`, which refuses a name the runtime lacks.
+    settings.localization.timeZone = ( process.env.TI_LOCALIZATION_TIME_ZONE !== undefined ) ? process.env.TI_LOCALIZATION_TIME_ZONE : settings.localization.timeZone;
 }
 if ( settings.memoryCache ) {
     settings.memoryCache.authKey = ( process.env.TI_MEMORY_CACHE_AUTH_KEY !== undefined ) ? process.env.TI_MEMORY_CACHE_AUTH_KEY : settings.memoryCache.authKey;
