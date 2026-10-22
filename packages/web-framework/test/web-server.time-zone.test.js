@@ -26,11 +26,27 @@ const { describe, it } = require( "node:test" );
 const assert = require( "node:assert/strict" );
 
 const TiWebServer = require( "#web-server" );
+const Feedback = require( "#feedback" );
+const NotificationService = require( "#notification-service" );
 
 describe( "TiWebServer and the deployment's time zone (CA-550)", () => {
 
     it( "refuses to be built on a zone the runtime does not know", () => {
         assert.throws( () => new TiWebServer( "ti-time-zone", {} ), ( error ) => error.data && error.data.reason === "invalid-time-zone" );
+    } );
+
+    it( "still tells the administrators of an item sent in a host that skipped that check: their e-mail never fails it", async ( t ) => {
+        NotificationService.instance.setTransport( { send: () => Promise.resolve( { messageId: "test" } ) } );
+        t.after( () => NotificationService.instance.setTransport( null ) );
+        const emitted = [];
+        t.mock.method( NotificationService.prototype, "emit", ( name, occurrence ) => {
+            emitted.push( occurrence );
+            return Promise.resolve( 1 );
+        } );
+        const feedback = new Feedback().configure( { admins: [ "boss@example.com" ] } );
+        const item = { feedbackID: "f-1", kind: "problem", text: "It broke.", anonymous: false, senderName: "Jane Doe", submittedAt: "2026-10-21T21:30:00.000Z" };
+        await assert.doesNotReject( async () => feedback.received( item ) );
+        assert.equal( emitted[ 0 ].data.date, "2026-10-21", "the UTC date, where the zone cannot be read" );
     } );
 
 } );

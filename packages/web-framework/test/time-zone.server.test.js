@@ -104,6 +104,13 @@ describe( "the deployment's time zone on the server (CA-550)", () => {
         assert.equal( iso( NotificationService.intervalStart( 1, new Date( "2026-03-29T01:20:00Z" ) ) ), "2026-03-29T01:00:00.000Z", "spring: 04:00 EEST, the clock having skipped 03:00" );
     } );
 
+    it( "keeps a longer interval whole across the repeated hour, from its boundary's first showing, as a daily job does", () => {
+        // A 3-hour interval from 03:00 on 25 October: both showings of 03:20 are in it. Cut at the second showing, it
+        // had a second pass an hour after the first (the second review pass).
+        assert.equal( iso( NotificationService.intervalStart( 3, new Date( "2026-10-25T00:20:00Z" ) ) ), "2026-10-25T00:00:00.000Z" );
+        assert.equal( iso( NotificationService.intervalStart( 3, new Date( "2026-10-25T01:20:00Z" ) ) ), "2026-10-25T00:00:00.000Z" );
+    } );
+
     it( "dates the feedback e-mail on the day the inbox shows", async ( t ) => {
         NotificationService.instance.setTransport( { send: () => Promise.resolve( { messageId: "test" } ) } );
         t.after( () => NotificationService.instance.setTransport( null ) );

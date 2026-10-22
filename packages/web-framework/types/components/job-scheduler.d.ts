@@ -64,12 +64,11 @@ declare class JobScheduler {
      * <br/>
      * A daily job's `at` is a time on the deployment's clock: `"06:00"` is 06:00 where the organization is, across both
      * daylight-saving changes, where it used to be 06:00 UTC, 08:00 or 09:00 in Sofia. A time the clock shows twice is
-     * its first showing, so the job runs once in the repeated hour; a time it skips begins the period when the clock
-     * jumps past it.
+     * its first showing, so the job runs once in the repeated hour; a time it skips is read in the offset before the
+     * change, so 03:30 on Sofia's spring night begins the period at 04:30 (core's `instantOf`).
      * <br/>
-     * An hourly job's period begins on the zone's hour, taken as `now` less what the zone's clock shows past the hour.
-     * That is the UTC hour in every whole-hour zone and the half past in a half-hour one, and it runs every real hour,
-     * the repeated one included.
+     * An hourly job's period begins on the zone's hour (core's `hourStartIn`): the UTC hour in every whole-hour zone,
+     * the half past in a half-hour one, and every real hour, the repeated one included.
      *
      * @method
      * @param {TiJobSchedule} job

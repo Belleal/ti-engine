@@ -7,8 +7,8 @@ declare const _exports: {
     dateIn: typeof dateIn;
     wallClockIn: typeof wallClockIn;
     today: typeof today;
-    instantsOf: typeof instantsOf;
     instantOf: typeof instantOf;
+    hourStartIn: typeof hourStartIn;
 };
 export = _exports;
 /**
@@ -88,25 +88,12 @@ declare function wallClockIn(instant: number, zone?: string): string;
  */
 declare function today(now?: Date | number, zone?: string): string;
 /**
- * Every instant at which a zone's clock shows a wall-clock date and time, earliest first.
+ * The instant a wall-clock date and time name in a zone.
  * <br/>
  * The zone's offset a day either side is tried, which covers both sides of a daylight-saving change. A time the clock
- * shows twice, 03:30 on Sofia's autumn night, has two instants, an hour apart. A time the clock skips, 03:30 on Sofia's
- * spring night, has one: read in the offset before the change, it is the instant the clock shows 04:30. A date or a
- * time that is not one has none.
- *
- * @method
- * @param {string} date `YYYY-MM-DD`.
- * @param {string} time `HH:MM`, 24-hour.
- * @param {string} [zone] The deployment's unless stated.
- * @returns {number[]} Milliseconds since the epoch.
- * @public
- */
-declare function instantsOf(date: string, time: string, zone?: string): number[];
-/**
- * The instant a wall-clock date and time name in a zone: the first of {@link instantsOf}. A time the clock shows twice
- * is its first showing, so a period that begins there has begun by the time either is shown and nothing runs twice in
- * the repeated hour. A time the clock skips is the instant it jumps past it.
+ * shows twice, 03:30 on Sofia's autumn night, is its first showing: a period that begins there has begun by the time
+ * either is shown, so nothing runs twice in the repeated hour. A time the clock skips, 03:30 on Sofia's spring night,
+ * is read in the offset before the change: 01:30 UTC, which the clock shows as 04:30, half an hour after its jump.
  *
  * @method
  * @param {string} date `YYYY-MM-DD`.
@@ -116,3 +103,18 @@ declare function instantsOf(date: string, time: string, zone?: string): number[]
  * @public
  */
 declare function instantOf(date: string, time: string, zone?: string): number;
+/**
+ * The instant the hour a zone's clock shows at `instant` began: `instant` less what the clock shows past the hour.
+ * <br/>
+ * That is the UTC hour in every whole-hour zone and the half past in a half-hour one. In the hour the clock repeats,
+ * each showing is an hour of its own, so a period of one hour is every real hour. web-framework's hourly jobs and its
+ * hourly notice interval both begin here, so the two cannot treat a daylight-saving night two ways (the review pass
+ * found they did).
+ *
+ * @method
+ * @param {number} instant Milliseconds since the epoch.
+ * @param {string} [zone] The deployment's unless stated.
+ * @returns {number}
+ * @public
+ */
+declare function hourStartIn(instant: number, zone?: string): number;

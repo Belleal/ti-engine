@@ -82,8 +82,8 @@ name of the setting.
 | `today( now?, zone? )` | `YYYY-MM-DD` in the zone at `now` (a `Date` or milliseconds). |
 | `dateIn( instant, zone? )` | `YYYY-MM-DD` the zone shows at an instant. |
 | `wallClockIn( instant, zone? )` | `YYYY-MM-DDTHH:MM` the zone shows at an instant. It compares with a stored `date` + `T` + `time` as text. |
-| `instantsOf( date, time, zone? )` | Every instant the zone's clock shows that date and time, earliest first: two in a repeated hour, one otherwise, none for anything that is not a date and time. |
-| `instantOf( date, time, zone? )` | The first of them; `NaN` for anything that is not one. |
+| `hourStartIn( instant, zone? )` | The instant the zone's current hour began: every real hour, the repeated one included, and the half past in a half-hour zone. web-framework's hourly job and hourly notice interval both begin here. |
+| `instantOf( date, time, zone? )` | The instant a wall-clock `YYYY-MM-DD` and `HH:MM` name in the zone; `NaN` for anything that is not one. |
 
 Every `zone?` defaults to `getTimeZone()`. Formatters are kept one per zone, so a hot path formats instead of
 building one each time.
@@ -91,8 +91,8 @@ building one each time.
 **Daylight-saving changes** (§6.2 has the measurements):
 - **A time the clock repeats** (03:30 on Sofia's autumn night) is its **first** occurrence. A period that starts
   there has started by the time either reading of that time is shown.
-- **A time the clock skips** (03:30 on Sofia's spring night) is the instant the clock jumps to, read in the offset
-  before the change. In Sofia that is 04:30 EEST.
+- **A time the clock skips** (03:30 on Sofia's spring night) is read in the offset before the change: 01:30 UTC, which
+  the clock shows as 04:30 EEST, half an hour after its jump.
 
 ### 4.3 web-framework: the browser
 
@@ -120,10 +120,11 @@ building one each time.
   hour. That is the UTC hour for every whole-hour zone. In a half-hour zone (India) it is the half past.
 - **A notice interval of `hours` counts from the zone's midnight.** A daily summary goes at local midnight, and a
   6-hour interval begins at 00:00, 06:00, 12:00 and 18:00 local time.
-- **A boundary the clock shows twice begins an interval at each showing**, the latest one passed. In Sofia's repeated
-  hour, an hourly interval is each real hour. Counted from the first showing alone, the second hour had no pass (the
-  review pass). A job keeps the first showing, so it runs once; a notice pass may run twice, which is harmless, since
-  delivery is at least once anyway.
+- **A daylight-saving night is read as the jobs read it.**
+  - A one-hour interval is every real hour, the repeated one included (`hourStartIn`), as an hourly job's period is.
+    Counted from the first showing, the second repeated hour had no pass (the first review pass).
+  - A longer interval begins at its boundary's first showing, as a daily job does, so it is never cut in two. Cut at
+    each showing, a 3-hour interval had a second pass an hour after the first (the second review pass).
 - **A provider's daily limit stays on UTC** (`nextUTCMidnight`). It is the provider's day, not the organization's.
 - **`periodStart( job, now, zone? )` and `intervalStart( hours, now, zone? )`** take the zone as an optional last
   argument, as the core helpers do, so a test or a caller can ask about any zone.
@@ -199,15 +200,18 @@ The tests in §7 pin these values.
   early west of UTC, which is a defect of its own. Passing the zone alone would fix the first and worsen the second,
   so the fix treats the two apart, in a web-content patch.
 
-## 9. The review pass
+## 9. The review passes
 
-`code-review` at high on `origin/master...HEAD` raised 8 findings. 6 were fixed, each with a test that fails without
-the fix; 2 were declined.
+### 9.1 First pass
+
+`code-review` at high on `origin/master...HEAD` raised 8 findings. 6 were fixed: 5 with a test that fails without the
+fix, and the JSDoc gaps, which no test checks. 2 were declined.
 
 **Fixed:**
 1. **The feedback e-mail** dated an item by its timestamp's first ten characters, while the inbox showed the zone's
    day. It now uses `dateIn`.
-2. **An hourly notice interval** left the second showing of the repeated hour without a pass (§4.4).
+2. **An hourly notice interval** left the second showing of the repeated hour without a pass (§4.4). The fix first
+   began every interval at its latest showing; the second pass (§9.2) narrowed that to the one-hour interval.
 3. **`tiToolbox.clock()`** threw on an instant no clock can read once a zone was set, and did not without one. It
    now reads such an instant on the device's clock, as it would with no zone.
 4. **`TiWebServer`** did not check the zone, so a host other than `start-instance` failed at every `/app/config`
@@ -220,3 +224,27 @@ the fix; 2 were declined.
   pinned by core's own tests. Every position read from it is exercised: the hour by the interval tests, the minutes
   by the hourly job in Kolkata, and the date by the daily jobs.
 - **web-content** is named in §8 and filed as CA-552.
+
+### 9.2 Second pass, on the fixes
+
+`code-review` at high on the fix commit raised 8 findings. 7 were fixed and 1 was declined.
+
+**Fixed:**
+1. **A 3-hour interval was cut in two** across the repeated hour, and had two passes.
+2. **The jobs and the notice intervals solved the repeated hour two ways.** That is how the first finding got in.
+   Both now begin a one-hour period at core's `hourStartIn`, and a longer one at the first showing (§4.4).
+   `instantsOf`, added for the first fix, is gone with it.
+3. **`received` could throw** on a zone the runtime does not know, in a host that skipped the server's check, though
+   it never rejects. Its day now falls back to the UTC date there.
+4. **`instantOf`'s JSDoc** said a skipped time is the instant the clock jumps past it. It is read in the offset before
+   the change, half an hour later for 03:30 (§4.2). `periodStart`'s JSDoc said the same.
+5. **The skill** listed the test files incompletely and gave core's test count as 244 in one place and 252 in another.
+6. **The changelog** claimed a failing test for the JSDoc fixes; no test checks JSDoc.
+7. **`Date.parse` ran twice** in the e-mail's day.
+
+Fixes 1 and 3 each have a test that fails on the commit before, and so does `hourStartIn`'s.
+
+**Declined:**
+- **`clock()` on an unreadable instant gives `NaN` fields**, whose `NaN-NaN-NaN` sorts after every date. It does so with
+  or without a zone, which is what the first pass asked for. An instant the caller could not read has no day, and a
+  caller that may pass one checks it, as it does for `formatDate`'s placeholder. The JSDoc now says so.

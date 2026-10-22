@@ -102,12 +102,13 @@ describe( "the deployment's time zone (CA-550)", () => {
         assert.equal( at( "2026-10-25", "06:00" ), "2026-10-25T04:00:00.000Z" );
     } );
 
-    it( "lists every instant the clock shows a time at: two in the repeated hour, one where it skips, none for no time", () => {
-        const at = ( date, time ) => timeZone.instantsOf( date, time ).map( ( instant ) => new Date( instant ).toISOString() );
-        assert.deepEqual( at( "2026-10-25", "03:30" ), [ "2026-10-25T00:30:00.000Z", "2026-10-25T01:30:00.000Z" ], "EEST, then EET" );
-        assert.deepEqual( at( "2026-03-29", "03:30" ), [ "2026-03-29T01:30:00.000Z" ], "skipped: where the clock jumps past it" );
-        assert.deepEqual( at( "2026-10-22", "10:30" ), [ "2026-10-22T07:30:00.000Z" ] );
-        assert.deepEqual( timeZone.instantsOf( "2026-04-31", "10:00" ), [] );
+    it( "begins an hour where the zone's clock does: every real hour, and the half past in a half-hour zone", () => {
+        const start = ( at, zone ) => new Date( timeZone.hourStartIn( Date.parse( at ), zone ) ).toISOString();
+        assert.equal( start( "2026-10-22T09:47:12.345Z" ), "2026-10-22T09:00:00.000Z", "Sofia's hour is the UTC hour" );
+        assert.equal( start( "2026-10-22T04:47:12Z", "Asia/Kolkata" ), "2026-10-22T04:30:00.000Z" );
+        // 25 October: 03:00-03:59 is shown at 00:00Z (EEST) and again at 01:00Z (EET); each is an hour of its own.
+        assert.equal( start( "2026-10-25T00:20:00Z" ), "2026-10-25T00:00:00.000Z" );
+        assert.equal( start( "2026-10-25T01:20:00Z" ), "2026-10-25T01:00:00.000Z" );
     } );
 
     it( "names no instant for a date or a time that is not one", () => {

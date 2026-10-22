@@ -19,16 +19,19 @@ This document contains the list of changes made to the framework. The format is 
   * **`@ti-engine/core/time-zone`** (also `#time-zone`):
     * `getTimeZone()`, `isTimeZoneSet()`, `verifyTimeZone()` and `resolveTimeZone( name )`.
     * `today( now?, zone? )`, `dateIn( instant, zone? )`, `wallClockIn( instant, zone? )`,
-      `instantsOf( date, time, zone? )` (every instant the clock shows that time: two in a repeated hour) and
-      `instantOf( date, time, zone? )` (the first of them).
+      `instantOf( date, time, zone? )` and `hourStartIn( instant, zone? )`. The last is the instant the zone's current
+      hour began: every real hour, the repeated one included. web-framework's hourly job and hourly notice interval
+      both begin there, so the two read a daylight-saving night alike.
     * The zone defaults to the deployment's. One formatter is kept per zone.
   * **Daylight-saving nights.** A time the clock shows twice is its first showing, so a period that begins there runs
-    once. A time it skips is read in the offset before the change. The tests pin both against Europe/Sofia's 2026 dates.
+    once. A time it skips is read in the offset before the change: 03:30 on Sofia's spring night is 01:30 UTC, shown
+    as 04:30. The tests pin both against Europe/Sofia's 2026 dates.
   * **Measured** at 00:30 on 22 October in Sofia: the UTC date is `2026-10-21`, `today()` is `2026-10-22`.
   * **The name is the runtime's own.** Node 24.22 writes `Asia/Kolkata` as `Asia/Calcutta`, which every `Intl` reads
     as the same zone.
   * `test/time-zone.test.js` (8). The start test runs `start-instance` with an unknown zone and with Sofia.
-  * **The review pass** added `instantsOf` and the refusal of an offset, each with a test that fails without it.
+  * **The two review passes** added the refusal of an offset and `hourStartIn`, each with a test that fails without
+    it. An `instantsOf` added by the first was replaced by `hourStartIn` in the second.
   * Design record: `docs/superpowers/specs/2026-10-22-application-time-zone-design.md`.
 
 ## Version 1.19.1

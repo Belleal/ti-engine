@@ -256,7 +256,8 @@ const configureToolbox = () => {
             const instant = new Date( at );
             // An instant no clock can read is read on the device's, as with no zone: `formatToParts` throws on it, so a
             // missing date in a template would break the screen on a deployment that sets a zone and not on one that
-            // does not (the review pass).
+            // does not (the review pass). Either way its fields are NaN, as `new Date( NaN )`'s are: an instant the
+            // caller could not read has no day, and a caller that may pass one checks it, as for `formatDate`.
             const zone = Number.isFinite( instant.getTime() ) ? this.getTimeZone() : undefined;
             if ( lastClock !== null && lastClock.at === instant.getTime() && lastClock.zone === zone ) {
                 return lastClock.clock;

@@ -265,6 +265,30 @@ function inBatches( entries, task ) {
 }
 
 /**
+ * The day an item was sent, `YYYY-MM-DD`, where the organization is (CA-550), as the inbox shows it. Its first ten
+ * characters were the UTC date: the day before, in Sofia, for an item sent after 21:00 UTC (the review pass).
+ * <br/>
+ * It never throws, since `received` never rejects. A zone the runtime does not know stops the server at start, so this
+ * meets one only in a host that skipped that check, and gives the UTC date there rather than failing a sent item.
+ *
+ * @method
+ * @param {string} submittedAt An ISO timestamp.
+ * @returns {string} Empty for anything that is not one.
+ * @private
+ */
+function submissionDay( submittedAt ) {
+    const instant = Date.parse( submittedAt );
+    if ( !Number.isFinite( instant ) ) {
+        return "";
+    }
+    try {
+        return timeZone.dateIn( instant );
+    } catch {
+        return new Date( instant ).toISOString().slice( 0, 10 );
+    }
+}
+
+/**
  * Feedback about the application: a suggestion, a problem, praise or anything else, from anyone signed in, read by the
  * allowlisted administrators on a screen of their own and e-mailed to them as it arrives. The sender may stay
  * anonymous, and then nothing of them is kept.
@@ -655,9 +679,7 @@ class Feedback {
             anonymous: item.anonymous === true,
             senderName: ( item.anonymous === true ) ? "" : String( item.senderName || "" ),
             text: item.text,
-            // The day it was sent where the organization is (CA-550), as the inbox shows it. Its first ten characters
-            // were the UTC date: the day before, in Sofia, for an item sent after 21:00 UTC (the review pass).
-            date: Number.isFinite( Date.parse( item.submittedAt ) ) ? timeZone.dateIn( Date.parse( item.submittedAt ) ) : ""
+            date: submissionDay( item.submittedAt )
         };
         let queued = 0;
         return this.#admins.filter( ( address ) => address !== own ).reduce( ( chain, address ) => chain.then( () => {

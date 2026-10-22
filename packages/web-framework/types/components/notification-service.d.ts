@@ -376,10 +376,11 @@ declare class NotificationService {
      * the organization is, and with 24 a day's notices go at its midnight. They used to count from midnight UTC, which
      * sent a daily summary at 02:00 or 03:00 in Sofia.
      * <br/>
-     * A boundary the clock shows twice begins an interval at each showing, the latest one passed: in Sofia's repeated
-     * hour an hourly interval is each real hour, so no hour goes without a pass (the review pass found the first showing
-     * alone left the second hour with none). One the clock skips is where the clock jumps past it. A provider's daily
-     * limit is not one of these: it is the provider's day, and stays on UTC.
+     * They treat a daylight-saving night as the jobs do. An interval of one hour is every real hour, the repeated one
+     * included, as an hourly job's period is (core's `hourStartIn`): counted from the first showing, the second
+     * repeated hour had no pass (the review pass). A longer interval begins at its boundary's first showing, as a daily
+     * job does, so it is never cut in two. A provider's daily limit is not one of these: it is the provider's day, and
+     * stays on UTC.
      *
      * @method
      * @param {number} hours One of {@link SEND_INTERVALS}.

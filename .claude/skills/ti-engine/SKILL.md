@@ -153,8 +153,9 @@ history and older PR bodies; it is no longer the working branch.
   `TI_LOCALIZATION_TIME_ZONE`, names the zone every calendar day of an application is a date in. **Instants stay UTC**.
   `utils/time-zone.js` (`./time-zone`, `#time-zone`) has:
   - `getTimeZone()` (UTC when unset), `isTimeZoneSet()`, `verifyTimeZone()` and `resolveTimeZone( name )`;
-  - `today( now?, zone? )`, `dateIn( instant, zone? )`, `wallClockIn( instant, zone? )`, `instantsOf( date, time, zone? )`
-    (every showing, two in a repeated hour) and `instantOf( date, time, zone? )` (the first).
+  - `today( now?, zone? )`, `dateIn( instant, zone? )`, `wallClockIn( instant, zone? )`, `instantOf( date, time, zone? )`
+    and `hourStartIn( instant, zone? )`, the instant the zone's current hour began. web-framework's hourly job and
+    hourly notice interval both begin there.
 
   Three rules to keep:
   - **A calendar day is never a timestamp's first ten characters**, and never `new Date().toISOString().slice( 0, 10 )`:
@@ -334,7 +335,7 @@ module.exports.service = function (serviceDefinition, serviceParams, serviceCall
 
 **Test commands**:
 ```bash
-npm test    # node --test — 244 tests / 58 suites: 24 test files, plus the five test/fixtures/
+npm test    # node --test — 252 tests / 59 suites: 25 test files, plus the five test/fixtures/
             # modules, which node's default pattern runs as files too (each counts as one test)
             # (auditing-json-console, cache-capabilities, cache-get-values, cache-provider-selection,
             #  cache-store, d1-state-service, d1-state-service.partitions, d1-state-service.differential,
@@ -409,12 +410,16 @@ npm test    # node --test — 244 tests / 58 suites: 24 test files, plus the fiv
     - Before the configuration arrives, without a zone, or with one the browser lacks, every reading is the device's
       clock, as before.
   - **A daily job's `at` is local**, and an hourly job's period begins on the zone's hour, every real hour.
-  - **Notice intervals count from the zone's midnight.** A boundary shown twice begins an interval at each showing, so
-    every real hour gets its pass. A provider's daily limit stays on UTC. The feedback e-mail's date is the zone's day.
+  - **Notice intervals count from the zone's midnight**, and read a daylight-saving night as the jobs do. A one-hour
+    interval is every real hour (`hourStartIn`); a longer one begins at its boundary's first showing, so it is never
+    cut in two. A provider's daily limit stays on UTC. The feedback e-mail's date is the zone's day, and it never
+    rejects.
   - **`TiWebServer` refuses an unknown zone** when built, as `start-instance` does.
   - **An application that sets the zone states each job's `at` in local time.**
-  - Tests: `test/time-zone.server.test.js` (Sofia set at the file's top) and `test/ti-framework.time-zone.test.js`
-    (the device in Los Angeles through `TZ`).
+  - Tests:
+    - `test/time-zone.server.test.js`, with Sofia set at the file's top;
+    - `test/ti-framework.time-zone.test.js`, with the device in Los Angeles through `TZ`;
+    - `test/web-server.time-zone.test.js`, with an unknown zone, which the server refuses to be built on.
 - **A picture of the screen with Send Feedback, personal information blanked** (1.58.0, CA-544; design record
   `docs/superpowers/specs/2026-10-21-web-framework-feedback-picture-design.md`). `tiScreenTrail.holdFor( proceed )`
   draws the screen being left with the bundled modern-screenshot (loaded on first use; under `'strict-dynamic'` a script
@@ -1366,7 +1371,7 @@ Token: YouTrack → Profile → Account Security → New token (scope: YouTrack)
 2. **Extending the web UI**: subclass `TiWebAppManager`, add an HTML fragment + matching Alpine component; reuse framework CSS primitives; obey the Alpine CSP rules (no inline styles, no `?.`).
 3. **Config-management, from a consumer's side**: a consuming application registers a config document (schema + file default + semantic validators + optional composite editor) through `TiWebAppManager.registerConfigDocument` / `registerConfigEditor`. Those seams live here; the documents themselves live in the consumer. Changing either seam is a breaking change for every consumer, so treat the `exports` map and these signatures as API.
 4. **Testing**: Node.js built-in `node --test` (no external framework); each package's `test/` directory. `npm test`
-   at the root fans out across workspaces — **2101 tests today: core 252, web-framework 1227, web-content 433,
+   at the root fans out across workspaces — **2103 tests today: core 252, web-framework 1229, web-content 433,
    cloudflare 189, tester none** (it is a runnable service, not a unit-tested one). The three checks that gate a push are in
    `CLAUDE.md` → *Definition of done*: `npm test`, `npm run lint` (0 errors; ESLint runs `@eslint/js`'s
    recommended rules with `no-unused-vars` turned down to a **warning** — `no-control-regex` is an error, measured in
