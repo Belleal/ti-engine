@@ -929,6 +929,56 @@ const configureComponentBusyIndicator = () => {
 };
 
 /**
+ * Returns a configuration object for the release banner "component-release-banner.html" (CA-553): "A new version is
+ * available", with Reload and a close button, shown once the page has learned that a newer release is live and has not
+ * reloaded itself. The next screen change loads the page whole anyway; the banner is for someone who stays on one
+ * screen.
+ *
+ * @method
+ * @returns {Object}
+ * @public
+ */
+const configureComponentReleaseBanner = () => {
+    /**
+     * @typedef {Object} TiReleaseBanner
+     */
+    return {
+
+        /**
+         * Whether the banner shows: a newer release is live, and it was not closed.
+         *
+         * @type {boolean}
+         * @public
+         */
+        get shown() {
+            const tiApplication = Alpine.store( "tiApplication" );
+            return tiApplication.newRelease === true && tiApplication.releaseBannerClosed !== true;
+        },
+
+        /**
+         * Loads the page again, from the new release.
+         *
+         * @method
+         * @public
+         */
+        reload() {
+            window.location.reload();
+        },
+
+        /**
+         * Closes the banner until the page is loaded again.
+         *
+         * @method
+         * @public
+         */
+        close() {
+            Alpine.store( "tiApplication" ).releaseBannerClosed = true;
+        }
+
+    };
+};
+
+/**
  * The media query below which the sidebar is a drawer (CA-406). The stylesheet's drawer block names the same width,
  * and `test/ti-framework.navigation-drawer.test.js` holds the two together: with the stylesheet drawing a drawer at
  * one width while this script still treated the sidebar as a column, a visitor who had collapsed it would get a drawer
@@ -1329,6 +1379,11 @@ const configureApplication = () => {
         collapsed: false,
         theme: DEFAULT_THEME,
         busy: false,
+        // A release other than the page's own is live (CA-553): the release banner shows, and the next screen change
+        // loads the page whole, by the server's answer.
+        newRelease: false,
+        // The release banner was closed. It stays closed until the page is loaded again, which the next screen change does.
+        releaseBannerClosed: false,
 
         /**
          * Whether the sidebar is a drawer rather than a column: the screen is narrower than the drawer's breakpoint and
@@ -1613,9 +1668,14 @@ const configureApplication = () => {
                     options.headers[ "Content-Type" ] = "application/json";
                     options.body = JSON.stringify( data );
                 }
+                // The page's release (CA-553), as every HTMX request carries it.
+                if ( pageRelease() !== null ) {
+                    options.headers[ RELEASE_HEADER ] = pageRelease();
+                }
 
                 this._beginRequest();
                 fetch( url, options ).then( ( response ) => {
+                    noteRelease( response.headers.get( RELEASE_HEADER ) );
                     const contentType = ( response.headers.get( "content-type" ) || "" ).toLowerCase();
                     if ( contentType.includes( "application/json" ) ) {
                         return response.json().then( ( body ) => ( {
@@ -2096,6 +2156,164 @@ const configureDirectiveTiChart = () => {
 };
 
 /**
+ * The header that names a release (CA-553): the server's on every answer, and the page's own on every request.
+ *
+ * @type {string}
+ */
+const RELEASE_HEADER = "X-Ti-Release";
+
+/**
+ * How long a tab must have been hidden for its return to ask whether a newer release is live: half an hour. No check
+ * runs on a timer. On a host that puts the application to sleep when nobody asks for anything, one would keep it awake
+ * for every open tab (CA-553).
+ *
+ * @type {number}
+ */
+const RELEASE_CHECK_AFTER_HIDDEN_MS = 30 * 60 * 1000;
+
+/**
+ * How long an answer that sends the page away (`HX-Redirect`, `HX-Refresh`) waits before its release is noted: three
+ * seconds. A page that has left by then notes nothing, so the banner does not show for the length of the navigation it
+ * announces. One whose leaving was cancelled, at an application's "unsaved changes" prompt, is still on the old release
+ * and shows it.
+ *
+ * @type {number}
+ */
+const RELEASE_NAVIGATION_GRACE_MS = 3 * 1000;
+
+/**
+ * What the page knows about releases: its own (`undefined` until read), since when it has been hidden, and whether
+ * anyone has touched the screen since it was shown. A tab opened in the background has been hidden since it loaded:
+ * no `visibilitychange` says so, and its first look, hours later, would otherwise count as no absence at all.
+ *
+ * @type {{page: (string|null|undefined), hiddenSince: (number|null), touched: boolean}}
+ */
+const releaseState = { page: undefined, hiddenSince: ( document.visibilityState === "hidden" ) ? Date.now() : null, touched: false };
+
+/**
+ * The release the page's scripts belong to: the shell page's `<meta name="ti-release">`, which the server writes into
+ * the same answer as the script tags. `null` for a page that has none, which can then tell no release from another.
+ *
+ * @method
+ * @returns {string|null}
+ */
+const pageRelease = () => {
+    if ( releaseState.page === undefined ) {
+        const meta = ( typeof document.querySelector === "function" ) ? document.querySelector( "meta[name=\"ti-release\"]" ) : null;
+        const content = meta ? meta.content || ( typeof meta.getAttribute === "function" ? meta.getAttribute( "content" ) : "" ) : "";
+        releaseState.page = ( typeof content === "string" && content !== "" ) ? content : null;
+    }
+    return releaseState.page;
+};
+
+/**
+ * Takes note of the release an answer names: `newRelease` says whether it is another than the page's own, so the latest
+ * answer decides. One from an instance a rollout or a rollback has since replaced is not news for good. An answer that
+ * names none is no news either way: an error page from a proxy in front of the application carries no header.
+ *
+ * @method
+ * @param {*} served The answer's `X-Ti-Release`.
+ */
+const noteRelease = ( served ) => {
+    if ( typeof served !== "string" || served === "" || pageRelease() === null ) {
+        return;
+    }
+    const tiApplication = Alpine.store( "tiApplication" );
+    if ( tiApplication ) {
+        tiApplication.newRelease = ( served !== pageRelease() );
+    }
+};
+
+/**
+ * Whether the page may reload itself now without losing anything: nobody has touched the screen since it was shown,
+ * and no field holds the focus.
+ * <br/>
+ * A touch is any key or pointer press, or any input, anywhere on the page: a dialog an application moves out of the
+ * screen holds work as well, and so does a choice made with a click, which raises no `input`. A write does not undo it,
+ * since a preview or a reminder saves nothing that was typed. Only a new screen does: a touch that leaves the screen
+ * was a step away from it. The cost of reading a touch as work is the banner instead of a reload.
+ * <br/>
+ * No reload repeats on its own: this one needs someone to come back to the tab after half an hour, and the other a
+ * screen change. So a release rolling out across two instances, which a page can meet in turn, cannot reload it over
+ * and over.
+ *
+ * @method
+ * @returns {boolean}
+ */
+const isIdleForReload = () => {
+    const focused = document.activeElement;
+    const isEditing = !!focused && ( focused.isContentEditable === true || /^(INPUT|TEXTAREA|SELECT)$/.test( String( focused.tagName || "" ) ) );
+    return releaseState.touched === false && !isEditing;
+};
+
+/**
+ * Asks, once, which release is live, for a tab coming back into view after {@link RELEASE_CHECK_AFTER_HIDDEN_MS}: a
+ * `HEAD /health`, which every release answers. An idle page on another release reloads; a busy one shows the banner,
+ * even one closed before the tab was left: half an hour later, it is news again.
+ * <br/>
+ * Sent with the cookies, as every request of the page is. Behind a proxy that authenticates (Cloudflare Access and the
+ * like), a request without them is sent on to a sign-in page on another origin and fails, and the check would never
+ * work there. With them it costs what any request of the page costs, once per return: the session is read and its
+ * expiry slides, and the application's session refresh runs.
+ *
+ * @method
+ * @returns {Promise<void>}
+ */
+const checkReleaseOnReturn = () => {
+    return fetch( "/health", { method: "HEAD", cache: "no-store", credentials: "same-origin" } ).then( ( response ) => {
+        noteRelease( response.headers.get( RELEASE_HEADER ) );
+        const tiApplication = Alpine.store( "tiApplication" );
+        if ( !tiApplication || tiApplication.newRelease !== true ) {
+            return;
+        }
+        if ( isIdleForReload() ) {
+            window.location.reload();
+        } else {
+            tiApplication.releaseBannerClosed = false;
+        }
+    } ).catch( () => {
+        // Offline, or the server is restarting: the next request the page makes will say.
+    } );
+};
+
+// A touch of the screen may be work the page has not saved yet (CA-553). Heard while capturing, so a handler that stops
+// the event cannot hide it.
+const noteTouch = () => {
+    releaseState.touched = true;
+};
+[ "pointerdown", "keydown", "input", "change" ].forEach( ( type ) => document.addEventListener( type, noteTouch, true ) );
+
+document.addEventListener( "visibilitychange", () => {
+    if ( document.visibilityState === "hidden" ) {
+        releaseState.hiddenSince = Date.now();
+        return;
+    }
+    const hiddenFor = ( releaseState.hiddenSince === null ) ? 0 : Date.now() - releaseState.hiddenSince;
+    releaseState.hiddenSince = null;
+    if ( hiddenFor >= RELEASE_CHECK_AFTER_HIDDEN_MS && pageRelease() !== null ) {
+        checkReleaseOnReturn();
+    }
+} );
+
+// Every HTMX answer names the release that sent it. Read on the XHR's own `loadend`, as the busy state is:
+// `htmx:afterRequest` goes unheard when the answer replaced every element that could carry it to the document. An
+// answer that sends the page away is noted only if the page is still here after {@link RELEASE_NAVIGATION_GRACE_MS}.
+document.addEventListener( "htmx:beforeSend", ( event ) => {
+    const xhr = event.detail && event.detail.xhr;
+    if ( !xhr || typeof xhr.addEventListener !== "function" || typeof xhr.getResponseHeader !== "function" ) {
+        return;
+    }
+    xhr.addEventListener( "loadend", () => {
+        const served = xhr.getResponseHeader( RELEASE_HEADER );
+        if ( xhr.getResponseHeader( "HX-Redirect" ) || xhr.getResponseHeader( "HX-Refresh" ) === "true" ) {
+            setTimeout( () => noteRelease( served ), RELEASE_NAVIGATION_GRACE_MS );
+        } else {
+            noteRelease( served );
+        }
+    }, { once: true } );
+} );
+
+/**
  * Perform a one-time configuration of the HTMX framework.
  */
 document.addEventListener( "htmx:configRequest", ( event ) => {
@@ -2105,6 +2323,10 @@ document.addEventListener( "htmx:configRequest", ( event ) => {
     const styleNonce = ( htmx?.config?.inlineStyleNonce ) || "";
     const scriptNonce = ( htmx?.config?.inlineScriptNonce ) || "";
     event.detail.headers[ 'x-csp-nonce' ] = styleNonce || scriptNonce || "";
+    // The page's release (CA-553): a screen asked for by a page of another release is answered with the page itself.
+    if ( pageRelease() !== null ) {
+        event.detail.headers[ RELEASE_HEADER ] = pageRelease();
+    }
 } );
 
 /**
@@ -2113,6 +2335,12 @@ document.addEventListener( "htmx:configRequest", ( event ) => {
 document.addEventListener( "htmx:afterSwap", ( event ) => {
     const target = event.detail.target;
     if ( target.id !== "ti-content" && target.tagName !== "TI-NESTED-FRAME-PLACEHOLDER" ) return;
+    // A new screen is untouched (CA-553). Only one swapped into `#ti-content`: a nested frame also loads inside a
+    // screen, as a panel, and must not clear what was touched beside it. The landing screen needs no clearing, since
+    // it arrives with the page.
+    if ( target.id === "ti-content" ) {
+        releaseState.touched = false;
+    }
     const path = ( event.detail.pathInfo && event.detail.pathInfo.requestPath ) || "";
     const match = path.match( /^\/app\/([\w-]+)/ );
     if ( match ) {
@@ -3881,6 +4109,7 @@ document.addEventListener( "alpine:init", () => {
     Alpine.data( "tiComponentSidebarNav", configureSidebarNav );
     Alpine.data( "tiComponentTopbar", configureComponentTopbar );
     Alpine.data( "tiComponentBusyIndicator", configureComponentBusyIndicator );
+    Alpine.data( "tiComponentReleaseBanner", configureComponentReleaseBanner );
     Alpine.data( "tiComponentNavigationToggle", configureComponentNavigationToggle );
     Alpine.data( "tiComponentSidebarFlyout", configureComponentSidebarFlyout );
     Alpine.data( "tiComponentNotificationBar", configureComponentNotificationBar );

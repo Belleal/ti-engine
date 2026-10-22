@@ -81,17 +81,21 @@ const createClassList = () => {
 
 /**
  * Loads `ti-framework.js` and returns the Alpine registrations it produced, and the listeners it put on the document
- * (the HTMX hooks among them), by event type.
+ * (the HTMX hooks among them), by event type, with the ones it added for the capturing phase.
  *
  * @method
- * @returns {{stores: Object, components: Object, directives: Object, sandbox: Object, documentListeners: Map<string, Function[]>, effects: Function[]}}
+ * @param {Object} [options]
+ * @param {function( Object ): void} [options.beforeRun] Called with the sandbox before the script runs, for what the
+ * script reads as it loads: a clock, or the page's visibility.
+ * @returns {{stores: Object, components: Object, directives: Object, sandbox: Object, documentListeners: Map<string, Function[]>, capturingListeners: Set<Function>, effects: Function[]}}
  * @public
  */
-const loadTiFramework = () => {
+const loadTiFramework = ( options = {} ) => {
     const stores = {};
     const components = {};
     const directives = {};
     const documentListeners = new Map();
+    const capturingListeners = new Set();
     const windowListeners = new Map();
     const effects = [];
 
@@ -120,8 +124,11 @@ const loadTiFramework = () => {
         cookie: "",
         title: "",
         documentElement: { clientWidth: 1280, clientHeight: 800, dataset: {}, classList: createClassList() },
-        addEventListener: ( type, handler ) => {
+        addEventListener: ( type, handler, options ) => {
             documentListeners.set( type, ( documentListeners.get( type ) || [] ).concat( handler ) );
+            if ( options === true || ( options && options.capture === true ) ) {
+                capturingListeners.add( handler );
+            }
         },
         removeEventListener: () => {},
         querySelector: () => null,
@@ -151,12 +158,15 @@ const loadTiFramework = () => {
     sandbox.removeEventListener = () => {};
     sandbox.dispatchEvent = () => {};
 
+    if ( typeof options.beforeRun === "function" ) {
+        options.beforeRun( sandbox );
+    }
     vm.createContext( sandbox );
     vm.runInContext( fs.readFileSync( SCRIPT_PATH, "utf8" ), sandbox, { filename: SCRIPT_PATH } );
 
     ( documentListeners.get( "alpine:init" ) || [] ).forEach( ( handler ) => handler() );
 
-    return { stores: stores, components: components, directives: directives, sandbox: sandbox, documentListeners: documentListeners, windowListeners: windowListeners, effects: effects };
+    return { stores: stores, components: components, directives: directives, sandbox: sandbox, documentListeners: documentListeners, capturingListeners: capturingListeners, windowListeners: windowListeners, effects: effects };
 };
 
 module.exports = { loadTiFramework: loadTiFramework, SCRIPT_PATH: SCRIPT_PATH };

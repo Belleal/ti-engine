@@ -516,6 +516,10 @@ class TiWebServer extends ServiceConsumer {
                 // attacker-influenced bytes is the BREACH shape, whether or not anything reflects input into it today.
                 this.#webServer.use( TiWebServer.createCompressionHandler() );
 
+                // The release, on every response (CA-553): ahead of everything that answers, `/health` and the static
+                // files included, so a page left open across a release learns of it from whatever it asks next.
+                this.#webServer.use( webHandlers.releaseHeaderHandler( this ) );
+
                 // Set up the security middlewares first:
                 this.#webServer.use( webHandlers.nonceGenerationHandler() );
                 // Helmet's built-in Content-Security-Policy is intentionally disabled here because a per-request,

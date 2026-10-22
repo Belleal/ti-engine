@@ -373,6 +373,67 @@ let isHtmxRequest = ( request ) => {
 };
 
 /**
+ * The header that names a release (CA-553): the server's on every response, and the page's own on every request it
+ * makes.
+ *
+ * @type {string}
+ * @private
+ */
+const RELEASE_HEADER = "X-Ti-Release";
+
+/**
+ * A URL that may travel in a response header as it is: printable ASCII only. Node refuses any other character in a
+ * header and the response would fail; a URL is sent percent-encoded, so only a hand-made request can carry one.
+ *
+ * @type {RegExp}
+ * @private
+ */
+const RE_HEADER_SAFE_URL = /^[\x21-\x7e]+$/;
+
+/**
+ * Whether a request comes from a page of the release this process serves (CA-553). A manager that names no release
+ * (`releaseId` not a string) answers every page as before 1.60.0.
+ *
+ * @method
+ * @param {ExpressRequest} request
+ * @param {*} releaseId The release this process serves.
+ * @returns {boolean}
+ * @private
+ */
+const isForThisRelease = ( request, releaseId ) => {
+    return typeof releaseId !== "string" || request.get( RELEASE_HEADER ) === releaseId;
+};
+
+/**
+ * The address to load whole for a screen change from a page of another release, or of one that names none (CA-553);
+ * `null` for any other request. A screen change is a `GET` that HTMX aims at `#ti-content`: every such request is a
+ * screen, and a screen's URL is a page's, so the page can be loaded instead. A write, a fragment aimed anywhere else
+ * and a page's own load are never one.
+ * <br/>
+ * The address is the one asked for, less the content address `v` a reference to an immutable fragment carries
+ * (CA-183): the screen's own link pushes its address without it, and so does this.
+ *
+ * @method
+ * @param {ExpressRequest} request
+ * @param {string} releaseId The release this process serves.
+ * @returns {string|null}
+ * @private
+ */
+const screenReloadAddress = ( request, releaseId ) => {
+    if ( isForThisRelease( request, releaseId ) || request.method !== "GET" || !isHtmxRequest( request ) || request.get( "HX-Target" ) !== "ti-content"
+        || typeof request.originalUrl !== "string" || !request.originalUrl.startsWith( "/app/" ) ) {
+        return null;
+    }
+    let address = request.originalUrl;
+    if ( request.query && request.query.v !== undefined ) {
+        const url = new URL( address, "http://localhost" );
+        url.searchParams.delete( "v" );
+        address = `${ url.pathname }${ url.search }`;
+    }
+    return RE_HEADER_SAFE_URL.test( address ) ? address : null;
+};
+
+/**
  * Used to serialize a value as JSON that can travel in an HTTP header: every character outside printable ASCII is
  * written as its `\uXXXX` escape. The result is still JSON, so the client's `JSON.parse` gives back the original text.
  * <br/>
@@ -956,6 +1017,27 @@ const formatServerTimingDescription = ( description ) => {
 };
 
 /**
+ * Handler that names, on every response, the release this process serves: `X-Ti-Release`, the web application's
+ * `releaseId` (CA-553). A page left open across a release learns from the next answer it gets that it is running an
+ * older one, whatever it asked for: a screen, its data, a static file or `/health`.
+ *
+ * @method
+ * @param {TiWebServer} instance Its `webAppManager` supplies the release, read on each request: the manager is built
+ * before any request can arrive.
+ * @returns {ExpressHandler}
+ * @public
+ */
+module.exports.releaseHeaderHandler = ( instance ) => {
+    return ( request, response, next ) => {
+        const manager = instance && instance.webAppManager;
+        if ( manager && typeof manager.releaseId === "string" ) {
+            response.set( RELEASE_HEADER, manager.releaseId );
+        }
+        next();
+    };
+};
+
+/**
  * Handler that reports, in a `Server-Timing` header, where a response's time went inside this process:
  * - `app`: from the request reaching the process to its headers being written;
  * - any metric {@link timedHandler} measured on the way, such as `session`.
@@ -1504,10 +1586,21 @@ module.exports.webAppHandler = ( instance ) => {
 
         if ( request.method === "GET" || request.method === "HEAD" ) {
             if ( isAcceptingResponseType( request, "html" ) ) {
+                const reloadAddress = screenReloadAddress( request, instance.webAppManager.releaseId );
                 // HEAD: set headers only:
                 if ( request.method === "HEAD" ) {
                     response.set( "Cache-Control", "no-store" );
                     response.set( "Content-Type", "text/html; charset=utf-8" );
+                    response.status( exceptions.httpCode.C_200 ).end();
+                } else if ( reloadAddress !== null ) {
+                    // A page of an older release, or of one from before releases were named, asking for a screen
+                    // (CA-553): its scripts would meet this release's markup. HTMX loads the address whole instead,
+                    // which is the screen asked for, from this release. The request itself went out as before, so the
+                    // application's own leave guards, which listen for it, ran as on any screen change.
+                    response.vary( "HX-Request" );
+                    response.vary( RELEASE_HEADER );
+                    response.set( "Cache-Control", "no-store" );
+                    response.set( "HX-Redirect", reloadAddress );
                     response.status( exceptions.httpCode.C_200 ).end();
                 } else {
                     // GET: load and render:
@@ -1540,10 +1633,18 @@ module.exports.webAppHandler = ( instance ) => {
                     } ).then( ( html ) => {
                         // One URL answers a navigation with the whole page and HTMX with the screen's fragment alone.
                         response.vary( "HX-Request" );
-                        if ( isPartial === true && embedsCsrfToken === false && isAddressed === true ) {
+                        // And a screen, by the page's release (CA-553): a page of another release is answered with the
+                        // page itself, and a kept fragment carries the release that served it. Without this, a fragment
+                        // kept from an earlier release answered a page of the current one from the browser's cache, and
+                        // told it a newer release was live (measured in Chromium).
+                        response.vary( RELEASE_HEADER );
+                        if ( isPartial === true && embedsCsrfToken === false && isAddressed === true
+                            && isForThisRelease( request, instance.webAppManager.releaseId ) ) {
                             // An immutable fragment asked for by its current content address: the URL names these exact
                             // bytes, so the browser may keep them without asking again. A revalidation saves bytes but
                             // not the round trip, and on a hosted deployment the round trip is 0.6-0.9 s (CA-183).
+                            // Only for a page of this release (CA-553): kept for another, as an outgoing instance would
+                            // in a rollout, its header would tell that page another release was live for a year.
                             response.set( "Cache-Control", "private, max-age=31536000, immutable" );
                         } else if ( isPartial === true && embedsCsrfToken === false ) {
                             // A fragment is a template: its markup is the same on every visit and its data arrives by a
@@ -1606,9 +1707,9 @@ module.exports.webAppHandler = ( instance ) => {
  * `session.user.roles` cannot strand an allowlisted administrator. The role is withheld when
  * {@link TiWebServer#withholdsAdminRole} says so, which this asks again on every request.
  * <br/>
- * Mounted after the static handlers and before the application routes: a session-less request (a stylesheet, the
- * health probe, the login page) never reaches the hook, and every request that can consult roles has passed through
- * it first.
+ * Mounted after the static handlers and before the application routes: a session-less request (a stylesheet, an
+ * orchestrator's health probe, the login page) never reaches the hook, and every request that can consult roles has
+ * passed through it first.
  * <br/>
  * A throwing hook is fail-closed rather than fatal: the failure is logged, the session's application roles are
  * dropped, and the request proceeds with the `admin` role alone. Taking the whole application down because one
