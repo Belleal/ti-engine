@@ -283,7 +283,7 @@ describe( "answering a page of another release", () => {
             secret: "test-only",
             resave: false,
             saveUninitialized: false,
-            cookie: { path: "/", httpOnly: true, sameSite: "lax", maxAge: 8 * 60 * 60 * 1000 }
+            cookie: { path: "/", httpOnly: true, secure: "auto", sameSite: "lax", maxAge: 8 * 60 * 60 * 1000 }
         } ) );
         app.use( webHandlers.csrfInitHandler( INSTANCE ) );
         app.get( "/sign-in", ( request, response ) => {
