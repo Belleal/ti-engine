@@ -162,6 +162,15 @@ const renderLanguageSwitch = ( current, languages ) => {
     return `<div class="ti-login-card-foot"><nav class="ti-login-languages" aria-label="${ label }">${ links }</nav></div>`;
 };
 const RE_HTMX_CONFIG = /\{ti-htmx-config-placeholder}/g;
+/**
+ * Where the release's `<meta>` goes in a shell page (CA-553), in order of preference: after the opening `<head>` tag,
+ * else after `<html>`, else after the doctype, where the parser still puts it in the head. Inserted rather than filled
+ * into a placeholder, so an application's own `index.html` carries it without a change; never left out, because a page
+ * without it names no release and the server would answer every screen change it makes with the whole page.
+ *
+ * @type {RegExp[]}
+ */
+const RE_RELEASE_META_ANCHORS = [ /<head(?:\s[^>]*)?>/i, /<html(?:\s[^>]*)?>/i, /<!DOCTYPE[^>]*>/i ];
 const RE_CSP_NONCE = /^[A-Za-z0-9+/=_-]{16,}$/;
 const TI_NESTED_FRAME_PLACEHOLDER = "ti-nested-frame-placeholder";
 const OAUTH_METHODS = [ "openid-google", "openid-azure" ];
@@ -274,6 +283,8 @@ class TiWebAppManager {
     #staticFileCacheEnabled;
     #enabledAuthMethods = [];
     #baseApplicationInfo = null;
+    #shippedVersion = "";
+    #releaseId = null;
     #labelsBundlesByLanguage = new Map();
     #labelsBundlesByHash = new Map();
     #immutableAddressing = new Map();
@@ -305,8 +316,9 @@ class TiWebAppManager {
             title: "Application",
             path: "fragments/frame-application.html",
             // Placeholders are filled in this order, each in the page as it stands, so the busy indicator (CA-345) and
-            // the navigation toggle (CA-406) come after the topbar that carries their placeholders.
-            components: [ "component-topbar", "component-busy-indicator", "component-navigation-toggle", "component-sidebar", "component-notification-bar", "component-sidebar-flyout" ]
+            // the navigation toggle (CA-406) come after the topbar that carries their placeholders. The release banner
+            // (CA-553) has its own, in the frame.
+            components: [ "component-topbar", "component-busy-indicator", "component-navigation-toggle", "component-release-banner", "component-sidebar", "component-notification-bar", "component-sidebar-flyout" ]
         };
         this.#fragments[ 'login' ] = {
             title: "Login",
@@ -351,6 +363,31 @@ class TiWebAppManager {
      */
     get webAppIdentifier() {
         return this.#webAppIdentifier;
+    }
+
+    /**
+     * The release this process serves, as 16 hexadecimal digits (CA-553): the start of the SHA-256 of the application's
+     * package name, its version and each framework component's name and version. Every response carries it as
+     * `X-Ti-Release`, and the shell page as `<meta name="ti-release">`, so a page left open across a release learns it
+     * from the next answer it gets.
+     * <br/>
+     * Opaque, because it goes to visitors who have not signed in, and naming the framework's exact versions to them
+     * helps nobody but a scanner. The same in every process of one release, because it is computed from what the
+     * release ships rather than from when or where it started. The version is both the manifest's and the one the
+     * About screen reports: `TI_WEB_APP_VERSION` overrides the second, and a deployment that pinned it would otherwise
+     * keep one release for good.
+     *
+     * @property
+     * @returns {string}
+     * @public
+     */
+    get releaseId() {
+        if ( this.#releaseId === null ) {
+            const info = this.#applicationBaseInfo();
+            const identity = [ info.packageName, this.#shippedVersion, info.version, ( info.components || [] ).map( ( component ) => [ component.name, component.version ] ) ];
+            this.#releaseId = crypto.createHash( "sha256" ).update( JSON.stringify( identity ) ).digest( "hex" ).slice( 0, 16 );
+        }
+        return this.#releaseId;
     }
 
     /**
@@ -1045,8 +1082,12 @@ class TiWebAppManager {
      */
     #applicationBaseInfo() {
         if ( !this.#baseApplicationInfo ) {
+            const manifest = applicationInfo.readApplicationManifest();
+            // The manifest's own version, beside the one reported, which `TI_WEB_APP_VERSION` overrides: the release
+            // identity must not freeze with a pinned override (CA-553).
+            this.#shippedVersion = ( typeof manifest.version === "string" ) ? manifest.version : "";
             this.#baseApplicationInfo = applicationInfo.buildApplicationInfo( {
-                manifest: applicationInfo.readApplicationManifest(),
+                manifest: manifest,
                 env: process.env,
                 components: TiWebAppManager.resolveFrameworkComponents()
             } );
@@ -1360,6 +1401,10 @@ class TiWebAppManager {
             } ).then( ( fileData ) => {
                 return this.transformHtml( fileData, { ...options, title: fragment.title || options.title } );
             } ).then( ( fileData ) => {
+                // The release, here rather than in `transformHtml`, which an application overrides: a shell page without
+                // it would be answered with the whole page on every screen change it made (CA-553).
+                return ( options.isHome === true ) ? this.#withReleaseMeta( fileData ) : fileData;
+            } ).then( ( fileData ) => {
                 // After the application's own transform, so a reference it adds is fingerprinted too. A reference that
                 // carries its file's hash can be cached for good; a bare one costs a conditional request per page load.
                 resolve( staticFingerprint.fingerprintStaticReferences( fileData, staticContentPaths ) );
@@ -1367,6 +1412,26 @@ class TiWebAppManager {
                 reject( exceptions.raise( error ) );
             } );
         } );
+    }
+
+    /**
+     * A shell page with the release its scripts belong to (CA-553): `<meta name="ti-release">`, at the first of
+     * {@link RE_RELEASE_META_ANCHORS} the page has. The scripts and this tag arrive in one answer, so they cannot
+     * disagree, where `/app/config` fetched a moment later could already come from the next release.
+     *
+     * @method
+     * @param {string} html
+     * @returns {string}
+     */
+    #withReleaseMeta( html ) {
+        if ( typeof this.releaseId !== "string" ) {
+            // A manager that names no release ships the page as before 1.60.0: a tag reading "undefined" would be a
+            // release no answer ever names.
+            return html;
+        }
+        const releaseMeta = `<meta name="ti-release" content="${ this.releaseId }"/>`;
+        const anchor = RE_RELEASE_META_ANCHORS.find( ( pattern ) => pattern.test( html ) );
+        return anchor ? html.replace( anchor, ( tag ) => `${ tag }\n    ${ releaseMeta }` ) : `${ releaseMeta }\n${ html }`;
     }
 
     /**

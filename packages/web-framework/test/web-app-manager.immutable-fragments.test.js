@@ -127,7 +127,9 @@ describe( "serving immutable fragments", () => {
     let version = null;
 
     /**
-     * A GET through `node:http`, as a browser sends it: with the session cookie, and as HTMX when asked.
+     * A GET through `node:http`, as a browser sends it: with the session cookie, and as HTMX when asked, from a page of
+     * the release the server runs. A fragment is kept for good only for such a page (1.60.0, CA-553); a page of another
+     * release is covered in `web-handlers.release-reload.test.js`.
      *
      * @param {string} target
      * @param {boolean} [asHtmx=true]
@@ -138,6 +140,7 @@ describe( "serving immutable fragments", () => {
         if ( asHtmx ) {
             headers[ "HX-Request" ] = "true";
             headers[ "x-csp-nonce" ] = PAGE_NONCE;
+            headers[ "X-Ti-Release" ] = manager.releaseId;
         }
         http.get( `${ base }${ target }`, { headers: headers }, ( response ) => {
             let body = "";

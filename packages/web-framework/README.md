@@ -308,6 +308,41 @@ HTMX keeps no order between requests made by different elements, so the shell ke
 A screen can therefore read its URL as it starts, which `openScreen` pushes before the swap for that reason, and get
 its own.
 
+## When a release goes live
+
+A tab keeps the scripts it loaded with for as long as it stays open. So that a page left open across a release does
+not run old code against new screens, the framework tells it and reloads it at a safe moment (1.60.0):
+
+- **Every response names the release** in `X-Ti-Release`, and the shell page in `<meta name="ti-release">`, inserted
+  after `<head>` whether the application ships its own `index.html` or not. The release is `TiWebAppManager#releaseId`:
+  a hash of the application's package name and version (the manifest's, and the one `TI_WEB_APP_VERSION` may report
+  instead) and each framework component's. So it moves with every release, is the same in every process of one, and
+  names no version. Every screen answer varies on it. The tag is added after the application's own `transformHtml`,
+  so an override need not keep it.
+- **A screen change from a page of another release loads the page instead.** A `GET` HTMX aims at `#ti-content` that
+  names another release, or none, is answered `HX-Redirect` to the same address. HTMX then loads that screen, whole,
+  from the new release. An application's own listeners on the request still run, since the request is the same. A
+  write, or a fragment aimed anywhere else, is answered as before.
+- **A tab coming back after half an hour hidden**, or first looked at half an hour after it opened in the background,
+  asks `HEAD /health` once. On a newer release it reloads, but only when nobody has touched the page since the screen
+  was shown and no field holds the focus. A touch is a key or pointer press, or an input, anywhere on the page. Only a
+  new screen in `#ti-content` clears it: never a write, which may have saved nothing that was typed, and never a panel
+  loading inside the screen.
+- **Otherwise the banner shows**: "A new version of the application is available", with **Reload** and a close button.
+  `$store.tiApplication.newRelease` is the flag behind it, for anything else an application wants to key off it. The
+  latest answer decides it, so an answer from the page's own release clears it again.
+
+| Slot | Where | Framework default |
+|---|---|---|
+| `fragments/components/component-release-banner.html` | wherever its placeholder is; the framework's `frame-application.html` carries one | the line, Reload and close, in a `role="status"` region |
+
+**An application that ships its own `frame-application.html` places the placeholder itself**, as a
+`<ti-component-release-banner-placeholder></ti-component-release-banner-placeholder>` element. Never write that tag
+inside an HTML comment ahead of the real one. The texts are `interface.release-banner.text`, `.reload` and `.close`.
+
+Nothing runs on a timer. On a host that puts the application to sleep when nobody asks for anything, a check from every
+open tab would keep it awake; a tab learns of a release from the requests its user makes, and from one check on return.
+
 ## On a narrow screen
 
 Below 900px the shell is one column, and the sidebar is a drawer. A menu button at the start of the topbar slides it
@@ -437,7 +472,11 @@ How it behaves:
 * **A request for the current version is kept for good.** It is answered `private, max-age=31536000, immutable`, and
   a revisit makes no request at all. A stale or missing `v` gets the normal revalidating answer.
 * **One version covers every immutable fragment together.** Chapters link to one another, so any change to any of them
-  moves every address. A deployment that changes none of them keeps every cached copy.
+  moves every address. A deployment that changes none of them keeps every address.
+* **A copy is kept per release** (1.60.0). The answer varies on the page's release (`X-Ti-Release`, see *When a
+  release goes live*), and is kept only for a page of the release the server runs. Each release's pages therefore fetch
+  a fragment once, even at an unchanged address. Without that, a copy kept from an earlier release told the newest
+  page that another release was live.
 
 The declaration is a promise the framework also checks:
 

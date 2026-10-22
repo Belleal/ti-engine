@@ -2,6 +2,184 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.60.0
+
+* feat(web-framework): **a page left open across a release reloads at a safe moment** (CA-553). Boris, 2026-10-22:
+  "when we release new version and the user has not refreshed their web app in a while, can we somehow force the app
+  to refresh to the latest version?" Of a reload as soon as a release is seen, a banner only, and a reload at a safe
+  moment with a banner otherwise, he chose the last. Design record
+  `docs/superpowers/specs/2026-10-22-release-reload-design.md`.
+  * **What was wrong.** A tab keeps the scripts it was loaded with for as long as it stays open, and nothing told it
+    that a release had happened. Every screen it opened afterwards came from the new server, so old code met new
+    markup and read payloads whose shape may have changed. An application that ships most days runs a mix of releases
+    in any tab left open for a week.
+  * **What changed.**
+    * **Every response names the release** in `X-Ti-Release`, from `releaseHeaderHandler`, mounted right after
+      compression and ahead of everything that answers, `/health` and the static files included. The release is
+      `TiWebAppManager#releaseId`: the first 16 hexadecimal digits of the SHA-256 of the application's package name,
+      its version and each framework component's name and version. The version is both the manifest's and the one
+      `TI_WEB_APP_VERSION` may report instead. The identity is the same in every process of one release, moves when a
+      framework release is adopted without an application version bump, and names no version to a visitor who has not
+      signed in. Every screen answer varies on it (`Vary: HX-Request, X-Ti-Release`), and an immutable fragment is
+      kept for good only for a page of the release the server runs. So each release's pages fetch such a fragment
+      once, even at an unchanged address. A manager whose `releaseId` is not a string answers as before 1.60.0.
+    * **The shell page carries it** as `<meta name="ti-release">`, inserted right after the opening `<head>` tag. Where
+      there is none it goes after `<html>`, else after the doctype, else at the start. It is inserted after the
+      application's `transformHtml`, never inside it, so an override that skips the base keeps it. It is inserted
+      rather than filled into a placeholder, so an application's own `index.html` carries it with no change. The page reads its own release
+      from there: the tag and the script tags come in one answer, so they cannot disagree.
+    * **A screen change from a page of another release is answered with the page.** HTMX aims such a `GET` at
+      `#ti-content`. When it names another release, or none, the answer is `HX-Redirect` to the same address, with
+      `no-store` and no body. HTMX 2.0.11 follows that before it swaps anything, and loads the screen asked for, whole,
+      from the new release. The address drops the content address `v` of an immutable fragment, as the screen's own
+      link pushes it. The request itself is unchanged, so an application's leave guards, which listen for it, run as
+      on any screen change. A page loaded before 1.60.0 names no release, so its next screen change reloads it too. A
+      write, a fragment aimed anywhere else and a page's own load are answered as before, so a reload never lands in
+      the middle of a save.
+    * **Every request carries the page's release**, HTMX's through `htmx:configRequest` and `sendRequest`'s in its own
+      headers. **Every answer is read for the server's**: HTMX's on the request's own `loadend` and `sendRequest`'s
+      from its response. The latest answer decides `$store.tiApplication.newRelease`: another release sets it, the
+      page's own clears it. An answer that names none, such as a proxy's error page, is no news. An answer that sends
+      the page away (`HX-Redirect`, `HX-Refresh: true`) is noted only if the page is still there three seconds later.
+    * **A tab coming back into view after 30 minutes or more hidden** asks `HEAD /health` once. So does a tab opened in
+      the background, at its first look. On a newer release it reloads only when nobody has touched the page since
+      the screen was shown and no field holds the focus. A touch is a key or pointer press, or an input, anywhere on
+      the page, heard while capturing. Only a new screen in `#ti-content` clears it: never a write, and never a panel
+      loading inside the screen. Otherwise it shows the banner, even one closed before the tab was left.
+    * **Otherwise a banner** says "A new version of the application is available", with **Reload** and a close button.
+      It sits in `frame-application.html` through a new placeholder, `<ti-component-release-banner-placeholder>`, so an
+      application that keeps its own topbar gets it with no change. It is cloaked until Alpine runs. Its texts are
+      `interface.release-banner.*`, in English and Bulgarian, kept in a feedback picture.
+  * **Rejected:**
+    * **a check on a timer.** The Cloudflare Worker forwards `/health` to the container, so a check from each open
+      tab would wake a container that sleeps when idle and keep it awake;
+    * **a reload as soon as a release is seen**, which loses what someone was typing;
+    * **intercepting the screen change in the browser**, which would race the application's own listeners on that
+      request;
+    * **a service worker**, a second release mechanism for a problem the next request already reveals;
+    * **the application's version alone as the identity**, which misses an adopted framework release and is not
+      something to hand an anonymous visitor.
+  * **Test.**
+    * `test/web-handlers.release-reload.test.js` (19), through real HTTP against the real manager and handlers:
+      * the identity: its format and stability; that it moves with either version, and with the manifest's under a
+        pinned `TI_WEB_APP_VERSION`; and that it names none;
+      * the header on `/health` (`GET` and `HEAD`), a static file, the shell page, a screen, data and a 404;
+      * the tag in the framework's shell, in an application's own, in one without `<head>`, `<html>` or both, and in
+        the shell of an application whose `transformHtml` never calls the base; never in a swapped screen;
+      * the redirect for an older release and for none, with the query kept and `v` dropped;
+      * no redirect for the current release, a write, another target, no target, a page load or data;
+      * `Vary: X-Ti-Release` on a screen and on a kept immutable fragment, and no immutable answer for a page of another
+        release or of none;
+      * a manager that names no release answering as before 1.60.0.
+    * `test/ti-framework.release-reload.test.js` (31), the real script in the sandbox with a hand-moved `Date`:
+      * the headers sent, and the answers read: the page's own release clears the flag again, and an answer that
+        sends the page away is noted only after three seconds;
+      * the return after 30 minutes, with the cookies, and a tab opened in the background;
+      * each touch that shows the banner instead, heard while capturing;
+      * a write or a panel that leaves the touch, and a new screen that clears it;
+      * the answer that wins over an earlier one;
+      * a failed check;
+      * the banner component, its labels, its placeholder, its width and its cloak.
+
+      `helpers/ti-framework-sandbox.js` now also returns the listeners added for the capturing phase, and takes a
+      `beforeRun( sandbox )` for what the script reads as it loads.
+    * `test/web-app-manager.immutable-fragments.test.js` now asks as a page of the server's release, as every page
+      from 1.60.0 does; an immutable answer for any other is covered above.
+    * **In Chromium**, through Playwright, on the real shell and handlers with a release the check switches:
+      * a screen change on the same release swaps in place;
+      * after a release, `openScreen` loads the page whole at the screen asked for, not at `/`;
+      * a data answer shows the banner, and Reload and close work;
+      * a return with unsaved typing keeps the page, and an idle return reloads it;
+      * the console stays clean, in both themes and at 390 px;
+      * an immutable fragment kept from an earlier release is fetched again, not read from the cache;
+      * with Alpine blocked, the banner stays hidden;
+      * a page whose redirect is cancelled at a `beforeunload` prompt stays, and shows the banner three seconds
+        later.
+
+      It found two defects the suites had not, both fixed here with a test that fails without the fix. The banner
+      shrank to its text in the middle of the page, because `.ti-content` centres its children. And a return left a
+      banner closed earlier closed.
+    * Against 1.59.1, 35 of the 50 fail and 9 are cancelled, because the handler their server mounts does not exist.
+      The 6 that pass assert that the page does nothing: no header from a page without a release, no reload from an
+      answer, no check under 30 minutes or from a page without a release, and no reload of a touched screen after a
+      write or a panel.
+  * **The first review pass** (`code-review` at high) found ten. Each fix has a test that fails on the commit before
+    it (11 tests).
+    * **Fixed:**
+      * **an immutable fragment kept from an earlier release made the newest page show the banner.** Unchanged, it
+        kept its address, and the browser answered from its cache with the old release's header, for up to a year.
+        Reproduced in Chromium. Every screen answer now varies on `X-Ti-Release`, which also gives the redirect's
+        `Vary` a purpose: on a `no-store` answer alone it had none;
+      * **a write cleared "typed".** A preview or a reminder is a write the server takes and saves nothing typed
+        beside it, so a return could reload away unsaved text;
+      * **work only counted as `input` and `change` inside `#ti-content`.** A choice made with a click, or typed into a
+        dialog moved out of the screen, read as idle. The rule is now a touch anywhere since the screen was shown, and
+        a new screen alone clears it;
+      * **the banner showed until Alpine ran**, and for good when the script did not load. Measured in Chromium with
+        Alpine blocked; now `x-cloak`;
+      * **a shell page without a `<head>` tag got no release tag**, and the server would have answered every screen
+        change it made with the whole page;
+      * **a pinned `TI_WEB_APP_VERSION` froze the identity.** The manifest's version now counts as well;
+      * **a flag set by an answer from a replaced instance stayed set.** The latest answer now decides, and a return
+        answered with the page's own release reloads nothing.
+    * **Fixed, then reverted by the second pass:** the return question read the session, since `/health` is mounted
+      after it. Sending it without the cookie broke it behind an authenticating proxy (below).
+    * **Declined:**
+      * **pages following a rollout or a rollback in either direction.** The server a page talks to is the release
+        it must run. The identity is opaque, so no ordering is possible without handing out versions. Each step needs
+        a screen change and lands on the screen asked for. The supported deployments run one instance;
+      * **hashing the shipped files as the identity**, to catch a build without a version bump. No release here is
+        one, and the identity must be ready for the first response, which the per-file fingerprints, computed on
+        first use, are not.
+  * **The second review pass**, on those fixes, found nine. Each fix has a test that fails on the commit before it (7
+    tests), except the refactor.
+    * **Fixed:**
+      * **the tag lived in `transformHtml`, which an application overrides.** An override that skipped the base would
+        ship a shell with no release, and every screen change from it would load the whole page. It is now added
+        after the application's transform;
+      * **the redirect's own answer showed the banner** for the length of the navigation it started. Such an answer
+        is now noted three seconds later instead (the third pass);
+      * **a tab opened in the background never asked.** No `visibilitychange` marked it hidden, so its first look,
+        hours later, counted as no absence. It now counts as hidden from load;
+      * **a nested frame loading inside a screen cleared the touch** beside it. Only a swap into `#ti-content` itself
+        clears it now;
+      * **an outgoing instance in a rollout could hand a page of the new release a fragment to keep for a year**,
+        with the old release's header. That covers a fragment aimed outside `#ti-content`, which is not redirected. An
+        immutable answer is now kept only for a page of the server's release;
+      * **the return question without the cookie never worked behind an authenticating proxy** such as Cloudflare
+        Access, which sends the request to a sign-in page on another origin. It goes with the cookies again, at the
+        cost of any request of the page, once per return;
+      * **a manager with no release** would have redirected every page that names one (finished by the third pass);
+      * the manifest was read twice; its version is now kept from the first read.
+    * **Declined:** **a screen removed in the new release, or no longer allowed, is a page load to the new
+      release's answer** (not found, or refused) instead of an error inside the old page. That page has to load the
+      new release anyway, and the new release's answer for that address is the right one.
+  * **A third review pass**, on the second's fixes, found ten. The two code fixes each have a test that fails on the
+    commit before them.
+    * **Fixed:**
+      * **skipping an `HX-Redirect` answer for good left a page whose leaving was cancelled with no banner.**
+        Competence arms a `beforeunload` prompt while work is unsaved, and Stay keeps the old page. Such an answer, and
+        an `HX-Refresh: true`, which also reloads, is now noted after three seconds. Measured in Chromium: no banner at
+        0.8 s, the banner at 3.8 s;
+      * **a manager with no release wrote `content="undefined"`**, and its pages would then never be kept an
+        immutable fragment. It now answers as before 1.60.0 throughout;
+      * **the docs said the return question costs one session read.** It costs what any request of the page costs,
+        session refresh included, and the session refresh handler's comment named "the health probe" among the
+        session-less requests. Both are corrected.
+    * **Declined:**
+      * **mounting `/health` ahead of the session** to make the return question cheaper. It changes where every
+        deployment's probe is answered, to save the cost of the request the person's next click makes anyway;
+      * **a touch during the first load keeping the landing screen touched.** It costs the banner instead of a
+        reload, and the next screen change reloads anyway;
+      * **the clock starting at load for a page prerendered hidden.** A page whose scripts are half an hour old is
+        the page to ask about;
+      * **moving the htmx configuration and the nonces out of `transformHtml` as well.** Their absence breaks a page
+        at once and visibly; a missing release tag would only have made every screen change slower, silently, which
+        is the one worth guarding;
+      * **the commit message of the intermediate commit**, which is squashed.
+  * **For an application:** nothing to do. One that ships its own `frame-application.html` places the placeholder
+    where it wants the banner.
+
 ## Version 1.59.1
 
 * fix(web-framework): **a picture sent with feedback keeps the framework's own titles and labels** (CA-551). Found

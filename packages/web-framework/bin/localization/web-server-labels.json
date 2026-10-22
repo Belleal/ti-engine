@@ -126,6 +126,20 @@
         "bg": "Обработва се…"
       }
     },
+    "release-banner": {
+      "text": {
+        "en": "A new version of the application is available.",
+        "bg": "Налична е нова версия на приложението."
+      },
+      "reload": {
+        "en": "Reload",
+        "bg": "Презареди"
+      },
+      "close": {
+        "en": "Close",
+        "bg": "Затвори"
+      }
+    },
     "navigation-toggle": {
       "label": {
         "en": "Menu",

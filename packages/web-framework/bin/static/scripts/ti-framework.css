@@ -1233,6 +1233,36 @@ html.ti-busy .ti-busy-indicator-glyph {
     animation: busyTurn 2s ease-in-out infinite;
 }
 
+/* The release banner (CA-553): a strip under the topbar, in the info tone, while a newer release than the page's own
+   is live. Outside `#ti-content`, which scrolls, so it stays in view; the topbar's side padding, so its text lines up
+   with the title's. The region is the column's child, and the column centres what it holds (`.ti-content`'s
+   `align-items`), so it takes the full width as the topbar does: without it the strip shrank to its text, a box in the
+   middle of the page (measured in Chromium). */
+.ti-release-banner-region {
+    width: 100%;
+    flex: 0 0 auto;
+}
+
+.ti-release-banner {
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    padding: var(--s-2) var(--s-7);
+    border-bottom: 1px solid var(--border);
+    background: var(--info-soft);
+    color: var(--info);
+}
+
+/* Hidden until Alpine has read whether it shows; Alpine removes the attribute once it has. */
+.ti-release-banner[x-cloak] {
+    display: none;
+}
+
+.ti-release-banner-text {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
 /* An hourglass is turned over, not spun: it rests, then makes half a turn, twice a cycle. */
 @keyframes busyTurn {
     0%, 35% {
@@ -1349,6 +1379,11 @@ html.ti-busy .ti-busy-indicator-glyph {
     .ti-application:has(.ti-navigation-toggle) .ti-topbar {
         gap: var(--s-3);
         padding: 0 var(--s-4);
+    }
+
+    /* The release banner keeps the topbar's side padding, so its text still lines up with the title (CA-553). */
+    .ti-application:has(.ti-navigation-toggle) .ti-release-banner {
+        padding: var(--s-2) var(--s-4);
     }
 
     /* The screen's name gives way before the buttons beside it, so that a screen's own action in the topbar stays on

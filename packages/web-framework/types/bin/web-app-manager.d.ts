@@ -46,6 +46,23 @@ declare class TiWebAppManager {
      */
     get webAppIdentifier(): string;
     /**
+     * The release this process serves, as 16 hexadecimal digits (CA-553): the start of the SHA-256 of the application's
+     * package name, its version and each framework component's name and version. Every response carries it as
+     * `X-Ti-Release`, and the shell page as `<meta name="ti-release">`, so a page left open across a release learns it
+     * from the next answer it gets.
+     * <br/>
+     * Opaque, because it goes to visitors who have not signed in, and naming the framework's exact versions to them
+     * helps nobody but a scanner. The same in every process of one release, because it is computed from what the
+     * release ships rather than from when or where it started. The version is both the manifest's and the one the
+     * About screen reports: `TI_WEB_APP_VERSION` overrides the second, and a deployment that pinned it would otherwise
+     * keep one release for good.
+     *
+     * @property
+     * @returns {string}
+     * @public
+     */
+    get releaseId(): string;
+    /**
      * Adds a new HTML fragment to the web application.
      * <br/>
      * NOTE: This method should only be called during the initialization phase of your web application manager.

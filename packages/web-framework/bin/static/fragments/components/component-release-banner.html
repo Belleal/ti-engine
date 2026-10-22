@@ -1,0 +1,23 @@
+<!-- Release banner (CA-553): "A new version is available", with Reload and a close button, once the page has learned
+     that a newer release is live and has not reloaded itself, because something typed was not yet saved. The next
+     screen change loads the page whole anyway, by the server's answer; the banner is for someone who stays on one
+     screen.
+
+     The status region is always rendered, so a screen reader announces the line when it appears: a region added with
+     its text announces nothing. The strip is cloaked until Alpine has read `shown`: it is markup like any other, and it
+     showed on every page load, and for good when the script did not load (measured in Chromium).
+
+     The framework's application frame carries the placeholder. An application with a frame of its own places a
+     ti-component-release-banner-placeholder element where it wants the banner; a copy of this file at the same path in
+     its static directory replaces this one. -->
+<div class="ti-release-banner-region" role="status" x-data="tiComponentReleaseBanner">
+    <div class="ti-release-banner" x-show="shown" x-cloak>
+        <span class="ti-icon md info-circle" aria-hidden="true"></span>
+        <span class="ti-release-banner-text" x-text-label="interface.release-banner.text">A new version of the application is available.</span>
+        <button class="ti-btn primary sm" type="button" @click="reload()" x-text-label="interface.release-banner.reload">Reload</button>
+        <button class="ti-btn ghost sm icon" type="button" @click="close()"
+                x-text-label:aria-label="interface.release-banner.close" aria-label="Close">
+            <span class="ti-icon close sm" aria-hidden="true"></span>
+        </button>
+    </div>
+</div>
