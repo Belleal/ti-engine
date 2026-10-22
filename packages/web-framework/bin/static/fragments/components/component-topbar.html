@@ -1,9 +1,10 @@
 <header id="ti-topbar" class="ti-topbar" x-data="tiComponentTopbar">
     <ti-component-navigation-toggle-placeholder></ti-component-navigation-toggle-placeholder>
     <div id="ti-topbar-info">
-        <!-- data-ti-keep: a picture sent with feedback keeps the screen's title, which is always a label (CA-551). The
-             subtitle is not kept: an application may name a person there. -->
-        <div class="ti-topbar-title" data-ti-keep x-text="screenTitle"></div>
+        <!-- A picture sent with feedback keeps the screen's title while it is the screen's label (CA-551). A title an
+             application set with setScreenTitle may name a person, so it is blanked; so is the subtitle, for the same
+             reason (the review pass). -->
+        <div class="ti-topbar-title" x-bind:data-ti-keep="titleIsLabel ? '' : false" x-text="screenTitle"></div>
         <div class="ti-topbar-sub" x-show="$store.tiApplication.topbarSubtitle" x-text="$store.tiApplication.topbarSubtitle"></div>
     </div>
     <div class="ti-topbar-spacer"></div>

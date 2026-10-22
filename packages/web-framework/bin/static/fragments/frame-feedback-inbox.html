@@ -10,11 +10,11 @@
 -->
 <div class="ti-page ti-feedback-inbox" x-data="tiScreenFeedbackInbox">
 
-    <!-- data-ti-keep (CA-551): a picture keeps the page's head, the filters, each item's kind, its picture button and
-         the names of its context lines. Who sent it, when, what it says and the context's values are blanked. -->
-    <div class="ti-page-head" data-ti-keep>
+    <!-- data-ti-keep (CA-551): a picture keeps the page's title, each item's kind, its picture button and the names of
+         its context lines. Who sent it, when, what it says, the context's values and the filters' counts are blanked. -->
+    <div class="ti-page-head">
         <div class="ti-page-eyebrow" x-text-label="interface.feedback-inbox.eyebrow">Administration</div>
-        <h1 class="ti-page-title"><span x-text="pageTitle.before">Feedback</span><em x-text="pageTitle.em"></em><span x-text="pageTitle.after"></span></h1>
+        <h1 class="ti-page-title" data-ti-keep><span x-text="pageTitle.before">Feedback</span><em x-text="pageTitle.em"></em><span x-text="pageTitle.after"></span></h1>
         <p class="ti-page-subtitle" x-text-label="interface.feedback-inbox.intro">What people sent about the application, newest first. Give each a status as you deal with it.</p>
     </div>
 
@@ -30,7 +30,7 @@
                 <div class="ti-feedback-statuses" role="group" x-text-label:aria-label="interface.feedback-inbox.status-filter" aria-label="Show by status">
                     <template x-for="choice in statusChoices" x-bind:key="choice.value">
                         <button type="button" class="ti-btn sm" x-bind:class="choice.pressed === 'true' ? 'primary' : 'ghost'" x-bind:aria-pressed="choice.pressed"
-                                @click="setStatusFilter( choice.value )" data-ti-keep x-text="choice.text"></button>
+                                @click="setStatusFilter( choice.value )" x-text="choice.text"></button>
                     </template>
                 </div>
                 <label class="ti-feedback-filter-label" for="ti-feedback-kind-filter" x-text-label="interface.feedback-inbox.kind-filter">Kind</label>

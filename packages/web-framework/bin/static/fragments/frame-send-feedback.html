@@ -12,11 +12,11 @@
 -->
 <div class="ti-page ti-send-feedback" x-data="tiScreenSendFeedback">
 
-    <!-- data-ti-keep (CA-551): a picture keeps the page's head, the kinds to choose from, the characters left and the
-         screen a problem names. What was typed is a form field's value, which the picture blanks anyway. -->
-    <div class="ti-page-head" data-ti-keep>
+    <!-- data-ti-keep (CA-551): a picture keeps the page's title, the kinds to choose from and the screen a problem
+         names. The characters left is a number, which the small print promises to blank (the review pass). -->
+    <div class="ti-page-head">
         <div class="ti-page-eyebrow" x-text-label="interface.send-feedback.eyebrow">To the administrators</div>
-        <h1 class="ti-page-title"><span x-text="pageTitle.before">Send feedback</span><em x-text="pageTitle.em"></em><span x-text="pageTitle.after"></span></h1>
+        <h1 class="ti-page-title" data-ti-keep><span x-text="pageTitle.before">Send feedback</span><em x-text="pageTitle.em"></em><span x-text="pageTitle.after"></span></h1>
         <p class="ti-page-subtitle" x-text-label="interface.send-feedback.intro">A suggestion, a problem you ran into, or something you liked: it goes to the people who run this application.</p>
     </div>
 
@@ -37,7 +37,7 @@
             <textarea class="ti-textarea ti-feedback-text" id="ti-feedback-text" name="feedback-text" rows="7" maxlength="4000"
                       x-bind:value="text" x-text-label:placeholder="interface.send-feedback.text-placeholder"
                       placeholder="What happened, or what would help? For a problem, say what you were doing." @input="setText( $event.target.value )"></textarea>
-            <span class="ti-feedback-remaining" data-ti-keep x-text="remainingText"></span>
+            <span class="ti-feedback-remaining" x-text="remainingText"></span>
 
             <p class="ti-feedback-context" data-ti-keep x-show="isProblem" x-text="contextText"></p>
 

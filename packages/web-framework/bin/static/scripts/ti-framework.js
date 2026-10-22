@@ -696,6 +696,10 @@ const configureComponentTopbar = () => {
 
         screenTitle: "",
 
+        // Whether the title is the screen's label, not one an application set: only then does a picture sent with
+        // feedback keep it, since an application's own title may name a person (CA-551, the review pass).
+        titleIsLabel: false,
+
         init() {
             const tiApplication = Alpine.store( "tiApplication" );
             // The application's name, from its <meta name="application-name">, follows the screen's in the browser
@@ -709,6 +713,7 @@ const configureComponentTopbar = () => {
                 const override = ( tiApplication && tiApplication.screenTitleOverride ) || "";
                 const title = override || ( screen ? tiApplication.getLabel( `interface.topbar.${ screen }`, "" ) : "" );
                 this.screenTitle = title;
+                this.titleIsLabel = ( override === "" && title !== "" );
                 if ( title ) {
                     // A screen whose own title already names the application ("About Competence@Work") keeps it once.
                     document.title = ( applicationName && !title.includes( applicationName ) ) ? `${ title } · ${ applicationName }` : title;

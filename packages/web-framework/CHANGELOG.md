@@ -8,26 +8,53 @@ This document will contain the list of changes made to the framework. The format
   while answering Boris (2026-10-22): "are all these new changes competence app specific or some of them can be made
   universal in the ti-engine framework?"
   * **What was wrong.** A picture keeps only `x-text-label` text and what is marked `data-ti-keep` (1.58.0, CA-544).
-    The framework marked nothing of its own: the topbar's title, the head of What's new, Send feedback and the Feedback
-    inbox, Profile's and About's section titles and labels, the feedback kinds and the inbox's filters were bound with
-    `x-text`, so a picture blanked them. It could not show which screen it was taken on. Competence 3.145.0 (CA-548)
-    marked its own screens, including its copies of the shell; every screen it takes from the framework still lost its
-    title.
-  * **What changed.** Those texts carry `data-ti-keep`, and so do the release notes, the user menu, the theme toggle
-    and About's identity. Blanked on purpose:
+    The framework marked nothing of its own, so a picture of its screens blanked their titles, kinds and labels and
+    could not show which screen it was taken on. Competence 3.145.0 (CA-548) marked its own screens and its copies of
+    the shell. Every screen it takes from the framework unmodified (What's new, Send feedback, the inbox) still lost
+    its title, and so would every other application's.
+  * **What changed.** Single texts carry `data-ti-keep`, never a container, so nothing added inside one later is kept
+    by accident:
+    * the topbar's title, **only while it is the screen's label** (`x-bind:data-ti-keep` on the topbar's new
+      `titleIsLabel`). A title an application sets with `setScreenTitle` may name a person.
+    * the title of What's new, Send feedback and the Feedback inbox;
+    * each release note's kind, title, text and button;
+    * the feedback kinds and the screen a problem names;
+    * each inbox item's kind, its picture button and the names of its context lines;
+    * About's application name and description;
+    * the theme toggle, the default sidebar's brand and entry, and the placeholder screens' words.
+  * **Blanked on purpose**, each listed with its reason in the test:
     * the signed-in person's name, initial and e-mail;
-    * the topbar's subtitle, where an application may name a person;
+    * the topbar's subtitle, and a title an application set;
     * notices and tooltips;
-    * Profile's identity and values;
-    * About's values, since an application may add a section of its own;
+    * Profile's identity, sections and values;
+    * About's sections, since an application may add its own;
     * the inbox's sender, date, text and context values;
-    * select options, whose value the picture blanks anyway.
-  * **Test.** `test/picture-keep.fragments.test.js` (3) walks every framework fragment:
-    * every bound text is kept, or listed as blanked with its reason, and a listed entry that no longer matches fails;
-    * nothing kept names a person;
-    * the screen's title and each screen's head are kept.
+    * select options;
+    * **numbers and dates**: the inbox's counts, the characters left, versions and release dates. That holds to what
+      the picture's small print promises, "names, numbers and anything typed are blanked out".
 
-    2 of the 3 fail on 1.58.1's fragments.
+    The user menu is left out of the picture whole, as before.
+  * **Test.** `test/picture-keep.fragments.test.js` (6):
+    * every bound text is kept or listed as blanked by its exact expression, and a listed entry that no longer
+      matches fails;
+    * every fixed word outside the sign-in page is kept;
+    * nothing kept names a person;
+    * no container is marked;
+    * the real topbar keeps its title only while it is the label;
+    * each framework screen's title is kept.
+
+    A `<template>` counts as no element's ancestor, as on the page. 4 of the 6 fail on 1.58.1. The other two, nothing
+    personal and no container kept, pass there because 1.58.1 kept nothing.
+  * **The review pass** (`code-review` at high), with the automated security review, found:
+    * the topbar's title and the Profile and About sections, which an application can supply;
+    * numbers and dates kept, against the small print;
+    * container marks;
+    * a dead mark on the excluded user menu;
+    * unchecked static text;
+    * a loose match in the test's list, and templates read as ancestors;
+    * the skill's suite list.
+
+    All are fixed here. The first commit had kept each of them.
 
 ## Version 1.58.1
 

@@ -646,16 +646,18 @@ class MyApplication extends TiWebAppManager {
   * **A pseudo-element's words** (`content`) become x's, and so does anything computed there, such as `attr()`. A mark
     such as "›" stays. An SVG symbol's text, which a `<use>` draws, goes.
   * **Mark a text `data-ti-keep`** when it is not personal and the picture is less useful without it, such as a status
-    name. The framework's own shell and screens do so for their fixed text (1.58.2):
-    * the topbar's title, the user menu and the theme toggle;
-    * the head of What's new, Send feedback and the Feedback inbox;
-    * the release notes;
-    * the feedback kinds and the inbox's filters;
-    * About's identity;
-    * Profile's and About's section titles and labels.
+    name. The framework's own shell and screens do so for their fixed text (1.58.2), so a picture of them says which
+    screen it shows:
+    * the topbar's title, while it is the screen's label;
+    * the titles of What's new, Send feedback and the Feedback inbox;
+    * the release notes, the feedback kinds, and an inbox item's kind;
+    * About's application name and description.
 
-    So a picture of them says which screen it shows. Names, e-mails, a sender, what was written, dates and Profile's
-    values stay blanked. **Mark an element `data-ti-redact`** when it shows something personal through a means the rule cannot see:
+    Kept marks sit on single texts, never on a container. Blanked:
+    * names, e-mails, a sender and what was written;
+    * a title an application set;
+    * anything an application may supply, such as Profile's and About's sections;
+    * numbers and dates, as the small print promises. **Mark an element `data-ti-redact`** when it shows something personal through a means the rule cannot see:
     a photo set as a CSS background, a grade shown by a chip's colour and place, an answer by a checked radio, a score
     by a bar's length. It is drawn as one grey box of its size, and nothing in it is drawn (1.58.1). Mark the element
     around a value, whose size does not depend on it: a control, an image or an SVG shape marked itself is hidden

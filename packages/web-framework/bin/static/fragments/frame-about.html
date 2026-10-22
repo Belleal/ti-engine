@@ -33,21 +33,21 @@
     <template x-if="application">
         <div>
 
-            <!-- Identity header — app mark, name, version pill and the one-line description. Kept in a picture sent
-                 with feedback (CA-551): it names the application, never a person. A section's values are not kept, as
-                 an application may contribute a section of its own. -->
+            <!-- Identity header — app mark, name, version pill and the one-line description. A picture sent with
+                 feedback keeps the application's name and description, which name no person (CA-551); its version and
+                 release date are a number and a date, and no section is kept, as an application may add its own. -->
             <section class="ti-panel">
-                <div class="ti-identity" data-ti-keep>
+                <div class="ti-identity">
                     <div class="ti-identity-mark" aria-hidden="true">
-                        <span x-text="applicationInitial()"></span>
+                        <span data-ti-keep x-text="applicationInitial()"></span>
                     </div>
                     <div class="ti-identity-meta">
                         <div class="ti-identity-name">
-                            <span x-text="application.name"></span>
+                            <span data-ti-keep x-text="application.name"></span>
                             <span class="ti-tag mono" x-show="application.version"
                                   x-text="versionTag()"></span>
                         </div>
-                        <div class="ti-identity-caption" x-show="application.description"
+                        <div class="ti-identity-caption" data-ti-keep x-show="application.description"
                              x-text="application.description"></div>
                     </div>
                     <div class="ti-identity-aside">
@@ -68,15 +68,15 @@
                                 <span class="ti-icon md" x-bind:class="section.icon" aria-hidden="true"></span>
                             </div>
                             <div class="ti-panel-head-text">
-                                <div class="ti-panel-title" data-ti-keep x-text="section.title"></div>
-                                <div class="ti-panel-subtitle" data-ti-keep x-show="section.description"
+                                <div class="ti-panel-title" x-text="section.title"></div>
+                                <div class="ti-panel-subtitle" x-show="section.description"
                                      x-text="section.description"></div>
                             </div>
                         </div>
                         <div class="ti-info-grid">
                             <template x-for="(item, itemIndex) in section.items" x-bind:key="itemIndex">
                                 <div class="ti-info-item" x-bind:class="item.wide ? 'wide' : ''">
-                                    <span class="ti-kv-label" data-ti-keep x-text="item.label"></span>
+                                    <span class="ti-kv-label" x-text="item.label"></span>
                                     <template x-if="item.href">
                                         <a class="ti-kv-value ti-info-link" x-bind:href="item.href"
                                            target="_blank" rel="noopener noreferrer" x-text="item.value"></a>

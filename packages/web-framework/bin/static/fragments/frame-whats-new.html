@@ -10,11 +10,12 @@
 -->
 <div class="ti-page ti-whats-new" x-data="tiScreenWhatsNew">
 
-    <!-- data-ti-keep (CA-551): a picture sent with feedback keeps the page's head and the release notes, which name
-         nobody: what each release changed, for everyone. -->
-    <div class="ti-page-head" data-ti-keep>
+    <!-- data-ti-keep (CA-551): a picture sent with feedback keeps the page's title and each note, which name nobody.
+         Each text is marked, never a container, so nothing added inside one later is kept by accident; dates and
+         version numbers stay blanked, as the picture's small print promises (the review pass). -->
+    <div class="ti-page-head">
         <div class="ti-page-eyebrow" x-text-label="interface.whats-new.eyebrow">Updates</div>
-        <h1 class="ti-page-title"><span x-text="pageTitle.before">What's new</span><em x-text="pageTitle.em"></em><span x-text="pageTitle.after"></span></h1>
+        <h1 class="ti-page-title" data-ti-keep><span x-text="pageTitle.before">What's new</span><em x-text="pageTitle.em"></em><span x-text="pageTitle.after"></span></h1>
         <p class="ti-page-subtitle" x-text-label="interface.whats-new.intro">What each release changed for you, in plain words.</p>
         <p class="ti-whats-new-meta" x-show="release" x-text="updatedText"></p>
     </div>
@@ -26,7 +27,7 @@
     </template>
 
     <template x-if="loaded">
-        <div class="ti-whats-new-body" data-ti-keep>
+        <div class="ti-whats-new-body">
 
             <section class="ti-panel ti-whats-new-release is-fresh" aria-labelledby="ti-whats-new-fresh-title">
                 <h2 class="ti-whats-new-heading" id="ti-whats-new-fresh-title" x-text-label="interface.whats-new.fresh-title">New in this release</h2>
@@ -36,12 +37,12 @@
                 <ul class="ti-whats-new-notes">
                     <template x-for="note in fresh" x-bind:key="noteKey( note )">
                         <li class="ti-whats-new-note">
-                            <span class="ti-tag" x-bind:class="kindClass( note )" x-text="kindText( note )"></span>
+                            <span class="ti-tag" data-ti-keep x-bind:class="kindClass( note )" x-text="kindText( note )"></span>
                             <div class="ti-whats-new-note-body">
-                                <h3 class="ti-whats-new-note-title" x-text="note.title"></h3>
-                                <p class="ti-whats-new-note-text" x-text="note.text"></p>
+                                <h3 class="ti-whats-new-note-title" data-ti-keep x-text="note.title"></h3>
+                                <p class="ti-whats-new-note-text" data-ti-keep x-text="note.text"></p>
                                 <template x-if="canOpen( note )">
-                                    <button type="button" class="ti-btn sm ti-whats-new-open" @click="open( note )" x-text="openText( note )"></button>
+                                    <button type="button" class="ti-btn sm ti-whats-new-open" @click="open( note )" data-ti-keep x-text="openText( note )"></button>
                                 </template>
                             </div>
                         </li>
@@ -59,12 +60,12 @@
                             <ul class="ti-whats-new-notes">
                                 <template x-for="note in entry.notes" x-bind:key="noteKey( note )">
                                     <li class="ti-whats-new-note">
-                                        <span class="ti-tag" x-bind:class="kindClass( note )" x-text="kindText( note )"></span>
+                                        <span class="ti-tag" data-ti-keep x-bind:class="kindClass( note )" x-text="kindText( note )"></span>
                                         <div class="ti-whats-new-note-body">
-                                            <h4 class="ti-whats-new-note-title" x-text="note.title"></h4>
-                                            <p class="ti-whats-new-note-text" x-text="note.text"></p>
+                                            <h4 class="ti-whats-new-note-title" data-ti-keep x-text="note.title"></h4>
+                                            <p class="ti-whats-new-note-text" data-ti-keep x-text="note.text"></p>
                                             <template x-if="canOpen( note )">
-                                                <button type="button" class="ti-btn sm ti-whats-new-open" @click="open( note )" x-text="openText( note )"></button>
+                                                <button type="button" class="ti-btn sm ti-whats-new-open" @click="open( note )" data-ti-keep x-text="openText( note )"></button>
                                             </template>
                                         </div>
                                     </li>
