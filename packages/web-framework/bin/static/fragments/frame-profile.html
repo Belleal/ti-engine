@@ -73,15 +73,15 @@
                                 <span class="ti-icon md" x-bind:class="section.icon" aria-hidden="true"></span>
                             </div>
                             <div class="ti-panel-head-text">
-                                <div class="ti-panel-title" x-text="section.title"></div>
-                                <div class="ti-panel-subtitle" x-show="section.description"
+                                <div class="ti-panel-title" data-ti-keep x-text="section.title"></div>
+                                <div class="ti-panel-subtitle" data-ti-keep x-show="section.description"
                                      x-text="section.description"></div>
                             </div>
                         </div>
                         <div class="ti-info-grid">
                             <template x-for="(item, itemIndex) in section.items" x-bind:key="itemIndex">
                                 <div class="ti-info-item" x-bind:class="item.wide ? 'wide' : ''">
-                                    <span class="ti-kv-label" x-text="item.label"></span>
+                                    <span class="ti-kv-label" data-ti-keep x-text="item.label"></span>
                                     <template x-if="item.href">
                                         <a class="ti-kv-value ti-info-link" x-bind:href="item.href"
                                            target="_blank" rel="noopener noreferrer" x-text="item.value"></a>

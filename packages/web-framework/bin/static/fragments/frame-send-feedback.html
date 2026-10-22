@@ -12,7 +12,9 @@
 -->
 <div class="ti-page ti-send-feedback" x-data="tiScreenSendFeedback">
 
-    <div class="ti-page-head">
+    <!-- data-ti-keep (CA-551): a picture keeps the page's head, the kinds to choose from, the characters left and the
+         screen a problem names. What was typed is a form field's value, which the picture blanks anyway. -->
+    <div class="ti-page-head" data-ti-keep>
         <div class="ti-page-eyebrow" x-text-label="interface.send-feedback.eyebrow">To the administrators</div>
         <h1 class="ti-page-title"><span x-text="pageTitle.before">Send feedback</span><em x-text="pageTitle.em"></em><span x-text="pageTitle.after"></span></h1>
         <p class="ti-page-subtitle" x-text-label="interface.send-feedback.intro">A suggestion, a problem you ran into, or something you liked: it goes to the people who run this application.</p>
@@ -25,8 +27,8 @@
                 <template x-for="option in kinds" x-bind:key="option.kind">
                     <label class="ti-feedback-kind" x-bind:for="option.id">
                         <input type="radio" name="feedback-kind" x-bind:id="option.id" x-bind:value="option.kind" x-bind:checked="option.checked" @change="setKind( option.kind )"/>
-                        <span class="ti-feedback-kind-name" x-text="option.name"></span>
-                        <span class="ti-feedback-kind-hint" x-text="option.hint"></span>
+                        <span class="ti-feedback-kind-name" data-ti-keep x-text="option.name"></span>
+                        <span class="ti-feedback-kind-hint" data-ti-keep x-text="option.hint"></span>
                     </label>
                 </template>
             </div>
@@ -35,9 +37,9 @@
             <textarea class="ti-textarea ti-feedback-text" id="ti-feedback-text" name="feedback-text" rows="7" maxlength="4000"
                       x-bind:value="text" x-text-label:placeholder="interface.send-feedback.text-placeholder"
                       placeholder="What happened, or what would help? For a problem, say what you were doing." @input="setText( $event.target.value )"></textarea>
-            <span class="ti-feedback-remaining" x-text="remainingText"></span>
+            <span class="ti-feedback-remaining" data-ti-keep x-text="remainingText"></span>
 
-            <p class="ti-feedback-context" x-show="isProblem" x-text="contextText"></p>
+            <p class="ti-feedback-context" data-ti-keep x-show="isProblem" x-text="contextText"></p>
 
             <label class="ti-feedback-anonymous" for="ti-feedback-anonymous">
                 <input type="checkbox" id="ti-feedback-anonymous" name="feedback-anonymous" x-bind:checked="anonymous" @change="setAnonymous( $event.target.checked )"/>

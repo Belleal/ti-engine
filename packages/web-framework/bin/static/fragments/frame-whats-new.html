@@ -10,7 +10,9 @@
 -->
 <div class="ti-page ti-whats-new" x-data="tiScreenWhatsNew">
 
-    <div class="ti-page-head">
+    <!-- data-ti-keep (CA-551): a picture sent with feedback keeps the page's head and the release notes, which name
+         nobody: what each release changed, for everyone. -->
+    <div class="ti-page-head" data-ti-keep>
         <div class="ti-page-eyebrow" x-text-label="interface.whats-new.eyebrow">Updates</div>
         <h1 class="ti-page-title"><span x-text="pageTitle.before">What's new</span><em x-text="pageTitle.em"></em><span x-text="pageTitle.after"></span></h1>
         <p class="ti-page-subtitle" x-text-label="interface.whats-new.intro">What each release changed for you, in plain words.</p>
@@ -24,7 +26,7 @@
     </template>
 
     <template x-if="loaded">
-        <div class="ti-whats-new-body">
+        <div class="ti-whats-new-body" data-ti-keep>
 
             <section class="ti-panel ti-whats-new-release is-fresh" aria-labelledby="ti-whats-new-fresh-title">
                 <h2 class="ti-whats-new-heading" id="ti-whats-new-fresh-title" x-text-label="interface.whats-new.fresh-title">New in this release</h2>

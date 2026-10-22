@@ -2,6 +2,33 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.58.2
+
+* fix(web-framework): **a picture sent with feedback keeps the framework's own titles and labels** (CA-551). Found
+  while answering Boris (2026-10-22): "are all these new changes competence app specific or some of them can be made
+  universal in the ti-engine framework?"
+  * **What was wrong.** A picture keeps only `x-text-label` text and what is marked `data-ti-keep` (1.58.0, CA-544).
+    The framework marked nothing of its own: the topbar's title, the head of What's new, Send feedback and the Feedback
+    inbox, Profile's and About's section titles and labels, the feedback kinds and the inbox's filters were bound with
+    `x-text`, so a picture blanked them. It could not show which screen it was taken on. Competence 3.145.0 (CA-548)
+    marked its own screens, including its copies of the shell; every screen it takes from the framework still lost its
+    title.
+  * **What changed.** Those texts carry `data-ti-keep`, and so do the release notes, the user menu, the theme toggle
+    and About's identity. Blanked on purpose:
+    * the signed-in person's name, initial and e-mail;
+    * the topbar's subtitle, where an application may name a person;
+    * notices and tooltips;
+    * Profile's identity and values;
+    * About's values, since an application may add a section of its own;
+    * the inbox's sender, date, text and context values;
+    * select options, whose value the picture blanks anyway.
+  * **Test.** `test/picture-keep.fragments.test.js` (3) walks every framework fragment:
+    * every bound text is kept, or listed as blanked with its reason, and a listed entry that no longer matches fails;
+    * nothing kept names a person;
+    * the screen's title and each screen's head are kept.
+
+    2 of the 3 fail on 1.58.1's fragments.
+
 ## Version 1.58.1
 
 * fix(web-framework): **what an application marks `data-ti-redact` is one grey box in the picture of the screen, and
