@@ -375,26 +375,28 @@ npm test    # node --test — 244 tests / 58 suites: 24 test files, plus the fiv
 
 **Since the skill's last sync (1.25.1 → 1.58.2):**
 - **The framework's own screens keep their titles and labels in a feedback picture** (1.58.2, CA-551).
-  - Marked `data-ti-keep`, **single texts only, never a container**:
-    - the topbar's title, **only while it is the screen's label** (`x-bind:data-ti-keep` on `titleIsLabel`), since an
-      application's `setScreenTitle` may name a person;
+  - **The rule: catalogue labels are kept, the application's content and the data are not.** Marked `data-ti-keep`,
+    single texts only, never a container:
+    - the topbar's title, **only while it is a label** (`x-bind:data-ti-keep` on `titleIsLabel`). That is the screen's
+      own, or one set with `setScreenTitle( title, { isLabel: true } )`; any other may name a person.
     - the titles of What's new, Send feedback and the inbox;
-    - each release note's kind, title, text and button;
+    - each release note's kind and button;
     - the feedback kinds and the screen a problem names;
     - an inbox item's kind, its picture button and its context lines' names;
-    - About's application name and description;
     - the theme toggle and the default shell's and placeholder screens' words.
   - Blanked:
     - names and e-mails;
-    - anything an application may supply: a title it set, the topbar's subtitle, notices, tooltips, and Profile's and
-      About's sections;
+    - anything an application supplies: a title it set without `isLabel`, the topbar's subtitle, notices, tooltips,
+      a release note's words, About's identity and sections, and Profile's;
     - the inbox's sender, date, text and context values;
     - select options;
     - **every number and date**, which the picture's small print promises to blank.
   - The user menu is left out of the picture whole (`PICTURE_EXCLUDED`).
   - **A new text in a framework fragment is a decision.** `test/picture-keep.fragments.test.js` fails until it is
-    marked, or listed as blanked by its exact expression with a reason. It checks fixed words as well as bindings, and
-    reads a `<template>` as no element's ancestor, as on the page.
+    marked, or listed as blanked by its exact expression with a reason. It checks fixed words as well as bindings, in
+    either quote style, allows only inline text inside a mark, and reads a `<template>` as no element's ancestor, as on
+    the page. It scans with `test/helpers/markup.js`, the linear tokenizer `frame-login.labels` shares, never a second
+    scanner.
   - An application that copies a framework fragment marks its copy itself, as competence's CA-548 did.
 - **A picture of the screen with Send Feedback, personal information blanked** (1.58.0, CA-544; design record
   `docs/superpowers/specs/2026-10-21-web-framework-feedback-picture-design.md`). `tiScreenTrail.holdFor( proceed )`

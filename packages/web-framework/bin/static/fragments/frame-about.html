@@ -34,20 +34,20 @@
         <div>
 
             <!-- Identity header — app mark, name, version pill and the one-line description. A picture sent with
-                 feedback keeps the application's name and description, which name no person (CA-551); its version and
-                 release date are a number and a date, and no section is kept, as an application may add its own. -->
+                 feedback keeps none of it, nor any section (CA-551): each is the application's own text, which the
+                 framework cannot vouch for, or a version or a date. The page's head says which screen it is. -->
             <section class="ti-panel">
                 <div class="ti-identity">
                     <div class="ti-identity-mark" aria-hidden="true">
-                        <span data-ti-keep x-text="applicationInitial()"></span>
+                        <span x-text="applicationInitial()"></span>
                     </div>
                     <div class="ti-identity-meta">
                         <div class="ti-identity-name">
-                            <span data-ti-keep x-text="application.name"></span>
+                            <span x-text="application.name"></span>
                             <span class="ti-tag mono" x-show="application.version"
                                   x-text="versionTag()"></span>
                         </div>
-                        <div class="ti-identity-caption" data-ti-keep x-show="application.description"
+                        <div class="ti-identity-caption" x-show="application.description"
                              x-text="application.description"></div>
                     </div>
                     <div class="ti-identity-aside">

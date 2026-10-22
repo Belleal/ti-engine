@@ -32,6 +32,7 @@ const fs = require( "node:fs" );
 const path = require( "node:path" );
 
 const { loadTiFramework } = require( "./helpers/ti-framework-sandbox.js" );
+const { tokenize, attributeOf } = require( "./helpers/markup.js" );
 
 const FRAGMENTS = path.join( __dirname, "..", "bin", "static", "fragments" );
 const FILES = [
@@ -39,60 +40,56 @@ const FILES = [
     ...fs.readdirSync( path.join( FRAGMENTS, "components" ) ).filter( ( file ) => file.endsWith( ".html" ) ).map( ( file ) => `components/${ file }` )
 ].sort();
 
-// Elements that never hold content, so never close.
-const VOID_ELEMENTS = new Set( [ "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr" ] );
+// What a mark may hold: text, and the inline elements that style part of it, such as a title's emphasis.
+const INLINE = new Set( [ "span", "em", "strong", "b", "i", "br" ] );
 
 /**
- * A fragment's elements and text runs, each with the elements it sits inside: enough structure to tell whether a text
- * is inside a mark, without a parser the package does not depend on.
+ * A fragment's elements and text runs, each with the elements it sits inside, from the shared linear scanner.
  * <br/>
  * A `<template>` is no element's ancestor here, as it is none on the page: Alpine puts its clones beside it, and the
  * picture skips it. A mark on a template would mark nothing that is drawn (the review pass).
  *
  * @param {string} html
- * @returns {{elements: Array<{tag: string, attributes: string, ancestors: string[]}>, texts: Array<{text: string, parent: (string|null), ancestors: string[]}>}}
+ * @returns {{elements: Array<{name: string, tag: string, ancestors: string[]}>, texts: Array<{text: string, parent: (string|null), ancestors: string[]}>}}
  * @private
  */
 function scan( html ) {
-    const source = html.replace( /<!--[\s\S]*?-->/g, "" );
-    const pattern = /<(\/?)([a-zA-Z][\w-]*)((?:[^>"']|"[^"]*"|'[^']*')*)>/g;
     const stack = [];
     const elements = [];
     const texts = [];
-    const drawn = () => stack.filter( ( entry ) => entry.tag !== "template" ).map( ( entry ) => entry.attributes );
-    let last = 0;
-    let match;
-    while ( ( match = pattern.exec( source ) ) !== null ) {
-        const text = source.slice( last, match.index ).trim();
-        last = pattern.lastIndex;
-        if ( /[A-Za-z]/.test( text ) && !stack.some( ( entry ) => entry.tag === "script" || entry.tag === "style" ) ) {
-            texts.push( { text: text, parent: stack.length > 0 ? stack[ stack.length - 1 ].attributes : null, ancestors: drawn() } );
-        }
-        const [ , closing, name, attributes ] = match;
-        const tag = name.toLowerCase();
-        if ( closing ) {
-            const at = stack.map( ( entry ) => entry.tag ).lastIndexOf( tag );
+    const drawn = () => stack.filter( ( entry ) => entry.name !== "template" ).map( ( entry ) => entry.tag );
+    for ( const token of tokenize( html ) ) {
+        if ( token.type === "text" ) {
+            const text = token.text.trim();
+            if ( /\p{L}/u.test( text ) && !stack.some( ( entry ) => entry.name === "script" || entry.name === "style" ) ) {
+                texts.push( { text: text, parent: stack.length > 0 ? stack[ stack.length - 1 ].tag : null, ancestors: drawn() } );
+            }
+        } else if ( token.type === "close" ) {
+            const at = stack.map( ( entry ) => entry.name ).lastIndexOf( token.name );
             if ( at >= 0 ) {
                 stack.length = at;
             }
-            continue;
-        }
-        elements.push( { tag: tag, attributes: attributes, ancestors: drawn() } );
-        if ( !VOID_ELEMENTS.has( tag ) && !attributes.trim().endsWith( "/" ) ) {
-            stack.push( { tag: tag, attributes: attributes } );
+        } else {
+            elements.push( { name: token.name, tag: token.tag, ancestors: drawn() } );
+            if ( !token.selfClosing ) {
+                stack.push( { name: token.name, tag: token.tag } );
+            }
         }
     }
     return { elements, texts };
 }
 
 const read = ( file ) => scan( fs.readFileSync( path.join( FRAGMENTS, file ), "utf8" ) );
-const binding = ( attributes ) => {
-    const match = /\sx-(?:text|html)="([^"]*)"/.exec( attributes );
-    return match ? match[ 1 ] : null;
+// An element's bound text, in either quote style: one quote style alone let a binding pass unseen (the review pass).
+const binding = ( tag ) => {
+    const text = attributeOf( tag, "x-text" );
+    return ( text !== null ) ? text : attributeOf( tag, "x-html" );
 };
 // A mark the picture reads: `data-ti-keep` itself (never `x-bind:data-ti-keep`, which is a decision taken at run time),
 // or a catalogue label.
-const isMark = ( attributes ) => /\s(data-ti-keep|x-text-label)(?=[\s=/]|$)/.test( attributes );
+const hasKeep = ( tag ) => /\sdata-ti-keep(?=[\s=/]|$)/.test( tag );
+// `x-text-label:aria-label` is another attribute, which keeps nothing drawn: the picture matches `[x-text-label]` alone.
+const isMark = ( tag ) => hasKeep( tag ) || /\sx-text-label(?=[\s=/]|$)/.test( tag );
 const isKept = ( item ) => item.ancestors.some( isMark );
 
 // Blanked on purpose, by exact expression: each names, or may name, a person, or is a number or a date, which the
@@ -119,6 +116,9 @@ const BLANKED = [
     [ "frame-profile.html", "section.description", "an application may add a section of its own" ],
     [ "frame-profile.html", "item.label", "an application may add a section of its own" ],
     [ "frame-profile.html", "item.value", "their recorded values" ],
+    [ "frame-about.html", "applicationInitial()", "the application's own text, which the framework cannot vouch for" ],
+    [ "frame-about.html", "application.name", "the application's own text, which the framework cannot vouch for" ],
+    [ "frame-about.html", "application.description", "the application's own text, which may hold a number" ],
     [ "frame-about.html", "versionTag()", "a version number" ],
     [ "frame-about.html", "releaseDateText()", "a date" ],
     [ "frame-about.html", "section.title", "an application may add a section of its own" ],
@@ -126,6 +126,8 @@ const BLANKED = [
     [ "frame-about.html", "item.label", "an application may add a section of its own" ],
     [ "frame-about.html", "item.value", "an application may add a section of its own" ],
     [ "frame-whats-new.html", "updatedText", "a date and a version" ],
+    [ "frame-whats-new.html", "note.title", "the application's own words, which may hold a number" ],
+    [ "frame-whats-new.html", "note.text", "the application's own words, which may hold a number" ],
     [ "frame-whats-new.html", "releaseText( entry )", "a version and a date" ],
     [ "frame-send-feedback.html", "remainingText", "a number" ],
     [ "frame-feedback-inbox.html", "choice.text", "each status's count" ],
@@ -144,8 +146,8 @@ describe( "a picture of the framework's own screens (CA-551)", () => {
         const unkept = [];
         for ( const file of FILES ) {
             for ( const element of read( file ).elements ) {
-                const expression = binding( element.attributes );
-                if ( expression === null || isMark( element.attributes ) || isKept( element ) ) {
+                const expression = binding( element.tag );
+                if ( expression === null || isMark( element.tag ) || isKept( element ) ) {
                     continue;
                 }
                 const entry = BLANKED.find( ( [ blankedFile, blanked ] ) => blankedFile === file && expression === blanked );
@@ -182,8 +184,8 @@ describe( "a picture of the framework's own screens (CA-551)", () => {
         const leaks = [];
         for ( const file of FILES ) {
             for ( const element of read( file ).elements ) {
-                const expression = binding( element.attributes );
-                if ( expression !== null && ( isMark( element.attributes ) || isKept( element ) ) && personal.test( expression ) ) {
+                const expression = binding( element.tag );
+                if ( expression !== null && ( isMark( element.tag ) || isKept( element ) ) && personal.test( expression ) ) {
                     leaks.push( `${ file }: x-text="${ expression }"` );
                 }
             }
@@ -192,16 +194,17 @@ describe( "a picture of the framework's own screens (CA-551)", () => {
     } );
 
     it( "marks single texts, never a container, so nothing added inside one later is kept by accident", () => {
-        const containers = [];
+        // Inside a mark, only inline text: a mark on a panel, a list or a row would keep whatever is added to it later,
+        // a name, an image or a typed value included (the review pass).
+        const inside = [];
         for ( const file of FILES ) {
             for ( const element of read( file ).elements ) {
-                const classes = ( /\sclass="([^"]*)"/.exec( element.attributes ) || [ "", "" ] )[ 1 ].split( /\s+/ );
-                if ( /\sdata-ti-keep(?=[\s=/]|$)/.test( element.attributes ) && classes.some( ( name ) => [ "ti-page-head", "ti-whats-new-body", "ti-identity", "ti-panel", "ti-content" ].includes( name ) ) ) {
-                    containers.push( `${ file }: <${ element.tag }${ element.attributes.slice( 0, 60 ) }` );
+                if ( element.ancestors.some( hasKeep ) && !INLINE.has( element.name ) ) {
+                    inside.push( `${ file }: <${ element.tag.slice( 0, 70 ) }` );
                 }
             }
         }
-        assert.deepEqual( containers, [] );
+        assert.deepEqual( inside, [] );
     } );
 
     it( "keeps the screen's title while it is the screen's label, and not once an application sets its own", () => {
@@ -218,12 +221,18 @@ describe( "a picture of the framework's own screens (CA-551)", () => {
         watchers.forEach( ( watcher ) => watcher.callback( watcher.getter() ) );
         assert.equal( topbar.screenTitle, "Evaluation of Jane Doe" );
         assert.equal( topbar.titleIsLabel, false, "an application's own title may name a person" );
+        stores.tiApplication.setScreenTitle( "Results", { isLabel: true } );
+        watchers.forEach( ( watcher ) => watcher.callback( watcher.getter() ) );
+        assert.equal( topbar.titleIsLabel, true, "one the application declares a catalogue label is kept" );
+        // And the fragment binds the mark to it: an inverted or misnamed binding would keep the person's name.
+        const title = read( "components/component-topbar.html" ).elements.find( ( element ) => binding( element.tag ) === "screenTitle" );
+        assert.equal( attributeOf( title.tag, "x-bind:data-ti-keep" ), "titleIsLabel ? '' : false" );
     } );
 
     it( "keeps the title of each of the framework's screens", () => {
         for ( const file of [ "frame-whats-new.html", "frame-send-feedback.html", "frame-feedback-inbox.html" ] ) {
-            const titles = read( file ).elements.filter( ( element ) => element.tag === "h1" && /class="ti-page-title"/.test( element.attributes ) );
-            assert.ok( titles.length === 1 && isMark( titles[ 0 ].attributes ), file );
+            const titles = read( file ).elements.filter( ( element ) => element.name === "h1" && attributeOf( element.tag, "class" ) === "ti-page-title" );
+            assert.ok( titles.length === 1 && isMark( titles[ 0 ].tag ), file );
         }
     } );
 
