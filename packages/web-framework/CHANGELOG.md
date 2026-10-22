@@ -2,6 +2,38 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.59.0
+
+* feat(web-framework): **the deployment's time zone reaches every screen, every daily job and every notice interval**
+  (CA-550, with core 1.20.0). Boris, 2026-10-22: every calendar-day rule uses the organization's zone, "and we should
+  build it into ti-engine".
+  * **`/app/config` carries `timeZone`**: the zone core resolved from `TI_LOCALIZATION_TIME_ZONE`, or `null` when the
+    deployment set none.
+  * **`tiToolbox` reads it:**
+    * `getTimeZone()`, `clock( at? )`, `today( at? )` and `dayOf( value )`.
+    * `formatDate` writes a timestamp, a string with a time and an offset, as its day in the zone. The Feedback inbox's
+      "submitted" and What's new's "Updated on" are the organization's day, where they were the device's.
+    * A calendar date stays itself.
+    * A zone the browser's `Intl` does not know falls back to the device's clock, never to an error, and so does a
+      deployment that set none.
+    * One formatter is kept per zone, and the last reading by instant and zone.
+  * **A daily job's `at` is read in the zone**, across both daylight-saving changes, and an hourly job's period begins
+    on the zone's hour (the half past in a half-hour zone). A time the clock shows twice is its first showing, so the
+    job runs once in the repeated hour. `JobScheduler.periodStart( job, now, zone? )` takes the zone.
+  * **Notice intervals count from the zone's midnight**: a daily summary goes at local midnight, where it went at
+    02:00 or 03:00 in Sofia. `NotificationService.intervalStart( hours, now, zone? )` takes the zone. A provider's daily
+    limit stays on UTC.
+  * **Unset, nothing changes.** An application that sets the zone states each job's `at` in local time: a job
+    registered at `"04:00"` then runs at 04:00 where the organization is, not at 04:00 UTC.
+  * **`@ti-engine/core` floor raised to `>=1.20.0`**, for `@ti-engine/core/time-zone`.
+  * Tests:
+    * `test/time-zone.server.test.js` (6) covers `/app/config`, a daily job at 06:00 in Sofia across both 2026
+      changes, the repeated and the skipped 03:30, an hourly job in Kolkata, and intervals from Sofia's midnight.
+    * `test/ti-framework.time-zone.test.js` (6) puts the device in Los Angeles and Sofia in the configuration.
+    * `/app/config` without a zone sends `null`.
+
+    All 12 fail on 1.58.1.
+
 ## Version 1.58.1
 
 * fix(web-framework): **what an application marks `data-ti-redact` is one grey box in the picture of the screen, and

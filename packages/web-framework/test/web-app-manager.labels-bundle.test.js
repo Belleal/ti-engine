@@ -126,6 +126,11 @@ describe( "TiWebAppManager#processDataRequest( 'config' ) — the catalogue's ad
         assert.ok( JSON.stringify( config ).length < 2048, `/app/config is ${ JSON.stringify( config ).length } bytes` );
     } );
 
+    it( "names no time zone when the deployment set none, so every screen keeps the device's clock (CA-550)", async () => {
+        const config = await new WebApp().processDataRequest( { language: "en" }, "config" );
+        assert.equal( config.timeZone, null );
+    } );
+
     it( "points an anonymous caller at the configured language's catalogue", async () => {
         const app = new WebApp();
         const config = await app.processDataRequest( null, "config" );

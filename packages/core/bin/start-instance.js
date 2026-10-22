@@ -59,6 +59,7 @@ try {
 const tools = require( "#tools" );
 const logger = require( "#logger" );
 const exceptions = require( "#exceptions" );
+const timeZone = require( "#time-zone" );
 
 // Configure the current instance variables before requiring any platform modules and store the necessary ones in memory cache:
 process.env.TI_INSTANCE_ID = "ti-" + tools.getUUID();
@@ -166,6 +167,9 @@ process.on( "uncaughtException", ( error ) => {
 
 // Start the instance:
 try {
+    // The deployment's time zone, checked before anything reads a day in it: a name the runtime does not know fails the
+    // start here, where it would otherwise fail the first request that asks for today.
+    const zone = timeZone.verifyTimeZone();
     const serviceConstructor = require( path.join( process.cwd(), process.env.TI_INSTANCE_CLASS ) );
     const serviceConfigPath = process.env.TI_INSTANCE_CONFIG;
     /** @type ServiceConfiguration */
@@ -191,6 +195,9 @@ try {
             ? `Loaded environment variables from '${ envFilePath }'.`
             : `No environment file at '${ envFilePath }' — continuing with the environment as supplied. If settings you expected are missing, check the working directory this instance was started from.`, logger.logSeverity.DEBUG );
 
+        logger.log( timeZone.isTimeZoneSet()
+            ? `Calendar days are read in the time zone '${ zone }'.`
+            : `No time zone is set (TI_LOCALIZATION_TIME_ZONE): calendar days are read in UTC, and each screen keeps the device's clock.`, logger.logSeverity.INFO );
         logger.log( `Starting new instance of type '${ process.env.TI_INSTANCE_NAME }' with instance ID '${ process.env.TI_INSTANCE_ID }'.`, logger.logSeverity.NOTICE );
         mainInstance.start().catch( ( error ) => {
             logger.log( `Error detected during instance '${ process.env.TI_INSTANCE_ID }' startup!`, logger.logSeverity.ALERT, error );

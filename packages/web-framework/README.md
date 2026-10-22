@@ -533,11 +533,12 @@ await notifications.emit( "task.created", { key: "review:" + taskID + ":" + owne
   Ledger entries hold the kind, the recipient's ID, the outcome and the time, never an address or a text, and expire
   after `notifications.retentionDays` (180). `forget( recipientID )` removes a person's entries, for an erasure path.
 * **Sending** is one message at a time, after each queued notice, and on a job tick once in each interval of the
-  document's `sendEveryHours`: 1, 2, 3, 4, 6, 8, 12 or 24, counted from midnight UTC, every hour when absent
+  document's `sendEveryHours`: 1, 2, 3, 4, 6, 8, 12 or 24, counted from midnight on the deployment's clock (see *The
+  deployment's time zone*), every hour when absent
   (`getSendEveryHours()`). A transient failure is retried after 1, 5, 15 and 60 minutes on the dispatcher's own timer
   while the process runs, then given up, and a permanent one is given up at once; the interval bounds how long a
   notice waits when the process has slept through its retry, and holds back nothing. A daily limit pauses sending until the
-  next UTC day, a rate limit for a minute. Delivery is at least once: a crash between the provider accepting and the
+  next UTC day, the provider's, a rate limit for a minute. Delivery is at least once: a crash between the provider accepting and the
   ledger entry repeats one notice.
 * **Transports.** `off` (the default) queues nothing. `log` sends nothing and logs that it would have. `cloudflare`
   posts to `TI_WEB_NOTIFY_RELAY_URL`, which `@ti-engine/cloudflare` sets to its Worker's relay, and needs
@@ -582,7 +583,7 @@ time, such as a deadline coming close, which no request would otherwise notice.
 ```js
 require( "@ti-engine/web-framework/jobs" ).instance.registerJob( "deadline-reminders", {
     every: "day",          // or "hour"
-    at: "04:00",           // UTC, for a daily job
+    at: "04:00",           // for a daily job, on the deployment's clock: UTC unless TI_LOCALIZATION_TIME_ZONE names a zone
     run: ( { now } ) => remindOfDeadlines( now )
 } );
 ```
@@ -602,6 +603,27 @@ tick, so a job must be harmless to run twice. `TI_WEB_JOBS_TRIGGER` decides what
 
 Both triggers assume one instance, as the configuration store's lock does. `runJobTick()` on the server runs a tick
 on demand.
+
+## The deployment's time zone
+
+Since 1.59.0, with core 1.20.0. `TI_LOCALIZATION_TIME_ZONE` (core's `localization.timeZone`) names the zone every
+calendar day of the application is a date in, such as `Europe/Sofia`. Instants stay UTC timestamps.
+
+* **`/app/config` carries `timeZone`**, the zone, or `null` when the deployment set none.
+* **`tiToolbox` reads it:**
+  * `getTimeZone()` is the zone, or `undefined` without one, which `Intl` reads as the device's.
+  * `clock( at? )` is `{ date, minutes }` on that clock.
+  * `today( at? )` is its date.
+  * `dayOf( value )` is a timestamp's day there, and leaves anything else as it was.
+  * `formatDate` writes a timestamp as that day, so the Feedback inbox and What's new date their items where the
+    organization is.
+* **A daily job's `at`** is a time on the deployment's clock, and an hourly job's period begins on its hour.
+* **Notice intervals** count from its midnight. A provider's daily limit stays on UTC, being the provider's day.
+
+On the two daylight-saving nights, a time the clock shows twice is its first showing, so nothing runs twice. Unset,
+nothing changes: the server reads UTC, a daily job's `at` is UTC, and a screen keeps the device's clock. An
+application that sets the zone states each job's `at` in local time. On the server, read today with core's
+`@ti-engine/core/time-zone`.
 
 ## What's new and Feedback
 
