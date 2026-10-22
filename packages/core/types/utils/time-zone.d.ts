@@ -7,6 +7,7 @@ declare const _exports: {
     dateIn: typeof dateIn;
     wallClockIn: typeof wallClockIn;
     today: typeof today;
+    instantsOf: typeof instantsOf;
     instantOf: typeof instantOf;
 };
 export = _exports;
@@ -14,7 +15,9 @@ export = _exports;
  * A zone's name as the runtime writes it: `europe/sofia` is `Europe/Sofia`, and a blank one is UTC.
  * <br/>
  * A name the runtime does not know is refused rather than read as UTC, which would move every deadline by hours without
- * a word.
+ * a word. So is a fixed offset such as `+02:00`, which Node accepts (measured on 24.22): it is no place's zone, keeps
+ * no daylight-saving rule, and a browser whose `Intl` lacks offset zones would read the device's clock instead, so the
+ * screens and the server would disagree about the day without a word either.
  *
  * @method
  * @param {string} [name]
@@ -85,12 +88,25 @@ declare function wallClockIn(instant: number, zone?: string): string;
  */
 declare function today(now?: Date | number, zone?: string): string;
 /**
- * The instant a wall-clock date and time name in a zone.
+ * Every instant at which a zone's clock shows a wall-clock date and time, earliest first.
  * <br/>
- * The zone's offset a day either side is tried, which covers both sides of a daylight-saving change. A time the
- * clock shows twice, 03:30 on Sofia's autumn night, is the first of the two: a period that begins there has begun by
- * the time either is shown, so nothing runs twice in the repeated hour. A time the clock skips, 03:30 on Sofia's spring
- * night, is read in the offset before the change, which is the instant the clock shows 04:30.
+ * The zone's offset a day either side is tried, which covers both sides of a daylight-saving change. A time the clock
+ * shows twice, 03:30 on Sofia's autumn night, has two instants, an hour apart. A time the clock skips, 03:30 on Sofia's
+ * spring night, has one: read in the offset before the change, it is the instant the clock shows 04:30. A date or a
+ * time that is not one has none.
+ *
+ * @method
+ * @param {string} date `YYYY-MM-DD`.
+ * @param {string} time `HH:MM`, 24-hour.
+ * @param {string} [zone] The deployment's unless stated.
+ * @returns {number[]} Milliseconds since the epoch.
+ * @public
+ */
+declare function instantsOf(date: string, time: string, zone?: string): number[];
+/**
+ * The instant a wall-clock date and time name in a zone: the first of {@link instantsOf}. A time the clock shows twice
+ * is its first showing, so a period that begins there has begun by the time either is shown and nothing runs twice in
+ * the repeated hour. A time the clock skips is the instant it jumps past it.
  *
  * @method
  * @param {string} date `YYYY-MM-DD`.

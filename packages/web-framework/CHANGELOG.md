@@ -14,25 +14,45 @@ This document will contain the list of changes made to the framework. The format
     * `formatDate` writes a timestamp, a string with a time and an offset, as its day in the zone. The Feedback inbox's
       "submitted" and What's new's "Updated on" are the organization's day, where they were the device's.
     * A calendar date stays itself.
-    * A zone the browser's `Intl` does not know falls back to the device's clock, never to an error, and so does a
-      deployment that set none.
+    * A zone the browser's `Intl` does not know falls back to the device's clock, never to an error, and the browser
+      warns of it once. So does a deployment that set none, without the warning.
+    * An instant no clock can read is read on the device's clock, as it would be with no zone, rather than throwing.
     * One formatter is kept per zone, and the last reading by instant and zone.
   * **A daily job's `at` is read in the zone**, across both daylight-saving changes, and an hourly job's period begins
     on the zone's hour (the half past in a half-hour zone). A time the clock shows twice is its first showing, so the
     job runs once in the repeated hour. `JobScheduler.periodStart( job, now, zone? )` takes the zone.
   * **Notice intervals count from the zone's midnight**: a daily summary goes at local midnight, where it went at
-    02:00 or 03:00 in Sofia. `NotificationService.intervalStart( hours, now, zone? )` takes the zone. A provider's daily
-    limit stays on UTC.
+    02:00 or 03:00 in Sofia. `NotificationService.intervalStart( hours, now, zone? )` takes the zone. A boundary the
+    clock shows twice begins an interval at each showing, so every real hour of Sofia's repeated hour gets its pass. A
+    provider's daily limit stays on UTC.
+  * **The feedback e-mail dates an item on the zone's day**, as the inbox shows it. It used the timestamp's first
+    ten characters: the day before, in Sofia, for an item sent after 21:00 UTC.
+  * **`TiWebServer` refuses to be built on an unknown zone**, as core's `start-instance` does, for a host that builds
+    the server itself.
   * **Unset, nothing changes.** An application that sets the zone states each job's `at` in local time: a job
     registered at `"04:00"` then runs at 04:00 where the organization is, not at 04:00 UTC.
   * **`@ti-engine/core` floor raised to `>=1.20.0`**, for `@ti-engine/core/time-zone`.
   * Tests:
-    * `test/time-zone.server.test.js` (6) covers `/app/config`, a daily job at 06:00 in Sofia across both 2026
-      changes, the repeated and the skipped 03:30, an hourly job in Kolkata, and intervals from Sofia's midnight.
-    * `test/ti-framework.time-zone.test.js` (6) puts the device in Los Angeles and Sofia in the configuration.
+    * `test/time-zone.server.test.js` (8) covers `/app/config`, a daily job at 06:00 in Sofia across both 2026
+      changes, the repeated and the skipped 03:30, an hourly job in Kolkata, intervals from Sofia's midnight and in
+      its repeated hour, and the feedback e-mail's day.
+    * `test/ti-framework.time-zone.test.js` (8) puts the device in Los Angeles and Sofia in the configuration.
+    * `test/web-server.time-zone.test.js` (1) builds the server on an unknown zone.
     * `/app/config` without a zone sends `null`.
 
-    All 12 fail on 1.58.1.
+    All 17 fail on 1.58.1.
+  * **The review pass** found 8 things. Fixed, each with a test that fails without the fix:
+    * the feedback e-mail's day;
+    * the repeated hour's interval;
+    * `clock()` throwing on an unreadable instant;
+    * the server's own check of the zone;
+    * the offset (in core);
+    * two JSDoc gaps.
+
+    Declined:
+    * exporting the wall clock as parts, since `wallClockIn`'s format is pinned by core's tests and every position
+      read from it is exercised;
+    * web-content's server-rendered dates, filed as CA-552.
 
 ## Version 1.58.1
 

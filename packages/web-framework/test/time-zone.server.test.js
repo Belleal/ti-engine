@@ -27,6 +27,7 @@ const { describe, it } = require( "node:test" );
 const assert = require( "node:assert/strict" );
 
 const TiWebAppManager = require( "#web-app-manager" );
+const Feedback = require( "#feedback" );
 const JobScheduler = require( "#job-scheduler" );
 const NotificationService = require( "#notification-service" );
 
@@ -93,6 +94,28 @@ describe( "the deployment's time zone on the server (CA-550)", () => {
         assert.equal( iso( NotificationService.intervalStart( 6, new Date( "2026-10-22T04:00:00Z" ) ) ), "2026-10-22T03:00:00.000Z", "06:00 to 12:00 in Sofia" );
         assert.equal( iso( NotificationService.intervalStart( 1, now ) ), "2026-10-21T22:00:00.000Z" );
         assert.equal( iso( NotificationService.intervalStart( 6, now, "UTC" ) ), "2026-10-21T18:00:00.000Z", "where they counted from before" );
+    } );
+
+    it( "gives each real hour of the repeated autumn hour an hourly interval of its own", () => {
+        // 25 October: 03:00-03:59 is shown at 00:00Z (EEST) and again at 01:00Z (EET). Counting both from the first
+        // showing left the second hour with no pass (the review pass).
+        assert.equal( iso( NotificationService.intervalStart( 1, new Date( "2026-10-25T00:20:00Z" ) ) ), "2026-10-25T00:00:00.000Z" );
+        assert.equal( iso( NotificationService.intervalStart( 1, new Date( "2026-10-25T01:20:00Z" ) ) ), "2026-10-25T01:00:00.000Z" );
+        assert.equal( iso( NotificationService.intervalStart( 1, new Date( "2026-03-29T01:20:00Z" ) ) ), "2026-03-29T01:00:00.000Z", "spring: 04:00 EEST, the clock having skipped 03:00" );
+    } );
+
+    it( "dates the feedback e-mail on the day the inbox shows", async ( t ) => {
+        NotificationService.instance.setTransport( { send: () => Promise.resolve( { messageId: "test" } ) } );
+        t.after( () => NotificationService.instance.setTransport( null ) );
+        const emitted = [];
+        t.mock.method( NotificationService.prototype, "emit", ( name, occurrence ) => {
+            emitted.push( occurrence );
+            return Promise.resolve( 1 );
+        } );
+        const feedback = new Feedback().configure( { admins: [ "boss@example.com" ] } );
+        // 00:30 on the 22nd in Sofia; its first ten characters, which the e-mail carried, are the 21st.
+        await feedback.received( { feedbackID: "f-1", kind: "problem", text: "It broke.", anonymous: false, senderName: "Jane Doe", submittedAt: "2026-10-21T21:30:00.000Z" } );
+        assert.equal( emitted[ 0 ].data.date, "2026-10-22" );
     } );
 
 } );

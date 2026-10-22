@@ -153,12 +153,15 @@ history and older PR bodies; it is no longer the working branch.
   `TI_LOCALIZATION_TIME_ZONE`, names the zone every calendar day of an application is a date in. **Instants stay UTC**.
   `utils/time-zone.js` (`./time-zone`, `#time-zone`) has:
   - `getTimeZone()` (UTC when unset), `isTimeZoneSet()`, `verifyTimeZone()` and `resolveTimeZone( name )`;
-  - `today( now?, zone? )`, `dateIn( instant, zone? )`, `wallClockIn( instant, zone? )` and `instantOf( date, time, zone? )`.
+  - `today( now?, zone? )`, `dateIn( instant, zone? )`, `wallClockIn( instant, zone? )`, `instantsOf( date, time, zone? )`
+    (every showing, two in a repeated hour) and `instantOf( date, time, zone? )` (the first).
 
   Three rules to keep:
   - **A calendar day is never a timestamp's first ten characters**, and never `new Date().toISOString().slice( 0, 10 )`:
     that is the UTC date, which turns over at 02:00 or 03:00 in Sofia.
-  - **A name the runtime does not know stops `start-instance`** before the service is built. Unset, nothing changes.
+  - **A name the runtime does not know stops `start-instance`** before the service is built, and web-framework's
+    `TiWebServer` when built. So does a fixed offset (`+02:00`), which Node accepts but which is no place's zone. Unset,
+    nothing changes.
   - **On a daylight-saving night**, a wall-clock time shown twice is its first showing, and one skipped is read in the
     offset before the change. `test/time-zone.test.js` pins both on Sofia's 2026 dates.
 
@@ -406,7 +409,9 @@ npm test    # node --test — 244 tests / 58 suites: 24 test files, plus the fiv
     - Before the configuration arrives, without a zone, or with one the browser lacks, every reading is the device's
       clock, as before.
   - **A daily job's `at` is local**, and an hourly job's period begins on the zone's hour, every real hour.
-  - **Notice intervals count from the zone's midnight.** A provider's daily limit stays on UTC.
+  - **Notice intervals count from the zone's midnight.** A boundary shown twice begins an interval at each showing, so
+    every real hour gets its pass. A provider's daily limit stays on UTC. The feedback e-mail's date is the zone's day.
+  - **`TiWebServer` refuses an unknown zone** when built, as `start-instance` does.
   - **An application that sets the zone states each job's `at` in local time.**
   - Tests: `test/time-zone.server.test.js` (Sofia set at the file's top) and `test/ti-framework.time-zone.test.js`
     (the device in Los Angeles through `TZ`).
@@ -1361,7 +1366,7 @@ Token: YouTrack → Profile → Account Security → New token (scope: YouTrack)
 2. **Extending the web UI**: subclass `TiWebAppManager`, add an HTML fragment + matching Alpine component; reuse framework CSS primitives; obey the Alpine CSP rules (no inline styles, no `?.`).
 3. **Config-management, from a consumer's side**: a consuming application registers a config document (schema + file default + semantic validators + optional composite editor) through `TiWebAppManager.registerConfigDocument` / `registerConfigEditor`. Those seams live here; the documents themselves live in the consumer. Changing either seam is a breaking change for every consumer, so treat the `exports` map and these signatures as API.
 4. **Testing**: Node.js built-in `node --test` (no external framework); each package's `test/` directory. `npm test`
-   at the root fans out across workspaces — **2095 tests today: core 251, web-framework 1222, web-content 433,
+   at the root fans out across workspaces — **2101 tests today: core 252, web-framework 1227, web-content 433,
    cloudflare 189, tester none** (it is a runnable service, not a unit-tested one). The three checks that gate a push are in
    `CLAUDE.md` → *Definition of done*: `npm test`, `npm run lint` (0 errors; ESLint runs `@eslint/js`'s
    recommended rules with `no-unused-vars` turned down to a **warning** — `no-control-regex` is an error, measured in

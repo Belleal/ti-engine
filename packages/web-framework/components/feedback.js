@@ -23,6 +23,7 @@ const tools = require( "@ti-engine/core/tools" );
 const logger = require( "@ti-engine/core/logger" );
 const exceptions = require( "@ti-engine/core/exceptions" );
 const localization = require( "@ti-engine/core/localization" );
+const timeZone = require( "@ti-engine/core/time-zone" );
 const notificationService = require( "#notification-service" );
 
 /** @import { TiFeedbackItem, TiFeedbackOptions, TiFeedbackPicture, TiSessionSubject } from "#definitions" */
@@ -654,7 +655,9 @@ class Feedback {
             anonymous: item.anonymous === true,
             senderName: ( item.anonymous === true ) ? "" : String( item.senderName || "" ),
             text: item.text,
-            date: String( item.submittedAt || "" ).slice( 0, 10 )
+            // The day it was sent where the organization is (CA-550), as the inbox shows it. Its first ten characters
+            // were the UTC date: the day before, in Sofia, for an item sent after 21:00 UTC (the review pass).
+            date: Number.isFinite( Date.parse( item.submittedAt ) ) ? timeZone.dateIn( Date.parse( item.submittedAt ) ) : ""
         };
         let queued = 0;
         return this.#admins.filter( ( address ) => address !== own ).reduce( ( chain, address ) => chain.then( () => {

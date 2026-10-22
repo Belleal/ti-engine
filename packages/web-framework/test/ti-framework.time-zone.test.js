@@ -70,6 +70,23 @@ describe( "tiToolbox on the deployment's clock (CA-550)", () => {
         assert.equal( unknown.today( AFTER_MIDNIGHT ), "2026-10-21", "a zone the browser lacks: the device's clock, never an error" );
     } );
 
+    it( "reads an instant no clock can read as the device does, rather than throwing on a deployment with a zone", () => {
+        const sofia = pageIn( "Europe/Sofia" ).toolbox;
+        const device = pageIn( null ).toolbox;
+        assert.doesNotThrow( () => sofia.today( new Date( "bogus" ) ) );
+        assert.equal( sofia.today( new Date( "bogus" ) ), device.today( new Date( "bogus" ) ) );
+        assert.equal( sofia.today( NaN ), device.today( NaN ) );
+    } );
+
+    it( "warns once that the browser lacks the zone, since its screens then read another day than the server", ( t ) => {
+        const warned = t.mock.method( console, "warn", () => {} );
+        const toolbox = pageIn( "Mars/Olympus_Mons" ).toolbox;
+        toolbox.today( AFTER_MIDNIGHT );
+        toolbox.today( AFTER_MIDNIGHT + 1 );
+        assert.equal( warned.mock.callCount(), 1 );
+        assert.match( String( warned.mock.calls[ 0 ].arguments[ 0 ] ), /Mars\/Olympus_Mons/ );
+    } );
+
     it( "gives a timestamp the deployment's day, and leaves everything that is not one as it was", () => {
         const sofia = pageIn( "Europe/Sofia" ).toolbox;
         assert.equal( sofia.dayOf( "2026-10-21T21:30:00.000Z" ), "2026-10-22" );

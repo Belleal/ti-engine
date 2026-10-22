@@ -1120,8 +1120,10 @@ class NotificationService {
      * the organization is, and with 24 a day's notices go at its midnight. They used to count from midnight UTC, which
      * sent a daily summary at 02:00 or 03:00 in Sofia.
      * <br/>
-     * A boundary the clock shows twice is its first showing; one it skips is where the clock jumps past it. A
-     * provider's daily limit is not one of these: it is the provider's day, and stays on UTC.
+     * A boundary the clock shows twice begins an interval at each showing, the latest one passed: in Sofia's repeated
+     * hour an hourly interval is each real hour, so no hour goes without a pass (the review pass found the first showing
+     * alone left the second hour with none). One the clock skips is where the clock jumps past it. A provider's daily
+     * limit is not one of these: it is the provider's day, and stays on UTC.
      *
      * @method
      * @param {number} hours One of {@link SEND_INTERVALS}.
@@ -1133,7 +1135,9 @@ class NotificationService {
     static intervalStart( hours, now, zone = timeZone.getTimeZone() ) {
         const clock = timeZone.wallClockIn( now.getTime(), zone );
         const hour = Math.floor( Number( clock.slice( 11, 13 ) ) / hours ) * hours;
-        return timeZone.instantOf( clock.slice( 0, 10 ), `${ String( hour ).padStart( 2, "0" ) }:00`, zone );
+        const showings = timeZone.instantsOf( clock.slice( 0, 10 ), `${ String( hour ).padStart( 2, "0" ) }:00`, zone );
+        const passed = showings.filter( ( instant ) => instant <= now.getTime() );
+        return ( passed.length > 0 ) ? passed[ passed.length - 1 ] : showings[ 0 ];
     }
 
     /**

@@ -13,17 +13,22 @@ This document contains the list of changes made to the framework. The format is 
     * A name the runtime does not know stops `start-instance` before the service is built (`E_GEN_INVALID_ARGUMENT_TYPE`,
       reason `invalid-time-zone`). Read as UTC instead, it would move every deadline by hours without a word.
     * The start logs the zone it reads days in.
+    * A fixed offset such as `+02:00` is refused as well. Node accepts it (measured on 24.22), but it keeps no
+      daylight-saving rule, and a browser without offset zones would read another day than the server.
+      `Etc/GMT-2` names a fixed zone and is accepted.
   * **`@ti-engine/core/time-zone`** (also `#time-zone`):
     * `getTimeZone()`, `isTimeZoneSet()`, `verifyTimeZone()` and `resolveTimeZone( name )`.
-    * `today( now?, zone? )`, `dateIn( instant, zone? )`, `wallClockIn( instant, zone? )` and
-      `instantOf( date, time, zone? )`.
+    * `today( now?, zone? )`, `dateIn( instant, zone? )`, `wallClockIn( instant, zone? )`,
+      `instantsOf( date, time, zone? )` (every instant the clock shows that time: two in a repeated hour) and
+      `instantOf( date, time, zone? )` (the first of them).
     * The zone defaults to the deployment's. One formatter is kept per zone.
   * **Daylight-saving nights.** A time the clock shows twice is its first showing, so a period that begins there runs
     once. A time it skips is read in the offset before the change. The tests pin both against Europe/Sofia's 2026 dates.
   * **Measured** at 00:30 on 22 October in Sofia: the UTC date is `2026-10-21`, `today()` is `2026-10-22`.
   * **The name is the runtime's own.** Node 24.22 writes `Asia/Kolkata` as `Asia/Calcutta`, which every `Intl` reads
     as the same zone.
-  * `test/time-zone.test.js` (7). The start test runs `start-instance` with an unknown zone and with Sofia.
+  * `test/time-zone.test.js` (8). The start test runs `start-instance` with an unknown zone and with Sofia.
+  * **The review pass** added `instantsOf` and the refusal of an offset, each with a test that fails without it.
   * Design record: `docs/superpowers/specs/2026-10-22-application-time-zone-design.md`.
 
 ## Version 1.19.1

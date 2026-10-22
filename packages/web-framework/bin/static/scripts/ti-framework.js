@@ -95,12 +95,27 @@ const zoneFormatter = ( zone ) => {
 };
 
 /**
+ * A reading of the deployment's wall clock, as `clock` answers it.
+ *
+ * @typedef {Object} TiClockReading
+ * @property {string} date `YYYY-MM-DD`.
+ * @property {number} minutes Minutes past that day's midnight on the clock.
+ */
+
+/**
  * The clock `clock` read last, with the instant and the zone it was read for: a grid asks for it at one `now` for
  * every cell.
  *
- * @type {{at: number, zone: (string|undefined), clock: {date: string, minutes: number}}|null}
+ * @type {{at: number, zone: (string|undefined), clock: TiClockReading}|null}
  */
 let lastClock = null;
+
+/**
+ * The zones already reported as unknown to this browser, so each is warned of once rather than on every reading.
+ *
+ * @type {Set<string>}
+ */
+const unknownZonesReported = new Set();
 
 /**
  * Returns a configuration object for the toolbox.
@@ -212,7 +227,18 @@ const configureToolbox = () => {
         getTimeZone() {
             const application = Alpine.store( "tiApplication" );
             const zone = ( application && application.configuration ) ? application.configuration.timeZone : null;
-            return ( typeof zone === "string" && zone !== "" && zoneFormatter( zone ) !== null ) ? zone : undefined;
+            if ( typeof zone !== "string" || zone === "" ) {
+                return undefined;
+            }
+            if ( zoneFormatter( zone ) === null ) {
+                // Said once: this screen now reads the device's day while the server reads the zone's.
+                if ( !unknownZonesReported.has( zone ) ) {
+                    unknownZonesReported.add( zone );
+                    console.warn( `This browser does not know the time zone '${ zone }'; dates are read on the device's clock.` );
+                }
+                return undefined;
+            }
+            return zone;
         },
 
         /**
@@ -223,12 +249,15 @@ const configureToolbox = () => {
          *
          * @method
          * @param {number|Date} [at] Milliseconds since the epoch, or a Date; now unless stated.
-         * @returns {{date: string, minutes: number}}
+         * @returns {TiClockReading}
          * @public
          */
         clock( at = Date.now() ) {
             const instant = new Date( at );
-            const zone = this.getTimeZone();
+            // An instant no clock can read is read on the device's, as with no zone: `formatToParts` throws on it, so a
+            // missing date in a template would break the screen on a deployment that sets a zone and not on one that
+            // does not (the review pass).
+            const zone = Number.isFinite( instant.getTime() ) ? this.getTimeZone() : undefined;
             if ( lastClock !== null && lastClock.at === instant.getTime() && lastClock.zone === zone ) {
                 return lastClock.clock;
             }

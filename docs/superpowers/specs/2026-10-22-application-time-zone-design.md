@@ -59,8 +59,13 @@ name of the setting.
 - **Unset means what happens today**: the server reads UTC, and a screen keeps the device's clock. No existing
   deployment changes behaviour by upgrading.
 - **A name the runtime does not know fails the start** (`E_GEN_INVALID_ARGUMENT_TYPE`, reason `invalid-time-zone`).
-  Read as UTC instead, it would move every deadline by hours without a word. `start-instance` checks it before it
-  constructs the service, and logs the zone it will use.
+  Read as UTC instead, it would move every deadline by hours without a word.
+  - `start-instance` checks it before it constructs the service, and logs the zone it will use.
+  - `TiWebServer` checks it again when built, for a host that builds the server itself. Unchecked, every
+    `/app/config` and every job tick would fail instead (the review pass, §9).
+- **A fixed offset is refused too.** Node accepts `+02:00` (measured on 24.22), but it is no place's zone and keeps
+  no daylight-saving rule. A browser whose `Intl` lacks offset zones would read the device's clock while the server
+  read the offset. `Etc/GMT-2` is the IANA name of a fixed zone, and is accepted.
 - **The name is canonicalised** through `Intl` (`europe/sofia` → `Europe/Sofia`). That is the one form the browser
   receives, which compares, logs and caches as one zone. It is the runtime's own name, which ICU may keep as a legacy
   alias: Node 24.22 writes `Asia/Kolkata` as `Asia/Calcutta`. Every `Intl`, the browser's included, reads either as the
@@ -77,7 +82,8 @@ name of the setting.
 | `today( now?, zone? )` | `YYYY-MM-DD` in the zone at `now` (a `Date` or milliseconds). |
 | `dateIn( instant, zone? )` | `YYYY-MM-DD` the zone shows at an instant. |
 | `wallClockIn( instant, zone? )` | `YYYY-MM-DDTHH:MM` the zone shows at an instant. It compares with a stored `date` + `T` + `time` as text. |
-| `instantOf( date, time, zone? )` | The instant a wall-clock `YYYY-MM-DD` and `HH:MM` name in the zone; `NaN` for anything that is not one. |
+| `instantsOf( date, time, zone? )` | Every instant the zone's clock shows that date and time, earliest first: two in a repeated hour, one otherwise, none for anything that is not a date and time. |
+| `instantOf( date, time, zone? )` | The first of them; `NaN` for anything that is not one. |
 
 Every `zone?` defaults to `getTimeZone()`. Formatters are kept one per zone, so a hot path formats instead of
 building one each time.
@@ -114,6 +120,10 @@ building one each time.
   hour. That is the UTC hour for every whole-hour zone. In a half-hour zone (India) it is the half past.
 - **A notice interval of `hours` counts from the zone's midnight.** A daily summary goes at local midnight, and a
   6-hour interval begins at 00:00, 06:00, 12:00 and 18:00 local time.
+- **A boundary the clock shows twice begins an interval at each showing**, the latest one passed. In Sofia's repeated
+  hour, an hourly interval is each real hour. Counted from the first showing alone, the second hour had no pass (the
+  review pass). A job keeps the first showing, so it runs once; a notice pass may run twice, which is harmless, since
+  delivery is at least once anyway.
 - **A provider's daily limit stays on UTC** (`nextUTCMidnight`). It is the provider's day, not the organization's.
 - **`periodStart( job, now, zone? )` and `intervalStart( hours, now, zone? )`** take the zone as an optional last
   argument, as the core helpers do, so a test or a caller can ask about any zone.
@@ -184,3 +194,29 @@ The tests in §7 pin these values.
 
 - **`tools.getUTCDateString()`** stays as it is: it says UTC in its name, and callers that want UTC use it.
 - **Competence's adoption** is competence's own PR (CA-549, competence#193), after both versions are on npm.
+- **web-content's server-rendered dates** ([`CA-552`](https://belleal.youtrack.cloud/issue/CA-552)).
+  `render/context.js` writes a timestamp in the process's zone. A date-only value parsed as UTC midnight is a day
+  early west of UTC, which is a defect of its own. Passing the zone alone would fix the first and worsen the second,
+  so the fix treats the two apart, in a web-content patch.
+
+## 9. The review pass
+
+`code-review` at high on `origin/master...HEAD` raised 8 findings. 6 were fixed, each with a test that fails without
+the fix; 2 were declined.
+
+**Fixed:**
+1. **The feedback e-mail** dated an item by its timestamp's first ten characters, while the inbox showed the zone's
+   day. It now uses `dateIn`.
+2. **An hourly notice interval** left the second showing of the repeated hour without a pass (§4.4).
+3. **`tiToolbox.clock()`** threw on an instant no clock can read once a zone was set, and did not without one. It
+   now reads such an instant on the device's clock, as it would with no zone.
+4. **`TiWebServer`** did not check the zone, so a host other than `start-instance` failed at every `/app/config`
+   (§4.1).
+5. **A fixed offset** was accepted (§4.1). Separately, the browser now warns once that it lacks the zone it was sent.
+6. **JSDoc:** `DEFAULT_ZONE` lacked `@public`, and `clock()`'s shape is now the `TiClockReading` typedef.
+
+**Declined:**
+- **Exporting the wall clock as parts, to save slicing `wallClockIn`'s text.** The format, `YYYY-MM-DDTHH:MM`, is
+  pinned by core's own tests. Every position read from it is exercised: the hour by the interval tests, the minutes
+  by the hourly job in Kolkata, and the date by the daily jobs.
+- **web-content** is named in §8 and filed as CA-552.

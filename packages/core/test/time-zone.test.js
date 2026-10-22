@@ -102,6 +102,14 @@ describe( "the deployment's time zone (CA-550)", () => {
         assert.equal( at( "2026-10-25", "06:00" ), "2026-10-25T04:00:00.000Z" );
     } );
 
+    it( "lists every instant the clock shows a time at: two in the repeated hour, one where it skips, none for no time", () => {
+        const at = ( date, time ) => timeZone.instantsOf( date, time ).map( ( instant ) => new Date( instant ).toISOString() );
+        assert.deepEqual( at( "2026-10-25", "03:30" ), [ "2026-10-25T00:30:00.000Z", "2026-10-25T01:30:00.000Z" ], "EEST, then EET" );
+        assert.deepEqual( at( "2026-03-29", "03:30" ), [ "2026-03-29T01:30:00.000Z" ], "skipped: where the clock jumps past it" );
+        assert.deepEqual( at( "2026-10-22", "10:30" ), [ "2026-10-22T07:30:00.000Z" ] );
+        assert.deepEqual( timeZone.instantsOf( "2026-04-31", "10:00" ), [] );
+    } );
+
     it( "names no instant for a date or a time that is not one", () => {
         [ [ "2026-04-31", "10:00" ], [ "2026-02-29", "10:00" ], [ "2026-10-22", "24:00" ], [ "2026-10-22", "9:00" ], [ "22.10.2026", "10:00" ], [ undefined, "10:00" ], [ "2026-10-22", null ] ]
             .forEach( ( [ date, time ] ) => assert.ok( Number.isNaN( timeZone.instantOf( date, time ) ), `${ date } ${ time }` ) );
@@ -115,6 +123,10 @@ describe( "the deployment's time zone (CA-550)", () => {
         // The runtime's own name, which ICU may keep as a legacy alias: Node 24.22 writes Asia/Kolkata as
         // Asia/Calcutta. Either names the same zone to every Intl, the browser's included.
         assert.ok( [ "Asia/Kolkata", "Asia/Calcutta" ].includes( timeZone.resolveTimeZone( "Asia/Kolkata" ) ) );
+        // An offset is no place's zone, though Node accepts one (measured on 24.22): no daylight-saving rule, and a
+        // browser without offset zones would read the device's clock while the server read the offset.
+        [ "+02:00", "-0530" ].forEach( ( offset ) => assert.throws( () => timeZone.resolveTimeZone( offset ), ( error ) => error.data.reason === "invalid-time-zone", offset ) );
+        assert.equal( timeZone.resolveTimeZone( "Etc/GMT-2" ), "Etc/GMT-2", "a fixed zone by its IANA name is one" );
         assert.throws( () => timeZone.resolveTimeZone( "Mars/Olympus_Mons" ), ( error ) => {
             assert.equal( error.code, exceptions.exceptionCode.E_GEN_INVALID_ARGUMENT_TYPE );
             assert.equal( error.data.reason, "invalid-time-zone" );
