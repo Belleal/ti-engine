@@ -515,6 +515,11 @@ LOCALIZATION_LANGUAGE
 : ENV variable `TI_LOCALIZATION_LANGUAGE`
 : This setting specifies the default framework language. It will be used when translating labels into a localized text.
 
+LOCALIZATION_TIME_ZONE
+: JSON path `localization.timeZone`, type `string`, default `""` (none)
+: ENV variable `TI_LOCALIZATION_TIME_ZONE`
+: This setting names the deployment's time zone, an IANA name such as `Europe/Sofia`: the zone every calendar day of the application is a date in (see *Time zone* below). A name the runtime does not know stops the instance at start. Unset, the server reads UTC and a web screen keeps the device's clock, as before the setting existed.
+
 MEMORY_CACHE_AUTH_KEY
 : JSON path `memoryCache.authKey`, type `string`, default `undefined`
 : ENV variable `TI_MEMORY_CACHE_AUTH_KEY`
@@ -631,3 +636,18 @@ The individual languages are specified with a two-letter code according to ISO 6
 The system labels ship in English and Bulgarian, and every exception code has a message in both.
 
 If you want to localize the system labels of the framework, you can do so by providing a custom localization file with the same structure as the default one but containing only the languages you want to add. For example, the default English label for `E_UNKNOWN_ERROR` is found in JSON path `system.exceptions.0.en`. To add an entry for German, your file needs to contain a `system.exceptions.0.de` property. The localization module will handle the rest. You can use the same approach to modify the existing English labels as well. The full list of system labels is found in the `bin/localization/labels.json` file. Avoid modifying the default file since it might get overwritten by future updates.
+
+### Time zone
+
+An application has days: today, a deadline, an interview's date. People use it in a place, so its days turn over at that place's midnight, not at UTC's. Set `LOCALIZATION_TIME_ZONE` to the organization's zone and read every calendar day through `@ti-engine/core/time-zone`:
+
+```js
+const timeZone = require( "@ti-engine/core/time-zone" );
+
+timeZone.today();                                  // "2026-10-22" at 00:30 in Sofia, where the UTC date is still the 21st
+timeZone.dateIn( Date.parse( claim.claimedAt ) );  // a timestamp's day in the zone, never its first ten characters
+timeZone.instantOf( "2026-10-22", "10:30" );       // the instant a stored wall-clock date and time name
+timeZone.wallClockIn( Date.now() );                // "2026-10-22T00:30", which compares with a stored date and time as text
+```
+
+Instants stay UTC timestamps; only a calendar day is the zone's. Each function takes the zone as an optional last argument, so a caller can ask about any zone. `getTimeZone()` answers the zone in effect (`UTC` when none is set), `isTimeZoneSet()` whether the deployment named one, and `resolveTimeZone( name )` checks a name and refuses a fixed offset such as `+02:00`, which is no place's zone. `hourStartIn( instant )` is the instant the zone's current hour began, which is every real hour, the repeated one included. On the two daylight-saving nights a time the clock shows twice is its first showing, and a time it skips is read in the offset before the change. web-framework sends the zone to the browser and runs its daily jobs and notice intervals in it.

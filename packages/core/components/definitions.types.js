@@ -83,6 +83,8 @@
  * @typedef {Object} SettingsLocalization
  * @property {Array<string>} labelsPath
  * @property {TiLocalizationLanguage} language
+ * @property {string} timeZone An IANA zone, every calendar day's; empty for none, which reads UTC on the server and the
+ *     device's clock on a screen.
  */
 
 /**

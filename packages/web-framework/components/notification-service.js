@@ -23,6 +23,7 @@ const tools = require( "@ti-engine/core/tools" );
 const logger = require( "@ti-engine/core/logger" );
 const localization = require( "@ti-engine/core/localization" );
 const exceptions = require( "@ti-engine/core/exceptions" );
+const timeZone = require( "@ti-engine/core/time-zone" );
 const configService = require( "#config-service" );
 const transports = require( "#notification-transports" );
 
@@ -393,7 +394,8 @@ function isAddress( value ) {
 }
 
 /**
- * The moment the next UTC day starts, in milliseconds.
+ * The moment the next UTC day starts, in milliseconds: when a provider's daily limit lifts. It is the provider's day,
+ * so it stays on UTC whatever zone the deployment's own days are in (CA-550).
  *
  * @method
  * @param {number} now
@@ -1113,17 +1115,31 @@ class NotificationService {
     }
 
     /**
-     * The moment the interval of `hours` hours holding `now` began, in milliseconds: intervals count from midnight UTC,
-     * so with 6 they begin at 00:00, 06:00, 12:00 and 18:00 UTC.
+     * The moment the interval of `hours` hours holding `now` began, in milliseconds: intervals count from midnight on
+     * the deployment's clock (core's `time-zone`, CA-550), so with 6 they begin at 00:00, 06:00, 12:00 and 18:00 where
+     * the organization is, and with 24 a day's notices go at its midnight. They used to count from midnight UTC, which
+     * sent a daily summary at 02:00 or 03:00 in Sofia.
+     * <br/>
+     * They treat a daylight-saving night as the jobs do. An interval of one hour is every real hour, the repeated one
+     * included, as an hourly job's period is (core's `hourStartIn`): counted from the first showing, the second
+     * repeated hour had no pass (the review pass). A longer interval begins at its boundary's first showing, as a daily
+     * job does, so it is never cut in two. A provider's daily limit is not one of these: it is the provider's day, and
+     * stays on UTC.
      *
      * @method
      * @param {number} hours One of {@link SEND_INTERVALS}.
      * @param {Date} now
+     * @param {string} [zone] The deployment's unless stated.
      * @returns {number}
      * @public
      */
-    static intervalStart( hours, now ) {
-        return Date.UTC( now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), Math.floor( now.getUTCHours() / hours ) * hours );
+    static intervalStart( hours, now, zone = timeZone.getTimeZone() ) {
+        if ( hours === 1 ) {
+            return timeZone.hourStartIn( now.getTime(), zone );
+        }
+        const clock = timeZone.wallClockIn( now.getTime(), zone );
+        const hour = Math.floor( Number( clock.slice( 11, 13 ) ) / hours ) * hours;
+        return timeZone.instantOf( clock.slice( 0, 10 ), `${ String( hour ).padStart( 2, "0" ) }:00`, zone );
     }
 
     /**

@@ -16,7 +16,7 @@
 */
 
 /*
- * What a picture sent with feedback keeps of the framework's own screens (1.58.2, CA-551). The picture blanks every
+ * What a picture sent with feedback keeps of the framework's own screens (1.59.1, CA-551). The picture blanks every
  * text drawn other than through `x-text-label` unless it, or an element around it, carries `data-ti-keep` (1.58.0,
  * CA-544). The framework's shell and screens marked nothing, so a picture of them blanked their own titles and
  * labels, and the reader could not tell which screen the feedback was about.

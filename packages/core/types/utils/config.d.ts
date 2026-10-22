@@ -17,6 +17,7 @@ declare const settingsEnum: import("../components/definitions.types").TiEnumOf<{
     GCLOUD_PROJECT_ID: string[];
     LOCALIZATION_LABELS_PATH: string[];
     LOCALIZATION_LANGUAGE: string[];
+    LOCALIZATION_TIME_ZONE: string[];
     MEMORY_CACHE_AUTH_KEY: string[];
     MEMORY_CACHE_PROVIDER: string[];
     MEMORY_CACHE_REDIS_DB: string[];

@@ -58,6 +58,66 @@ const defaultSidebarFlyoutConfig = {
 const AVATAR_TONE_COUNT = 7;
 
 /**
+ * A timestamp, as the server writes an instant: a date, a time and an offset (`Z` or `±hh:mm`). A time without an
+ * offset is the device's own wall clock, and is no instant to read in another zone. See `dayOf`.
+ *
+ * @type {RegExp}
+ */
+const RE_INSTANT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})$/;
+
+/**
+ * One wall-clock formatter per zone for `clock`, or `null` for a zone this browser's `Intl` does not know. Building
+ * one costs far more than formatting with one, and a week grid reads the clock once for every cell it draws (CA-550).
+ *
+ * @type {Map<string, Intl.DateTimeFormat|null>}
+ */
+const zoneFormatters = new Map();
+
+/**
+ * The wall-clock formatter for a zone, built once: `null` when this browser does not know the zone.
+ *
+ * @method
+ * @param {string} zone
+ * @returns {Intl.DateTimeFormat|null}
+ * @private
+ */
+const zoneFormatter = ( zone ) => {
+    if ( !zoneFormatters.has( zone ) ) {
+        let formatter = null;
+        try {
+            formatter = new Intl.DateTimeFormat( "en-GB", { timeZone: zone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" } );
+        } catch {
+            // A zone this browser does not know: every reading falls back to the device's clock, as before.
+        }
+        zoneFormatters.set( zone, formatter );
+    }
+    return zoneFormatters.get( zone );
+};
+
+/**
+ * A reading of the deployment's wall clock, as `clock` answers it.
+ *
+ * @typedef {Object} TiClockReading
+ * @property {string} date `YYYY-MM-DD`.
+ * @property {number} minutes Minutes past that day's midnight on the clock.
+ */
+
+/**
+ * The clock `clock` read last, with the instant and the zone it was read for: a grid asks for it at one `now` for
+ * every cell.
+ *
+ * @type {{at: number, zone: (string|undefined), clock: TiClockReading}|null}
+ */
+let lastClock = null;
+
+/**
+ * The zones already reported as unknown to this browser, so each is warned of once rather than on every reading.
+ *
+ * @type {Set<string>}
+ */
+const unknownZonesReported = new Set();
+
+/**
  * Returns a configuration object for the toolbox.
  *
  * @method
@@ -153,6 +213,103 @@ const configureToolbox = () => {
         },
 
         /**
+         * The deployment's time zone, as `/app/config` sends it (core's `TI_LOCALIZATION_TIME_ZONE`, CA-550): the zone
+         * every calendar day of the application is a date in.
+         * <br/>
+         * `undefined` before the configuration arrives, when the deployment set none, and for a zone this browser's
+         * `Intl` does not know. `Intl` reads `undefined` as the device's own zone, so `{ timeZone: getTimeZone() }`
+         * is always safe to pass, and a deployment that set none keeps the device's clock, as before.
+         *
+         * @method
+         * @returns {string|undefined}
+         * @public
+         */
+        getTimeZone() {
+            const application = Alpine.store( "tiApplication" );
+            const zone = ( application && application.configuration ) ? application.configuration.timeZone : null;
+            if ( typeof zone !== "string" || zone === "" ) {
+                return undefined;
+            }
+            if ( zoneFormatter( zone ) === null ) {
+                // Said once: this screen now reads the device's day while the server reads the zone's.
+                if ( !unknownZonesReported.has( zone ) ) {
+                    unknownZonesReported.add( zone );
+                    console.warn( `This browser does not know the time zone '${ zone }'; dates are read on the device's clock.` );
+                }
+                return undefined;
+            }
+            return zone;
+        },
+
+        /**
+         * The deployment's wall clock at an instant (CA-550): its date, `YYYY-MM-DD`, and the minutes past its midnight.
+         * Every screen reckons today, a deadline and an hour in it, as the server's rules do, so a reader whose device
+         * is in another zone sees the same day as everyone else. The device's clock is a day out either side of
+         * midnight wherever the reader is not in that zone. With no zone (see `getTimeZone`), the device's clock.
+         *
+         * @method
+         * @param {number|Date} [at] Milliseconds since the epoch, or a Date; now unless stated.
+         * @returns {TiClockReading}
+         * @public
+         */
+        clock( at = Date.now() ) {
+            const instant = new Date( at );
+            // An instant no clock can read is read on the device's, as with no zone: `formatToParts` throws on it, so a
+            // missing date in a template would break the screen on a deployment that sets a zone and not on one that
+            // does not (the review pass). Either way its fields are NaN, as `new Date( NaN )`'s are: an instant the
+            // caller could not read has no day, and a caller that may pass one checks it, as for `formatDate`.
+            const zone = Number.isFinite( instant.getTime() ) ? this.getTimeZone() : undefined;
+            if ( lastClock !== null && lastClock.at === instant.getTime() && lastClock.zone === zone ) {
+                return lastClock.clock;
+            }
+            let reading;
+            if ( zone !== undefined ) {
+                const parts = {};
+                zoneFormatter( zone ).formatToParts( instant ).forEach( ( part ) => {
+                    parts[ part.type ] = part.value;
+                } );
+                reading = { date: `${ parts.year }-${ parts.month }-${ parts.day }`, minutes: Number( parts.hour ) * 60 + Number( parts.minute ) };
+            } else {
+                reading = { date: this.toDateString( instant ), minutes: instant.getHours() * 60 + instant.getMinutes() };
+            }
+            lastClock = { at: instant.getTime(), zone: zone, clock: Object.freeze( reading ) };
+            return lastClock.clock;
+        },
+
+        /**
+         * Today's date, `YYYY-MM-DD`, on the deployment's clock: see `clock`.
+         *
+         * @method
+         * @param {number|Date} [at] Milliseconds since the epoch, or a Date; now unless stated.
+         * @returns {string}
+         * @public
+         */
+        today( at ) {
+            return this.clock( at ).date;
+        },
+
+        /**
+         * A timestamp's day on the deployment's clock, `YYYY-MM-DD` (CA-550). A claim made at 23:30 UTC is the next
+         * day in Sofia, and its first ten characters, or the device's clock, named the day before.
+         * <br/>
+         * Only a string with a time and an offset is a timestamp. A calendar date, a Date, a time without an offset and
+         * anything `Date.parse` cannot read pass through unchanged, as every other reading of them already treats them.
+         * So does every value while there is no zone, which leaves the device's clock to read it, as before.
+         *
+         * @method
+         * @param {*} value
+         * @returns {*}
+         * @public
+         */
+        dayOf( value ) {
+            if ( typeof value !== "string" || !RE_INSTANT.test( value ) || this.getTimeZone() === undefined ) {
+                return value;
+            }
+            const instant = Date.parse( value );
+            return Number.isFinite( instant ) ? this.today( instant ) : value;
+        },
+
+        /**
          * Used to format a system string date value into a display string, in the page's own language.
          * <br/>
          * The locale is the document's `<html lang>`, never the browser's. Up to 1.43.0 this called
@@ -169,9 +326,11 @@ const configureToolbox = () => {
          */
         formatDate( value, placeholder = "" ) {
             if ( !value ) return placeholder;
-            const normalized = /^\d{4}-\d{2}-\d{2}$/.test( value )
-                ? `${ value }T00:00:00`
-                : value;
+            // A timestamp is written as its day on the deployment's clock (CA-550): see `dayOf`.
+            const day = this.dayOf( value );
+            const normalized = /^\d{4}-\d{2}-\d{2}$/.test( day )
+                ? `${ day }T00:00:00`
+                : day;
             const date = new Date( normalized );
             if ( !this.isValidDate( date ) ) {
                 return placeholder;

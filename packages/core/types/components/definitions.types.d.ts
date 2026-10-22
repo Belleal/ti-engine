@@ -27,6 +27,11 @@ export type SettingsGcloudIntegration = {
 export type SettingsLocalization = {
     labelsPath: Array<string>;
     language: TiLocalizationLanguage;
+    /**
+     * An IANA zone, every calendar day's; empty for none, which reads UTC on the server and the
+     * device's clock on a screen.
+     */
+    timeZone: string;
 };
 export type SettingsMemoryCache = {
     authKey: string;
@@ -308,6 +313,8 @@ export type Message = {
  * @typedef {Object} SettingsLocalization
  * @property {Array<string>} labelsPath
  * @property {TiLocalizationLanguage} language
+ * @property {string} timeZone An IANA zone, every calendar day's; empty for none, which reads UTC on the server and the
+ *     device's clock on a screen.
  */
 /**
  * @typedef {Object} SettingsMemoryCache

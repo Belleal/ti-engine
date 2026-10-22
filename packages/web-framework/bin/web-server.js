@@ -41,6 +41,7 @@ const jobScheduler = require( "#job-scheduler" );
 const feedback = require( "#feedback" );
 const applyWebConfigEnvOverrides = require( "#web-config-env" );
 const localization = require( "@ti-engine/core/localization" );
+const timeZone = require( "@ti-engine/core/time-zone" );
 
 /** @typedef {import("node:http").Server} NodeServer */
 
@@ -286,6 +287,15 @@ class TiWebServer extends ServiceConsumer {
         const offered = TiWebServer.resolveOfferedLanguages( this.serviceConfig.languages );
         offered.warnings.forEach( ( warning ) => logger.log( warning, logger.logSeverity.WARNING ) );
         this.#offeredLanguages = Object.freeze( offered.languages );
+
+        // The deployment's time zone, refused here as well as by core's start-instance, for a host that builds the
+        // server itself: a name the runtime does not know would fail every /app/config and every job tick (CA-550).
+        try {
+            timeZone.verifyTimeZone();
+        } catch ( error ) {
+            logger.log( "TI_LOCALIZATION_TIME_ZONE names no time zone this runtime knows.", logger.logSeverity.ERROR, error );
+            throw error;
+        }
 
         // Refused here rather than at the first tick: a `route` trigger on a server the internet can reach would let
         // anyone run the jobs (CA-486).

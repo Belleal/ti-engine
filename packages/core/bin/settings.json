@@ -13,7 +13,8 @@
   },
   "localization": {
     "labelsPath": [],
-    "language": "en"
+    "language": "en",
+    "timeZone": ""
   },
   "memoryCache": {
     "authKey": null,

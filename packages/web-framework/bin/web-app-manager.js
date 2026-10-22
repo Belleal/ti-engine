@@ -19,6 +19,7 @@ const exceptions = require( "@ti-engine/core/exceptions" );
 const logger = require( "@ti-engine/core/logger" );
 const tools = require( "@ti-engine/core/tools" );
 const localization = require( "@ti-engine/core/localization" );
+const timeZone = require( "@ti-engine/core/time-zone" );
 const crypto = require( "node:crypto" );
 const path = require( "node:path" );
 const fs = require( "node:fs" );
@@ -770,6 +771,9 @@ class TiWebAppManager {
                         whatsNew: this.#whatsNewEnabled,
                         feedback: this.#feedbackEnabled
                     },
+                    // The zone every calendar day is a date in (CA-550), which `tiToolbox` reads today and a timestamp's
+                    // day in. None when the deployment set none: a screen then keeps the device's clock, as before.
+                    timeZone: timeZone.isTimeZoneSet() ? timeZone.getTimeZone() : null,
                     componentsConfig: this.buildComponentsConfig( session )
                 } );
             } else {

@@ -371,16 +371,25 @@ declare class NotificationService {
      */
     static passes(when?: Record<string, string[]>, data?: Object): boolean;
     /**
-     * The moment the interval of `hours` hours holding `now` began, in milliseconds: intervals count from midnight UTC,
-     * so with 6 they begin at 00:00, 06:00, 12:00 and 18:00 UTC.
+     * The moment the interval of `hours` hours holding `now` began, in milliseconds: intervals count from midnight on
+     * the deployment's clock (core's `time-zone`, CA-550), so with 6 they begin at 00:00, 06:00, 12:00 and 18:00 where
+     * the organization is, and with 24 a day's notices go at its midnight. They used to count from midnight UTC, which
+     * sent a daily summary at 02:00 or 03:00 in Sofia.
+     * <br/>
+     * They treat a daylight-saving night as the jobs do. An interval of one hour is every real hour, the repeated one
+     * included, as an hourly job's period is (core's `hourStartIn`): counted from the first showing, the second
+     * repeated hour had no pass (the review pass). A longer interval begins at its boundary's first showing, as a daily
+     * job does, so it is never cut in two. A provider's daily limit is not one of these: it is the provider's day, and
+     * stays on UTC.
      *
      * @method
      * @param {number} hours One of {@link SEND_INTERVALS}.
      * @param {Date} now
+     * @param {string} [zone] The deployment's unless stated.
      * @returns {number}
      * @public
      */
-    static intervalStart(hours: number, now: Date): number;
+    static intervalStart(hours: number, now: Date, zone?: string): number;
     /**
      * The JSON Schema of the `notifications` document.
      *
