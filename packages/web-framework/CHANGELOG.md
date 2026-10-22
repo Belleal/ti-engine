@@ -2,6 +2,75 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.59.1
+
+* fix(web-framework): **a picture sent with feedback keeps the framework's own titles and labels** (CA-551). Found
+  while answering Boris (2026-10-22): "are all these new changes competence app specific or some of them can be made
+  universal in the ti-engine framework?"
+  * **What was wrong.** A picture keeps only `x-text-label` text and what is marked `data-ti-keep` (1.58.0, CA-544).
+    The framework marked nothing of its own, so a picture of its screens blanked their titles, kinds and labels and
+    could not show which screen it was taken on. Competence 3.145.0 (CA-548) marked its own screens and its copies of
+    the shell. Every screen it takes from the framework unmodified (What's new, Send feedback, the inbox) still lost
+    its title, and so would every other application's.
+  * **What changed.** The framework keeps its **catalogue labels**, as `x-text-label` always has, and blanks the
+    application's content and the data. Single texts carry `data-ti-keep`, never a container, so nothing added inside
+    one later is kept by accident. Kept:
+    * the topbar's title, **only while it is a label** (`x-bind:data-ti-keep` on the topbar's new `titleIsLabel`).
+      That is the screen's own label, or a title set with `setScreenTitle( title, { isLabel: true } )`. Any other title
+      an application sets may name a person.
+    * the title of What's new, Send feedback and the Feedback inbox;
+    * each release note's kind and button;
+    * the feedback kinds and the screen a problem names;
+    * each inbox item's kind, its picture button and the names of its context lines;
+    * the theme toggle, the default sidebar's brand and entry, and the placeholder screens' words.
+  * **Blanked on purpose**, each listed with its reason in the test:
+    * the signed-in person's name, initial and e-mail;
+    * the topbar's subtitle, and a title an application set;
+    * notices and tooltips;
+    * the application's own text: a release note's words, About's identity and sections, and Profile's identity,
+      sections and values;
+    * the inbox's sender, date, text and context values;
+    * select options;
+    * **numbers and dates**: the inbox's counts, the characters left, versions and release dates. That holds to what
+      the picture's small print promises, "names, numbers and anything typed are blanked out".
+
+    The user menu is left out of the picture whole, as before.
+  * **Test.** `test/picture-keep.fragments.test.js` (6), on the scanner `frame-login.labels` already used, now
+    shared as `test/helpers/markup.js`:
+    * every bound text, in either quote style, is kept or listed as blanked by its exact expression, and a listed
+      entry that no longer matches fails;
+    * every fixed word outside the sign-in page is kept;
+    * nothing kept names a person;
+    * nothing but inline text sits inside a mark;
+    * the real topbar keeps its title only while it is a label, and the fragment binds the mark to exactly that;
+    * each framework screen's title is kept.
+
+    A `<template>` counts as no element's ancestor, as on the page. 4 of the 6 fail on 1.58.1. The other two, nothing
+    personal and no container kept, pass there because 1.58.1 kept nothing.
+  * **The review pass** (`code-review` at high), with the automated security review, found:
+    * the topbar's title and the Profile and About sections, which an application can supply;
+    * numbers and dates kept, against the small print;
+    * container marks;
+    * a dead mark on the excluded user menu;
+    * unchecked static text;
+    * a loose match in the test's list, and templates read as ancestors;
+    * the skill's suite list.
+
+    All are fixed here. The first commit had kept each of them.
+  * **A second review pass**, on those fixes, found:
+    * release notes and About's identity kept, though they are the application's own text and may hold a number;
+    * a topbar binding no test pinned;
+    * a container rule that covered five class names;
+    * single-quoted bindings unseen;
+    * a broken README list;
+    * every `setScreenTitle` title blanked, labels included;
+    * a second scanner beside the shared one.
+
+    All are fixed here. Declined:
+    * splitting composed labels such as "Updated on {date}, version {version}" to keep their words, since each is one
+      translatable sentence;
+    * keeping the sections About builds itself, since their values are versions and dates anyway.
+
 ## Version 1.59.0
 
 * feat(web-framework): **the deployment's time zone reaches every screen, every daily job and every notice interval**

@@ -10,9 +10,11 @@
 -->
 <div class="ti-page ti-feedback-inbox" x-data="tiScreenFeedbackInbox">
 
+    <!-- data-ti-keep (CA-551): a picture keeps the page's title, each item's kind, its picture button and the names of
+         its context lines. Who sent it, when, what it says, the context's values and the filters' counts are blanked. -->
     <div class="ti-page-head">
         <div class="ti-page-eyebrow" x-text-label="interface.feedback-inbox.eyebrow">Administration</div>
-        <h1 class="ti-page-title"><span x-text="pageTitle.before">Feedback</span><em x-text="pageTitle.em"></em><span x-text="pageTitle.after"></span></h1>
+        <h1 class="ti-page-title" data-ti-keep><span x-text="pageTitle.before">Feedback</span><em x-text="pageTitle.em"></em><span x-text="pageTitle.after"></span></h1>
         <p class="ti-page-subtitle" x-text-label="interface.feedback-inbox.intro">What people sent about the application, newest first. Give each a status as you deal with it.</p>
     </div>
 
@@ -54,7 +56,7 @@
                 <template x-for="item in shown" x-bind:key="item.feedbackID">
                     <li class="ti-panel ti-feedback-item">
                         <div class="ti-feedback-item-head">
-                            <span class="ti-tag" x-bind:class="kindClass( item )" x-text="kindText( item )"></span>
+                            <span class="ti-tag" data-ti-keep x-bind:class="kindClass( item )" x-text="kindText( item )"></span>
                             <span class="ti-feedback-item-sender" x-text="senderText( item )"></span>
                             <span class="ti-feedback-item-date" x-text="dateText( item )"></span>
                             <span class="ti-feedback-item-status-field">
@@ -70,7 +72,7 @@
                         <template x-if="hasPicture( item )">
                             <div class="ti-feedback-item-picture">
                                 <button type="button" class="ti-btn sm ghost" @click="togglePicture( item )" x-bind:aria-expanded="pictureExpanded( item )"
-                                        x-text="pictureButtonText( item )">Show the picture</button>
+                                        data-ti-keep x-text="pictureButtonText( item )">Show the picture</button>
                                 <template x-if="pictureShown( item )">
                                     <img class="ti-feedback-item-picture-image" x-bind:src="pictureURL( item )"
                                          x-text-label:alt="interface.feedback-inbox.picture-alt" alt="The picture of the screen the sender was on"/>
@@ -81,7 +83,7 @@
                             <dl class="ti-feedback-item-context">
                                 <template x-for="line in contextLines( item )" x-bind:key="line.key">
                                     <div class="ti-feedback-item-context-line">
-                                        <dt x-text="line.name"></dt>
+                                        <dt data-ti-keep x-text="line.name"></dt>
                                         <dd x-text="line.value"></dd>
                                     </div>
                                 </template>

@@ -855,6 +855,10 @@ const configureComponentTopbar = () => {
 
         screenTitle: "",
 
+        // Whether the title is a catalogue label: the screen's own, or one an application set and declared a label. Only
+        // then does a picture sent with feedback keep it, since an application's own title may name a person (CA-551).
+        titleIsLabel: false,
+
         init() {
             const tiApplication = Alpine.store( "tiApplication" );
             // The application's name, from its <meta name="application-name">, follows the screen's in the browser
@@ -868,6 +872,7 @@ const configureComponentTopbar = () => {
                 const override = ( tiApplication && tiApplication.screenTitleOverride ) || "";
                 const title = override || ( screen ? tiApplication.getLabel( `interface.topbar.${ screen }`, "" ) : "" );
                 this.screenTitle = title;
+                this.titleIsLabel = ( title !== "" && ( override === "" || tiApplication.screenTitleIsLabel === true ) );
                 if ( title ) {
                     // A screen whose own title already names the application ("About Competence@Work") keeps it once.
                     document.title = ( applicationName && !title.includes( applicationName ) ) ? `${ title } · ${ applicationName }` : title;
@@ -886,6 +891,7 @@ const configureComponentTopbar = () => {
             updateTitle();
             this.$watch( () => tiApplication.currentScreen, updateTitle );
             this.$watch( () => tiApplication.screenTitleOverride, updateTitle );
+            this.$watch( () => tiApplication.screenTitleIsLabel, updateTitle );
             this.$watch( () => tiApplication.isInitialized, updateTitle );
         }
 
@@ -1315,6 +1321,8 @@ const configureApplication = () => {
         currentScreen: "",
         topbarSubtitle: "",
         screenTitleOverride: "",
+        // Whether the override is a catalogue label, which a picture sent with feedback may keep (CA-551).
+        screenTitleIsLabel: false,
         topbarPrimaryCta: null,
         notificationIDCounter: 1,
         requestControllers: new Map(),
@@ -1731,6 +1739,7 @@ const configureApplication = () => {
                 // during the swap (via MutationObserver microtask) already sees the correct URL.
                 window.history.pushState( null, "", screenUrl );
                 this.screenTitleOverride = "";
+                this.screenTitleIsLabel = false;
                 this.currentScreen = basePath;
                 const answer = window.htmx.ajax( "get", screenUrl, { target: "#ti-content", swap: "innerHTML" } );
                 // HTMX sends the request before `ajax` returns, so the newest request is now this screen's own.
@@ -1757,6 +1766,7 @@ const configureApplication = () => {
                 this.currentScreen = screen;
                 this.topbarSubtitle = "";
                 this.screenTitleOverride = "";
+                this.screenTitleIsLabel = false;
                 this.topbarPrimaryCta = null;
             }
         },
@@ -1765,13 +1775,18 @@ const configureApplication = () => {
          * Used to override the topbar/document title for the current screen, replacing the default
          * `interface.topbar.<screen>` label. Pass an empty string to clear it and fall back to the label.
          * Automatically cleared on screen navigation.
+         * <br/>
+         * A picture sent with feedback blanks such a title, since it may name a person ("Evaluation of Jane Doe"),
+         * unless `options.isLabel` says it is a catalogue label, the same for everyone (CA-551).
          *
          * @method
          * @param {string} title
+         * @param {{isLabel: boolean}} [options]
          * @public
          */
-        setScreenTitle( title ) {
+        setScreenTitle( title, options = {} ) {
             this.screenTitleOverride = String( title || "" ).trim();
+            this.screenTitleIsLabel = ( options && options.isLabel === true );
         },
 
         /**
