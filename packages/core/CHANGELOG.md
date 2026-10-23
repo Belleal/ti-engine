@@ -26,7 +26,7 @@ This document contains the list of changes made to the framework. The format is 
       answers while the database behind it fails.
     * **A read that times out is asked once more**: `documents/get`, `values/get`, `hashes/get` and `keys/match`.
       The second attempt waits for the probe's answer and is made only if the service answered. A read therefore waits
-      at most twice the timeout plus a probe's round trip. In the incident, a third of the reads that stalled one moment
+      at most twice the timeout plus a probe's round trip, which the timeout bounds too: three timeouts in all. In the incident, a third of the reads that stalled one moment
       answered in about 100 ms the next.
     * **A write is never sent again.** One that timed out may still be applied: D1 commits a write whose caller
       stopped waiting. A second copy could land after a newer write, or apply a merge twice.
