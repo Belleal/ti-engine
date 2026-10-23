@@ -127,6 +127,7 @@ function startStubStateServer() {
     let failures = new Map();
     let redirects = new Map();
     let truncations = new Set();
+    let stalls = new Map();
     let transportBroken = false;
     // Lets an expiry test move time instead of waiting for it. Sleeping for a real TTL would make the suite slow and
     // flaky for no extra confidence.
@@ -228,6 +229,41 @@ function startStubStateServer() {
                 response.writeHead( 307, { location: location, "content-type": "application/json" } );
                 response.end( JSON.stringify( { error: "redirected by the test" } ) );
                 return;
+            }
+
+            // Does the work at once and answers only after the given delay: a service still busy with a call whose
+            // caller has stopped waiting, which is a different failure from one that cannot be reached. A write is
+            // therefore applied although its caller timed out, as D1 commits one that lost its race.
+            if ( stalls.has( path ) === true ) {
+                let stall = stalls.get( path );
+                stall.count--;
+                if ( stall.count <= 0 ) {
+                    stalls.delete( path );
+                }
+                let held = [];
+                let writeHead = response.writeHead.bind( response );
+                let end = response.end.bind( response );
+                response.writeHead = ( ...args ) => {
+                    // With `headersFirst`, the status and headers go out at once and only the body waits: the caller
+                    // has its Response, and it is reading the body that runs out of time.
+                    if ( stall.headersFirst === true ) {
+                        writeHead( ...args );
+                        response.flushHeaders();
+                    } else {
+                        held.push( () => writeHead( ...args ) );
+                    }
+                    return response;
+                };
+                response.end = ( ...args ) => {
+                    held.push( () => end( ...args ) );
+                    // Never written to a socket whose caller has gone, and never what keeps the process alive.
+                    setTimeout( () => {
+                        if ( request.socket.destroyed !== true ) {
+                            held.forEach( ( release ) => release() );
+                        }
+                    }, stall.milliseconds ).unref();
+                    return response;
+                };
             }
 
             // Lets a test drive the error branches without taking the whole server down.
@@ -359,6 +395,8 @@ function startStubStateServer() {
                 failNext: ( path, status ) => failures.set( path, status ),
                 redirectNext: ( path, location ) => redirects.set( path, location ),
                 breakTransportAfterHeaders: ( path ) => truncations.add( path ),
+                stallNext: ( path, milliseconds, count = 1 ) => stalls.set( path, { milliseconds: milliseconds, count: count } ),
+                stallBodyNext: ( path, milliseconds ) => stalls.set( path, { milliseconds: milliseconds, count: 1, headersFirst: true } ),
                 breakTransport: ( flag ) => { transportBroken = flag; },
                 advanceClock: ( milliseconds ) => { clockOffset += milliseconds; }
             } );

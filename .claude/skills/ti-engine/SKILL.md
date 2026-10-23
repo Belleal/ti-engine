@@ -27,7 +27,7 @@ the header block verbatim from an existing file in the same package.
 ```
 ti-engine/                         npm workspace root (v1.3.1; workspaces = packages/*)
 ├── packages/
-│   ├── core/          v1.20.0     Framework foundation (pluggable cache backend — Redis or HTTP, optional messaging, lifecycle, utils) + the D1 state service + the deployment's time zone + shipped TypeScript declarations
+│   ├── core/          v1.20.1     Framework foundation (pluggable cache backend — Redis or HTTP, optional messaging, lifecycle, utils) + the D1 state service + the deployment's time zone + shipped TypeScript declarations
 │   ├── web-framework/ v1.60.0     Express server + auth (incl. real local auth, per-provider allowed domains, sign-in with a link sent by e-mail) + admin config-management + config drift + Profile/About + ti-charts + role gate + TI_WEB_* env overrides + /health + route seams + content-addressed immutable fragments + opt-in Server-Timing + start-up gate + busy indicator + CSP source additions + no overscroll bounce + the sidebar as a drawer on a narrow screen + the interface language chosen on the sign-in screen + a config change's author by name + only the newest screen lands in `#ti-content` + e-mail notices raised by configurable rules over events, with editable texts, a branded HTML layout, attached files and a per-deployment interval for what waits + scheduled jobs + What's new and Feedback screens an application turns on, Feedback with a picture of the screen, personal information blanked + a page left open across a release reloads at a safe moment
 │   ├── web-content/   v0.5.2      Content-publishing engine — path-index routing, deny-by-default visibility, SEO documents, feeds, email capture with an optional Turnstile check (WIP)
 │   ├── cloudflare/    v0.6.1      The Cloudflare edge — the Worker in front of an application's container, assembled: scanner probes answered there, forwarding headers made true, the container's environment and egress, the order every request is decided in, the mail relay and the jobs cron, and the template a new application copies (WIP)
@@ -104,7 +104,7 @@ history and older PR bodies; it is no longer the working branch.
 
 ---
 
-## Package: core (v1.20.0)
+## Package: core (v1.20.1)
 
 **Role**: Foundational framework. All other packages depend on it. Standalone (no intra-repo deps).
 
@@ -147,7 +147,22 @@ history and older PR bodies; it is no longer the working branch.
 
 **Public exports** (`package.json` `exports`): `.` (start-instance), `./tools`, `./cache`, `./exceptions`, `./logger`, `./localization`, `./service-instance`, `./service-consumer`, `./service-provider`, `./state-service` (1.17.0), `./time-zone` (1.20.0), `./definitions` (the shared typedefs).
 
-**Since the skill's last sync (1.9.0 → 1.20.0):**
+**Since the skill's last sync (1.9.0 → 1.20.1):**
+- **1.20.1 — a state call that times out fails that call alone** (CA-556). `HttpCacheProvider` used to treat a call
+  past `memoryCache.stateTimeout` as a transport failure and take the cache out of operation, so one D1 call that
+  stalled for 5–18 s (its SQL done in milliseconds) answered every user 503 until the probe did. Now:
+  - a timeout rejects that call alone (`E_GEN_SYSTEM_CACHE_UNAVAILABLE`, "did not answer … within N ms");
+  - the timeout starts **one health probe**: an OK answer keeps the cache in operation, while a failure, a timeout or
+    an error status takes it down. One probe at a time, shared by every call that asks while it runs. A count of
+    timeouts in a row, the first version, read three users stalling at once as an outage;
+  - a timeout is the request's own deadline having fired, whatever the rejection is called;
+  - a **read** that times out (`documents/get`, `values/get`, `hashes/get`, `keys/match`) is asked once more, after the
+    probe has answered and only if it did;
+  - a **write** is never sent twice, because one that timed out may still be applied;
+  - a refused connection or a dead socket takes the cache down at once, as before.
+
+  `design/state-protocol.md` states the rule. The stub state server's `stallNext( path, ms, count )` and
+  `stallBodyNext( path, ms )` answer late after doing the work.
 - **1.20.0 — the deployment's time zone** (CA-550; design record
   `docs/superpowers/specs/2026-10-22-application-time-zone-design.md`). `localization.timeZone`,
   `TI_LOCALIZATION_TIME_ZONE`, names the zone every calendar day of an application is a date in. **Instants stay UTC**.
@@ -335,7 +350,7 @@ module.exports.service = function (serviceDefinition, serviceParams, serviceCall
 
 **Test commands**:
 ```bash
-npm test    # node --test — 252 tests / 59 suites: 25 test files, plus the five test/fixtures/
+npm test    # node --test — 262 tests / 60 suites: 25 test files, plus the five test/fixtures/
             # modules, which node's default pattern runs as files too (each counts as one test)
             # (auditing-json-console, cache-capabilities, cache-get-values, cache-provider-selection,
             #  cache-store, d1-state-service, d1-state-service.partitions, d1-state-service.differential,
@@ -1443,7 +1458,7 @@ Token: YouTrack → Profile → Account Security → New token (scope: YouTrack)
 2. **Extending the web UI**: subclass `TiWebAppManager`, add an HTML fragment + matching Alpine component; reuse framework CSS primitives; obey the Alpine CSP rules (no inline styles, no `?.`).
 3. **Config-management, from a consumer's side**: a consuming application registers a config document (schema + file default + semantic validators + optional composite editor) through `TiWebAppManager.registerConfigDocument` / `registerConfigEditor`. Those seams live here; the documents themselves live in the consumer. Changing either seam is a breaking change for every consumer, so treat the `exports` map and these signatures as API.
 4. **Testing**: Node.js built-in `node --test` (no external framework); each package's `test/` directory. `npm test`
-   at the root fans out across workspaces — **2109 tests today: core 252, web-framework 1235, web-content 433,
+   at the root fans out across workspaces — **2169 tests today: core 262, web-framework 1285, web-content 433,
    cloudflare 189, tester none** (it is a runnable service, not a unit-tested one). The three checks that gate a push are in
    `CLAUDE.md` → *Definition of done*: `npm test`, `npm run lint` (0 errors; ESLint runs `@eslint/js`'s
    recommended rules with `no-unused-vars` turned down to a **warning** — `no-control-regex` is an error, measured in
