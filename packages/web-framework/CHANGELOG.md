@@ -2,6 +2,32 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.61.1
+
+* fix(web-framework): **held sessions: overlapping writes hold nothing, the environment switch fails closed, and a good
+  read is never turned into an error** (CA-557). The independent review of the final 1.61.0 diff ran after that version
+  was merged; it reported eight, and four held up when checked against the code. 1.61.0 reached npm with them. None
+  applies unless `sessions.held` is on, which it is not by default, and no application has turned it on yet.
+  * **Overlapping writes.** A write was held if it was the latest sent and the last to answer. The store keeps whichever
+    it applies last, and the answers can come back in the other order, so the copy could be a write the store had
+    overwritten, a sign-out or role change undone in that process until the expiry. Writes to one session that overlapped
+    now hold nothing, and the next read takes the store's.
+  * **`TI_WEB_SESSIONS_HELD` failed open.** It was read with `tools.toBool`, which returns true for everything but
+    `false`, `0`, `no` and `N`. Measured: `off`, `disabled`, ` false`, `false `, `n`, `null` and `nope` all held the
+    sessions, and holding is unsound with more than one process. Only `true` or `1` turn it on now.
+  * **A read could become an error.** The copy taken on a read was built in the step that answers the caller, so a
+    provider answering with an object that does not serialize (a `BigInt`) made a successful read fail. The hold is
+    guarded, and the caller is answered whether or not it is held.
+  * **Eviction was first in, first out.** A copy answered from did not move in the order eviction takes at the 10,000
+    limit, so the busiest long-lived session went first. It is least recently answered now.
+  * **A comment corrected,** not behaviour: a read copy is held for one touch interval, which can outlive the store's own
+    expiry by less than that only when the touch that ends the request does not land.
+  * **Declined, measured.** Serialising twice costs 9.0 µs for a 370-byte session and 22.6 µs for 2.4 KB; a sweep walks
+    both maps whenever it runs; a string in a config file leaving the option off matches `serverTiming === true` and
+    fails safe. Design record §9.
+  * **Verified.** Four cases fail on 1.61.0 and pass now (`test/session-store.held.test.js`, 29 cases). Web-framework
+    suite: 1315 tests, 0 failures.
+
 ## Version 1.61.0
 
 * feat(web-framework): **the sessions can be held in the process** (CA-557). Boris, 2026-10-23, after production's D1

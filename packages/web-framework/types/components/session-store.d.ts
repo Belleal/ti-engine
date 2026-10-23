@@ -27,8 +27,8 @@ declare const TOUCH_INTERVAL_SECONDS: number;
  */
 declare const HELD_IN_DOUBT_MILLISECONDS: number;
 /**
- * Beyond this many held sessions, the expired ones are dropped before another is held, and then the oldest, so a held
- * store never grows past it.
+ * Beyond this many held sessions, the expired ones are dropped before another is held, and then the one answered least
+ * recently, so a held store never grows past it and a flood of new sessions takes the idle ones before the busy.
  *
  * @type {number}
  */

@@ -63,8 +63,8 @@ const TOUCH_MEMORY_SWEEP_THRESHOLD = 10000;
 const HELD_IN_DOUBT_MILLISECONDS = 2 * 60 * 1000;
 
 /**
- * Beyond this many held sessions, the expired ones are dropped before another is held, and then the oldest, so a held
- * store never grows past it.
+ * Beyond this many held sessions, the expired ones are dropped before another is held, and then the one answered least
+ * recently, so a held store never grows past it and a flood of new sessions takes the idle ones before the busy.
  *
  * @type {number}
  */
@@ -106,8 +106,9 @@ class SessionStore extends session.Store {
     // A token per session read in flight, so a read that a write overtook, or that was answered while one was in flight,
     // does not hold what it read.
     #reading = new Map();
-    // The writes in flight per session, and the latest one's token. While two are in flight the store keeps whichever
-    // lands last, so neither may hold what it wrote.
+    // The writes in flight per session, and whether two of them were ever in flight together. The store keeps whichever
+    // lands last, which this process cannot tell from the order the answers come back in, so writes that overlapped
+    // hold nothing and the next read takes the store's.
     #writing = new Map();
     // Sessions whose last write failed, until the instant, in epoch milliseconds, after which they may be held again.
     #inDoubtUntil = new Map();
@@ -191,6 +192,10 @@ class SessionStore extends session.Store {
             // the held copy with no write. Answered on a later turn, as a store read and express-session's own
             // MemoryStore are.
             const session = tools.parseJSON( held.text );
+            // Moved to the end of the map's order, which is the order eviction at the limit takes them in: the session a
+            // person is using must not be the first to go because it was held first.
+            this.#held.delete( sessionID );
+            this.#held.set( sessionID, held );
             setImmediate( () => callback( null, session ) );
             return;
         }
@@ -199,10 +204,18 @@ class SessionStore extends session.Store {
         const startedAt = Date.now();
         cache.instance.hashGetField( sessionStoreName, sessionID ).then( ( session ) => {
             if ( this.#endRead( sessionID, read ) && session ) {
-                // The read says nothing of when the store expires the session. One touch interval is the least it can
-                // have left, since every expiry written carries that interval over the cookie's lifetime, and the touch
-                // that ends this request moves the copy's expiry to the one it writes.
-                this.#hold( sessionID, String( tools.stringifyJSON( session ) ), startedAt + TOUCH_INTERVAL_SECONDS * 1000 );
+                // The read says nothing of when the store expires the session: the cookie in what it returns is that of
+                // the last save, and a touch changes only the key's lifetime. A touch interval is what every expiry
+                // written carries over the cookie's, so the copy is held for that, and the touch that ends this request
+                // moves it to the expiry it writes. A copy can outlive the store's only if that touch does not land,
+                // and by less than the interval, for a session whose cookie was valid when it was read.
+                try {
+                    this.#hold( sessionID, String( tools.stringifyJSON( session ) ), startedAt + TOUCH_INTERVAL_SECONDS * 1000 );
+                } catch ( error ) {
+                    // A provider may answer with an object that is not plain data (a BigInt in it, say). The copy is an
+                    // optimisation: a session the store answered is answered, held or not, and not turned into an error.
+                    logger.log( `Error while trying to hold user session in memory!`, logger.logSeverity.WARNING, error );
+                }
             }
             callback( null, session );
         } ).catch( ( error ) => {
@@ -329,9 +342,9 @@ class SessionStore extends session.Store {
             return null;
         }
         const write = { ended: false };
-        const writes = this.#writing.get( sessionID ) || { count: 0, latest: null };
+        const writes = this.#writing.get( sessionID ) || { count: 0, overlapped: false };
+        writes.overlapped = ( writes.overlapped || writes.count > 0 );
         writes.count++;
-        writes.latest = write;
         this.#writing.set( sessionID, writes );
         this.#reading.delete( sessionID );
         this.#held.delete( sessionID );
@@ -347,8 +360,8 @@ class SessionStore extends session.Store {
      * @param {string} sessionID
      * @param {Object|null} write The token `#startWrite` returned.
      * @param {boolean} succeeded
-     * @returns {boolean} Whether this write may hold what it wrote: it succeeded, it was the session's latest, and no
-     *     other write to the session is still in flight.
+     * @returns {boolean} Whether this write may hold what it wrote: it succeeded, no other write to the session was in
+     *     flight with it, and none is now.
      */
     #endWrite( sessionID, write, succeeded ) {
         if ( !this.#isHeld || write.ended ) {
@@ -366,7 +379,7 @@ class SessionStore extends session.Store {
             return false;
         }
         this.#writing.delete( sessionID );
-        return succeeded && writes.latest === write && this.#mayHold( sessionID );
+        return succeeded && !writes.overlapped && this.#mayHold( sessionID );
     }
 
     /**
@@ -429,7 +442,7 @@ class SessionStore extends session.Store {
         this.#held.delete( sessionID );
         this.#sweepLapsed( this.#held.size );
         if ( this.#held.size >= HELD_SESSIONS_LIMIT ) {
-            // Insertion order is the order they were held in, so the first is the one held longest ago.
+            // The map's order is the order they were last held or answered in, so the first is the one used longest ago.
             this.#held.delete( this.#held.keys().next().value );
         }
         this.#held.set( sessionID, { text: text, expiresAt: expiresAt } );
