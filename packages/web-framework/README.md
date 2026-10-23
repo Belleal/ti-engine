@@ -27,6 +27,7 @@ The web server configuration (host, port, TLS, cookies, etc.) is normally provid
 * `TI_WEB_STATIC_MAX_AGE` (whole seconds) overrides `staticCache.maxAge`. See [Static asset caching](#static-asset-caching).
 * `TI_WEB_STATIC_IMMUTABLE` (`true`/`false`) overrides `staticCache.immutable`.
 * `TI_WEB_STATIC_IMMUTABLE_PATHS` (comma-separated) **replaces** `staticCache.immutablePaths`. An explicitly empty value means *no long-lived paths*.
+* `TI_WEB_SESSIONS_HELD` (`true`/`false`) overrides `sessions.held`: whether the process keeps the sessions it reads and writes, so a request's session is read from the store once. Off by default, and sound only when this process is the only one serving its store's sessions. See [Holding the sessions](#holding-the-sessions).
 * `TI_WEB_SERVER_TIMING` (`true`/`false`) overrides `serverTiming`: whether every response says, in a `Server-Timing` header, where its time went in the process. Off by default. See [Timing a response](#timing-a-response).
 * `TI_WEB_LANGUAGES` (comma-separated) **replaces** `languages`: the interface languages a visitor may choose between on the sign-in screen. See [Choosing the language on the sign-in screen](#choosing-the-language-on-the-sign-in-screen).
 * `TI_WEB_PUBLIC_URL` overrides `publicUrl`, the deployment's public base URL, which every link in a notice starts from. See [E-mail notices](#e-mail-notices).
@@ -491,6 +492,21 @@ The declaration is a promise the framework also checks:
 Only declare content that anyone signed in may see and that carries nothing about the viewer, such as help,
 documentation or a static reference page. A screen whose data arrives by a separate request gains nothing: its `304`
 is already cheap in bytes, and its template changes with releases just the same.
+
+## Holding the sessions
+
+express-session reads the session on every request that reaches it, so each request paid one state-store round trip
+before any handler ran. Measured on a Supervisor clicking through 29 screens over a D1 state service, 95 requests made
+90 session reads (CA-557). With `sessions.held: true` (or `TI_WEB_SESSIONS_HELD=true`, since 1.61.0), the store keeps a
+copy of every session its process reads or writes and answers a read from it:
+
+* **Every write still goes to the state store first**, and the copy changes only once the write has landed.
+* **A failed write puts the session in doubt for two minutes**, read from the store and not held, because a write that
+  timed out may still be applied.
+* **A copy never outlives the expiry the store holds.** At most 10,000 are kept.
+* **It is sound only while this process is the one serving the store's sessions.** A session another process changes or
+  signs out is not seen here, so a deployment with more than one container leaves it off. It starts off, and a NOTICE
+  at start names it when it is on.
 
 ## Timing a response
 

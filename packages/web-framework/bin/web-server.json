@@ -72,6 +72,9 @@
   "publicUrl": "",
   "requestTimeout": 180000,
   "serverTiming": false,
+  "sessions": {
+    "held": false
+  },
   "tlsCertPath": "bin/tls/localhost+2.pem",
   "tlsKeyPath": "bin/tls/localhost+2-key.pem",
   "useTLS": true
