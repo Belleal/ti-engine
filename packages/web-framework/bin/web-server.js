@@ -576,6 +576,12 @@ class TiWebServer extends ServiceConsumer {
                 this.#webServer.use( ( request, response, next ) => TiWebServer.isFeedbackSubmission( request ) ? next() : parseJSON( request, response, next ) );
                 this.#webServer.use( express.urlencoded( { extended: false, limit: "100kb" } ) );
                 this.#webServer.use( cookieParser() );
+                // Held, a request's session is answered from this process instead of a store round trip (CA-557). Sound
+                // only while this process is the one serving the store's sessions, which only the deployment can say.
+                const sessionStore = new SessionStore( { held: _.get( this.serviceConfig, "sessions.held" ) === true } );
+                if ( sessionStore.isHeld ) {
+                    logger.log( `Sessions are held in this process (sessions.held): one signed out or changed by another process is not seen here.`, logger.logSeverity.NOTICE );
+                }
                 const sessionHandler = session( {
                     secret: this.serviceConfig.cookies.secret || randomBytes( 32 ).toString( "base64" ),
                     resave: false,
@@ -597,7 +603,7 @@ class TiWebServer extends ServiceConsumer {
                         maxAge: this.serviceConfig.cookies.maxAge
                     },
                     unset: "destroy",
-                    store: new SessionStore()
+                    store: sessionStore
                 } );
                 // Timed, the session lookup is the `session` metric: the state-store round trip every request makes.
                 this.#webServer.use( isServerTimingEnabled ? webHandlers.timedHandler( "session", sessionHandler ) : sessionHandler );

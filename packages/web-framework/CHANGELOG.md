@@ -2,6 +2,34 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.61.0
+
+* feat(web-framework): **the sessions can be held in the process** (CA-557). Boris, 2026-10-23, after production's D1
+  export showed small calls stalling for seconds with no large read in flight: of three options he chose to hold a
+  session until it is written, as an opt-in. Design record `docs/superpowers/specs/2026-10-23-held-sessions-design.md`.
+  * **What was wrong.** express-session reads the session on every request that reaches it, and the state store paid a
+    round trip for each before any handler ran. Measured on competence 3.147.2 over core's D1 state service, a
+    Supervisor clicking through 29 screens in Chromium made 95 requests, 194 state calls, and 99 of them the session
+    store's: 90 reads, 4 writes, 4 touches and 1 delete. A screen of 9 or 10 requests paid 9 or 10 reads. Production's
+    export had the same share, 141 of 269. The expiry touch was already down to once a minute (1.39.0), so the card's
+    premise that it could be throttled did not hold.
+  * **What changed.** `sessions.held` (`TI_WEB_SESSIONS_HELD`, `false` by default) makes `SessionStore` keep the
+    sessions its process reads or writes and answer a read from them.
+    * The state store is written first, and the copy changes only once the write has landed.
+    * A write to a session drops its copy and the reads in flight, and while two writes are in flight neither holds.
+    * A failed write puts the session in doubt for two minutes, read from the store and not held.
+    * A copy never outlives the store's expiry: a written one is held to the expiry it wrote, a read one for one touch
+      interval, and a touch moves it to the expiry it writes. express-session 1.19.0 does not check expiry on a read,
+      so the store does.
+    * Each caller is answered a copy of its own, on a later turn. At most 10,000 sessions are held.
+    * `TiWebServer` logs a NOTICE at start when it is on.
+  * **Sound only with one process serving a store's sessions**, as competence's held evaluations and cycles assume of
+    their records: a session another process changes or signs out is not seen by one holding it.
+  * **Rejected.** A memo for the length of a request (the read every request makes is the cost), asking the store whether
+    a session changed (still a round trip per request), and holding by default (only the deployment knows it runs one
+    container).
+  * **Verified.** `test/session-store.held.test.js`, 24 cases. Removing each rule in turn fails its own case.
+
 ## Version 1.60.0
 
 * feat(web-framework): **a page left open across a release reloads at a safe moment** (CA-553). Boris, 2026-10-22:
