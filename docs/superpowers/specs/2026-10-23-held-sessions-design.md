@@ -75,7 +75,7 @@ Boris, 2026-10-23, from three options: **hold until written, as an opt-in**. The
 
 ## 6. Verification
 
-`test/session-store.held.test.js`, 24 cases, over a store that keeps session fields as text and can hold any call until
+`test/session-store.held.test.js`, 25 cases, over a store that keeps session fields as text and can hold any call until
 released. Removing each rule in turn fails its own case: the dropping of a read at the start of a write, the check for a
 write in flight, the two minutes of doubt, the touch moving the expiry, the expiry check, the limit, the copy per caller,
 the opt-in itself, and the five rules the review pass added (§7).
@@ -102,3 +102,17 @@ and measured:
   because every expiry written carries one touch interval over the cookie's lifetime, so an unheld read answers it
   too; the held copy's expiry is a lower bound of the store's, and `never outlives the store's expiry` pins it. A browser
   does not send a lapsed cookie either way.
+
+## 8. The pull request's review
+
+CodeRabbit raised two findings on the pull request, both verified against the code:
+
+* **Fixed, with a test:** `SessionStore#set` serialized the session inside the call, so a session that cannot be
+  serialized (a `BigInt` in it) threw to express-session instead of reaching the callback, and held mode serialized
+  earlier than the unheld path did. It now serializes up front inside a `try` and hands the failure to the callback, and
+  nothing is held or counted in flight for a session that was never sent.
+* **Fixed, replaced:** a test that read `web-server.js` as text and matched the option's name proved the source contained
+  a string, not that the option reaches the store. `test/web-server.sessions-held.test.js` replaces it: a real
+  `TiWebServer` with `sessions: { held: true }` and a cache that counts `hashGetField`, a local sign-in, five
+  authenticated requests and no session read after the first; after a sign-out the next request is the sign-in page. With
+  the wiring changed to `held: false` its read count fails.

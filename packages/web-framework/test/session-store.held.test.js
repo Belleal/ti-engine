@@ -281,6 +281,29 @@ describe( "SessionStore — held (sessions.held, CA-557)", () => {
         assert.deepEqual( rejected.map( ( reason ) => reason && reason.message ), [] );
     } );
 
+    it( "reports a session that cannot be serialized to the callback, as unheld does, and starts no write", async () => {
+        const sessions = new SessionStore( { held: true } );
+        const data = sessionData( { count: 1n } );
+        // The call itself is made outside a promise executor: one would turn a throw out of `set` into the rejection the
+        // callback's error also produces, and this case would pass with the defect in.
+        let thrown = null;
+        const reported = new Promise( ( resolve ) => {
+            try {
+                sessions.set( "s1", data, resolve );
+            } catch ( error ) {
+                thrown = error;
+                resolve();
+            }
+        } );
+        const failure = await reported;
+        assert.equal( thrown, null, "set does not throw to express-session" );
+        assert.ok( failure, "the callback is given the failure" );
+        assert.equal( store.count( "hashSetField" ), 0, "nothing was sent" );
+        await promisify( ( done ) => sessions.set( "s1", sessionData( { user: "a" } ), done ) );
+        assert.equal( ( await promisify( ( done ) => sessions.get( "s1", done ) ) ).user, "a", "and no write is left counted as in flight" );
+        assert.equal( store.count( "hashGetField" ), 0 );
+    } );
+
     it( "counts a write whose call throws before it returns as failed, and holds again once the doubt is over", async () => {
         mock.timers.enable( { apis: [ "Date" ], now: 1_000_000 } );
         const sessions = new SessionStore( { held: true } );
@@ -451,10 +474,12 @@ describe( "TI_WEB_SESSIONS_HELD", () => {
         assert.equal( shipped.sessions.held, false );
     } );
 
-    it( "is what TiWebServer hands the session store, and only a true holds", () => {
-        const source = require( "node:fs" ).readFileSync( require( "node:path" ).resolve( __dirname, "..", "bin", "web-server.js" ), "utf8" );
-        assert.match( source, /new SessionStore\( \{ held: _\.get\( this\.serviceConfig, "sessions\.held" \) === true \} \)/ );
-        assert.match( source, /store: sessionStore\n/ );
+    it( "holds only for a true: a string, a number or an object is not a switch", () => {
+        for ( const value of [ "true", 1, {}, [], "yes" ] ) {
+            assert.equal( new SessionStore( { held: value } ).isHeld, false, `${ JSON.stringify( value ) } holds` );
+        }
+        assert.equal( new SessionStore( { held: true } ).isHeld, true );
+        assert.equal( new SessionStore( {} ).isHeld, false );
     } );
 
 } );

@@ -28,7 +28,9 @@ This document will contain the list of changes made to the framework. The format
   * **Rejected.** A memo for the length of a request (the read every request makes is the cost), asking the store whether
     a session changed (still a round trip per request), and holding by default (only the deployment knows it runs one
     container).
-  * **Verified.** `test/session-store.held.test.js`, 24 cases. Removing each rule in turn fails its own case.
+  * **Verified.** `test/session-store.held.test.js`, 25 cases; removing each rule in turn fails its own case.
+    `test/web-server.sessions-held.test.js` runs a real `TiWebServer` with `sessions.held` on: five authenticated
+    requests never read the session from the store, and a sign-out is seen on the next request.
 
 ## Version 1.60.0
 

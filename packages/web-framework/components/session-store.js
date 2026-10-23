@@ -146,7 +146,16 @@ class SessionStore extends session.Store {
     set( sessionID, session, callback ) {
         // Serialized now, as the provider serializes what it sends: express-session hands over its live session, which
         // a later change on the same request must not carry into the copy before the store has it.
-        const text = ( this.#isHeld ) ? String( tools.stringifyJSON( session ) ) : null;
+        let text = null;
+        if ( this.#isHeld ) {
+            try {
+                text = String( tools.stringifyJSON( session ) );
+            } catch ( error ) {
+                // As the provider's own serialization fails an unheld write, to the callback and not out of `set`.
+                logger.log( `Error while trying to store user session in cache!`, logger.logSeverity.ERROR, error );
+                return callback( exceptions.raise( error ) );
+            }
+        }
         const expire = storeExpiryFor( session );
         const write = this.#startWrite( sessionID );
         const startedAt = Date.now();
