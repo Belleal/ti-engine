@@ -72,9 +72,11 @@ function applyWebConfigEnvOverrides( config, env = process.env ) {
         }
     }
     if ( env.TI_WEB_SESSIONS_HELD !== undefined ) {
-        // CA-557. Read as the other switches are; `TiWebServer` passes only `true` to the session store.
+        // CA-557. Not `tools.toBool`, which reads anything but `false`, `0` and `no` as true: `off`, `disabled` or a
+        // stray space would hold the sessions, and holding is sound only with one process serving them. This is the one
+        // switch that must fail closed, so only `true` or `1` turns it on.
         config.sessions = config.sessions || {};
-        config.sessions.held = tools.toBool( env.TI_WEB_SESSIONS_HELD );
+        config.sessions.held = /^(true|1)$/i.test( String( env.TI_WEB_SESSIONS_HELD ).trim() );
     }
     if ( env.TI_WEB_AUTH_METHODS !== undefined ) {
         config.auth = config.auth || {};

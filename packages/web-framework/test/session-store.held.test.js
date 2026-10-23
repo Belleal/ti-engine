@@ -54,7 +54,9 @@ function deferred() {
 
 /**
  * Installs a cache that keeps session fields as text, as the state service does, counting each call. `holdNext( name )`
- * makes the next call of that name wait for `release()`, applied or not as `fail` says.
+ * makes the next call of that name wait for `release()`, applied or not as `fail` says. With `applyAtCall`, a write is
+ * applied when it is made and only its answer waits, which is how an answer comes back in the opposite order to the
+ * writes the store applied.
  *
  * @returns {Object}
  */
@@ -65,8 +67,8 @@ function installStore() {
     const store = {
         calls: [],
         fields: fields,
-        holdNext( name, { fail = false } = {} ) {
-            const hold = { name: name, fail: fail, reached: deferred(), released: deferred() };
+        holdNext( name, { fail = false, applyAtCall = false } = {} ) {
+            const hold = { name: name, fail: fail, applyAtCall: applyAtCall, reached: deferred(), released: deferred() };
             holds.push( hold );
             return { reached: hold.reached.promise, release: () => hold.released.resolve() };
         },
@@ -83,12 +85,13 @@ function installStore() {
         const [ hold ] = holds.splice( index, 1 );
         hold.reached.resolve();
         // A held read answers what the store held when it was made, as a read that took a while does.
-        const answer = ( name === "hashGetField" ) ? apply() : undefined;
+        const appliedAtCall = ( name === "hashGetField" || hold.applyAtCall );
+        const answer = ( appliedAtCall ) ? apply() : undefined;
         return hold.released.promise.then( () => {
             if ( hold.fail ) {
                 throw new Error( `${ name } failed` );
             }
-            return ( name === "hashGetField" ) ? answer : apply();
+            return ( appliedAtCall ) ? answer : apply();
         } );
     };
     const recorder = {
@@ -214,6 +217,26 @@ describe( "SessionStore — held (sessions.held, CA-557)", () => {
         assert.equal( store.count( "hashGetField" ), 1 );
     } );
 
+    it( "holds nothing after two writes overlapped, even when the later one answers last: the store may have applied them the other way round", async () => {
+        const sessions = new SessionStore( { held: true } );
+        const first = store.holdNext( "hashSetField" );
+        const writingFirst = promisify( ( done ) => sessions.set( "s1", sessionData( { user: "first" } ), done ) );
+        await first.reached;
+        const second = store.holdNext( "hashSetField", { applyAtCall: true } );
+        const writingSecond = promisify( ( done ) => sessions.set( "s1", sessionData( { user: "second" } ), done ) );
+        await second.reached;
+        // The store has applied the second, then applies the first, which answers first. The second is the latest sent and
+        // the last to answer, and what the store keeps is the first.
+        first.release();
+        await writingFirst;
+        second.release();
+        await writingSecond;
+        assert.equal( ( await promisify( ( done ) => sessions.get( "s1", done ) ) ).user, "first" );
+        assert.equal( store.count( "hashGetField" ), 1 );
+        await promisify( ( done ) => sessions.get( "s1", done ) );
+        assert.equal( store.count( "hashGetField" ), 1, "and what that read got is held" );
+    } );
+
     it( "after a failed write, reads the store for two minutes and holds nothing, then holds again", async () => {
         mock.timers.enable( { apis: [ "Date" ], now: 1_000_000 } );
         const sessions = new SessionStore( { held: true } );
@@ -304,6 +327,19 @@ describe( "SessionStore — held (sessions.held, CA-557)", () => {
         assert.equal( store.count( "hashGetField" ), 0 );
     } );
 
+    it( "answers a session the store returned even when it cannot be copied, and holds nothing", async () => {
+        const sessions = new SessionStore( { held: true } );
+        let reads = 0;
+        // A provider that answers with live objects, not parsed text, can return one that does not serialize.
+        require( "@ti-engine/core/cache" ).instance.hashGetField = () => {
+            reads++;
+            return Promise.resolve( sessionData( { count: 1n } ) );
+        };
+        assert.equal( ( await promisify( ( done ) => sessions.get( "s1", done ) ) ).count, 1n );
+        assert.equal( ( await promisify( ( done ) => sessions.get( "s1", done ) ) ).count, 1n );
+        assert.equal( reads, 2, "nothing was held" );
+    } );
+
     it( "counts a write whose call throws before it returns as failed, and holds again once the doubt is over", async () => {
         mock.timers.enable( { apis: [ "Date" ], now: 1_000_000 } );
         const sessions = new SessionStore( { held: true } );
@@ -379,6 +415,20 @@ describe( "SessionStore — held (sessions.held, CA-557)", () => {
         assert.equal( store.count( "hashGetField" ), 0 );
         await promisify( ( done ) => sessions.get( "s0", done ) );
         assert.equal( store.count( "hashGetField" ), 1 );
+    } );
+
+    it( "drops the session answered least recently, not the one held first", async () => {
+        const sessions = new SessionStore( { held: true } );
+        for ( let index = 0; index < SessionStore.HELD_SESSIONS_LIMIT; index++ ) {
+            await promisify( ( done ) => sessions.set( `s${ index }`, sessionData(), done ) );
+        }
+        // s0 is the oldest, and the one a person is using.
+        await promisify( ( done ) => sessions.get( "s0", done ) );
+        await promisify( ( done ) => sessions.set( "extra", sessionData(), done ) );
+        await promisify( ( done ) => sessions.get( "s0", done ) );
+        assert.equal( store.count( "hashGetField" ), 0, "the busy session stayed" );
+        await promisify( ( done ) => sessions.get( "s1", done ) );
+        assert.equal( store.count( "hashGetField" ), 1, "the idle one went" );
     } );
 
 } );
@@ -463,6 +513,16 @@ describe( "TI_WEB_SESSIONS_HELD", () => {
         assert.equal( applyWebConfigEnvOverrides( { sessions: { held: false } }, { TI_WEB_SESSIONS_HELD: "true" } ).sessions.held, true );
         assert.equal( applyWebConfigEnvOverrides( { sessions: { held: true } }, { TI_WEB_SESSIONS_HELD: "false" } ).sessions.held, false );
         assert.equal( applyWebConfigEnvOverrides( {}, { TI_WEB_SESSIONS_HELD: "true" } ).sessions.held, true );
+    } );
+
+    it( "turns on for true or 1 only: a value that is not a clear yes can't hold the sessions, which is unsafe with more than one process", () => {
+        for ( const value of [ "true", "TRUE", " true ", "1" ] ) {
+            assert.equal( applyWebConfigEnvOverrides( {}, { TI_WEB_SESSIONS_HELD: value } ).sessions.held, true, `${ JSON.stringify( value ) } does not hold` );
+        }
+        // `tools.toBool` reads each of these as true.
+        for ( const value of [ "off", "disabled", " false", "false ", "n", "null", "nope", "yes", "on", "" ] ) {
+            assert.equal( applyWebConfigEnvOverrides( { sessions: { held: true } }, { TI_WEB_SESSIONS_HELD: value } ).sessions.held, false, `${ JSON.stringify( value ) } holds` );
+        }
     } );
 
     it( "leaves the configured value untouched when the variable is absent", () => {
