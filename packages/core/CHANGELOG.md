@@ -2,6 +2,75 @@
 
 This document contains the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.20.1
+
+* fix(cache): **a state call that times out fails that call alone, and a read is asked once more** (CA-556).
+  * **What happened.** On 2026-10-23 a competence deployment on Cloudflare answered every user 503 for minutes at a
+    time, several times an hour, from about 09:25 Sofia time.
+    * Its D1 database ran every query in milliseconds: 46 s of SQL in a day, P99 53 ms.
+    * But some calls from the Worker stalled for 5 to 18 s outside SQL. A whole-collection read of 83 rows (1.37 MB)
+      did so in 10 of 15 runs, with 14 to 61 ms of SQL and one attempt each. A one-row `INSERT` took 5.5 s for
+      0.2 ms of SQL. The median of 269 D1 calls was 65 ms.
+  * **Why it took everyone down.** `HttpCacheProvider` treated a call that ran past `memoryCache.stateTimeout` (5 s)
+    as a transport failure. It announced `onConnectionDisrupted`, so the cache refused every call from every user
+    until the health probe answered. One slow call by one person became an outage for all of them.
+  * **What changed.**
+    * **A timeout fails its own call.** The rejection is still `E_GEN_SYSTEM_CACHE_UNAVAILABLE`, now saying the
+      service "did not answer … within N ms", and ", asked a second time" when it was. The cache stays in operation.
+      A timeout is recognised by the request's own deadline having fired, not by what the rejection is called.
+    * **The health probe is asked, once, whether the service still answers.** One probe runs at a time, shared by every
+      call that asks while it runs, and none while the cache is already down. A probe that answers OK keeps the cache
+      in operation. One that fails, times out, or answers with an error status takes the cache down and starts the
+      recovery loop, as a dead connection always did. So a hung service is still found: one that accepts the connection
+      and never answers rejects `fetch` with the same `TimeoutError` as a slow one (measured). So is a Worker that
+      answers while the database behind it fails.
+    * **A read that times out is asked once more**: `documents/get`, `values/get`, `hashes/get` and `keys/match`.
+      The second attempt waits for the probe's answer and is made only if the service answered. A read therefore waits
+      at most twice the timeout plus a probe's round trip, which the timeout bounds too: three timeouts in all. In the incident, a third of the reads that stalled one moment
+      answered in about 100 ms the next.
+    * **A write is never sent again.** One that timed out may still be applied: D1 commits a write whose caller
+      stopped waiting. A second copy could land after a newer write, or apply a merge twice.
+    * **The health path keeps its old rule.** The probe is the question whether the service answers, so its own
+      timeout means no, as before, for `initialize()` and the recovery loop alike.
+    * **A refused connection, or a socket that dies, still takes the cache down at once**, as before.
+  * **Evidence.** Ten cases in `test/http-cache-provider.test.js`. They are driven by two new controls on the stub
+    state server, which does the work at once and answers late, as D1 did:
+    * `stallNext( path, milliseconds, count )` delays the whole answer;
+    * `stallBodyNext( path, milliseconds )` sends the headers and delays the body.
+
+    Six of the ten fail on 1.20.0. Removing a guard makes its own case fail:
+    * a probe failure that does not take the cache down;
+    * a retry that does not wait for the probe;
+    * a write that is retried.
+
+    The suite warms the process's first fetch itself, so it passes run alone (3 of 3 runs). It passes on Node 20.20,
+    22.22 and 24.22, and every one of them rejects a timed-out `fetch`, and a timed-out body read, with `TimeoutError`.
+  * **Two separate review passes.**
+    * **The first** found that the first version counted timeouts in a row and took the cache down at three. That count
+      was shared by every call in flight, so three users stalling together would still have taken the cache down for
+      everyone. A read retried twice also counted as two. The probe replaced the count.
+    * **The second found four more defects**, all fixed:
+      * The probe treated any answer as the service working, an error status included.
+      * The retry was decided before the probe answered.
+      * A timeout was recognised by the error's name.
+      * A second attempt's timeout did not say it was one.
+
+      It also flagged the test that counted exactly one probe, which three timeouts falling either side of the first
+      probe's answer can break; the test now asks for at least one. The stub no longer writes a late answer to a socket
+      its caller has closed.
+    * **Declined from the second pass: the probe is not aborted by `shutDown()`.** The recovery loop's in-flight probe
+      never was either; each is bounded by one timeout. Aborting in-flight requests at shutdown would reach writes too,
+      which is a change of its own.
+  * **Rejected: a longer default timeout.** It would only move the threshold. A stall longer than any timeout would
+    still take the cache down for everyone.
+  * **Rejected: retrying writes behind a request identifier.** The protocol carries none, and the incident needed
+    none: what failed were reads.
+  * **Declined from the review pass: the retry doubles the wait and the load of a stalled read.** The retry is bounded
+    at one, and only for reads. The 1.37 MB read the incident stalled on is competence's to take off its busiest
+    screens (CA-556), which no retry policy here can do.
+  * `design/state-protocol.md` states the new rule in place of "Nothing is retried, deliberately", whose own reasoning
+    ("safe for the reads and wrong for the writes") this follows.
+
 ## Version 1.20.0
 
 * feat(time-zone): **a deployment names its time zone, and every calendar day is a date in it** (CA-550). Boris,

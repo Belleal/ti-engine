@@ -52,6 +52,17 @@ const statePath = Object.freeze( {
 } );
 
 /**
+ * The paths asked a second time when the first attempt times out: the reads.
+ * <br/>
+ * NOTE: A write is never sent again. One that timed out may still be applied - the service carries on with a request
+ * whose caller has stopped waiting, and D1 commits a write that lost its race - so a second copy could land after a
+ * newer write, or apply a merge twice. The health probe is left out as well: it already runs on a loop of its own.
+ *
+ * @readonly
+ */
+const RETRIED_ON_TIMEOUT = Object.freeze( [ statePath.MATCH_KEYS, statePath.GET_VALUE, statePath.GET_HASH_FIELD, statePath.GET_DOCUMENT ] );
+
+/**
  * Converts a JSONPath argument into an array of literal key segments for transport.
  * <br/>
  * NOTE: This deliberately does NOT produce a JSONPath string. RedisJSON wants '$["a"]' and SQLite wants '$."a"', and
@@ -221,6 +232,8 @@ class HttpCacheProvider extends CacheProvider {
     #isShutDown = false;
     /** @type {NodeJS.Timeout} */
     #probeTimer = null;
+    /** @type {Promise|null} The health probe a timeout started, while it runs. */
+    #reachabilityCheck = null;
 
     /**
      * @constructor
@@ -619,12 +632,7 @@ class HttpCacheProvider extends CacheProvider {
     /* Private interface */
 
     /**
-     * Performs one protocol request and returns the decoded response body.
-     * <br/>
-     * NOTE: A transport failure and an error status are treated differently on purpose. The first means the service is
-     * unreachable and takes the whole cache out of operation through {@link ConnectionObserver#onConnectionDisrupted};
-     * the second means the service answered and rejected this particular call, which says nothing about the next one.
-     * Conflating them would let a single bad key mark the cache down.
+     * Performs one protocol request and returns the decoded response body, asking a read once more if it timed out.
      *
      * @method
      * @param {string} path One of {@link statePath}.
@@ -632,6 +640,34 @@ class HttpCacheProvider extends CacheProvider {
      * @returns {Promise<Object>}
      */
     #fetchJSON( path, payload ) {
+        return this.#request( path, payload, RETRIED_ON_TIMEOUT.includes( path ) ? "first" : "only" );
+    }
+
+    /**
+     * Performs one protocol request.
+     * <br/>
+     * NOTE: A transport failure and an error status are treated differently on purpose. The first means the service is
+     * unreachable and takes the whole cache out of operation through {@link ConnectionObserver#onConnectionDisrupted};
+     * the second means the service answered and rejected this particular call, which says nothing about the next one.
+     * Conflating them would let a single bad key mark the cache down.
+     * <br/>
+     * NOTE: A timeout is neither until the service has been asked. It fails this call alone and starts one health
+     * probe, and only a probe that fails takes the cache down (see {@link HttpCacheProvider#confirmReachable}). On
+     * 2026-10-23 a D1 database answered most calls in 65 ms and stalled others for 5 to 18 s with their SQL done in 14
+     * to 61 ms. Each stall took the whole cache out of operation, and every user got 503 until the probe answered
+     * (CA-556).
+     * <br/>
+     * NOTE: A read is asked once more after a timeout, once the probe has found the service answering: a third of the
+     * reads that stalled that morning answered in about 100 ms the next time. So a read waits at most twice the timeout
+     * and a probe's round trip, and is not asked again of a service the probe found silent.
+     *
+     * @method
+     * @param {string} path One of {@link statePath}.
+     * @param {Object} [payload] The request body; a null payload issues a GET.
+     * @param {"first"|"second"|"only"} attempt Which attempt this is: a first is followed by a second after a timeout.
+     * @returns {Promise<Object>}
+     */
+    #request( path, payload, attempt ) {
         let headers = { "accept": "application/json" };
         if ( this.#authToken ) {
             headers.authorization = `Bearer ${ this.#authToken }`;
@@ -643,6 +679,7 @@ class HttpCacheProvider extends CacheProvider {
             headers[ "content-type" ] = "application/json";
         }
 
+        let deadline = AbortSignal.timeout( this.#requestTimeout );
         let options = {
             method: ( body === null ) ? "GET" : "POST",
             headers: headers,
@@ -650,29 +687,44 @@ class HttpCacheProvider extends CacheProvider {
             // 308, this request's credentials - to a host the configuration never named. Every 3xx falls through to
             // the not-ok branch below instead.
             redirect: "manual",
-            signal: AbortSignal.timeout( this.#requestTimeout )
+            signal: deadline
         };
         if ( body !== null ) {
             options.body = body;
         }
 
-        let asTransportFailure = ( error ) => {
+        let failed = ( error ) => {
+            // The deadline is the one thing that aborts a request, so its having fired is what a timeout is, whatever
+            // the rejection is called. Node 24.22 names it TimeoutError, before the headers and while a body arrives
+            // alike (measured); an older undici reports an aborted body read differently. The health probe is
+            // excepted: it is the question whether the service answers, so its timeout is the answer.
+            if ( deadline.aborted === true && path !== statePath.HEALTH ) {
+                const timedOut = () => exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE, {
+                    details: `The state service at '${ this.#baseUrl }' did not answer '${ path }' within ${ this.#requestTimeout } ms${ ( attempt === "second" ) ? ", asked a second time" : "" }.`
+                } );
+                const reachable = this.#confirmReachable();
+                if ( attempt !== "first" ) {
+                    return Promise.reject( timedOut() );
+                }
+                return reachable.then( ( answering ) => {
+                    if ( answering === true && this.#isConnected === true && this.#isShutDown === false ) {
+                        return this.#request( path, payload, "second" );
+                    }
+                    throw timedOut();
+                } );
+            }
             this.#markDisrupted();
-            return exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE, {
+            return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE, {
                 details: `The state service at '${ this.#baseUrl }' could not be reached for '${ path }': ${ HttpCacheProvider.#describeTransportError( error ) }`
-            } );
+            } ) );
         };
 
+        // The body is read before anything at all is concluded from the response. A socket that dies part-way through a
+        // body is as much a transport failure as one that never connected, and announcing recovery first would leave
+        // this cache reporting itself operational over a connection that had just died - the same shape of defect the
+        // capability check carried in 1.13.0.
         return fetch( this.#baseUrl + path, options ).then( ( response ) => {
-            // The body is read before anything at all is concluded from the response. A socket that dies part-way
-            // through a body is as much a transport failure as one that never connected, and announcing recovery
-            // first would leave this cache reporting itself operational over a connection that had just died - the
-            // same shape of defect the capability check carried in 1.13.0.
-            return response.text().then( ( text ) => ( { response: response, text: text } ), ( error ) => {
-                throw asTransportFailure( error );
-            } );
-        }, ( error ) => {
-            throw asTransportFailure( error );
+            return response.text().then( ( text ) => ( { response: response, text: text } ) );
         } ).then( ( answered ) => {
             // The service answered in full, so the connection is good even where the call is not.
             this.#markConnected();
@@ -684,7 +736,7 @@ class HttpCacheProvider extends CacheProvider {
             }
             // An empty body is a valid acknowledgement for the write operations, which have nothing to return.
             return ( answered.text.length > 0 ) ? tools.parseJSON( answered.text ) : {};
-        } );
+        }, failed );
     }
 
     /**
@@ -703,6 +755,38 @@ class HttpCacheProvider extends CacheProvider {
         const cause = error && error.cause;
         const causeMessage = cause ? ( cause.message || cause.code || String( cause ) ) : "";
         return ( causeMessage && causeMessage !== message ) ? `${ message }: ${ causeMessage }` : message;
+    }
+
+    /**
+     * Asks the health probe, once, whether a service that let a call time out still answers.
+     * <br/>
+     * NOTE: The probe is the question whether the service is reachable, and it is asked rather than guessed: a count of
+     * timeouts in a row would read three users' calls stalling together as a service that answers nothing. A probe
+     * that answers OK keeps the cache in operation. One that fails, answers with an error status or times out takes it
+     * down through {@link HttpCacheProvider#markDisrupted}, which starts the recovery loop. So a hung service, which
+     * accepts the connection and never answers, is still found. One probe at a time, shared by every call that asks
+     * while it runs, and none while the cache is already down, where the loop is asking already.
+     *
+     * @method
+     * @returns {Promise<boolean>} Whether the service answered the probe; never rejects.
+     */
+    #confirmReachable() {
+        if ( this.#reachabilityCheck !== null ) {
+            return this.#reachabilityCheck;
+        }
+        if ( this.#isShutDown === true || this.#probeTimer !== null ) {
+            return Promise.resolve( false );
+        }
+        this.#reachabilityCheck = this.#request( statePath.HEALTH, null, "only" ).then( () => true, () => {
+            // A probe that went unanswered has taken the cache down already. One answered with an error status has
+            // not - any answer proves the connection - but the question was whether the service works, and a health
+            // check that fails says it does not: the database behind it may be failing fast while calls to it stall.
+            this.#markDisrupted();
+            return false;
+        } ).finally( () => {
+            this.#reachabilityCheck = null;
+        } );
+        return this.#reachabilityCheck;
     }
 
     /**

@@ -487,6 +487,216 @@ describe( "HttpCacheProvider — losing the connection", () => {
 
 } );
 
+describe( "HttpCacheProvider — a call the service is slow to answer", () => {
+
+    // Short enough to keep the suite quick, long enough that an answer from the stub never races it once the process's
+    // first fetch is paid for. That first fetch is what a short timeout loses to (see http-cache-integration.test.js),
+    // so the hook below pays it with the configured timeout, whatever ran before this suite or whether anything did.
+    const TIMEOUT = 400;
+    const STALL = 1500;
+
+    before( async () => {
+        let { provider } = await connectedProvider();
+        await provider.getValue( "warm-up" );
+        await provider.shutDown();
+    } );
+
+    /**
+     * A provider connected to the stub that gives up on a call after {@link TIMEOUT}.
+     *
+     * @returns {Promise<Object>}
+     */
+    async function impatientProvider() {
+        let observer = new RecordingObserver();
+        let provider = new HttpCacheProvider( "test-cache", { stateTimeout: TIMEOUT } );
+        provider.addConnectionObserver( observer );
+        await provider.initialize();
+        return { provider, observer };
+    }
+
+    const issued = ( since, path ) => stub.requestLog.slice( since ).filter( ( entry ) => entry.path === path ).length;
+
+    /**
+     * Waits until the health probe a timeout starts has been answered, or has run out of time itself.
+     *
+     * @returns {Promise}
+     */
+    const probeSettled = () => new Promise( ( resolve ) => setTimeout( resolve, TIMEOUT + 200 ) );
+
+    it( "fails that call alone, and keeps the cache in operation", async () => {
+        let { provider, observer } = await impatientProvider();
+        let since = stub.requestLog.length;
+
+        // On 2026-10-23 one D1 read in three stalled for 5 to 18 s with its SQL done in milliseconds, and each stall
+        // took the whole cache down: every user got 503 until the probe answered. The service was there all along.
+        stub.stallNext( "/v1/values/set", STALL );
+        await assert.rejects( provider.setValue( "stalled-write", "x" ), ( error ) => {
+            assert.equal( error.code, exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE );
+            assert.match( error.data.details, /did not answer '\/v1\/values\/set' within 400 ms/ );
+            return true;
+        } );
+        await probeSettled();
+
+        // The service was asked whether it answers, and it did.
+        assert.equal( issued( since, "/v1/health" ), 1 );
+        assert.deepEqual( observer.events, [ "recovered:test-cache" ] );
+        assert.equal( await provider.setValue( "after-the-stall", "y" ), "y" );
+
+        await provider.shutDown();
+    } );
+
+    it( "keeps the cache in operation however many calls stall together, while the service answers the probe", async () => {
+        let { provider, observer } = await impatientProvider();
+        let since = stub.requestLog.length;
+
+        // Three users' calls stalling at once look like a service that answers nothing to anything that only counts
+        // timeouts. The probe asks instead: one, however many timed out.
+        stub.stallNext( "/v1/values/set", STALL, 3 );
+        let outcomes = await Promise.allSettled( [ "a", "b", "c" ].map( ( key ) => provider.setValue( key, "x" ) ) );
+        assert.deepEqual( outcomes.map( ( outcome ) => outcome.status ), [ "rejected", "rejected", "rejected" ] );
+        await probeSettled();
+
+        // Usually one probe, shared; a second if the timeouts fell either side of the first one's answer.
+        assert.ok( issued( since, "/v1/health" ) >= 1 );
+        assert.deepEqual( observer.events, [ "recovered:test-cache" ] );
+
+        await provider.shutDown();
+    } );
+
+    it( "does not ask a read again of a service the probe found silent", async () => {
+        let { provider, observer } = await impatientProvider();
+        let since = stub.requestLog.length;
+
+        stub.stallNext( "/v1/values/get", STALL );
+        stub.stallNext( "/v1/health", STALL );
+        await assert.rejects( provider.getValue( "hung-read" ) );
+
+        // The second attempt waits for the probe's answer, and the probe found nothing answering.
+        assert.equal( issued( since, "/v1/values/get" ), 1 );
+        assert.deepEqual( observer.events, [ "recovered:test-cache", "disrupted:test-cache" ] );
+
+        await provider.shutDown();
+    } );
+
+    it( "takes the cache down when the probe goes unanswered too, which is how a hung service looks", async () => {
+        let { provider, observer } = await impatientProvider();
+
+        // A service that accepts the connection and never answers rejects with the same TimeoutError as a slow one.
+        // The probe tells the two apart.
+        stub.stallNext( "/v1/values/set", STALL );
+        stub.stallNext( "/v1/health", STALL );
+        await assert.rejects( provider.setValue( "hung", "x" ) );
+        assert.deepEqual( observer.events, [ "recovered:test-cache" ] );
+        await probeSettled();
+
+        assert.deepEqual( observer.events, [ "recovered:test-cache", "disrupted:test-cache" ] );
+
+        await provider.shutDown();
+    } );
+
+    it( "takes the cache down when the probe is answered with an error status", async () => {
+        let { provider, observer } = await impatientProvider();
+
+        // The Worker answers, but the database behind its health check fails fast while calls to it stall. Any answer
+        // proves the connection; this one says the service does not work.
+        stub.stallNext( "/v1/values/set", STALL );
+        stub.failNext( "/v1/health", 500 );
+        await assert.rejects( provider.setValue( "failing", "x" ) );
+        await probeSettled();
+
+        assert.deepEqual( observer.events, [ "recovered:test-cache", "disrupted:test-cache" ] );
+
+        await provider.shutDown();
+    } );
+
+    it( "asks a read once more, and answers from the second attempt", async () => {
+        let { provider, observer } = await impatientProvider();
+        await provider.setJSON( "asked-twice", { a: 1 } );
+        let since = stub.requestLog.length;
+
+        stub.stallNext( "/v1/documents/get", STALL );
+        assert.deepEqual( await provider.getJSON( "asked-twice" ), { a: 1 } );
+
+        assert.equal( issued( since, "/v1/documents/get" ), 2 );
+        await probeSettled();
+        assert.deepEqual( observer.events, [ "recovered:test-cache" ] );
+
+        await provider.shutDown();
+    } );
+
+    it( "counts a body that stops arriving as a timeout, not as a dead connection", async () => {
+        let { provider, observer } = await impatientProvider();
+        await provider.setValue( "slow-body", "z" );
+        let since = stub.requestLog.length;
+
+        // The status and headers arrive at once; the body does not. The timer fires while `text()` reads, which
+        // rejects with the same TimeoutError (measured on Node 24.22) rather than as a socket that died.
+        stub.stallBodyNext( "/v1/values/get", STALL );
+        assert.equal( await provider.getValue( "slow-body" ), "z" );
+
+        assert.equal( issued( since, "/v1/values/get" ), 2 );
+        await probeSettled();
+        assert.deepEqual( observer.events, [ "recovered:test-cache" ] );
+
+        await provider.shutDown();
+    } );
+
+    it( "asks a read no more than twice", async () => {
+        let { provider, observer } = await impatientProvider();
+        let since = stub.requestLog.length;
+
+        stub.stallNext( "/v1/values/get", STALL, 2 );
+        await assert.rejects( provider.getValue( "never-answered" ), ( error ) => {
+            assert.equal( error.code, exceptions.exceptionCode.E_GEN_SYSTEM_CACHE_UNAVAILABLE );
+            // What the caller waited is two timeouts, and the log should say so.
+            assert.match( error.data.details, /within 400 ms, asked a second time\./ );
+            return true;
+        } );
+
+        assert.equal( issued( since, "/v1/values/get" ), 2 );
+        await probeSettled();
+        assert.deepEqual( observer.events, [ "recovered:test-cache" ] );
+
+        await provider.shutDown();
+    } );
+
+    it( "does not ask a read again once the cache is down", async () => {
+        let { provider, observer } = await impatientProvider();
+        let since = stub.requestLog.length;
+
+        // While the read waits, another call finds the service gone. When the read then times out, whether the
+        // service answers is the recovery loop's question, not a second attempt's.
+        stub.stallNext( "/v1/values/get", STALL );
+        let pending = provider.getValue( "stalled-read" );
+        await new Promise( ( resolve ) => setTimeout( resolve, 50 ) );
+        stub.breakTransport( true );
+        await assert.rejects( provider.setValue( "meanwhile", "x" ) );
+        stub.breakTransport( false );
+        await assert.rejects( pending );
+
+        assert.equal( issued( since, "/v1/values/get" ), 1 );
+        assert.deepEqual( observer.events, [ "recovered:test-cache", "disrupted:test-cache" ] );
+
+        await provider.shutDown();
+    } );
+
+    it( "never sends a write a second time", async () => {
+        let { provider } = await impatientProvider();
+        let since = stub.requestLog.length;
+
+        // The stub applies the write and answers late, as D1 commits one whose caller stopped waiting. A second copy
+        // could land after a newer write, or apply a merge twice.
+        stub.stallNext( "/v1/documents/merge", STALL );
+        await assert.rejects( provider.editJSON( "merged-once", { b: 2 } ) );
+
+        assert.equal( issued( since, "/v1/documents/merge" ), 1 );
+        await probeSettled();
+
+        await provider.shutDown();
+    } );
+
+} );
+
 describe( "HttpCacheProvider — the shape of what it sends", () => {
 
     it( "uses the method each path answers, probing with GET and writing with POST", async () => {
