@@ -345,6 +345,26 @@ class CacheProvider {
     }
 
     /**
+     * Used to fetch every field of a hash set at once.
+     * <br/>
+     * NOTE: Added in 1.21.0 for the roster of running provider instances, which has to list its fields to know who is
+     * recorded. {@link HttpCacheProvider} leaves it abstract, as it leaves {@link CacheProvider#hashSetFields}: its
+     * protocol carries the hash methods a field at a time. The roster is kept only where providers take calls over
+     * the message exchange, and there the service catalog already needs {@link TiCacheCapability.SETS}, which that
+     * backend does not declare either.
+     *
+     * @method
+     * @param {string} key
+     * @returns {Promise<Object>} A null-prototype map of field name to value; empty when the hash does not exist.
+     * @requires {TiCacheCapability.HASH_FIELDS}
+     * @abstract
+     * @public
+     */
+    hashGetAll( key ) {
+        return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_GEN_ABSTRACT_METHOD_CALL, { name: this.constructor.name + "." + this.hashGetAll.name } ) );
+    }
+
+    /**
      * Used to delete a single field from a hash set.
      *
      * @method

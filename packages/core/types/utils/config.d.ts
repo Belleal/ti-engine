@@ -44,6 +44,7 @@ declare const settingsEnum: import("../components/definitions.types").TiEnumOf<{
     SERVICE_HEALTH_CHECK_ENABLED: string[];
     SERVICE_HEALTH_CHECK_INTERVAL: string[];
     SERVICE_HEALTH_CHECK_TIMEOUT: string[];
+    SERVICE_INSTANCES_ADDRESS: string[];
     SERVICE_REGISTRY_ADDRESS: string[];
     OPERATION_MODE: string[];
 }>;

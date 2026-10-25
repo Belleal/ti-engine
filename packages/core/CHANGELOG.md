@@ -2,6 +2,108 @@
 
 This document contains the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.21.0
+
+* fix(service-caller): **a call to a service with no running instance is refused at once, instead of waiting out the
+  whole execution timeout** (CA-560).
+  * **What happened.** A provider adds each alias to its domain's catalog set, `ti:services:registry:catalog:<domain>`,
+    when it starts, and nothing ever takes one out. The caller decided that a service exists by membership of that set
+    alone. So once every instance of a domain had stopped, cleanly or not, a call to it was still accepted. Its request
+    sat in a queue nobody read, and the caller waited out `executionTimeout` (180 s by default) before
+    `E_COM_SERVICE_EXEC_TIMEOUT`. Abominations found it in its service checks (CP-E, ABO-43) and asked for the fix
+    here (ABO-73): a call to a service that had been shut down hung for the full 180 s.
+  * **Why it survived.** The catalog cannot simply be purged on stop. It is one set per domain, shared by every
+    instance, and the cache contract has no set removal and no atomic step. A last-instance-out purge races with an
+    instance that is starting, can hide the new instance's aliases, and does nothing for a crash. Nothing in the suite
+    started a real provider and stopped it, so nothing saw the wait.
+  * **What changed (Boris, 2026-10-25, ABO-73 option A: a live-instance check).**
+    * **A roster per domain** records the provider instances that are running: the hash
+      `ti:services:registry:instances:<domain>` (`serviceConfig.serviceInstancesAddress`,
+      `SERVICE_INSTANCES_ADDRESS`). The new module is `components/service-roster.js` (`#service-roster`).
+    * **An instance joins once its `onStart` has finished** and leaves on a clean stop, before the exchange shuts down.
+      So a clean stop is seen at once, and a call made while the last instance is stopping is refused rather than
+      queued.
+    * **A crash is seen within the heartbeat's expiry** (3 s by default). An instance's record says
+      `heartbeat: true` only when its own heartbeat key was written before it joined, and every beat after that writes
+      the record again. A caller counts a recorded instance as running while its heartbeat key has not expired.
+    * **An instance a caller cannot watch counts as running while it is recorded.** One with the heartbeat switched
+      off (`TI_SERVICE_HEALTH_CHECK_ENABLED=false`), or whose `reportHealthy` override writes no heartbeat key, is
+      recorded with `heartbeat: false`. A clean stop still removes it, so the hang is gone for it too unless it
+      crashes. A crash then hangs as before. Recorded as watched instead, it would read as dead three seconds after
+      it started.
+    * **The caller reads the catalog and the roster together**, and refuses with `E_COM_SERVICE_NOT_REGISTERED` (3003)
+      at once, with `details` naming the domain and the alias, when the roster says nobody is left. That is the code a
+      caller already handles for an unknown service. The roster is read beside the catalog and the heartbeats after it,
+      so the check costs one round trip more than the membership test did.
+    * **A domain without a roster is called as before.** Providers older than 1.21.0 keep none, and a caller upgraded
+      before them must not refuse every call to them. A roster keeps a marker field, `~roster`, that no instance ID
+      can collide with, and an instance that leaves writes it again before removing itself. So a roster that has
+      emptied still reads as one with nobody in it, not as a domain whose providers predate rosters.
+    * **The next instance to start drops the records of instances that died**: the watched ones whose heartbeat has
+      expired. A record is never marked watched before its heartbeat exists, so an instance starting at the same moment
+      is never dropped. One whose beats only paused is written back by its next beat.
+    * **Two races on the way in and out are closed.** A stop that arrives while the instance is still starting waits for
+      the join and any beat under way before it leaves. Either of them landing after the removal would write the record
+      back, and callers would then send to an instance that is gone. A join that sees the stop has started records
+      nothing, and no health job is scheduled after it.
+    * **`CacheProvider#hashGetAll( key )`** is new in the contract (`HASH_FIELDS`), so the roster can list its fields.
+      The Redis backend answers it with `HGETALL` into a map without a prototype, so a field named `__proto__` stays an
+      entry. `HttpCacheProvider` leaves it abstract, as it leaves `hashSetFields`. A deployment that takes service calls
+      runs the exchange on Redis, and its catalog already needs `SETS`, which that backend does not declare.
+    * **A cache backend without `hashGetAll` leaves calls as they were.** An application's own backend, written for the
+      earlier contract, rejects it as an abstract method call. The caller then counts every domain as having a running
+      instance, as before 1.21.0, and the process logs one WARNING saying so.
+  * **A gap with no instance running now refuses calls.** A call made between one instance stopping and the next one
+    joining, as when a single-instance service restarts, is refused at once. Before, it waited in the queue and the
+    next instance answered it. Start the new instance before stopping the old one to leave no gap.
+  * **Upgrading.** Callers and providers can be upgraded in either order. A newer caller calls a domain with no roster
+    as before, and an older caller never reads one. **The instances of one domain must not mix versions** once a
+    roster exists: an older instance keeps no record, so once the newer ones have gone a caller refuses calls the older
+    one would answer. A rollback leaves exactly that, so delete the domain's roster key
+    (`ti:services:registry:instances:<domain>`) when going back to an older provider.
+  * **Evidence.** `test/service-caller.live-instances.test.js` (10) runs a real Redis, providers started by
+    `bin/start-instance.js` as their own processes and stopped with SIGTERM or killed with SIGKILL, and a consumer in
+    the test's process. New fixtures: `echo-provider.js`, `echo-service.js` and `custom-health-provider.js`.
+    * **7 of its 9 call cases fail on 1.20.1**, run with start-up readiness taken from the heartbeat, since 1.20.1 keeps
+      no roster to wait for. In six the call was still waiting after 2 s, which is a call that would have waited out
+      the timeout. The seventh needs the roster to exist. The two that pass on 1.20.1 pin what must not change: a
+      running provider answers, and a domain without a roster is still called. The tenth case covers `hashGetAll`.
+    * **Removing each guard fails its own case:**
+      * no leave on a clean stop;
+      * no roster check in the caller;
+      * no marker write on leave;
+      * no `confirm` on each beat;
+      * joining as watched without a heartbeat;
+      * no pruning on join;
+      * a map with a prototype in `hashGetAll`.
+
+      The committed suite counts a provider as started once its record is in the roster, not at its first heartbeat.
+      It beats once before it joins, and the first harness, which went on at the heartbeat, raced the join: the
+      lost-roster case then passed without `confirm`.
+    * **Without Redis the suite skips**, so a developer without one still gets a green run. CI now runs a
+      `redis:8-alpine` service and sets `TI_TEST_REDIS_REQUIRED`, which turns the skip into a failure there. The suite
+      passes on Redis 7.0 and 8.10, on Node 24.22.
+  * **Rejected: a last-instance-out purge of the catalog** (option B). It leaves a crash hanging for the full timeout,
+    and a stop racing a start can hide the new instance's aliases.
+  * **Rejected: the heartbeat keys alone.** A caller could count the domain's live heartbeat keys with a pattern match,
+    but `SCAN` is not a per-call cost. And an instance whose heartbeat is off would read as dead while it runs.
+  * **Rejected: a roster that is a set.** The cache contract has `addToSet` but no set removal, so an instance could
+    never leave one.
+  * **The review pass** (`code-review` at high) raised 10 findings.
+    * **Two were fixed**, each with a test that fails without the fix:
+      * A throw while scheduling the health report left `start()` waiting forever, because the start resolved from
+        inside the join's callback. `test/service-instance.post-start-failure.test.js`.
+      * A cache backend without `hashGetAll` refused every service call.
+        `test/service-roster.without-hash-get-all.test.js`, on `HttpCacheProvider`.
+    * **Three are limits**, now stated above and in the design record: the restart gap, the marker outliving a
+      rollback, and an unwatched record that crashed.
+    * **Five were declined.** Two needed settings no process can change: `serviceConfig` is read from core's own
+      `bin/settings.json`, deep-frozen, with `TI_SERVICE_HEALTH_CHECK_ENABLED` its only override. One misread the cost:
+      the heartbeats are one `MULTI` of `GET`s, one round trip. The record rewrite on every beat is what brings a lost
+      record back. And the Redis client that answers `HGETALL` is core's own, which answers with an object.
+  * Design record: `docs/superpowers/specs/2026-10-25-live-service-instances-design.md`.
+* test: 262 → 278.
+
 ## Version 1.20.1
 
 * fix(cache): **a state call that times out fails that call alone, and a read is asked once more** (CA-556).

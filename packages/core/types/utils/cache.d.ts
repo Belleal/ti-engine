@@ -347,6 +347,15 @@ declare class CommonMemoryCache extends ConnectionObserver {
      */
     hashGetField(key: string, field: string): Promise<any>;
     /**
+     * Used to get every field of a hash at once.
+     *
+     * @method
+     * @param {string} key
+     * @return {Promise<Object>} A null-prototype map of field name to value; empty when the hash does not exist.
+     * @public
+     */
+    hashGetAll(key: string): Promise<Object>;
+    /**
      * Used to remove a single field from a hash.
      *
      * @method
