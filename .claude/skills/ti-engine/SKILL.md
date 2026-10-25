@@ -166,6 +166,8 @@ history and older PR bodies; it is no longer the working branch.
   - **the marker is load-bearing**: without it an emptied roster reads as "providers predate rosters" and the hang
     returns. `leave` writes it before deleting, because the roster may have been lost while the instance ran;
   - `#preStop` waits for the join and any beat under way before leaving, and a join that sees the stop records nothing.
+    A start that fails after the join (scheduling the beat throws) runs `#preStop` before `start()` rejects, because
+    `bin/start-instance.js` exits on that rejection without a stop.
 
   - a cache backend without `hashGetAll` (an application's own, or `HttpCacheProvider`) makes `isLive` answer true for
     every domain, with one WARNING per process: refusing every call would break such a backend in a minor release.
@@ -375,7 +377,7 @@ module.exports.service = function (serviceDefinition, serviceParams, serviceCall
 
 **Test commands**:
 ```bash
-npm test    # node --test — 278 tests / 64 suites: 28 test files, plus the eight test/fixtures/
+npm test    # node --test — 280 tests / 64 suites: 28 test files, plus the nine test/fixtures/
             # modules, which node's default pattern runs as files too (each counts as one test)
             # (auditing-json-console, cache-capabilities, cache-get-values, cache-provider-selection,
             #  cache-store, d1-state-service, d1-state-service.partitions, d1-state-service.differential,
@@ -394,8 +396,8 @@ npm test    # node --test — 278 tests / 64 suites: 28 test files, plus the eig
             # implementation of the state protocol, on node:http) and d1-sqlite
             # (node:sqlite shaped as a D1 binding with an interleave hook for
             # races, plus competence's partition spec) and RejectingService (a
-            # start that leaves a TiException rejection unhandled), and EchoProvider, echo-service and
-            # CustomHealthProvider for the live-instance suite - none is a test file
+            # start that leaves a TiException rejection unhandled), and EchoProvider, echo-service,
+            # CustomHealthProvider and FailingScheduleProvider for the live-instance suite - none is a test file
 ```
 
 ---
@@ -1510,7 +1512,7 @@ Token: YouTrack → Profile → Account Security → New token (scope: YouTrack)
 2. **Extending the web UI**: subclass `TiWebAppManager`, add an HTML fragment + matching Alpine component; reuse framework CSS primitives; obey the Alpine CSP rules (no inline styles, no `?.`).
 3. **Config-management, from a consumer's side**: a consuming application registers a config document (schema + file default + semantic validators + optional composite editor) through `TiWebAppManager.registerConfigDocument` / `registerConfigEditor`. Those seams live here; the documents themselves live in the consumer. Changing either seam is a breaking change for every consumer, so treat the `exports` map and these signatures as API.
 4. **Testing**: Node.js built-in `node --test` (no external framework); each package's `test/` directory. `npm test`
-   at the root fans out across workspaces — **2215 tests today: core 278, web-framework 1315, web-content 433,
+   at the root fans out across workspaces — **2217 tests today: core 280, web-framework 1315, web-content 433,
    cloudflare 189, tester none** (it is a runnable service, not a unit-tested one). The three checks that gate a push are in
    `CLAUDE.md` → *Definition of done*: `npm test`, `npm run lint` (0 errors; ESLint runs `@eslint/js`'s
    recommended rules with `no-unused-vars` turned down to a **warning** — `no-control-regex` is an error, measured in

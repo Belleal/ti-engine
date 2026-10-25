@@ -92,6 +92,10 @@ The module is `components/service-roster.js` (`#service-roster`): `join`, `confi
      while the instance ran from vanishing into a domain without one.
 - **A stop that arrives while the instance is still starting** has already run by the time the join would. The join
   sees the stop and records nothing, and no beat is scheduled after it.
+- **A start that fails after the join leaves again.** Should scheduling the beat throw, `start()` rejects, and
+  `bin/start-instance.js` exits without a stop. The record is taken back first, through the same steps as a clean
+  stop's leave and nothing of `onStop`, so the instance does not count as running until its heartbeat expires, or for
+  good were it unwatched.
 - **A failure is logged, not fatal.** A join that fails leaves the instance unrecorded, and callers may refuse it until
   a beat records it (with the heartbeat on, the next one does). A leave that fails leaves the record for its heartbeat
   to expire.
@@ -184,13 +188,13 @@ have, and could not shrink (§5).
   wait for): 7 of the 9 call cases fail. In six the call was still waiting after 2 s, so it would have waited out the
   180 s. The seventh needs a roster to exist. The two
   that pass pin what must not change: a running provider answers, and a domain without a roster is still called.
-- **On 1.21.0** all 10 cases pass on Redis 7.0.15 and on `redis:8-alpine` (8.10.2), Node 24.22, every refusal within
+- **On 1.21.0** all 11 cases pass on Redis 7.0.15 and on `redis:8-alpine` (8.10.2), Node 24.22, every refusal within
   the suite's 1 s bound.
 - **A killed instance's heartbeat** is gone within its 3 s expiry plus 1.5 s in every run; the suite asserts it.
 
 ## 8. Verification
 
-- **`test/service-caller.live-instances.test.js`** (10 cases). A real Redis, providers started by
+- **`test/service-caller.live-instances.test.js`** (11 cases). A real Redis, providers started by
   `bin/start-instance.js` as their own processes, stopped with SIGTERM (a clean stop) or killed with SIGKILL, and a
   consumer in the test's process. Only one `ServiceInstance` may exist per process, which is why the providers cannot
   run in it too. A provider counts as started once its record is in the roster, not at its first heartbeat: it beats
@@ -206,6 +210,8 @@ have, and could not shrink (§5).
   8. A domain whose roster is gone is called on the catalog alone, as an older provider's is.
   9. A killed instance's record is dropped when the next instance starts.
   10. `hashGetAll` on Redis: every field parsed, a field named `__proto__` kept as an entry, `{}` for a missing hash.
+  11. A start that fails after joining, its health report's scheduling made to throw: the process exits with no record
+      left, and the call is refused at once.
 - **Each guard fails its own case when removed:**
 
   | Guard removed | Fails |
@@ -217,6 +223,7 @@ have, and could not shrink (§5).
   | leaving on a clean stop | 2, 3, 5, 6, 7 |
   | the caller's roster check | every refusal case |
   | the null-prototype map | 10 |
+  | leaving when a start fails after the join | 11 |
 
 - **Two more files, from the review pass** (§10), run without Redis on the HTTP backend and the stub state server:
   `service-instance.post-start-failure` (a throw while scheduling rejects `start()`) and
@@ -268,3 +275,12 @@ the fix. 3 were limits of the design, now stated in §4.5 and §6. 5 were declin
   when missing would need a read per beat instead.
 - **"`hashGetAll` would map a flat-array reply by index."** The Redis client is the one `redis-integration` builds, and
   no application configures it. ioredis 6.0.0 answers `HGETALL` with an object, inside a transaction too (§7).
+
+**CodeRabbit, on the PR:**
+- **A start that failed after the join left its record** (fixed). The first fix above made a throw while scheduling
+  reject `start()`, but by then the join had landed, and `bin/start-instance.js` exits on a rejected start without a
+  stop. The instance stayed recorded until its heartbeat expired, and for good had it been unwatched. `#postStart` now
+  runs `#preStop` before it rethrows. CodeRabbit suggested `stop()`; `#preStop` is narrower on purpose. Only the join
+  and the health job are the start's own to take back. `stop()` would also run `onStop` and shut the cache down, which
+  on a rejected start is the caller's decision: an application that catches the rejection and calls `stop()` would
+  run both twice. Case 11 in §8 fails without it, with the record still in the roster.

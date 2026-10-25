@@ -61,13 +61,15 @@ This document contains the list of changes made to the framework. The format is 
     roster exists: an older instance keeps no record, so once the newer ones have gone a caller refuses calls the older
     one would answer. A rollback leaves exactly that, so delete the domain's roster key
     (`ti:services:registry:instances:<domain>`) when going back to an older provider.
-  * **Evidence.** `test/service-caller.live-instances.test.js` (10) runs a real Redis, providers started by
+  * **Evidence.** `test/service-caller.live-instances.test.js` (11) runs a real Redis, providers started by
     `bin/start-instance.js` as their own processes and stopped with SIGTERM or killed with SIGKILL, and a consumer in
-    the test's process. New fixtures: `echo-provider.js`, `echo-service.js` and `custom-health-provider.js`.
+    the test's process. New fixtures: `echo-provider.js`, `echo-service.js`, `custom-health-provider.js` and
+    `failing-schedule-provider.js`.
     * **7 of its 9 call cases fail on 1.20.1**, run with start-up readiness taken from the heartbeat, since 1.20.1 keeps
       no roster to wait for. In six the call was still waiting after 2 s, which is a call that would have waited out
       the timeout. The seventh needs the roster to exist. The two that pass on 1.20.1 pin what must not change: a
-      running provider answers, and a domain without a roster is still called. The tenth case covers `hashGetAll`.
+      running provider answers, and a domain without a roster is still called. The tenth case covers `hashGetAll`, and the eleventh, from CodeRabbit (below), a start that
+      fails after joining.
     * **Removing each guard fails its own case:**
       * no leave on a clean stop;
       * no roster check in the caller;
@@ -101,8 +103,13 @@ This document contains the list of changes made to the framework. The format is 
       `bin/settings.json`, deep-frozen, with `TI_SERVICE_HEALTH_CHECK_ENABLED` its only override. One misread the cost:
       the heartbeats are one `MULTI` of `GET`s, one round trip. The record rewrite on every beat is what brings a lost
       record back. And the Redis client that answers `HGETALL` is core's own, which answers with an object.
+  * **CodeRabbit found one more, fixed.** A start that failed after the join, with the health report's scheduling
+    throwing, left the instance's record behind. `bin/start-instance.js` exits on a rejected start without stopping
+    it, so the instance counted as running until its heartbeat expired, and for good had it been unwatched. The start
+    now leaves the roster again before it rejects, through the same steps as a clean stop's leave and nothing of
+    `onStop`. The live-instance suite's eleventh case, on `failing-schedule-provider.js`, fails without it.
   * Design record: `docs/superpowers/specs/2026-10-25-live-service-instances-design.md`.
-* test: 262 → 278.
+* test: 262 → 280.
 
 ## Version 1.20.1
 

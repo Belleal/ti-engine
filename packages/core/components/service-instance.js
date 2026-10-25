@@ -321,6 +321,13 @@ class ServiceInstance {
         // start(), as it did before the join; resolved from inside, it left start() waiting forever.
         return this.#rosterJoin.then( () => {
             this.#scheduleHealthReports();
+        } ).catch( ( error ) => {
+            // The join has landed by now, and a start that rejects is not followed by a stop: start-instance exits. Left
+            // recorded, the instance would count as running until its heartbeat expired, and for good were it unwatched.
+            // #preStop takes back exactly what the start did here - the join and any health job - and nothing of onStop.
+            return this.#preStop().then( () => {
+                throw error;
+            } );
         } );
     }
 

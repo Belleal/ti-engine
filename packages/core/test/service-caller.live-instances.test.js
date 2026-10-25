@@ -121,6 +121,29 @@ async function rosterInstances( domain ) {
 }
 
 /**
+ * Runs `bin/start-instance.js` for `domain` with the provider class in `fixture`, as its own process.
+ */
+function spawnProvider( domain, fixture, env ) {
+    const child = spawn( process.execPath, [ path.join( PACKAGE_ROOT, "bin", "start-instance.js" ) ], {
+        cwd: PACKAGE_ROOT,
+        env: Object.assign( {}, process.env, {
+            TI_INSTANCE_NAME: domain,
+            TI_INSTANCE_CLASS: path.join( "test", "fixtures", fixture )
+        }, env ),
+        stdio: [ "ignore", "pipe", "pipe" ]
+    } );
+    const provider = { child, output: "" };
+    child.stdout.on( "data", ( chunk ) => { provider.output += chunk; if ( VERBOSE ) process.stdout.write( chunk ); } );
+    child.stderr.on( "data", ( chunk ) => { provider.output += chunk; if ( VERBOSE ) process.stderr.write( chunk ); } );
+    provider.exited = new Promise( ( resolve ) => child.on( "exit", ( code, signal ) => {
+        children.delete( child );
+        resolve( { code, signal } );
+    } ) );
+    children.add( child );
+    return provider;
+}
+
+/**
  * Starts a provider for `domain` as its own process - an {@link EchoProvider} unless `fixture` names another - and
  * resolves once it is serving: once its record is in the roster and, for one that writes a heartbeat, its heartbeat
  * too; for one that writes none (`beats: false`), once a call to it has been answered as well.
@@ -131,22 +154,8 @@ async function rosterInstances( domain ) {
  */
 async function startProvider( domain, { env = {}, fixture = "echo-provider.js", beats = true } = {} ) {
     const before = new Set( await rosterInstances( domain ) );
-    const child = spawn( process.execPath, [ path.join( PACKAGE_ROOT, "bin", "start-instance.js" ) ], {
-        cwd: PACKAGE_ROOT,
-        env: Object.assign( {}, process.env, {
-            TI_INSTANCE_NAME: domain,
-            TI_INSTANCE_CLASS: path.join( "test", "fixtures", fixture )
-        }, env ),
-        stdio: [ "ignore", "pipe", "pipe" ]
-    } );
-    let output = "";
-    child.stdout.on( "data", ( chunk ) => { output += chunk; if ( VERBOSE ) process.stdout.write( chunk ); } );
-    child.stderr.on( "data", ( chunk ) => { output += chunk; if ( VERBOSE ) process.stderr.write( chunk ); } );
-    const exited = new Promise( ( resolve ) => child.on( "exit", ( code, signal ) => {
-        children.delete( child );
-        resolve( { code, signal } );
-    } ) );
-    children.add( child );
+    const provider = spawnProvider( domain, fixture, env );
+    const { child, exited } = provider;
 
     let instanceID = null;
     try {
@@ -163,7 +172,7 @@ async function startProvider( domain, { env = {}, fixture = "echo-provider.js", 
         }
     } catch ( error ) {
         child.kill( "SIGKILL" );
-        error.message += `\n--- provider output ---\n${ output }`;
+        error.message += `\n--- provider output ---\n${ provider.output }`;
         throw error;
     }
     return { child, exited, instanceID };
@@ -324,6 +333,19 @@ describe( "service calls to a domain whose instances have gone", () => {
         await redis.del( rosterKey( domain ) );
         assertAnswered( await within( call( domain ), PATIENCE_MS ) );
         await stopProvider( provider, "SIGTERM" );
+    } );
+
+    it( "leaves the roster again when its start fails after joining", { timeout: 30000 }, async ( t ) => {
+        if ( !redisReachable ) return t.skip( `no Redis at ${ REDIS_HOST }:${ REDIS_PORT }` );
+        const domain = newDomain();
+        // The fixture's start rejects once the join has landed, and start-instance then exits without a stop. Left in
+        // the roster, the record would count it as running until its heartbeat expired - for good, were it unwatched.
+        const provider = spawnProvider( domain, "failing-schedule-provider.js", {} );
+        const { code } = await Promise.race( [ provider.exited, sleep( 15000 ).then( () => ( { code: "still running" } ) ) ] );
+        assert.equal( code, 1, `the start did not fail as the fixture makes it\n--- provider output ---\n${ provider.output }` );
+        assert.equal( await redis.sismember( catalogKey( domain ), "echo" ), 1, "the provider never got as far as registering" );
+        assert.deepEqual( await rosterInstances( domain ), [], "the failed instance is still recorded" );
+        assertRefusedAtOnce( await within( call( domain ), PATIENCE_MS ) );
     } );
 
     it( "drops a killed instance's record when the next instance starts", { timeout: 45000 }, async ( t ) => {
