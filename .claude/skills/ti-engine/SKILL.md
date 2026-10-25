@@ -29,7 +29,7 @@ ti-engine/                         npm workspace root (v1.3.1; workspaces = pack
 ├── packages/
 │   ├── core/          v1.21.0     Framework foundation (pluggable cache backend — Redis or HTTP, optional messaging, lifecycle, utils) + the D1 state service + the deployment's time zone + a roster of running provider instances, so a call to a stopped service fails at once + shipped TypeScript declarations
 │   ├── web-framework/ v1.61.1     Express server + auth (incl. real local auth, per-provider allowed domains, sign-in with a link sent by e-mail) + admin config-management + config drift + Profile/About + ti-charts + role gate + TI_WEB_* env overrides + /health + route seams + content-addressed immutable fragments + opt-in Server-Timing + start-up gate + busy indicator + CSP source additions + no overscroll bounce + the sidebar as a drawer on a narrow screen + the interface language chosen on the sign-in screen + a config change's author by name + only the newest screen lands in `#ti-content` + e-mail notices raised by configurable rules over events, with editable texts, a branded HTML layout, attached files and a per-deployment interval for what waits + scheduled jobs + What's new and Feedback screens an application turns on, Feedback with a picture of the screen, personal information blanked + a page left open across a release reloads at a safe moment + sessions that can be held in the process
-│   ├── web-content/   v0.5.2      Content-publishing engine — path-index routing, deny-by-default visibility, SEO documents, feeds, email capture with an optional Turnstile check (WIP)
+│   ├── web-content/   v0.5.3      Content-publishing engine — path-index routing, deny-by-default visibility, SEO documents, feeds, email capture with an optional Turnstile check (WIP)
 │   ├── cloudflare/    v0.6.1      The Cloudflare edge — the Worker in front of an application's container, assembled: scanner probes answered there, forwarding headers made true, the container's environment and egress, the order every request is decided in, the mail relay and the jobs cron, and the template a new application copies (WIP)
 │   └── tester/        v1.3.5      Reference/example service implementation + the docker-build target
 ├── .github/workflows/             ci.yml (lint/test/build) · codeql-analysis.yml · npm-publish.yml · cla.yml
@@ -1246,7 +1246,7 @@ npm test    # node --test — 280 tests / 64 suites: 28 test files, plus the nin
 
 ---
 
-## Package: web-content (v0.5.2 — WIP)
+## Package: web-content (v0.5.3 — WIP)
 
 **Role**: A **content-publishing engine** — turns registered content sources into a public, server-rendered website: path-index routing, deny-by-default visibility, SEO documents (canonical / `hreflang` / Open Graph / JSON-LD), feeds, and email capture. Layered on `web-framework` the way competence is, but **public-by-default** instead of protect-by-default: it is the first consumer of the 1.17.0 route seams and needs web-framework **≥ 1.17.0**. Node `>= 20.12`. Built for the standalone author's site, which lives outside this repo (its own specs are referenced as `Site/docs/`).
 
