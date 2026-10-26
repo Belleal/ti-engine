@@ -161,7 +161,7 @@
     "#web-server-config": "./bin/web-server.json"
   },
   "dependencies": {
-    "@alpinejs/csp": "3.17.4",
+    "@alpinejs/csp": "3.17.5",
     "@ti-engine/core": ">=1.20.0",
     "@types/express": "^5.0.6",
     "@types/express-session": "^1.19.0",
