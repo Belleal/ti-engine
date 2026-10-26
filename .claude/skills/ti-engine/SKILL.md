@@ -27,9 +27,9 @@ the header block verbatim from an existing file in the same package.
 ```
 ti-engine/                         npm workspace root (v1.3.1; workspaces = packages/*)
 ├── packages/
-│   ├── core/          v1.20.1     Framework foundation (pluggable cache backend — Redis or HTTP, optional messaging, lifecycle, utils) + the D1 state service + the deployment's time zone + shipped TypeScript declarations
+│   ├── core/          v1.21.0     Framework foundation (pluggable cache backend — Redis or HTTP, optional messaging, lifecycle, utils) + the D1 state service + the deployment's time zone + a roster of running provider instances, so a call to a stopped service fails at once + shipped TypeScript declarations
 │   ├── web-framework/ v1.61.1     Express server + auth (incl. real local auth, per-provider allowed domains, sign-in with a link sent by e-mail) + admin config-management + config drift + Profile/About + ti-charts + role gate + TI_WEB_* env overrides + /health + route seams + content-addressed immutable fragments + opt-in Server-Timing + start-up gate + busy indicator + CSP source additions + no overscroll bounce + the sidebar as a drawer on a narrow screen + the interface language chosen on the sign-in screen + a config change's author by name + only the newest screen lands in `#ti-content` + e-mail notices raised by configurable rules over events, with editable texts, a branded HTML layout, attached files and a per-deployment interval for what waits + scheduled jobs + What's new and Feedback screens an application turns on, Feedback with a picture of the screen, personal information blanked + a page left open across a release reloads at a safe moment + sessions that can be held in the process
-│   ├── web-content/   v0.5.2      Content-publishing engine — path-index routing, deny-by-default visibility, SEO documents, feeds, email capture with an optional Turnstile check (WIP)
+│   ├── web-content/   v0.5.3      Content-publishing engine — path-index routing, deny-by-default visibility, SEO documents, feeds, email capture with an optional Turnstile check (WIP)
 │   ├── cloudflare/    v0.6.1      The Cloudflare edge — the Worker in front of an application's container, assembled: scanner probes answered there, forwarding headers made true, the container's environment and egress, the order every request is decided in, the mail relay and the jobs cron, and the template a new application copies (WIP)
 │   └── tester/        v1.3.5      Reference/example service implementation + the docker-build target
 ├── .github/workflows/             ci.yml (lint/test/build) · codeql-analysis.yml · npm-publish.yml · cla.yml
@@ -104,7 +104,7 @@ history and older PR bodies; it is no longer the working branch.
 
 ---
 
-## Package: core (v1.20.1)
+## Package: core (v1.21.0)
 
 **Role**: Foundational framework. All other packages depend on it. Standalone (no intra-repo deps).
 
@@ -121,7 +121,8 @@ history and older PR bodies; it is no longer the working branch.
 | `components/service-instance.js` | **Abstract** base; lifecycle hooks (start/stop/healthCheck) |
 | `components/service-consumer.js` | Extends ServiceInstance; outbound calls via ServiceCaller |
 | `components/service-provider.js` | Extends ServiceConsumer; hosts business services via ServiceExecutor |
-| `components/service-caller.js` | Sends service calls, awaits responses, implements retry |
+| `components/service-caller.js` | Sends service calls, awaits responses, implements retry. Accepts an alias only while the catalog lists it **and** the domain's roster has a running instance (1.21.0) |
+| `components/service-roster.js` | The roster of a domain's running provider instances (1.21.0, `#service-roster`, not exported): `join`, `confirm`, `leave`, `isLive`. One hash per domain, `ti:services:registry:instances:<domain>` |
 | `components/service-executor.js` | Receives calls, dispatches to handler functions, sends results |
 | `components/auditing.js` | Structured audit logging |
 | `components/connection-observer.js` | Tracks broker connection health |
@@ -136,7 +137,7 @@ history and older PR bodies; it is no longer the working branch.
 | `utils/logger.js` | Severity: DEBUG/INFO/NOTICE/WARNING/ERROR/CRITICAL/ALERT |
 | `utils/config.js` | Config enum + ENV overrides; frozen after init |
 | `utils/cache.js` | `CommonMemoryCache` singleton — owns operational state, connection observation and one shared guard; delegates storage to a `CacheProvider`. `createCacheStore()` (1.17.0) opens an independent, frozen instance beside it |
-| `components/cache/cache-provider.js` | **Abstract** backend contract (21 data methods + lifecycle) and `hasCapability()` |
+| `components/cache/cache-provider.js` | **Abstract** backend contract (23 data methods + lifecycle) and `hasCapability()`. `hashGetAll` (1.21.0) is the newest; `HttpCacheProvider` leaves it and `hashSetFields` abstract though it declares `HASH_FIELDS` |
 | `components/cache/cache-capability.js` | `TiCacheCapability` enum — the optional behaviors a backend may declare |
 | `components/cache/redis-cache-provider.js` | Redis/RedisJSON implementation — every Redis-specific detail in the cache path lives here |
 | `components/cache/http-cache-provider.js` | State over HTTP (1.15.0) — the ten methods the state store uses; lists/sets stay abstract |
@@ -147,7 +148,33 @@ history and older PR bodies; it is no longer the working branch.
 
 **Public exports** (`package.json` `exports`): `.` (start-instance), `./tools`, `./cache`, `./exceptions`, `./logger`, `./localization`, `./service-instance`, `./service-consumer`, `./service-provider`, `./state-service` (1.17.0), `./time-zone` (1.20.0), `./definitions` (the shared typedefs).
 
-**Since the skill's last sync (1.9.0 → 1.20.1):**
+**Since the skill's last sync (1.9.0 → 1.21.0):**
+- **1.21.0 — a call to a service with no running instance is refused at once** (CA-560, Boris's option A on
+  Abominations' ABO-73; design record `docs/superpowers/specs/2026-10-25-live-service-instances-design.md`). The
+  catalog set `ti:services:registry:catalog:<domain>` only ever grows, so a call to a domain whose instances had all
+  gone was accepted and waited out `executionTimeout` (180 s). Now:
+  - each `ServiceProvider` (exchange on) **joins** its domain's roster once `onStart` has finished: one beat first, then
+    its record `{ heartbeat, startedOn }` under its instance ID, then the marker field `~roster`. It **leaves** in
+    `#preStop`, before the exchange shuts down: marker first, then its record;
+  - a record is **watched** (`heartbeat: true`) only if the built-in heartbeat key was written before the join, and
+    every later beat rewrites it (`confirm`). Heartbeat off or a `reportHealthy` override that writes no key →
+    `heartbeat: false`, which counts as running while recorded, as every instance did before;
+  - the caller reads catalog and roster in parallel: **no roster at all → called as before** (providers older than
+    1.21.0), any unwatched record → called, otherwise only if some watched record's heartbeat key is still there.
+    Else `E_COM_SERVICE_NOT_REGISTERED` (3003) at once, with `details`;
+  - the next instance to join **prunes** watched records whose heartbeat has expired; unwatched ones are never pruned;
+  - **the marker is load-bearing**: without it an emptied roster reads as "providers predate rosters" and the hang
+    returns. `leave` writes it before deleting, because the roster may have been lost while the instance ran;
+  - `#preStop` waits for the join and any beat under way before leaving, and a join that sees the stop records nothing.
+    A start that fails after the join (scheduling the beat throws) runs `#preStop` before `start()` rejects, because
+    `bin/start-instance.js` exits on that rejection without a stop.
+
+  - a cache backend without `hashGetAll` (an application's own, or `HttpCacheProvider`) makes `isLive` answer true for
+    every domain, with one WARNING per process: refusing every call would break such a backend in a minor release.
+
+  Limits: a crash is seen only after the heartbeat expires (3 s); a gap with no instance running (a single-instance
+  restart) now refuses calls that used to wait in the queue; instances of one domain must not mix versions across
+  1.21.0 once a roster exists (an older one is invisible), so a rollback deletes the roster key.
 - **1.20.1 — a state call that times out fails that call alone** (CA-556). `HttpCacheProvider` used to treat a call
   past `memoryCache.stateTimeout` as a transport failure and take the cache out of operation, so one D1 call that
   stalled for 5–18 s (its SQL done in milliseconds) answered every user 503 until the probe did. Now:
@@ -330,7 +357,7 @@ history and older PR bodies; it is no longer the working branch.
 - `TI_SERVICE_HEALTH_CHECK_ENABLED` — whether to write the health heartbeat (1.16.0, default `true`). The setting arrived in 1.14.0 as `serviceConfig.healthCheckEnabled`, but core reads it only from its own `bin/settings.json`, so until this variable no application could actually turn it off. Off schedules no job at all — for a single instance with nothing watching the key.
 - `TI_MESSAGE_EXCHANGE_SECURITY_HASH_KEY` — message-exchange HMAC-SHA256 key. **Empty by default**: if unset (or equal to the old published default UUID) a one-time startup WARNING logs and tamper protection is ineffective — set a private value in production.
 
-> Note: `executionTimeout` (default 180000ms) is a `serviceConfig` **setting** (service config JSON / `bin/settings.json`), not an ENV var — there is no env override. `healthCheckEnabled` (1.14.0, default `true`) has had one since 1.16.0, `TI_SERVICE_HEALTH_CHECK_ENABLED` above. `healthCheckEnabled: false` schedules no job at all; the default `healthCheckInterval` is a **six-field** cron (`*/1 * * * * *`), so leaving it on costs one cache write per second for the life of the instance.
+> Note: `executionTimeout` (default 180000ms) is a `serviceConfig` **setting** (service config JSON / `bin/settings.json`), not an ENV var — there is no env override. Since 1.21.0 a call to a domain with no running instance does not wait for it (refused at once, see the roster under 1.21.0 above); a call to an instance that crashed less than `healthCheckTimeout` (3 s) ago still does. `serviceInstancesAddress` (1.21.0, `ti:services:registry:instances:`) is the roster's key prefix, a setting like `serviceRegistryAddress`. `healthCheckEnabled` (1.14.0, default `true`) has had one since 1.16.0, `TI_SERVICE_HEALTH_CHECK_ENABLED` above. `healthCheckEnabled: false` schedules no job at all; the default `healthCheckInterval` is a **six-field** cron (`*/1 * * * * *`), so leaving it on costs one cache write per second for the life of the instance.
 
 **Message flow**:
 ```
@@ -350,7 +377,7 @@ module.exports.service = function (serviceDefinition, serviceParams, serviceCall
 
 **Test commands**:
 ```bash
-npm test    # node --test — 262 tests / 60 suites: 25 test files, plus the five test/fixtures/
+npm test    # node --test — 280 tests / 64 suites: 28 test files, plus the nine test/fixtures/
             # modules, which node's default pattern runs as files too (each counts as one test)
             # (auditing-json-console, cache-capabilities, cache-get-values, cache-provider-selection,
             #  cache-store, d1-state-service, d1-state-service.partitions, d1-state-service.differential,
@@ -359,14 +386,18 @@ npm test    # node --test — 262 tests / 60 suites: 25 test files, plus the fiv
             #  service-consumer-without-exchange, service-instance-health-check,
             #  service-provider-without-exchange, tools-proto-keys,
             #  exception-labels, exception-serialization, localization.system-language,
-            #  start-instance.rejection-reason — it spawns bin/start-instance.js — tools.keyed-lock
-            #  and tools.when-all-settled)
+            #  start-instance.rejection-reason — it spawns bin/start-instance.js — tools.keyed-lock,
+            #  tools.when-all-settled, and service-caller.live-instances, 1.21.0: a REAL Redis and
+            #  providers spawned through bin/start-instance.js, killed or stopped; it skips without
+            #  Redis unless TI_TEST_REDIS_REQUIRED is set, which CI sets beside a redis:8-alpine service;
+            #  plus service-instance.post-start-failure and service-roster.without-hash-get-all)
             # test/fixtures/ holds StubCacheProvider (how the cache singleton is
             # driven without a live Redis), startStubStateServer (an in-memory
             # implementation of the state protocol, on node:http) and d1-sqlite
             # (node:sqlite shaped as a D1 binding with an interleave hook for
             # races, plus competence's partition spec) and RejectingService (a
-            # start that leaves a TiException rejection unhandled) - none is a test file
+            # start that leaves a TiException rejection unhandled), and EchoProvider, echo-service,
+            # CustomHealthProvider and FailingScheduleProvider for the live-instance suite - none is a test file
 ```
 
 ---
@@ -1215,7 +1246,7 @@ npm test    # node --test — 262 tests / 60 suites: 25 test files, plus the fiv
 
 ---
 
-## Package: web-content (v0.5.2 — WIP)
+## Package: web-content (v0.5.3 — WIP)
 
 **Role**: A **content-publishing engine** — turns registered content sources into a public, server-rendered website: path-index routing, deny-by-default visibility, SEO documents (canonical / `hreflang` / Open Graph / JSON-LD), feeds, and email capture. Layered on `web-framework` the way competence is, but **public-by-default** instead of protect-by-default: it is the first consumer of the 1.17.0 route seams and needs web-framework **≥ 1.17.0**. Node `>= 20.12`. Built for the standalone author's site, which lives outside this repo (its own specs are referenced as `Site/docs/`).
 
@@ -1410,7 +1441,9 @@ acted on). What follows is only what is specific to *this* repository's gates.
   requests*). That repository is private and on CodeRabbit's free plan, which posts a summary or a *"Review limit
   reached"* notice and never a line review (competence #164, 2026-10-16); the paid plan is not taken. Nothing but CI
   and a human reviews a PR there. Do not carry the expectation across.
-- CI also runs **CodeQL**, a Debricked vulnerability scan, `lint-and-test` and `docker-build`.
+- CI also runs **CodeQL**, a Debricked vulnerability scan, `lint-and-test` and `docker-build`. `lint-and-test` has a
+  `redis:8-alpine` service on 6379 (1.21.0) and sets `TI_TEST_REDIS_REQUIRED=true` on its unit-test step, so core's
+  live-instance suite fails there instead of skipping.
 - **Tag pushes are rejected for agent sessions** (HTTP 403 on the tag ref) even though branch pushes succeed, so a
   `<package>-v<version>` release tag — which `npm-publish.yml` creates itself on a successful publish — cannot be
   pushed by an agent session, so a version that published but was not tagged stays in the plan until a re-run
@@ -1479,7 +1512,7 @@ Token: YouTrack → Profile → Account Security → New token (scope: YouTrack)
 2. **Extending the web UI**: subclass `TiWebAppManager`, add an HTML fragment + matching Alpine component; reuse framework CSS primitives; obey the Alpine CSP rules (no inline styles, no `?.`).
 3. **Config-management, from a consumer's side**: a consuming application registers a config document (schema + file default + semantic validators + optional composite editor) through `TiWebAppManager.registerConfigDocument` / `registerConfigEditor`. Those seams live here; the documents themselves live in the consumer. Changing either seam is a breaking change for every consumer, so treat the `exports` map and these signatures as API.
 4. **Testing**: Node.js built-in `node --test` (no external framework); each package's `test/` directory. `npm test`
-   at the root fans out across workspaces — **2199 tests today: core 262, web-framework 1315, web-content 433,
+   at the root fans out across workspaces — **2217 tests today: core 280, web-framework 1315, web-content 433,
    cloudflare 189, tester none** (it is a runnable service, not a unit-tested one). The three checks that gate a push are in
    `CLAUDE.md` → *Definition of done*: `npm test`, `npm run lint` (0 errors; ESLint runs `@eslint/js`'s
    recommended rules with `no-unused-vars` turned down to a **warning** — `no-control-regex` is an error, measured in

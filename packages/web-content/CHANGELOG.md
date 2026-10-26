@@ -152,3 +152,19 @@ Content-Security-Policy can admit its frame.
   - `markdown-it` ^15.0.0 → ^15.0.2.
 
   No source changed. All 433 tests pass on the new versions.
+
+## Version 0.5.3
+
+* build(deps): `markdown-it` ^15.0.2 → ^15.0.3, for two denial-of-service advisories fixed in 15.0.3 (CA-562).
+  - **CVE-2026-111758** (CVSS 7.5): a link reference definition whose label or title is never closed is parsed in
+    quadratic time, with default options. Affects 15.0.0 to 15.0.2.
+  - **CVE-2026-111766** (CVSS 3.7): repeated unterminated inline HTML constructs are parsed in quadratic time, but only
+    with `html: true` or the commonmark preset. `content/markdown.js` renders with `html: false`, so it cannot trigger
+    here.
+  - **Why a release, when installs already got 15.0.3.** The range `^15.0.2` resolves to 15.0.3 on a fresh install,
+    but it still admits 15.0.2, and a consumer's lockfile can keep that. Debricked's check flagged the declared range
+    on Belleal/ti-engine#219.
+  - **Exposure was low.** Web-content renders the site's own authored markdown, not visitor input, so only an author
+    could have supplied the input the first advisory needs.
+
+  No source changed. All 433 tests pass on 15.0.3.

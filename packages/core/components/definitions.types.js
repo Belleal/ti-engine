@@ -129,6 +129,7 @@
  * @property {string} healthCheckAddress
  * @property {CronString} healthCheckInterval
  * @property {number} healthCheckTimeout
+ * @property {string} serviceInstancesAddress
  * @property {string} serviceRegistryAddress
  */
 

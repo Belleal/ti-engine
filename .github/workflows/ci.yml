@@ -15,6 +15,20 @@ permissions:
 jobs:
   lint-and-test:
     runs-on: ubuntu-latest
+    # core's live-instance suite (CA-560) starts real providers, which need a real Redis: the hang it pins lives in
+    # what the catalog, the roster and the heartbeat keys hold, which no stub reproduces. Without a server it skips,
+    # so a developer without Redis still gets a green run; TI_TEST_REDIS_REQUIRED makes it fail here instead, so CI
+    # never passes by skipping it. Redis 8 carries the JSON module the framework's document methods need.
+    services:
+      redis:
+        image: redis:8-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 2s
+          --health-timeout 2s
+          --health-retries 15
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -51,6 +65,8 @@ jobs:
         run: npx eslint .
       - name: Unit tests
         run: npm test --workspaces --if-present
+        env:
+          TI_TEST_REDIS_REQUIRED: "true"
       # Rebuilds the published declarations, fails if the committed output is stale, and type-checks
       # both the declarations and a consumer that imports every public subpath — all with
       # `skipLibCheck: false`, which is TypeScript's default and the setting under which the

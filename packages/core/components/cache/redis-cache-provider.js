@@ -593,6 +593,37 @@ class RedisCacheProvider extends CacheProvider {
     }
 
     /**
+     * Used to get every field of a hash at once.
+     * <br/>
+     * NOTE: ioredis answers HGETALL with an object, inside a transaction too, and with `{}` for a hash that does not
+     * exist. The map built from it has no prototype because the field names are not ours to trust: one named
+     * `__proto__` would otherwise repoint the map instead of becoming an entry, as in {@link mapCommandValues}.
+     *
+     * @method
+     * @param {string} key
+     * @return {Promise<Object>} A null-prototype map of field name to value; empty when the hash does not exist.
+     * @public
+     */
+    hashGetAll( key ) {
+        return new Promise( ( resolve, reject ) => {
+            let commandHashGetAll = [ redis.cacheCommands.HASH_GET_ALL, key ];
+            this.#redisClient.executeCommands( [ commandHashGetAll ] ).then( ( results ) => {
+                results = results[ 0 ];
+                let fields = Object.create( null );
+                if ( results && results.length > 1 && _.isObjectLike( results[ 1 ] ) ) {
+                    _.forEach( Object.keys( results[ 1 ] ), ( name ) => {
+                        let value = results[ 1 ][ name ];
+                        fields[ name ] = _.isString( value ) ? tools.parseJSON( value ) : value;
+                    } );
+                }
+                resolve( fields );
+            } ).catch( ( error ) => {
+                reject( error );
+            } );
+        } );
+    }
+
+    /**
      * Used to remove a single field from a hash.
      *
      * @method

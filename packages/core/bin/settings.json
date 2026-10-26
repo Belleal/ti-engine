@@ -45,6 +45,7 @@
     "healthCheckEnabled": true,
     "healthCheckInterval": "*/1 * * * * *",
     "healthCheckTimeout": 3,
+    "serviceInstancesAddress": "ti:services:registry:instances:",
     "serviceRegistryAddress": "ti:services:registry:catalog:"
   },
   "operationMode": "production"

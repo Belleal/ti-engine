@@ -262,6 +262,19 @@ declare class RedisCacheProvider extends CacheProvider {
      */
     hashGetField(key: string, field: string): Promise<any>;
     /**
+     * Used to get every field of a hash at once.
+     * <br/>
+     * NOTE: ioredis answers HGETALL with an object, inside a transaction too, and with `{}` for a hash that does not
+     * exist. The map built from it has no prototype because the field names are not ours to trust: one named
+     * `__proto__` would otherwise repoint the map instead of becoming an entry, as in {@link mapCommandValues}.
+     *
+     * @method
+     * @param {string} key
+     * @return {Promise<Object>} A null-prototype map of field name to value; empty when the hash does not exist.
+     * @public
+     */
+    hashGetAll(key: string): Promise<Object>;
+    /**
      * Used to remove a single field from a hash.
      *
      * @method

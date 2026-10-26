@@ -21,6 +21,7 @@ const exceptions = require( "#exceptions" );
 const logger = require( "#logger" );
 const config = require( "#config" );
 const cache = require( "#cache" );
+const serviceRoster = require( "#service-roster" );
 const messageDispatcher = require( "#message-dispatcher" );
 
 /** @import { ServiceAddress, ServiceCall, ServiceCallResult, ServiceExecContext } from "#definitions" */
@@ -77,7 +78,11 @@ let prepareServiceCall = ( messageID, serviceAddress, serviceParams, serviceExec
 }
 
 /**
- * Used to verify if the service is registered in the service registry.
+ * Used to verify if the service is registered in the service registry and has a running instance to answer it.
+ * <br/>
+ * NOTE: The catalog alone cannot say the second: an alias stays in it after every instance of its domain has gone, and
+ * a call accepted then waited out the whole executionTimeout for an answer nobody would send (CA-560). The domain's
+ * roster says whether anybody is still there; see `#service-roster` for how it decides.
  *
  * @method
  * @param {ServiceAddress} serviceAddress
@@ -87,11 +92,19 @@ let prepareServiceCall = ( messageID, serviceAddress, serviceParams, serviceExec
 let findServiceInRegistry = ( serviceAddress ) => {
     return new Promise( ( resolve, reject ) => {
         let serviceCatalog = config.getSetting( config.setting.SERVICE_REGISTRY_ADDRESS ) + serviceAddress.serviceDomainName;
-        cache.instance.isSetMember( serviceCatalog, serviceAddress.serviceAlias ).then( ( result ) => {
-            if ( result === true ) {
-                resolve();
-            } else {
+        // Read together, so the check costs one round trip more than the membership test alone, not two.
+        Promise.all( [
+            cache.instance.isSetMember( serviceCatalog, serviceAddress.serviceAlias ),
+            serviceRoster.isLive( serviceAddress.serviceDomainName )
+        ] ).then( ( [ isRegistered, isLive ] ) => {
+            if ( isRegistered !== true ) {
                 reject( exceptions.raise( exceptions.exceptionCode.E_COM_SERVICE_NOT_REGISTERED ) );
+            } else if ( isLive !== true ) {
+                reject( exceptions.raise( exceptions.exceptionCode.E_COM_SERVICE_NOT_REGISTERED, {
+                    details: `No instance of '${ serviceAddress.serviceDomainName }' is running to answer '${ serviceAddress.serviceAlias }'.`
+                } ) );
+            } else {
+                resolve();
             }
         } ).catch( ( error ) => {
             reject( exceptions.raise( error ) );

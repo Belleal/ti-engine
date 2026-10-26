@@ -80,6 +80,7 @@ export type SettingsServiceConfig = {
     healthCheckAddress: string;
     healthCheckInterval: CronString;
     healthCheckTimeout: number;
+    serviceInstancesAddress: string;
     serviceRegistryAddress: string;
 };
 export type CronString = string;
@@ -355,6 +356,7 @@ export type Message = {
  * @property {string} healthCheckAddress
  * @property {CronString} healthCheckInterval
  * @property {number} healthCheckTimeout
+ * @property {string} serviceInstancesAddress
  * @property {string} serviceRegistryAddress
  */
 /**

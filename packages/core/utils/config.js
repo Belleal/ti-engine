@@ -61,6 +61,7 @@ const settingsEnum = tools.enum( {
     SERVICE_HEALTH_CHECK_ENABLED: [ "serviceConfig.healthCheckEnabled", "healthCheckEnabled", "" ],
     SERVICE_HEALTH_CHECK_INTERVAL: [ "serviceConfig.healthCheckInterval", "healthCheckInterval", "" ],
     SERVICE_HEALTH_CHECK_TIMEOUT: [ "serviceConfig.healthCheckTimeout", "healthCheckTimeout", "" ],
+    SERVICE_INSTANCES_ADDRESS: [ "serviceConfig.serviceInstancesAddress", "serviceInstancesAddress", "" ],
     SERVICE_REGISTRY_ADDRESS: [ "serviceConfig.serviceRegistryAddress", "serviceRegistryAddress", "" ],
     OPERATION_MODE: [ "operationMode", "operationMode", "" ]
 } );

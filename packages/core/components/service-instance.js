@@ -22,6 +22,7 @@ const config = require( "#config" );
 const logger = require( "#logger" );
 const exceptions = require( "#exceptions" );
 const cache = require( "#cache" );
+const serviceRoster = require( "#service-roster" );
 const messageDispatcher = require( "#message-dispatcher" );
 
 /** @import { ServiceConfiguration } from "#definitions" */
@@ -44,6 +45,15 @@ class ServiceInstance {
     #serviceHealthCheck;
     #reportHealthyJob;
     #healthReportUnderway = false;
+    /** @type {Promise} */
+    #healthReport = Promise.resolve();
+    #heartbeatWritten = false;
+    /** @type {Promise} */
+    #rosterJoin = Promise.resolve();
+    #isRostered = false;
+    #isRosterJoined = false;
+    #isStopping = false;
+    #startedOn;
 
     /**
      * @constructor
@@ -263,10 +273,15 @@ class ServiceInstance {
      * @public
      */
     reportHealthy() {
-        if ( cache.instance.isOperational && !this.#healthReportUnderway ) {
+        if ( cache.instance.isOperational && !this.#healthReportUnderway && !this.#isStopping ) {
             this.#healthReportUnderway = true;
             let timestamp = new Date();
-            cache.instance.setValue( this.#serviceHealthCheck, timestamp.toISOString(), config.getSetting( config.setting.SERVICE_HEALTH_CHECK_TIMEOUT ) ).then( () => {
+            this.#healthReport = cache.instance.setValue( this.#serviceHealthCheck, timestamp.toISOString(), config.getSetting( config.setting.SERVICE_HEALTH_CHECK_TIMEOUT ) ).then( () => {
+                this.#heartbeatWritten = true;
+                // Once the instance has joined its domain's roster, every beat rewrites its record as watched, so a record
+                // dropped while the heartbeat had lapsed comes back with it (CA-560).
+                return ( this.#isRosterJoined === true ) ? serviceRoster.confirm( ServiceInstance.serviceDomainName, ServiceInstance.instanceID, this.#startedOn ) : undefined;
+            } ).then( () => {
                 this.#healthReportUnderway = false;
             } ).catch( ( error ) => {
                 this.#healthReportUnderway = false;
@@ -301,26 +316,88 @@ class ServiceInstance {
      * @returns {Promise}
      */
     #postStart() {
-        return new Promise( ( resolve ) => {
-            // Schedule regular health check:
-            // The default interval is a six-field cron, so this writes once per second for as long as the instance
-            // lives. That is what an orchestrator watching a mesh of instances wants, and pure cost anywhere else -
-            // a single instance with nothing reading the key, or a host that already knows whether the process is
-            // running, pays a write per second for nothing.
-            if ( config.getSetting( config.setting.SERVICE_HEALTH_CHECK_ENABLED, true ) === false ) {
-                logger.log( `Health check reporting is disabled for instance '${ ServiceInstance.instanceID }'.`, logger.logSeverity.NOTICE );
-            } else {
-                this.#reportHealthyJob = schedule.scheduleJob( config.getSetting( config.setting.SERVICE_HEALTH_CHECK_INTERVAL ), () => {
-                    this.reportHealthy();
-                } );
-            }
-
-            logger.log( `Instance '${ ServiceInstance.instanceID }' started successfully.`, logger.logSeverity.NOTICE, {
-                nodeVersion: process.version,
-                operationMode: config.getSetting( config.setting.OPERATION_MODE )
+        this.#rosterJoin = this.#joinRoster();
+        // Returned rather than resolved from inside the join's callback, so that a throw while scheduling still rejects
+        // start(), as it did before the join; resolved from inside, it left start() waiting forever.
+        return this.#rosterJoin.then( () => {
+            this.#scheduleHealthReports();
+        } ).catch( ( error ) => {
+            // The join has landed by now, and a start that rejects is not followed by a stop: start-instance exits. Left
+            // recorded, the instance would count as running until its heartbeat expired, and for good were it unwatched.
+            // #preStop takes back exactly what the start did here - the join and any health job - and nothing of onStop.
+            return this.#preStop().then( () => {
+                throw error;
             } );
+        } );
+    }
 
-            resolve();
+    /**
+     * Used to record a provider in its domain's roster once it can receive requests, so that a caller can tell when no
+     * instance is left to answer (CA-560). Only now: until onStart has finished, there is nothing to answer with.
+     * <br/>
+     * NOTE: One beat goes first, through {@link ServiceInstance#reportHealthy} so that an override is honoured. The record
+     * says a caller can watch the instance's heartbeat only if that beat wrote the built-in one. An instance whose
+     * heartbeat is off, or whose override reports somewhere else, is recorded as one that cannot be watched, and counts
+     * as running for as long as it is recorded. Recorded as watched instead, it would read as dead three seconds later.
+     * <br/>
+     * NOTE: A failure is logged, not fatal: with the heartbeat on, the next beat writes the record anyway.
+     *
+     * @method
+     * @returns {Promise} Always resolves.
+     */
+    #joinRoster() {
+        const ServiceProvider = require( "#service-provider" );
+
+        this.#startedOn = new Date().toISOString();
+        // A stop that arrived during the start has already run, and found nothing to leave.
+        this.#isRostered = ( this instanceof ServiceProvider ) && ServiceInstance.isMessageExchangeEnabled === true && this.#isStopping === false;
+        if ( this.#isRostered === false ) {
+            return Promise.resolve();
+        }
+
+        if ( config.getSetting( config.setting.SERVICE_HEALTH_CHECK_ENABLED, true ) !== false ) {
+            try {
+                this.reportHealthy();
+            } catch ( error ) {
+                logger.log( `The first health report of instance '${ ServiceInstance.instanceID }' failed!`, logger.logSeverity.WARNING, error );
+            }
+        }
+        return this.#healthReport.then( () => {
+            return serviceRoster.join( ServiceInstance.serviceDomainName, ServiceInstance.instanceID, this.#startedOn, this.#heartbeatWritten );
+        } ).catch( ( error ) => {
+            logger.log( `Instance '${ ServiceInstance.instanceID }' could not join the roster of '${ ServiceInstance.serviceDomainName }'. Callers may refuse its services until it does.`, logger.logSeverity.ERROR, error );
+        } ).then( () => {
+            this.#isRosterJoined = true;
+        } );
+    }
+
+    /**
+     * Used to schedule the regular health report and log the start.
+     *
+     * @method
+     */
+    #scheduleHealthReports() {
+        // A stop that arrived during the start has cancelled no job yet, and this one would outlive it.
+        if ( this.#isStopping === true ) {
+            return;
+        }
+
+        // Schedule regular health check:
+        // The default interval is a six-field cron, so this writes once per second for as long as the instance
+        // lives. That is what an orchestrator watching a mesh of instances wants, and pure cost anywhere else -
+        // a single instance with nothing reading the key, or a host that already knows whether the process is
+        // running, pays a write per second for nothing.
+        if ( config.getSetting( config.setting.SERVICE_HEALTH_CHECK_ENABLED, true ) === false ) {
+            logger.log( `Health check reporting is disabled for instance '${ ServiceInstance.instanceID }'.`, logger.logSeverity.NOTICE );
+        } else {
+            this.#reportHealthyJob = schedule.scheduleJob( config.getSetting( config.setting.SERVICE_HEALTH_CHECK_INTERVAL ), () => {
+                this.reportHealthy();
+            } );
+        }
+
+        logger.log( `Instance '${ ServiceInstance.instanceID }' started successfully.`, logger.logSeverity.NOTICE, {
+            nodeVersion: process.version,
+            operationMode: config.getSetting( config.setting.OPERATION_MODE )
         } );
     }
 
@@ -334,10 +411,23 @@ class ServiceInstance {
      */
     #preStop() {
         return new Promise( ( resolve ) => {
+            this.#isStopping = true;
             if ( this.#reportHealthyJob ) {
                 this.#reportHealthyJob.cancel();
             }
-            resolve();
+            // Before the exchange shuts down, so callers stop sending while requests are still received. A join or a beat
+            // still under way is waited for first: either one landing after the removal would write the record back, and
+            // callers would send to an instance that is gone - for good, in the case of a join, which records the
+            // instance as running whether it is watched or not.
+            this.#rosterJoin.then( () => {
+                return this.#healthReport;
+            } ).then( () => {
+                return ( this.#isRostered === true ) ? serviceRoster.leave( ServiceInstance.serviceDomainName, ServiceInstance.instanceID ) : undefined;
+            } ).catch( ( error ) => {
+                logger.log( `Instance '${ ServiceInstance.instanceID }' could not leave the roster of '${ ServiceInstance.serviceDomainName }'. Callers will find it gone once its heartbeat expires.`, logger.logSeverity.WARNING, error );
+            } ).then( () => {
+                resolve();
+            } );
         } );
     }
 
