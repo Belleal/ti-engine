@@ -1790,28 +1790,45 @@ const configureApplication = () => {
             if ( !basePath || !/^[\w-]+$/.test( basePath ) || !window.htmx ) {
                 window.location.href = "/";
             } else {
-                const screenUrl = "/app/" + basePath + query;
-                // Before the URL, so that nothing still on its way can land after it (CA-463). A screen opened before
-                // the landing Dashboard arrived started under `/app/dashboard`, which that fragment pushes; and HTMX
-                // queues a second `openScreen` behind the first, which then started under the second's URL.
-                supersedeContentRequests( null );
+                this.loadScreen( basePath, "/app/" + basePath + query, true );
+            }
+        },
+
+        /**
+         * Loads a screen into `#ti-content` and names it as the current one. {@link openScreenNow} calls it with the
+         * screen's address to push; the browser's Back and Forward call it with the address the history has already
+         * moved to, so that it is not pushed a second time and the entries ahead of it are not thrown away.
+         *
+         * @method
+         * @param {string} basePath - The screen's name, `[\w-]+`.
+         * @param {string} screenUrl - Its address, `/app/<name>` and a query.
+         * @param {boolean} push - Whether the address is new to the history.
+         * @private
+         */
+        loadScreen( basePath, screenUrl, push ) {
+            // Before the URL, so that nothing still on its way can land after it (CA-463). A screen opened before
+            // the landing Dashboard arrived started under `/app/dashboard`, which that fragment pushes; and HTMX
+            // queues a second `openScreen` behind the first, which then started under the second's URL.
+            supersedeContentRequests( null );
+            shownAddress = screenUrl;
+            if ( push ) {
                 // Push the URL before the HTMX swap so that any Alpine component initialized
                 // during the swap (via MutationObserver microtask) already sees the correct URL.
                 window.history.pushState( null, "", screenUrl );
-                this.screenTitleOverride = "";
-                this.screenTitleIsLabel = false;
-                this.currentScreen = basePath;
-                const answer = window.htmx.ajax( "get", screenUrl, { target: "#ti-content", swap: "innerHTML" } );
-                // HTMX sends the request before `ajax` returns, so the newest request is now this screen's own.
-                const request = newestContentRequest;
-                answer.catch( () => {
-                    // HTMX rejects a request it aborted as it does one that failed, and a newer screen aborts this
-                    // one's (CA-463). Leaving for the start page then would throw away the screen opened since.
-                    if ( newestContentRequest === request ) {
-                        window.location.href = "/";
-                    }
-                } );
             }
+            this.screenTitleOverride = "";
+            this.screenTitleIsLabel = false;
+            this.currentScreen = basePath;
+            const answer = window.htmx.ajax( "get", screenUrl, { target: "#ti-content", swap: "innerHTML" } );
+            // HTMX sends the request before `ajax` returns, so the newest request is now this screen's own.
+            const request = newestContentRequest;
+            answer.catch( () => {
+                // HTMX rejects a request it aborted as it does one that failed, and a newer screen aborts this
+                // one's (CA-463). Leaving for the start page then would throw away the screen opened since.
+                if ( newestContentRequest === request ) {
+                    window.location.href = "/";
+                }
+            } );
         },
 
         /**
@@ -2350,6 +2367,88 @@ document.addEventListener( "htmx:afterSwap", ( event ) => {
         }
     }
 } );
+
+/**
+ * The address the history is at, fragment aside.
+ *
+ * @method
+ * @returns {string}
+ * @private
+ */
+const currentAddress = () => ( window.location.pathname || "" ) + ( window.location.search || "" );
+
+/**
+ * The address of the screen on show, fragment aside (CA-570): the page's own, then each screen's as it is opened or
+ * HTMX pushes or replaces one. A `popstate` to the same address is a move between two fragments of one screen, which
+ * fires the event as well and must not load the screen again.
+ *
+ * @type {string}
+ * @private
+ */
+let shownAddress = currentAddress();
+
+document.addEventListener( "htmx:pushedIntoHistory", ( event ) => {
+    shownAddress = String( ( event.detail && event.detail.path ) || "" ).split( "#" )[ 0 ] || currentAddress();
+} );
+document.addEventListener( "htmx:replacedInHistory", ( event ) => {
+    shownAddress = String( ( event.detail && event.detail.path ) || "" ).split( "#" )[ 0 ] || currentAddress();
+} );
+
+/**
+ * Opens the screen the address names after the browser's Back or Forward (CA-570).
+ * <br/>
+ * The shell changes screens by swapping `#ti-content` and pushing the address itself, with no state, so the history
+ * knows the address but not the screen. HTMX's own `popstate` handler acts only on an entry it pushed (a state of its
+ * own, from `hx-push-url`), and for such an entry, with no snapshot to restore (`historyCacheSize` is 0), it reloads the
+ * whole page. Measured in Chromium on HTMX 2.0.11: Back from a screen opened by `openScreen` changed the address and
+ * left the screen on show, with the sidebar lit for the address and the screen for another; Back to an entry HTMX had
+ * pushed reloaded the page, and a screen that keeps its place in the page lost it.
+ *
+ * @method
+ * @returns {boolean} Whether the address names a screen and it is being opened.
+ * @private
+ */
+const showScreenOfHistory = () => {
+    const address = currentAddress();
+    // An entry that differs from the one left in its fragment alone is the same screen: an anchor link moved within it.
+    if ( address === shownAddress ) {
+        return false;
+    }
+    const match = /^\/app\/([\w-]+)/.exec( window.location.pathname || "" );
+    const tiApplication = window.Alpine ? Alpine.store( "tiApplication" ) : null;
+    if ( !match || !window.htmx || !tiApplication ) {
+        shownAddress = address;
+        return false;
+    }
+    // A drawer open over the screen being left has done its job, as it has for a screen opened from it (CA-406).
+    tiApplication.closeNavigation();
+    tiApplication.loadScreen( match[ 1 ], address, false );
+    return true;
+};
+
+/**
+ * Puts {@link showScreenOfHistory} in front of HTMX's `popstate` handler (CA-570): what names a screen is ours, and
+ * anything else, such as the page the visitor arrived on, goes on to HTMX as before. It cannot be a second listener,
+ * because HTMX's handler is the page's `onpopstate`, which no listener stops, so it replaces `onpopstate` and passes on.
+ * It waits for the `load` event: HTMX sets its handler when the document has been parsed, after this script has run.
+ *
+ * @method
+ * @private
+ */
+const installHistoryNavigation = () => {
+    const htmxHandler = typeof window.onpopstate === "function" ? window.onpopstate : null;
+    window.onpopstate = function ( event ) {
+        if ( !showScreenOfHistory() && htmxHandler ) {
+            htmxHandler.call( window, event );
+        }
+    };
+};
+
+if ( document.readyState === "complete" ) {
+    installHistoryNavigation();
+} else {
+    window.addEventListener( "load", installHistoryNavigation, { once: true } );
+}
 
 /**
  * Counts every HTMX request as one the user is waiting on, for the shell's busy state (CA-345). Screens are swapped in

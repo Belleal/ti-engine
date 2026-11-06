@@ -2,6 +2,38 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.61.2
+
+* fix(web-framework): **the browser's Back and Forward open the screen the address names** (CA-570). Boris, 2026-11-06,
+  on competence 3.151.0: Back reset Organization to its default, and after Back the sidebar was lit for another screen
+  than the one shown.
+  * **What was wrong.** `openScreen` swaps `#ti-content` and pushes the address with no state. HTMX's `onpopstate` acts
+    only on a state of its own, which `hx-push-url` writes (the landing Dashboard does), so Back from a screen the shell
+    opened changed the address and left the screen on show, and the sidebar followed the address. Back to an entry HTMX
+    pushed had it look for a snapshot, find none (`historyCacheSize` is 0) and reload the whole page: a screen that keeps
+    its place in the page (competence's Organization) was lost with it.
+  * **Why it survived.** Every screen is reached by `openScreen` or a sidebar link, and the shell has no history of its
+    own to test; the application's own Back buttons were the way back. Measured in Chromium on HTMX 2.0.11: Organization,
+    an evaluation, Back: the evaluation stayed, the address read Organization.
+  * **What changed.** `installHistoryNavigation` puts a handler in front of HTMX's `onpopstate` once the page has loaded
+    (HTMX sets its own when the document is parsed, so it has to wait). An address of the form `/app/<screen>` goes to
+    the new `loadScreen( name, url, false )`, which is `openScreenNow` past the push, so the newest screen still wins
+    (1.50.1) and the title resets; anything else goes on to HTMX as before. The drawer closes as for a screen opened from
+    it. An entry that differs from the screen on show only in its fragment (an anchor link within a screen) is left
+    alone: the shell keeps the address of the screen on show (`openScreen`, and HTMX's `htmx:pushedIntoHistory` and
+    `htmx:replacedInHistory`), and the screen would otherwise load again.
+  * **Rejected.** `historyEnabled: false` in HTMX's configuration: the landing screen's `hx-push-url` and every
+    application's own use of it would stop pushing. A second `popstate` listener: HTMX's handler is the page's
+    `onpopstate`, which no listener stops. Snapshots (`historyCacheSize` above 0): screens hold personal data, which the
+    skill rules out keeping in `localStorage`.
+  * **Verified.** `test/ti-framework.history-navigation.test.js` (8 cases, 6 fail on 1.61.1). In Chromium over
+    competence with Organization's folds kept: Organization (one team closed, scrolled to 120), an evaluation, Back: the
+    Organization is back at the same folds and place, the sidebar lit for it; Back again: the Dashboard, with no page
+    reload (a marker on `window` survived); Forward: Organization.
+  * **Not done.** A move off an evaluation with unsaved work asks first when it is a click; Back asks the same through the
+    same `htmx:beforeRequest` guard, but a cancelled Back leaves the address of the screen it stayed on in the entry it
+    reached, as the guard does for a click.
+
 ## Version 1.61.1
 
 * fix(web-framework): **held sessions: overlapping writes hold nothing, the environment switch fails closed, and a good

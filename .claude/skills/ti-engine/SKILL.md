@@ -28,7 +28,7 @@ the header block verbatim from an existing file in the same package.
 ti-engine/                         npm workspace root (v1.3.1; workspaces = packages/*)
 ├── packages/
 │   ├── core/          v1.21.0     Framework foundation (pluggable cache backend — Redis or HTTP, optional messaging, lifecycle, utils) + the D1 state service + the deployment's time zone + a roster of running provider instances, so a call to a stopped service fails at once + shipped TypeScript declarations
-│   ├── web-framework/ v1.61.1     Express server + auth (incl. real local auth, per-provider allowed domains, sign-in with a link sent by e-mail) + admin config-management + config drift + Profile/About + ti-charts + role gate + TI_WEB_* env overrides + /health + route seams + content-addressed immutable fragments + opt-in Server-Timing + start-up gate + busy indicator + CSP source additions + no overscroll bounce + the sidebar as a drawer on a narrow screen + the interface language chosen on the sign-in screen + a config change's author by name + only the newest screen lands in `#ti-content` + e-mail notices raised by configurable rules over events, with editable texts, a branded HTML layout, attached files and a per-deployment interval for what waits + scheduled jobs + What's new and Feedback screens an application turns on, Feedback with a picture of the screen, personal information blanked + a page left open across a release reloads at a safe moment + sessions that can be held in the process
+│   ├── web-framework/ v1.61.2     Express server + auth (incl. real local auth, per-provider allowed domains, sign-in with a link sent by e-mail) + admin config-management + config drift + Profile/About + ti-charts + role gate + TI_WEB_* env overrides + /health + route seams + content-addressed immutable fragments + opt-in Server-Timing + start-up gate + busy indicator + CSP source additions + no overscroll bounce + the sidebar as a drawer on a narrow screen + the interface language chosen on the sign-in screen + a config change's author by name + only the newest screen lands in `#ti-content` + e-mail notices raised by configurable rules over events, with editable texts, a branded HTML layout, attached files and a per-deployment interval for what waits + scheduled jobs + What's new and Feedback screens an application turns on, Feedback with a picture of the screen, personal information blanked + a page left open across a release reloads at a safe moment + sessions that can be held in the process
 │   ├── web-content/   v0.5.3      Content-publishing engine — path-index routing, deny-by-default visibility, SEO documents, feeds, email capture with an optional Turnstile check (WIP)
 │   ├── cloudflare/    v0.6.1      The Cloudflare edge — the Worker in front of an application's container, assembled: scanner probes answered there, forwarding headers made true, the container's environment and egress, the order every request is decided in, the mail relay and the jobs cron, and the template a new application copies (WIP)
 │   └── tester/        v1.3.5      Reference/example service implementation + the docker-build target
@@ -402,7 +402,7 @@ npm test    # node --test — 280 tests / 64 suites: 28 test files, plus the nin
 
 ---
 
-## Package: web-framework (v1.61.1)
+## Package: web-framework (v1.61.2)
 
 **Role**: Express.js web server + authentication layer + a reusable **admin config-management subsystem** for web-facing UIs + a CSP-safe **charting primitive library** (`ti-charts.js`) + the container-deployment surface (`TI_WEB_*` env overrides, `GET /health`) and the **route-registration seams** (1.17.0) a subclass uses to mount its own routes — what `web-content` is built on.
 
@@ -440,7 +440,16 @@ npm test    # node --test — 280 tests / 64 suites: 28 test files, plus the nin
 
 **Public exports** (`package.json` `exports`) — **ten**: `./config-management` (config-service), `./web-application` (web-app-manager), `./web-server`, `./authorization`, `./config-drift`, `./definitions`, since 1.52.0 `./notifications` and `./jobs`, and since 1.56.0 `./whats-new` and `./feedback`. `./authorization`, `./config-drift` and `./definitions` are easy to forget and a consumer does import them: competence reaches for `./authorization` and `./config-drift` directly. Anything not on this list fails with `ERR_PACKAGE_PATH_NOT_EXPORTED`, so **adding a module a consumer needs means adding its `exports` entry** — that is the API surface, and changing it is a breaking change for every consumer.
 
-**Since the skill's last sync (1.25.1 → 1.61.1):**
+**Since the skill's last sync (1.25.1 → 1.61.2):**
+- **Back and Forward open the screen the address names** (1.61.2, CA-570). `openScreen` pushes an address with no state, so
+  HTMX's `onpopstate` (which acts only on a state of its own, from `hx-push-url`, and then reloads the page, since
+  `historyCacheSize` is 0) ignored it: Back changed the address and left the screen on show, with the sidebar lit for
+  the address. `installHistoryNavigation` replaces `window.onpopstate` **at the `load` event**, after HTMX sets its own
+  when the document is parsed, and a `/app/<screen>` address goes to `tiApplication.loadScreen( name, url, false )`
+  (the part of `openScreenNow` after the push, so the newest-screen rule of 1.50.1 and the title reset hold); anything
+  else goes on to HTMX. It cannot be a second listener: `onpopstate` is not stopped by one. `shownAddress` (set by
+  `loadScreen` and HTMX's `pushedIntoHistory` / `replacedInHistory`) leaves a fragment-only move alone, which would
+  otherwise reload the screen. `test/ti-framework.history-navigation.test.js`.
 - **Sessions can be held in the process** (1.61.0, CA-557; 1.61.1 fixed the overlap, eviction, switch and read-error rules below; design record
   `docs/superpowers/specs/2026-10-23-held-sessions-design.md`). express-session reads the session on every request that
   reaches it, and measured on competence over the D1 state service that was 90 of a Supervisor's 194 state calls across
