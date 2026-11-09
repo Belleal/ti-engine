@@ -2,6 +2,18 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.61.3
+
+* build(deps): **Alpine's CSP build is 3.17.5** (CA-575). The bundled `bin/static/scripts/lib/alpinejs-csp.min.js` is
+  regenerated from the installed package, and the pin moves with it from `3.17.4` to `3.17.5`. 3.17.5 stops `x-cloak`
+  being re-applied to elements already rendered during a morph.
+  * **Why a release, and what #220 lacked.** The bundled file is what ships, and Dependabot's pull request (#220) moves
+    the pin alone. CI's install would then rewrite the file and fail the check that the committed copy matches the pin
+    (1.46.1), so #220 could not have merged as it was. This change carries the regenerated file with the pin, and
+    replaces #220.
+  * **Verified.** `npm install` rewrote the one bundled file and nothing else; `npm test`, lint and the declaration
+    checks pass on Node 24.
+
 ## Version 1.61.2
 
 * fix(web-framework): **the browser's Back and Forward open the screen the address names** (CA-570). Boris, 2026-11-06,
