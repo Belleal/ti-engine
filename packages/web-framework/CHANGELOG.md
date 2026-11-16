@@ -2,6 +2,18 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.62.1
+
+* fix(labels): **three keys the framework used were in no catalogue** (CA-577). The sidebar's profile tooltip and the
+  user menu's title read `interface.topbar.user-profile`, the shell's start failure reads `error.application.init-failed`
+  and a notice with no message reads `error.application.unexpected`. None was in this package's catalogue or core's, so
+  an application that had not defined them showed "Your profile" in English in every language and "LABEL NOT FOUND" in
+  place of the two errors. competence carried all three in its own catalogue, which is why it went unseen.
+  * The catalogue now has them in English and Bulgarian.
+  * `test/framework-labels.test.js` sweeps every literal key the package's fragments bind (`x-text-label`) and its
+    scripts read (`getLabel( "…" )`, `label( "…" )`): 127 keys, each resolved through core in English and Bulgarian. It
+    found these three and fails without them.
+
 ## Version 1.62.0
 
 * feat(labels): **the framework's texts reach every application without being copied** (CA-555). The package lays its

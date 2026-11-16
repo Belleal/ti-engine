@@ -123,6 +123,60 @@ describe( "the framework's catalogue under the application's", () => {
 
 } );
 
+describe( "every label key the framework itself uses", () => {
+
+    // Each literal key a fragment binds with `x-text-label` (any attribute form) or a script reads with `getLabel( "…" )`
+    // or a `label( "…" )` helper. A key built at run time is not a literal and is not swept.
+    const RE_FRAGMENT_KEY = /x-text-label(?::[\w-]+)?="([^"]+)"/g;
+    const RE_SCRIPT_KEY = /\b(?:getLabel|label)\(\s*"([a-z][\w.-]*)"/g;
+
+    // Every file under a directory, `node_modules` left out.
+    function walk( directory ) {
+        return fs.readdirSync( directory, { withFileTypes: true } ).flatMap( ( entry ) => {
+            const full = path.join( directory, entry.name );
+            if ( entry.isDirectory() ) {
+                return ( entry.name === "node_modules" ) ? [] : walk( full );
+            }
+            return [ full ];
+        } );
+    }
+
+    function usedKeys() {
+        const used = new Map();
+        const collect = ( file, pattern ) => {
+            for ( const match of fs.readFileSync( file, "utf8" ).matchAll( pattern ) ) {
+                used.set( match[ 1 ], used.get( match[ 1 ] ) || path.relative( PACKAGE_ROOT, file ) );
+            }
+        };
+        for ( const file of walk( path.join( PACKAGE_ROOT, "bin" ) ).concat( walk( path.join( PACKAGE_ROOT, "components" ) ) ) ) {
+            if ( file.endsWith( ".html" ) ) {
+                collect( file, RE_FRAGMENT_KEY );
+            } else if ( file.endsWith( ".js" ) ) {
+                collect( file, RE_SCRIPT_KEY );
+            }
+        }
+        return used;
+    }
+
+    it( "is in the framework's catalogue or core's, in every language the framework carries (CA-577)", () => {
+        // The sidebar's profile tooltip and the user menu's title read `interface.topbar.user-profile`, and the shell's
+        // start failure and a message-less notice read `error.application.*`; no catalogue but competence's defined them,
+        // so every other application showed English or "LABEL NOT FOUND" in their place.
+        const used = usedKeys();
+        assert.ok( used.size > 100, `the sweep found ${ used.size } keys` );
+        const missing = [];
+        for ( const [ key, file ] of used ) {
+            for ( const language of [ "en", "bg" ] ) {
+                if ( typeof localization.getLabel( key, language, null ) !== "string" ) {
+                    missing.push( `${ key } (${ language }), used in ${ file }` );
+                }
+            }
+        }
+        assert.deepEqual( missing, [] );
+    } );
+
+} );
+
 describe( "whichever framework module an application reaches first", () => {
 
     it( "is required by every module of the package that reads labels", () => {
