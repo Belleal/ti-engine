@@ -169,4 +169,16 @@ describe( "the Cache-Control a response that sets a cookie goes out with", () =>
         assert.equal( privateCacheControl( "public, s-maxage=600, private=\"x-user\"" ), "private, private=\"x-user\"" );
     } );
 
+    it( "reads a comma inside a quoted field list as part of that list, not as the end of a directive", () => {
+        assert.equal(
+            privateCacheControl( "public, max-age=600, private=\"X-User, private, X-Role\"" ),
+            "private, max-age=600, private=\"X-User, private, X-Role\""
+        );
+        assert.equal(
+            privateCacheControl( "no-cache=\"Set-Cookie, no-store\", s-maxage=60" ),
+            "private, no-cache=\"Set-Cookie, no-store\""
+        );
+        assert.equal( privateCacheControl( "private=\"a\\\", b\", public" ), "private, private=\"a\\\", b\"" );
+    } );
+
 } );

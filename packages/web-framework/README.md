@@ -144,10 +144,12 @@ English and Bulgarian. The package lays that catalogue under the application's w
 
 An application points `TI_LOCALIZATION_LABELS_PATH` at its own catalogue only, and holds a framework key there only to
 reword it: its entry wins, language by language, so reword a key in every language the deployment offers, or the
-others keep the framework's wording. It never copies one to have it translated, and an application with no catalogue of its own
-still gets every framework text in the deployment's language. Before web-framework 1.62.0 (CA-555) the framework's
-catalogue reached an application only if the application listed it, so each key was copied by hand, and a key left out
-showed the English written in the fragment.
+others keep the framework's wording. It never copies one to have it translated, and an application with no catalogue
+of its own still gets every framework text in the deployment's language, as long as that language is English or
+Bulgarian. A deployment in any other language needs the application's catalogue to carry the framework's keys in it,
+the `interface.notice.sign-in-link.*` notices among them: without them the e-mail link is not ready to start. Before
+web-framework 1.62.0 (CA-555) the framework's catalogue reached an application only if the application listed it, so
+each key was copied by hand, and a key left out showed the English written in the fragment.
 
 ## Local (username/password) authentication
 
@@ -286,7 +288,7 @@ The login screen renders before sign-in, so none of an application's own fragmen
 
 Use the brand slot to name the application and say what it is for. Use the heading slot to title the card, and say which account to sign in with. Use the extra slot for anything a first-time visitor should read after the sign-in controls. No slot can change the sign-in controls themselves; those stay the framework's, gated to the enabled methods. The Microsoft button carries Microsoft's four-square logo and reads "Sign in with Microsoft", as Microsoft's branding guidelines ask; the method is still `openid-azure`.
 
-Every string on the screen goes through `x-text-label` under `interface.default.login.*`: `welcome`, `sign-in-prompt`, `username`, `username-placeholder`, `password`, `password-placeholder`, `sign-in`, `or-continue-with`, `sign-in-google`, `sign-in-azure`, `no-sign-in-method` and `error-sign-in-failed`, and for the e-mail link `email`, `email-placeholder`, `email-link-send`, `email-link-sent`, `email-link-other`, `email-link-confirm-prompt`, `email-link-signing-in-as`, `email-link-continue`, `email-link-not-you`, `email-link-expired`, `email-link-signed-in-already` (a notice, when a link is opened in a browser already signed in), `email-link-limited`, `email-link-unavailable`, `email-link-invalid-address` and `or` (between the e-mail link and the local form, when both are enabled). The framework's catalogue carries each of them in English and Bulgarian and lies under the application's (see [Labels](#labels)); an application rewords one by holding the key in its own catalogue, and a language neither catalogue carries renders the English text written in the fragment.
+Every string on the screen goes through `x-text-label` under `interface.default.login.*`: `welcome`, `sign-in-prompt`, `username`, `username-placeholder`, `password`, `password-placeholder`, `sign-in`, `or-continue-with`, `sign-in-google`, `sign-in-azure`, `no-sign-in-method` and `error-sign-in-failed`, and for the e-mail link `email`, `email-placeholder`, `email-link-send`, `email-link-sent`, `email-link-other`, `email-link-confirm-prompt`, `email-link-signing-in-as`, `email-link-continue`, `email-link-not-you`, `email-link-expired`, `email-link-signed-in-already` (a notice, when a link is opened in a browser already signed in), `email-link-limited`, `email-link-unavailable`, `email-link-invalid-address` and `or` (between the e-mail link and the local form, when both are enabled). The framework's catalogue carries each of them in English and Bulgarian and lies under the application's (see [Labels](#labels)); an application rewords one by holding the key in its own catalogue. A language neither catalogue carries shows core's `!!! label not found !!!` placeholder, not the English in the fragment: the labels bundle fills every key it knows with that placeholder in a language the key lacks, and the fragment's text shows only for a key absent from every catalogue.
 
 ## The busy indicator
 

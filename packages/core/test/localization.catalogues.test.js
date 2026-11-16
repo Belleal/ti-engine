@@ -42,8 +42,8 @@ process.env.TI_LOCALIZATION_LABELS_PATH = path.relative( process.cwd(), FIXTURE_
 
 const { describe, it, after } = require( "node:test" );
 const assert = require( "node:assert/strict" );
-const localization = require( "../utils/localization.js" );
-const coreLabels = require( "../bin/localization/labels.json" );
+const localization = require( "#localization" );
+const coreLabels = require( "#labels" );
 
 after( () => fs.rmSync( FIXTURE_DIRECTORY, { recursive: true, force: true } ) );
 

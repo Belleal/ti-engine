@@ -1019,12 +1019,12 @@ const formatServerTimingDescription = ( description ) => {
 };
 
 /**
- * Matches a `Cache-Control` value that already keeps the whole response out of shared caches: `private` (not the
- * field-qualified `private="…"`, which keeps only those fields private) or `no-store`.
+ * Matches a directive that keeps the whole response out of shared caches: `private` (not the field-qualified
+ * `private="…"`, which keeps only those fields private) or `no-store`.
  *
  * @type {RegExp}
  */
-const RE_NOT_SHAREABLE = /(?:^|,)\s*(?:private|no-store)\s*(?:,|$)/i;
+const RE_NOT_SHAREABLE = /^(?:private|no-store)$/i;
 
 /**
  * Matches the directives that let a shared cache store a response: `public`, `s-maxage` and `proxy-revalidate`.
@@ -1032,6 +1032,40 @@ const RE_NOT_SHAREABLE = /(?:^|,)\s*(?:private|no-store)\s*(?:,|$)/i;
  * @type {RegExp}
  */
 const RE_SHARED_DIRECTIVE = /^(?:public|s-maxage(?:=.*)?|proxy-revalidate)$/i;
+
+/**
+ * Splits a `Cache-Control` value into its directives, trimmed and with the empty ones dropped.
+ * <br/>
+ * A comma inside a quoted argument does not end a directive: `private="X-User, private"` is one directive, and
+ * splitting on every comma made its inner `private` read as a bare one, so the shared directives beside it were kept.
+ *
+ * @method
+ * @param {string} value The `Cache-Control` value.
+ * @returns {string[]}
+ * @private
+ */
+const splitCacheControl = ( value ) => {
+    const directives = [];
+    let current = "";
+    let quoted = false;
+    for ( let index = 0; index < value.length; index++ ) {
+        const character = value[ index ];
+        if ( quoted && character === "\\" && index + 1 < value.length ) {
+            current += character + value[ ++index ];
+            continue;
+        }
+        if ( character === "\"" ) {
+            quoted = !quoted;
+        } else if ( character === "," && !quoted ) {
+            directives.push( current );
+            current = "";
+            continue;
+        }
+        current += character;
+    }
+    directives.push( current );
+    return directives.map( ( directive ) => directive.trim() ).filter( ( directive ) => directive.length > 0 );
+};
 
 /**
  * Returns the `Cache-Control` a response that sets a cookie goes out with: the declared one kept from shared caches.
@@ -1046,10 +1080,11 @@ const RE_SHARED_DIRECTIVE = /^(?:public|s-maxage(?:=.*)?|proxy-revalidate)$/i;
  */
 module.exports.privateCacheControl = ( declared ) => {
     const value = Array.isArray( declared ) ? declared.join( ", " ) : ( ( typeof declared === "string" ) ? declared : "" );
-    if ( RE_NOT_SHAREABLE.test( value ) ) {
+    const directives = splitCacheControl( value );
+    if ( directives.some( ( directive ) => RE_NOT_SHAREABLE.test( directive ) ) ) {
         return null;
     }
-    const kept = value.split( "," ).map( ( directive ) => directive.trim() ).filter( ( directive ) => directive && !RE_SHARED_DIRECTIVE.test( directive ) );
+    const kept = directives.filter( ( directive ) => !RE_SHARED_DIRECTIVE.test( directive ) );
     return [ "private", ...( ( kept.length > 0 ) ? kept : [ "no-cache" ] ) ].join( ", " );
 };
 
