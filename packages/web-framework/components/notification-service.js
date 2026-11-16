@@ -22,6 +22,8 @@ const cache = require( "@ti-engine/core/cache" );
 const tools = require( "@ti-engine/core/tools" );
 const logger = require( "@ti-engine/core/logger" );
 const localization = require( "@ti-engine/core/localization" );
+// Lays the framework's catalogue under the application's before any label here is read (CA-555).
+require( "#framework-labels" );
 const exceptions = require( "@ti-engine/core/exceptions" );
 const timeZone = require( "@ti-engine/core/time-zone" );
 const configService = require( "#config-service" );

@@ -2,6 +2,23 @@
 
 This document contains the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.22.0
+
+* feat(localization): **a framework package can lay its label catalogue under the application's**, with
+  `localization.addCatalogue( catalogue )` (CA-555).
+  * **What was wrong.** An application configures one labels path, its own, and core merged only that file over core's
+    labels. web-framework's catalogue reached an application only if the application listed it or copied each key into
+    its own file. A key it lacked showed its English fallback in every language: competence's menu button read "Menu"
+    to a Bulgarian screen reader from web-framework 1.47.0 until the key was copied, and an application with no
+    catalogue of its own (Hopko's X-ray) had no framework text in Bulgarian at all.
+  * **What changed.** The catalogue is three layers, a later one winning for the same key: core's labels, each package's
+    catalogue in the order added, the application's files. Each `addCatalogue` composes a new frozen tree and drops the
+    per-language trees `getAllLabels` holds. Nothing is merged into a layer: `require` hands every caller the same JSON
+    object, so core's own catalogue and the caller's object stay as they were.
+  * **Rejected:** a package specifier in `TI_LOCALIZATION_LABELS_PATH` (every application would have to remember to list
+    the framework first), and core reading known packages' catalogues itself (core would name its consumers).
+  * `test/localization.catalogues.test.js`: 8 tests.
+
 ## Version 1.21.0
 
 * fix(service-caller): **a call to a service with no running instance is refused at once, instead of waiting out the
