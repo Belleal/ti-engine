@@ -2,6 +2,34 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.62.0
+
+* feat(labels): **the framework's texts reach every application without being copied** (CA-555). The package lays its
+  catalogue, `bin/localization/web-server-labels.json`, under the application's through core's `addCatalogue`, from a
+  module (`#framework-labels`) that each module reading labels requires first: the manager, the handlers, the notices,
+  the e-mail link and Feedback. The sign-in screen, the shell, the user menu, the notices and the browser's label bundle
+  now resolve every framework key in English and Bulgarian; an application's own entry for a key still wins.
+  * **Why it matters.** An application had to copy each key into its own catalogue. One that had not showed English in
+    a Bulgarian deployment, and one with no catalogue at all lost the sign-in link's notice texts, so `email-link` was
+    dropped at start.
+  * `@ti-engine/core` is now `>=1.22.0`.
+  * `test/framework-labels.test.js`: every framework key in every language through the real `getLabel`, the
+    application's wording winning, the client bundle, the user menu, and each of the five modules laying the catalogue
+    down when it is the first one loaded (a fresh process each). 9 of its 10 tests fail without the catalogue.
+* fix(web-server): **a server with no sign-in method mounts no sign-in routes** (CA-573). `GET` and `POST /login/:method`,
+  `POST /logout` and `GET /me` are mounted only when `auth.enabledMethods` names one. A public site with none had them
+  anyway. `/csrf-token` stays: a public form, web-content's capture form among them, asks there for its token.
+* fix(web-server): **a path with a malformed escape is a 404** (CA-573). The framework's own 404 route was `*splat`, and
+  Express decodes a named parameter before the handler runs, so `/bg/%E0%A4%A` failed with a 400 that a page saw as a
+  redirect to `/?error=4002`. It is a RegExp route now; `registerRoute`'s documentation says to give a catch-all the
+  same way.
+* fix(web-handlers): **clearing a dead token cookie keeps that response out of shared caches** (CA-573). A browser
+  carrying `ti-xsrf-token` with no session behind it had it cleared on whatever the request was answered with, a
+  `public` page or an immutable download included, so a cacheable response carried a `Set-Cookie`. That response is
+  now `private, no-cache` unless it was already `private` or `no-store`; the browser drops the cookie on the first one.
+* `test/web-server.public-site.test.js`: a real server with no sign-in method; 4 of its 6 tests fail without the three
+  fixes. The test helper's in-memory store has the session store's hash operations.
+
 ## Version 1.61.3
 
 * build(deps): **Alpine's CSP build is 3.17.5** (CA-575). The bundled `bin/static/scripts/lib/alpinejs-csp.min.js` is

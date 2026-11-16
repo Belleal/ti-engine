@@ -33,6 +33,12 @@ describe( "routes — PUBLIC_EXCEPT_ADMIN", () => {
         }
     } );
 
+    it( "keeps the admin area protected whatever the case of its path, since Express routes it whatever the case (CA-573)", () => {
+        for ( const path of [ "/ADMIN", "/Admin/", "/ADMIN/config/documents/x", "/aDmIn/config" ] ) {
+            assert.equal( PUBLIC_EXCEPT_ADMIN.test( path ), false, `${ path } must stay protected` );
+        }
+    } );
+
     it( "declares ordinary content paths public", () => {
         for ( const path of [ "/", "/about/", "/posts/a-song/", "/rss.xml", "/sitemap.xml" ] ) {
             assert.equal( PUBLIC_EXCEPT_ADMIN.test( path ), true, `${ path } must be public` );

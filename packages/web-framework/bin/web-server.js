@@ -198,6 +198,13 @@ const RE_LABELS_BUNDLE_UNPROTECTED = /^\/app\/labels\/[0-9a-f]{16}$/;
 const RE_LANGUAGE_CHOICE_UNPROTECTED = /^\/language\/[a-z]{2}$/i;
 
 /**
+ * Matches every path: the framework's own 404 route, the last before the error handler.
+ *
+ * @type {RegExp}
+ */
+const RE_ANY_PATH = /.*/;
+
+/**
  * The largest body `POST /app/send-feedback` takes: a picture of the screen in base64 (1,333,336 characters at most) and
  * the rest of the feedback, with room to spare (CA-544).
  *
@@ -634,7 +641,10 @@ class TiWebServer extends ServiceConsumer {
                 }
 
                 // Set up error handling middleware:
-                this.#webServer.all( "*splat", webHandlers.invalidRouteHandler() );
+                // A RegExp, never `*splat`: Express decodes a named parameter before the handler runs, and a path with a
+                // malformed escape (`/bg/%E0%A4%A`) failed there with a 400, which the error handler answers to a page
+                // as a redirect to `/?error=4002`, where a 404 was due (CA-573). A RegExp route has nothing to decode.
+                this.#webServer.all( RE_ANY_PATH, webHandlers.invalidRouteHandler() );
                 this.#webServer.use( webHandlers.defaultErrorHandler() );
 
                 // Set up the unprotected routes:
@@ -958,16 +968,22 @@ class TiWebServer extends ServiceConsumer {
         this.#webServer.get( "/app", webHandlers.webAppHandler( this ) );
         this.#webServer.get( "/app/:view", webHandlers.webAppHandler( this ) );
         this.#webServer.post( "/app/:service", webHandlers.webAppHandler( this ) );
-        this.#webServer.get( "/login/:method", webHandlers.authenticationHandler( this ) );
-        this.#webServer.post( "/login/:method", webHandlers.authenticationHandler( this ) );
-        this.#webServer.post( "/logout", webHandlers.logoutHandler() );
+        // Sign-in, sign-out and the signed-in user, only where somebody can sign in (CA-573). A public site with no
+        // method had them anyway: nothing could be done through them, and they were routes a crawler could reach.
+        if ( this.#authManager.getEnabledMethods().length > 0 ) {
+            this.#webServer.get( "/login/:method", webHandlers.authenticationHandler( this ) );
+            this.#webServer.post( "/login/:method", webHandlers.authenticationHandler( this ) );
+            this.#webServer.post( "/logout", webHandlers.logoutHandler() );
+            this.#webServer.get( "/me", webHandlers.userInformationHandler() );
+        }
         this.#webServer.get( "/health", webHandlers.healthHandler() );
         // The visitor's choice of interface language, before or after sign-in (CA-410).
         this.#webServer.get( "/language/:code", webHandlers.languageChoiceHandler( this ) );
         // A script's way to a CSRF token when the page it runs on was served from a shared cache, which cannot carry
         // one. Tokens are no longer minted on every anonymous page view, precisely so that such pages can be shared.
+        // Kept with no sign-in method: a public form, such as web-content's capture form on a shared-cached page, asks
+        // here for its token. A site with no form answers the route itself before calling this method.
         this.#webServer.get( "/csrf-token", webHandlers.csrfTokenHandler() );
-        this.#webServer.get( "/me", webHandlers.userInformationHandler() );
         // The label catalogue, by the hash `/app/config` hands out. Two segments, so it never reaches `/app/:view`.
         this.#webServer.get( "/app/labels/:hash", webHandlers.labelsBundleHandler( this ) );
         // NOTE: A callback is registered by its path, never by the configured value verbatim — that value is commonly
@@ -1034,8 +1050,11 @@ class TiWebServer extends ServiceConsumer {
      * <br/>
      * NOTE: Call this from a {@link TiWebServer#defineWebApplicationRoutes} override AFTER invoking the base method,
      * so the framework's own routes keep priority and any catch-all route you add resolves last (it will still be
-     * registered before the framework's own `*splat` 404 handler). It is only valid once the Express app exists —
+     * registered before the framework's own 404 handler). It is only valid once the Express app exists —
      * i.e., from within {@link TiWebServer#defineWebApplicationRoutes}, which {@link TiWebServer#onStart} invokes.
+     * <br/>
+     * NOTE: Give a catch-all as a RegExp, as web-content's resolver is, never as `*splat`. Express decodes a named parameter before any handler
+     * runs, so a path with a malformed escape never reaches a `*splat` handler: the request fails with a 400 instead.
      *
      * @method
      * @param {string} method One of the supported routing verbs: get, post, put, patch, delete, options, head, all.

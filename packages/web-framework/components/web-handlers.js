@@ -18,6 +18,8 @@
 const logger = require( "@ti-engine/core/logger" );
 const exceptions = require( "@ti-engine/core/exceptions" );
 const localization = require( "@ti-engine/core/localization" );
+// Lays the framework's catalogue under the application's before any label here is read (CA-555).
+require( "#framework-labels" );
 const { randomBytes, timingSafeEqual } = require( "node:crypto" );
 const URL = require( "node:url" ).URL;
 const _ = require( "lodash" );
@@ -1880,6 +1882,35 @@ let ensureCsrfToken = ( instance, request, response ) => {
 };
 
 /**
+ * Matches a `Cache-Control` value that already keeps a response out of shared caches.
+ *
+ * @type {RegExp}
+ */
+const RE_NOT_SHAREABLE = /(?:^|,)\s*(?:private|no-store)\s*(?:,|=|$)/i;
+
+/**
+ * Makes a response that carries a `Set-Cookie` private, whatever a later handler declares for it.
+ * <br/>
+ * A shared cache must not hand one visitor's cookie to the next. Clearing a dead token cookie put a `Set-Cookie` on
+ * whatever the request was answered with, a `public` page or an immutable download included (CA-573): a cache that
+ * strips the header stores the page, one that keeps it hands the clearing on, and Cloudflare does not cache the
+ * response at all. Only the responses that clear it are affected, and the browser drops the cookie on the first.
+ * Applied as the head is written, because the handler that sets `Cache-Control` runs after this one.
+ *
+ * @method
+ * @param {ExpressResponse} response
+ * @private
+ */
+function keepFromSharedCaches( response ) {
+    onHeaders( response, function makePrivate() {
+        const declared = this.getHeader( "Cache-Control" );
+        if ( typeof declared !== "string" || !RE_NOT_SHAREABLE.test( declared ) ) {
+            this.setHeader( "Cache-Control", "private, no-cache" );
+        }
+    } );
+}
+
+/**
  * Offers every request its CSRF token on demand, and keeps an existing session's token exposed to front-end code.
  * <br/>
  * `request.csrfToken()` returns the session's token, minting it first if there is none - call it wherever a token
@@ -1892,7 +1923,8 @@ let ensureCsrfToken = ( instance, request, response ) => {
  * {@link csrfProtectionHandler}.
  * <br/>
  * The one thing done for such a request is to clear a token cookie it still carries: one with no session behind it is
- * dead, and front-end code that reads it would submit it and be refused.
+ * dead, and front-end code that reads it would submit it and be refused. That response is made private, since it carries a
+ * `Set-Cookie` (CA-573).
  *
  * @method
  * @param {TiWebServer} instance
@@ -1912,6 +1944,7 @@ module.exports.csrfInitHandler = ( instance ) => {
                     // as web-content's account menu does, would submit it and be refused with 403 every time. Cleared,
                     // the next submission asks for a fresh token instead.
                     response.clearCookie( CSRF_COOKIE_NAME, csrfCookieOptions( instance, request ) );
+                    keepFromSharedCaches( response );
                 }
             }
             next();

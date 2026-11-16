@@ -513,8 +513,11 @@ declare class TiWebServer extends ServiceConsumer {
      * <br/>
      * NOTE: Call this from a {@link TiWebServer#defineWebApplicationRoutes} override AFTER invoking the base method,
      * so the framework's own routes keep priority and any catch-all route you add resolves last (it will still be
-     * registered before the framework's own `*splat` 404 handler). It is only valid once the Express app exists —
+     * registered before the framework's own 404 handler). It is only valid once the Express app exists —
      * i.e., from within {@link TiWebServer#defineWebApplicationRoutes}, which {@link TiWebServer#onStart} invokes.
+     * <br/>
+     * NOTE: Give a catch-all as a RegExp, as web-content's resolver is, never as `*splat`. Express decodes a named parameter before any handler
+     * runs, so a path with a malformed escape never reaches a `*splat` handler: the request fails with a 400 instead.
      *
      * @method
      * @param {string} method One of the supported routing verbs: get, post, put, patch, delete, options, head, all.

@@ -53,8 +53,10 @@ const SITE_SCRIPT_FILE = path.join( __dirname, "..", "static", "web-content.js" 
 
 // Public-by-default: everything except the admin area bypasses the framework's authentication gate.
 // The lookahead must accept BOTH `/admin/...` and the bare `/admin` — matching only `admin/` would leave
-// `/admin` itself declared unprotected, since the negative lookahead succeeds when the slash is absent.
-const PUBLIC_EXCEPT_ADMIN = /^\/(?!admin(?:\/|$)).*$/;
+// `/admin` itself declared unprotected, since the negative lookahead succeeds when the slash is absent. And it ignores
+// case, as Express's routing does: without the flag `/ADMIN/config/...` was declared public and reached the admin
+// routes past the framework's sign-in check, stopped only by their own role check (CA-573).
+const PUBLIC_EXCEPT_ADMIN = /^\/(?!admin(?:\/|$)).*$/i;
 
 /**
  * Inverts the framework's protect-by-default stance for a public content site.

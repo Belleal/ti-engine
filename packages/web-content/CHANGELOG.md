@@ -168,3 +168,10 @@ Content-Security-Policy can admit its frame.
     could have supplied the input the first advisory needs.
 
   No source changed. All 433 tests pass on 15.0.3.
+
+## Version 0.5.4
+
+* fix(routes): **the admin area stays protected whatever the case of its path** (CA-573). `PUBLIC_EXCEPT_ADMIN` compared
+  case-sensitively while Express routes case-insensitively, so `/ADMIN/config/...` was declared public and reached the
+  admin routes past the framework's sign-in check, stopped only by their own role check (401, measured). It ignores
+  case now.

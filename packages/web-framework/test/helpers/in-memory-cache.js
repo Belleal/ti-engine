@@ -36,6 +36,9 @@ class InMemoryCache {
     constructor() {
         this.storage = {};
         this.values = {};
+        // Hashes, field by field: the session store keeps each session in one, so a test that starts a real server and
+        // makes a session needs them.
+        this.hashes = new Map();
         // The clock the expiries are measured against; a test can replace it.
         this.now = () => Date.now();
     }
@@ -83,6 +86,26 @@ class InMemoryCache {
         const existed = this.#liveValue( key ) !== null;
         delete this.values[ key ];
         return Promise.resolve( existed ? 1 : 0 );
+    }
+
+    hashSetField( key, field, value ) {
+        this.hashes.set( key, ( this.hashes.get( key ) || new Map() ).set( field, clone( value ) ) );
+        return Promise.resolve();
+    }
+
+    hashGetField( key, field ) {
+        const hash = this.hashes.get( key );
+        return Promise.resolve( ( hash && hash.has( field ) ) ? clone( hash.get( field ) ) : null );
+    }
+
+    hashDeleteField( key, field ) {
+        const hash = this.hashes.get( key );
+        return Promise.resolve( ( hash && hash.delete( field ) ) ? 1 : 0 );
+    }
+
+    // The session store refreshes a hash's expiry; nothing here expires a hash.
+    expireValue() {
+        return Promise.resolve();
     }
 
     matchKeys( pattern ) {

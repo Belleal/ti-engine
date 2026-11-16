@@ -42,6 +42,10 @@ OpenID Connect providers are configured with their own variables — `TI_AZURE_A
 
 `TiWebServer#withholdsAdminRole( session, request )` lets an application run a session **without** the `admin` role its identity would hold, for example to show an administrator the application as everyone else sees it (1.50.0). The framework asks it at sign-in, on the session `augmentSession` returned, and again on every request; returning `true` removes the role, and returning `false` restores it on the next request. It can only withhold: the allowlist stays the only thing that grants the role, only a strict `true` counts, and a hook that throws withholds nothing. The default returns `false`.
 
+With no method in `auth.enabledMethods` (a public site), the server mounts none of `/login/:method`, `/logout` and
+`/me` (1.62.0). `/csrf-token` stays, because a public form asks there for its token; a site with no form answers it
+itself before calling `defineWebApplicationRoutes`.
+
 ### The identity an OpenID sign-in puts on the session
 
 A sign-in is resolved from the validated ID token claims and the `userinfo` response **together**, not from `userinfo` alone. Within a single claim `userinfo` wins — it is the fresher of the two, and `openid-client` has already verified that both describe the same subject — and the ID token fills the gaps.
@@ -125,8 +129,21 @@ The switch is plain links drawn by the server, so it needs no script. Each link 
 assistive technology by the language's name for itself (`interface.language-name` read in that language, else a
 built-in table: "English", "Български"). The current one carries `aria-current`. Its look is `.ti-login-card-foot`,
 `.ti-login-languages` and `.ti-login-language`; restyle those to fit an application. As with every framework string,
-the labels (`interface.language-name`, `interface.default.login.language-switch`) resolve only in an application that
-carries them in its own catalogue.
+the labels (`interface.language-name`, `interface.default.login.language-switch`) come from the framework's catalogue,
+which lies under the application's (see [Labels](#labels)).
+
+## Labels
+
+Every text the framework shows or sends (the sign-in screen, the shell, Profile and About, What's new and Feedback, the
+notices and their e-mails) has a key in the framework's own catalogue, `bin/localization/web-server-labels.json`, in
+English and Bulgarian. The package lays that catalogue under the application's when it loads, through core's
+`localization.addCatalogue` (core 1.22.0), so it reaches the server's lookups and the browser's label bundle alike.
+
+An application points `TI_LOCALIZATION_LABELS_PATH` at its own catalogue only, and holds a framework key there only to
+reword it: its entry wins. It never copies one to have it translated, and an application with no catalogue of its own
+still gets every framework text in the deployment's language. Before web-framework 1.62.0 (CA-555) the framework's
+catalogue reached an application only if the application listed it, so each key was copied by hand, and a key left out
+showed the English written in the fragment.
 
 ## Local (username/password) authentication
 
@@ -186,8 +203,8 @@ Microsoft. It is for applications whose users are the public, such as parents. E
   [E-mail notices](#e-mail-notices);
 * `TI_WEB_PUBLIC_URL`, which the link starts from;
 * the notice's texts, `interface.notice.sign-in-link.subject` and `.text` (placeholder `{minutes}`), in the
-  application's own catalogue: the framework ships them in English and Bulgarian, and an application copies or rewrites
-  them.
+  system language: the framework's catalogue carries them in English and Bulgarian, and an application rewrites them in
+  its own catalogue only to change the wording (see [Labels](#labels)).
 
 Without any of the three the method is left out at start, with a warning naming what is missing.
 
@@ -265,7 +282,7 @@ The login screen renders before sign-in, so none of an application's own fragmen
 
 Use the brand slot to name the application and say what it is for. Use the heading slot to title the card, and say which account to sign in with. Use the extra slot for anything a first-time visitor should read after the sign-in controls. No slot can change the sign-in controls themselves; those stay the framework's, gated to the enabled methods. The Microsoft button carries Microsoft's four-square logo and reads "Sign in with Microsoft", as Microsoft's branding guidelines ask; the method is still `openid-azure`.
 
-Every string on the screen goes through `x-text-label` under `interface.default.login.*`: `welcome`, `sign-in-prompt`, `username`, `username-placeholder`, `password`, `password-placeholder`, `sign-in`, `or-continue-with`, `sign-in-google`, `sign-in-azure`, `no-sign-in-method` and `error-sign-in-failed`, and for the e-mail link `email`, `email-placeholder`, `email-link-send`, `email-link-sent`, `email-link-other`, `email-link-confirm-prompt`, `email-link-signing-in-as`, `email-link-continue`, `email-link-not-you`, `email-link-expired`, `email-link-signed-in-already` (a notice, when a link is opened in a browser already signed in), `email-link-limited`, `email-link-unavailable`, `email-link-invalid-address` and `or` (between the e-mail link and the local form, when both are enabled). An application normally points `TI_LOCALIZATION_LABELS_PATH` at its own catalogue alone, so the framework's translations never reach it. It adds the keys it wants translated to its own catalogue, and a key it leaves out renders the English text written in the fragment.
+Every string on the screen goes through `x-text-label` under `interface.default.login.*`: `welcome`, `sign-in-prompt`, `username`, `username-placeholder`, `password`, `password-placeholder`, `sign-in`, `or-continue-with`, `sign-in-google`, `sign-in-azure`, `no-sign-in-method` and `error-sign-in-failed`, and for the e-mail link `email`, `email-placeholder`, `email-link-send`, `email-link-sent`, `email-link-other`, `email-link-confirm-prompt`, `email-link-signing-in-as`, `email-link-continue`, `email-link-not-you`, `email-link-expired`, `email-link-signed-in-already` (a notice, when a link is opened in a browser already signed in), `email-link-limited`, `email-link-unavailable`, `email-link-invalid-address` and `or` (between the e-mail link and the local form, when both are enabled). The framework's catalogue carries each of them in English and Bulgarian and lies under the application's (see [Labels](#labels)); an application rewords one by holding the key in its own catalogue, and a language neither catalogue carries renders the English text written in the fragment.
 
 ## The busy indicator
 
@@ -287,8 +304,8 @@ it. The hourglass is a component:
 hourglass. Without one the cursor still changes, and nothing else shows. Never write that tag inside an HTML comment
 ahead of the real one: placeholders are found by a text search, and the first occurrence is the one replaced.
 
-The status line is `interface.busy-indicator.status`. As with the login screen, an application that does not carry the
-key in its own catalogue gets the English written in the fragment. Under `prefers-reduced-motion` the hourglass appears
+The status line is `interface.busy-indicator.status`, from the framework's catalogue unless the application rewords it in
+its own. Under `prefers-reduced-motion` the hourglass appears
 but does not turn.
 
 ## Only the newest screen lands
@@ -762,8 +779,8 @@ class MyApplication extends TiWebAppManager {
 * **Storage.** Every record is a value in the state store (`ti:whats-new:*`, `ti:feedback:item:*`,
   `ti:feedback:picture:*`), never a JSON
   document, because D1 cannot delete a document. Nothing needs a partition spec.
-* **Texts.** The screens carry their English; an application translates them by holding the keys in its own catalogue
-  (`interface.whats-new.*`, `interface.feedback.*`, `interface.send-feedback.*`, `interface.feedback-inbox.*`,
+* **Texts.** The framework's catalogue carries them in English and Bulgarian; an application rewords them by holding the
+  keys in its own catalogue (`interface.whats-new.*`, `interface.feedback.*`, `interface.send-feedback.*`, `interface.feedback-inbox.*`,
   `interface.notice.feedback-received.*`, `error.feedback.*`). A page title's label may mark its emphasis, `What's *new*`.
 
 ## When a request fails
