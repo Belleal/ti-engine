@@ -18,9 +18,9 @@
 /*
  * A public site with no sign-in method, on a real server (CA-573).
  *
- * Found while building one: the routes that sign people in and out were mounted with nobody able to sign in, a path
- * with a malformed escape was answered with a 400 where a 404 was due, and clearing a dead token cookie put a
- * `Set-Cookie` on a response declared `public`. One server per file, because core allows one ServiceInstance per
+ * Found while building one: the routes that sign people in were answered with nobody able to sign in, a path with a
+ * malformed escape was answered with a 400 where a 404 was due, and a cookie (a session's, a token's, the clearing of
+ * a dead token) went out on a response declared `public`. One server per file, because core allows one ServiceInstance per
  * process.
  */
 
@@ -89,7 +89,7 @@ describe( "a public site with no sign-in method", () => {
 
     after( () => server.stop() );
 
-    it( "mounts no sign-in, sign-out or signed-in user route", async () => {
+    it( "answers no sign-in or signed-in user route", async () => {
         for ( const path of [ "/login/local", "/login/openid-google", "/me" ] ) {
             const response = await fetch( url + path, { headers: JSON_ACCEPT, redirect: "manual" } );
             assert.equal( response.status, 404, path );
@@ -97,12 +97,13 @@ describe( "a public site with no sign-in method", () => {
         }
     } );
 
-    it( "has no sign-out to post to, even with a valid token", async () => {
+    it( "keeps sign-out, which creates no session and ends one left from before", async () => {
         const tokenResponse = await fetch( url + "/csrf-token" );
         const jar = setCookies( tokenResponse ).map( ( cookie ) => cookie.split( ";" )[ 0 ] ).join( "; " );
         const token = decodeURIComponent( /ti-xsrf-token=([^;]+)/.exec( jar )[ 1 ] );
-        const response = await fetch( url + "/logout", { method: "POST", headers: { ...JSON_ACCEPT, cookie: jar, "x-xsrf-token": token }, redirect: "manual" } );
-        assert.equal( response.status, 404 );
+        const response = await fetch( url + "/logout", { method: "POST", headers: { cookie: jar, "x-xsrf-token": token }, redirect: "manual" } );
+        assert.equal( response.status, 303 );
+        assert.equal( response.headers.get( "location" ), "/" );
     } );
 
     it( "keeps /csrf-token, which a public form asks for its token", async () => {
@@ -112,19 +113,31 @@ describe( "a public site with no sign-in method", () => {
     } );
 
     it( "answers a path with a malformed escape with the 404 every unknown path gets, not a 400", async () => {
-        for ( const path of [ "/bg/%E0%A4%A", "/%", "/a/%zz/b" ] ) {
+        // The last three match a framework route with a parameter (`/app/:view`, `/language/:code`, `/login/:method`).
+        for ( const path of [ "/bg/%E0%A4%A", "/%", "/a/%zz/b", "/app/%E0%A4%A", "/language/%zz", "/login/%" ] ) {
             const response = await fetch( url + path, { headers: JSON_ACCEPT, redirect: "manual" } );
             assert.equal( response.status, 404, path );
         }
     } );
 
     it( "clears a dead token cookie on a public page and a download, and keeps that response out of shared caches", async () => {
-        for ( const path of [ "/page", "/download" ] ) {
+        const expected = { "/page": "private, max-age=0", "/download": "private, max-age=31536000, immutable" };
+        for ( const [ path, cacheControl ] of Object.entries( expected ) ) {
             const response = await fetch( url + path, { headers: DEAD_TOKEN } );
             assert.equal( response.status, 200 );
             assert.ok( setCookies( response ).some( ( cookie ) => /^ti-xsrf-token=;/.test( cookie ) ), `${ path } clears the cookie` );
-            assert.equal( response.headers.get( "cache-control" ), "private, no-cache", path );
+            assert.equal( response.headers.get( "cache-control" ), cacheControl, path );
         }
+    } );
+
+    it( "keeps a session's cookies off a shared cache, once a form has asked for a token", async () => {
+        // The capture form's way to a token makes a session, and `rolling` re-sends its cookie on every response.
+        const tokenResponse = await fetch( url + "/csrf-token" );
+        const jar = setCookies( tokenResponse ).map( ( cookie ) => cookie.split( ";" )[ 0 ] ).join( "; " );
+        assert.match( jar, /connect\.sid=/ );
+        const page = await fetch( url + "/page", { headers: { cookie: jar } } );
+        assert.ok( setCookies( page ).length > 0, "the session's cookie goes out with the page" );
+        assert.equal( page.headers.get( "cache-control" ), "private, max-age=0" );
     } );
 
     it( "leaves a page public for a visitor without the cookie, and a private answer as it was declared", async () => {
@@ -133,6 +146,27 @@ describe( "a public site with no sign-in method", () => {
         assert.deepEqual( setCookies( page ), [] );
         const declared = await fetch( url + "/private", { headers: DEAD_TOKEN } );
         assert.equal( declared.headers.get( "cache-control" ), "private, no-store" );
+    } );
+
+} );
+
+describe( "the Cache-Control a response that sets a cookie goes out with", () => {
+
+    const { privateCacheControl } = require( "#web-handlers" );
+
+    it( "drops what lets a shared cache store it and keeps what the browser may keep", () => {
+        assert.equal( privateCacheControl( "public, max-age=0, s-maxage=3600" ), "private, max-age=0" );
+        assert.equal( privateCacheControl( "public, max-age=31536000, immutable" ), "private, max-age=31536000, immutable" );
+        assert.equal( privateCacheControl( "max-age=60, proxy-revalidate" ), "private, max-age=60" );
+        assert.equal( privateCacheControl( [ "public", "s-maxage=60" ] ), "private, no-cache" );
+        assert.equal( privateCacheControl( undefined ), "private, no-cache" );
+    } );
+
+    it( "leaves one already kept from shared caches, and not one that is private for named fields only", () => {
+        assert.equal( privateCacheControl( "private, no-cache" ), null );
+        assert.equal( privateCacheControl( "no-store" ), null );
+        assert.equal( privateCacheControl( "Private , max-age=0" ), null );
+        assert.equal( privateCacheControl( "public, s-maxage=600, private=\"x-user\"" ), "private, private=\"x-user\"" );
     } );
 
 } );

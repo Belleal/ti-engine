@@ -29,14 +29,4 @@ const localization = require( "@ti-engine/core/localization" );
  * key it lacked showed its English fallback in every language, and an application with no catalogue of its own lost
  * all of them - including the sign-in link's notice texts, without which the `email-link` method is dropped at start.
  */
-const catalogue = require( "#web-server-labels" );
-
-localization.addCatalogue( catalogue );
-
-/**
- * The catalogue this package lays under the application's, as it was added.
- *
- * @type {Object}
- * @public
- */
-module.exports.catalogue = catalogue;
+localization.addCatalogue( require( "#web-server-labels" ) );

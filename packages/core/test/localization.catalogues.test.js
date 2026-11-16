@@ -21,8 +21,8 @@
  * A framework package's label catalogue laid under the application's (CA-555).
  *
  * An application configures one labels path, its own, so a framework text reached it only if it copied the key into
- * that file. A Bulgarian deployment that had not showed the framework's English fallback: competence's menu button
- * did from web-framework 1.47.0 until it copied the key, and an application with no catalogue at all lost every one.
+ * that file. A Bulgarian deployment that had not showed the framework's English fallback, key by key, and an application
+ * with no catalogue of its own lost every one.
  */
 
 const path = require( "node:path" );

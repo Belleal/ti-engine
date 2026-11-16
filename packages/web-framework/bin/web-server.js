@@ -41,6 +41,8 @@ const jobScheduler = require( "#job-scheduler" );
 const feedback = require( "#feedback" );
 const applyWebConfigEnvOverrides = require( "#web-config-env" );
 const localization = require( "@ti-engine/core/localization" );
+// Lays the framework's catalogue under the application's before any label here is read (CA-555).
+require( "#framework-labels" );
 const timeZone = require( "@ti-engine/core/time-zone" );
 
 /** @typedef {import("node:http").Server} NodeServer */
@@ -527,6 +529,11 @@ class TiWebServer extends ServiceConsumer {
                 // files included, so a page left open across a release learns of it from whatever it asks next.
                 this.#webServer.use( webHandlers.releaseHeaderHandler( this ) );
 
+                // Every response that sets a cookie is kept out of shared caches (CA-573). Added before the session
+                // middleware on purpose: `on-headers` runs its listeners last-added first, so this one sees the
+                // session's cookie and the final `Cache-Control`.
+                this.#webServer.use( webHandlers.sharedCacheGuardHandler() );
+
                 // Set up the security middlewares first:
                 this.#webServer.use( webHandlers.nonceGenerationHandler() );
                 // Helmet's built-in Content-Security-Policy is intentionally disabled here because a per-request,
@@ -641,9 +648,9 @@ class TiWebServer extends ServiceConsumer {
                 }
 
                 // Set up error handling middleware:
-                // A RegExp, never `*splat`: Express decodes a named parameter before the handler runs, and a path with a
-                // malformed escape (`/bg/%E0%A4%A`) failed there with a 400, which the error handler answers to a page
-                // as a redirect to `/?error=4002`, where a 404 was due (CA-573). A RegExp route has nothing to decode.
+                // A RegExp with no capture group, never `*splat`: Express decodes a parameter before the handler runs, so
+                // a path with a malformed escape (`/bg/%E0%A4%A`) never reached it (CA-573). The error handler answers
+                // such a failure on any other route with a 404 too.
                 this.#webServer.all( RE_ANY_PATH, webHandlers.invalidRouteHandler() );
                 this.#webServer.use( webHandlers.defaultErrorHandler() );
 
@@ -968,14 +975,14 @@ class TiWebServer extends ServiceConsumer {
         this.#webServer.get( "/app", webHandlers.webAppHandler( this ) );
         this.#webServer.get( "/app/:view", webHandlers.webAppHandler( this ) );
         this.#webServer.post( "/app/:service", webHandlers.webAppHandler( this ) );
-        // Sign-in, sign-out and the signed-in user, only where somebody can sign in (CA-573). A public site with no
-        // method had them anyway: nothing could be done through them, and they were routes a crawler could reach.
-        if ( this.#authManager.getEnabledMethods().length > 0 ) {
-            this.#webServer.get( "/login/:method", webHandlers.authenticationHandler( this ) );
-            this.#webServer.post( "/login/:method", webHandlers.authenticationHandler( this ) );
-            this.#webServer.post( "/logout", webHandlers.logoutHandler() );
-            this.#webServer.get( "/me", webHandlers.userInformationHandler() );
-        }
+        // Sign-in and the signed-in user answer only while somebody can sign in (CA-573); otherwise they pass the request
+        // on, to the application's catch-all or the 404. Decided per request, because the effective methods are known
+        // only once `AuthManager#initialize` has dropped an unconfigured provider, after the routes are defined.
+        this.#webServer.get( "/login/:method", this.#whileSignInPossible( webHandlers.authenticationHandler( this ) ) );
+        this.#webServer.post( "/login/:method", this.#whileSignInPossible( webHandlers.authenticationHandler( this ) ) );
+        this.#webServer.get( "/me", this.#whileSignInPossible( webHandlers.userInformationHandler() ) );
+        // Sign-out stays: it creates nothing, and a session left from before the last method was removed must end.
+        this.#webServer.post( "/logout", webHandlers.logoutHandler() );
         this.#webServer.get( "/health", webHandlers.healthHandler() );
         // The visitor's choice of interface language, before or after sign-in (CA-410).
         this.#webServer.get( "/language/:code", webHandlers.languageChoiceHandler( this ) );
@@ -1046,6 +1053,19 @@ class TiWebServer extends ServiceConsumer {
     }
 
     /**
+     * Wraps a handler so it answers only while a sign-in method is enabled, and otherwise passes the request on.
+     *
+     * @method
+     * @param {Function} handler
+     * @returns {Function}
+     */
+    #whileSignInPossible( handler ) {
+        return ( request, response, next ) => {
+            return ( this.#authManager.getEnabledMethods().length > 0 ) ? handler( request, response, next ) : next();
+        };
+    }
+
+    /**
      * Registers a custom application route on the underlying Express app.
      * <br/>
      * NOTE: Call this from a {@link TiWebServer#defineWebApplicationRoutes} override AFTER invoking the base method,
@@ -1053,8 +1073,9 @@ class TiWebServer extends ServiceConsumer {
      * registered before the framework's own 404 handler). It is only valid once the Express app exists —
      * i.e., from within {@link TiWebServer#defineWebApplicationRoutes}, which {@link TiWebServer#onStart} invokes.
      * <br/>
-     * NOTE: Give a catch-all as a RegExp, as web-content's resolver is, never as `*splat`. Express decodes a named parameter before any handler
-     * runs, so a path with a malformed escape never reaches a `*splat` handler: the request fails with a 400 instead.
+     * NOTE: Give a catch-all as a RegExp with no capture group, as web-content's resolver is, never as `*splat`.
+     * Express decodes every parameter and capture group before any handler runs, so a path with a malformed escape
+     * never reaches such a handler: the framework answers it with its own 404 instead of the application's page.
      *
      * @method
      * @param {string} method One of the supported routing verbs: get, post, put, patch, delete, options, head, all.

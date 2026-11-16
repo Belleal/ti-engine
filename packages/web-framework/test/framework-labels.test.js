@@ -125,6 +125,21 @@ describe( "the framework's catalogue under the application's", () => {
 
 describe( "whichever framework module an application reaches first", () => {
 
+    it( "is required by every module of the package that reads labels", () => {
+        // A sweep, not a list: a module added later that reads labels without laying the catalogue down first would
+        // read framework keys before they are there whenever an application reaches it first.
+        const files = [ "bin", "components" ].flatMap( ( directory ) => fs.readdirSync( path.join( PACKAGE_ROOT, directory ) )
+            .filter( ( name ) => name.endsWith( ".js" ) ).map( ( name ) => path.join( directory, name ) ) );
+        const readers = files.filter( ( file ) => /require\( "@ti-engine\/core\/localization" \)/.test( fs.readFileSync( path.join( PACKAGE_ROOT, file ), "utf8" ) ) );
+        assert.ok( readers.length >= 5, readers.join( ", " ) );
+        for ( const file of readers ) {
+            if ( file === path.join( "components", "framework-labels.js" ) ) {
+                continue;
+            }
+            assert.match( fs.readFileSync( path.join( PACKAGE_ROOT, file ), "utf8" ), /require\( "#framework-labels" \);/, file );
+        }
+    } );
+
     // Each is a module that reads labels. Loaded alone in a fresh process, each must have laid the catalogue down
     // before it reads one, or the module an application happens to require first decides whether the texts resolve.
     for ( const alias of [ "#web-app-manager", "#web-handlers", "#notification-service", "#email-link", "#feedback" ] ) {

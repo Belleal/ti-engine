@@ -42,9 +42,12 @@ OpenID Connect providers are configured with their own variables — `TI_AZURE_A
 
 `TiWebServer#withholdsAdminRole( session, request )` lets an application run a session **without** the `admin` role its identity would hold, for example to show an administrator the application as everyone else sees it (1.50.0). The framework asks it at sign-in, on the session `augmentSession` returned, and again on every request; returning `true` removes the role, and returning `false` restores it on the next request. It can only withhold: the allowlist stays the only thing that grants the role, only a strict `true` counts, and a hook that throws withholds nothing. The default returns `false`.
 
-With no method in `auth.enabledMethods` (a public site), the server mounts none of `/login/:method`, `/logout` and
-`/me` (1.62.0). `/csrf-token` stays, because a public form asks there for its token; a site with no form answers it
-itself before calling `defineWebApplicationRoutes`.
+With no sign-in method in effect (a public site, or every configured provider dropped at start), `/login/:method` and
+`/me` pass the request on, to the application's catch-all or the 404 (1.62.0). `/logout` stays, since it creates
+nothing and a session left from before must still end, and so does `/csrf-token`, because a public form asks there for
+its token; a site with no form answers it itself before calling `defineWebApplicationRoutes`. Every response that sets
+a cookie is kept out of shared caches: `public`, `s-maxage` and `proxy-revalidate` are dropped and `private` leads, while
+what the browser may keep (`max-age`, `immutable`) stays as declared.
 
 ### The identity an OpenID sign-in puts on the session
 
@@ -140,7 +143,8 @@ English and Bulgarian. The package lays that catalogue under the application's w
 `localization.addCatalogue` (core 1.22.0), so it reaches the server's lookups and the browser's label bundle alike.
 
 An application points `TI_LOCALIZATION_LABELS_PATH` at its own catalogue only, and holds a framework key there only to
-reword it: its entry wins. It never copies one to have it translated, and an application with no catalogue of its own
+reword it: its entry wins, language by language, so reword a key in every language the deployment offers, or the
+others keep the framework's wording. It never copies one to have it translated, and an application with no catalogue of its own
 still gets every framework text in the deployment's language. Before web-framework 1.62.0 (CA-555) the framework's
 catalogue reached an application only if the application listed it, so each key was copied by hand, and a key left out
 showed the English written in the fragment.

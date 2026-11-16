@@ -6,29 +6,36 @@ This document will contain the list of changes made to the framework. The format
 
 * feat(labels): **the framework's texts reach every application without being copied** (CA-555). The package lays its
   catalogue, `bin/localization/web-server-labels.json`, under the application's through core's `addCatalogue`, from a
-  module (`#framework-labels`) that each module reading labels requires first: the manager, the handlers, the notices,
-  the e-mail link and Feedback. The sign-in screen, the shell, the user menu, the notices and the browser's label bundle
+  module (`#framework-labels`) that each module reading labels requires first: the server, the manager, the handlers,
+  the notices, the e-mail link and Feedback. The sign-in screen, the shell, the user menu, the notices and the browser's label bundle
   now resolve every framework key in English and Bulgarian; an application's own entry for a key still wins.
   * **Why it matters.** An application had to copy each key into its own catalogue. One that had not showed English in
     a Bulgarian deployment, and one with no catalogue at all lost the sign-in link's notice texts, so `email-link` was
     dropped at start.
   * `@ti-engine/core` is now `>=1.22.0`.
   * `test/framework-labels.test.js`: every framework key in every language through the real `getLabel`, the
-    application's wording winning, the client bundle, the user menu, and each of the five modules laying the catalogue
-    down when it is the first one loaded (a fresh process each). 9 of its 10 tests fail without the catalogue.
-* fix(web-server): **a server with no sign-in method mounts no sign-in routes** (CA-573). `GET` and `POST /login/:method`,
-  `POST /logout` and `GET /me` are mounted only when `auth.enabledMethods` names one. A public site with none had them
-  anyway. `/csrf-token` stays: a public form, web-content's capture form among them, asks there for its token.
-* fix(web-server): **a path with a malformed escape is a 404** (CA-573). The framework's own 404 route was `*splat`, and
-  Express decodes a named parameter before the handler runs, so `/bg/%E0%A4%A` failed with a 400 that a page saw as a
-  redirect to `/?error=4002`. It is a RegExp route now; `registerRoute`'s documentation says to give a catch-all the
-  same way.
-* fix(web-handlers): **clearing a dead token cookie keeps that response out of shared caches** (CA-573). A browser
-  carrying `ti-xsrf-token` with no session behind it had it cleared on whatever the request was answered with, a
-  `public` page or an immutable download included, so a cacheable response carried a `Set-Cookie`. That response is
-  now `private, no-cache` unless it was already `private` or `no-store`; the browser drops the cookie on the first one.
-* `test/web-server.public-site.test.js`: a real server with no sign-in method; 4 of its 6 tests fail without the three
-  fixes. The test helper's in-memory store has the session store's hash operations.
+    application's wording winning, the client bundle, the user menu, each of five modules laying the catalogue down
+    when it is the first one loaded (a fresh process each), and a sweep that every module reading labels requires
+    `#framework-labels`. 9 of its first 10 tests fail without the catalogue.
+  * An application's entry wins language by language: reword a key in every language the deployment offers.
+* fix(web-server): **with no sign-in method, the sign-in routes answer nothing** (CA-573). `GET` and `POST
+  /login/:method` and `GET /me` pass the request on (to the application's catch-all or the 404) while no method is in
+  effect, decided per request, because providers dropped at start are known only after the routes are defined. A public
+  site with none had them anyway. `/logout` stays, since it creates nothing and a session left from before must end, and
+  so does `/csrf-token`: a public form, web-content's capture form among them, asks there for its token.
+* fix(web-handlers): **a path with a malformed escape is a 404** (CA-573). Express decodes a route's parameters before
+  its handler runs, so `/bg/%E0%A4%A` (the framework's `*splat` 404) or `/app/%E0%A4%A` (`/app/:view`) failed with a 400
+  that a page saw as a redirect to `/?error=4002`. The error handler now answers the router's `URIError` with a 404, and
+  the framework's own 404 route is a RegExp with no capture group, so it runs. `registerRoute`'s documentation says to
+  give an application's catch-all the same way, or the framework's 404 answers in its place.
+* fix(web-handlers): **every response that sets a cookie is kept out of shared caches** (CA-573,
+  `sharedCacheGuardHandler`, `privateCacheControl`). On a public site the session cookie (`rolling` re-sends it), a
+  minted token and the clearing of a dead one went out on pages declared `public, s-maxage=…` and on immutable
+  downloads. Such a response now drops `public`, `s-maxage` and `proxy-revalidate` and leads with `private`, keeping
+  what the browser may keep (`max-age`, `immutable`); one with no `Cache-Control` gets `private, no-cache`. It is hooked
+  through `on-headers` ahead of the session middleware, so it runs after the session's cookie and the final header.
+* `test/web-server.public-site.test.js`: a real server with no sign-in method, and `privateCacheControl` on its own. The
+  test helper's in-memory store has the session store's hash operations.
 
 ## Version 1.61.3
 

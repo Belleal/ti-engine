@@ -451,23 +451,27 @@ npm test    # node --test — 288 tests / 65 suites: 29 test files, plus the nin
 **Since the skill's last sync (1.25.1 → 1.62.0):**
 - **The framework's texts reach every application without being copied** (1.62.0, CA-555, needs core 1.22.0).
   `components/framework-labels.js` (`#framework-labels`) calls core's `addCatalogue` with `#web-server-labels`
-  (`bin/localization/web-server-labels.json`), and every module that reads labels requires it first: `web-app-manager`,
-  `web-handlers`, `notification-service`, `email-link`, `feedback`. **A new module that reads labels requires it too**;
-  `test/framework-labels.test.js` loads each of the five alone in a fresh process and fails if one does not lay the
-  catalogue down. An application's catalogue holds a framework key only to reword it. Before this every key was copied
+  (`bin/localization/web-server-labels.json`), and every module that reads labels requires it first: `web-server`,
+  `web-app-manager`, `web-handlers`, `notification-service`, `email-link`, `feedback`. **A new module that reads labels
+  requires it too**: `test/framework-labels.test.js` sweeps `bin/` and `components/` for it, and loads five of them
+  alone in a fresh process. An application's catalogue holds a framework key only to reword it, and wins language by
+  language. Before this every key was copied
   by hand (competence carries copies and sweep tests; dropping them is a follow-up there), and an application with no
   catalogue (Hopko's X-ray) had no framework text in Bulgarian and lost `email-link` at start for want of the notice
   texts.
 - **A public site with no sign-in method** (1.62.0, CA-573), measured on a real server in
   `test/web-server.public-site.test.js`:
-  - with `auth.enabledMethods` empty, `/login/:method`, `/logout` and `/me` are not mounted (decided from the configured
-    list, before `AuthManager#initialize` drops an unconfigured provider). `/csrf-token` stays: web-content's capture
-    form asks there;
-  - the framework's own 404 route is the RegExp `RE_ANY_PATH`, never `*splat`: Express decodes a named parameter before
-    the handler, and a malformed escape failed with a 400 (a page saw `/?error=4002`). Give an application's catch-all
-    as a RegExp for the same reason;
-  - clearing a dead `ti-xsrf-token` cookie makes that response `private, no-cache` (through `on-headers`, so after the
-    handler that set `Cache-Control`), unless it was already `private` or `no-store`.
+  - with no method in effect, `/login/:method` and `/me` pass the request on (`#whileSignInPossible`, decided per
+    request because `AuthManager#initialize` drops unconfigured providers after the routes are defined). `/logout` and
+    `/csrf-token` stay: sign-out creates nothing, and web-content's capture form asks for its token;
+  - the router's `URIError` (a malformed escape in a parameter) is a 404 in `raiseForResponse`, and the framework's own
+    404 route is the RegExp `RE_ANY_PATH`, never `*splat`, so it runs. Give an application's catch-all as a RegExp with
+    no capture group for the same reason;
+  - `sharedCacheGuardHandler`, mounted after the release header and before the session, keeps every response that sets
+    a cookie out of shared caches (`privateCacheControl`: `public`, `s-maxage`, `proxy-revalidate` dropped, `private`
+    first, `max-age`/`immutable` kept). It relies on `on-headers` firing listeners last-added first, so it sees
+    express-session's cookie and the final `Cache-Control`. So the labels bundle a signed-in user fetches goes out
+    `private, …, immutable` while `rolling` re-sends the session cookie.
   - The test helper `in-memory-cache.js` has the session store's hash operations, so a real server can make a session.
     A supported in-memory provider for an application's own tests was split from CA-573 to its own card.
 - **Alpine CSP 3.17.5** (1.61.3, CA-575): the pin and the bundled copy moved together, still exact. Dependabot's pull

@@ -1019,6 +1019,71 @@ const formatServerTimingDescription = ( description ) => {
 };
 
 /**
+ * Matches a `Cache-Control` value that already keeps the whole response out of shared caches: `private` (not the
+ * field-qualified `private="…"`, which keeps only those fields private) or `no-store`.
+ *
+ * @type {RegExp}
+ */
+const RE_NOT_SHAREABLE = /(?:^|,)\s*(?:private|no-store)\s*(?:,|$)/i;
+
+/**
+ * Matches the directives that let a shared cache store a response: `public`, `s-maxage` and `proxy-revalidate`.
+ *
+ * @type {RegExp}
+ */
+const RE_SHARED_DIRECTIVE = /^(?:public|s-maxage(?:=.*)?|proxy-revalidate)$/i;
+
+/**
+ * Returns the `Cache-Control` a response that sets a cookie goes out with: the declared one kept from shared caches.
+ * <br/>
+ * What the browser may keep is left as declared, so an immutable download stays immutable in the visitor's own cache;
+ * only the shared directives go, and `private` leads. A response that declared nothing gets `private, no-cache`.
+ *
+ * @method
+ * @param {*} declared The `Cache-Control` the response was given, if any.
+ * @returns {string|null} The value to send, or `null` when the declared one already keeps shared caches out.
+ * @public
+ */
+module.exports.privateCacheControl = ( declared ) => {
+    const value = Array.isArray( declared ) ? declared.join( ", " ) : ( ( typeof declared === "string" ) ? declared : "" );
+    if ( RE_NOT_SHAREABLE.test( value ) ) {
+        return null;
+    }
+    const kept = value.split( "," ).map( ( directive ) => directive.trim() ).filter( ( directive ) => directive && !RE_SHARED_DIRECTIVE.test( directive ) );
+    return [ "private", ...( ( kept.length > 0 ) ? kept : [ "no-cache" ] ) ].join( ", " );
+};
+
+/**
+ * Keeps every response that sets a cookie out of shared caches.
+ * <br/>
+ * A shared cache must not hand one visitor's cookie to the next, nor store a page under a header it then strips. On a
+ * public site the session cookie (`rolling` re-sends it on every response of a session), a minted CSRF token and the
+ * clearing of a dead one all went out on pages declared `public, s-maxage=…` and on immutable downloads (CA-573).
+ * <br/>
+ * It is hooked through `on-headers` here, ahead of the session middleware, because `on-headers` fires its listeners in
+ * the reverse order they were added: this one runs last, after express-session has set its cookie and after the
+ * handler that answered has set `Cache-Control`.
+ *
+ * @method
+ * @returns {ExpressHandler}
+ * @public
+ */
+module.exports.sharedCacheGuardHandler = () => {
+    return ( request, response, next ) => {
+        onHeaders( response, function keepCookiesFromSharedCaches() {
+            if ( this.getHeader( "Set-Cookie" ) === undefined ) {
+                return;
+            }
+            const replacement = module.exports.privateCacheControl( this.getHeader( "Cache-Control" ) );
+            if ( replacement !== null ) {
+                this.setHeader( "Cache-Control", replacement );
+            }
+        } );
+        next();
+    };
+};
+
+/**
  * Handler that names, on every response, the release this process serves: `X-Ti-Release`, the web application's
  * `releaseId` (CA-553). A page left open across a release learns from the next answer it gets that it is running an
  * older one, whatever it asked for: a screen, its data, a static file or `/health`.
@@ -1279,6 +1344,11 @@ module.exports.invalidRouteHandler = () => {
  */
 let raiseForResponse = ( error ) => {
     const status = ( error instanceof Error ) ? ( error.status || error.statusCode ) : undefined;
+    // The router could not decode a route parameter: a path with a malformed escape (`/app/%E0%A4%A`). No resource has
+    // that name, so it is a 404, like every unknown path, where a page used to be sent to `/?error=4002` (CA-573).
+    if ( error instanceof URIError && status === exceptions.httpCode.C_400 ) {
+        return exceptions.raise( exceptions.exceptionCode.E_WEB_INVALID_REQUEST_URI, null, exceptions.httpCode.C_404 );
+    }
     if ( Number.isInteger( status ) && status >= 400 && status < 500 && exceptions.httpCode.contains( status ) ) {
         const code = ( status === exceptions.httpCode.C_413 ) ? exceptions.exceptionCode.E_WEB_INVALID_REQUEST_CONTENT_LENGTH
             : ( status === exceptions.httpCode.C_415 ) ? exceptions.exceptionCode.E_WEB_INVALID_REQUEST_CONTENT_ENCODING
@@ -1882,35 +1952,6 @@ let ensureCsrfToken = ( instance, request, response ) => {
 };
 
 /**
- * Matches a `Cache-Control` value that already keeps a response out of shared caches.
- *
- * @type {RegExp}
- */
-const RE_NOT_SHAREABLE = /(?:^|,)\s*(?:private|no-store)\s*(?:,|=|$)/i;
-
-/**
- * Makes a response that carries a `Set-Cookie` private, whatever a later handler declares for it.
- * <br/>
- * A shared cache must not hand one visitor's cookie to the next. Clearing a dead token cookie put a `Set-Cookie` on
- * whatever the request was answered with, a `public` page or an immutable download included (CA-573): a cache that
- * strips the header stores the page, one that keeps it hands the clearing on, and Cloudflare does not cache the
- * response at all. Only the responses that clear it are affected, and the browser drops the cookie on the first.
- * Applied as the head is written, because the handler that sets `Cache-Control` runs after this one.
- *
- * @method
- * @param {ExpressResponse} response
- * @private
- */
-function keepFromSharedCaches( response ) {
-    onHeaders( response, function makePrivate() {
-        const declared = this.getHeader( "Cache-Control" );
-        if ( typeof declared !== "string" || !RE_NOT_SHAREABLE.test( declared ) ) {
-            this.setHeader( "Cache-Control", "private, no-cache" );
-        }
-    } );
-}
-
-/**
  * Offers every request its CSRF token on demand, and keeps an existing session's token exposed to front-end code.
  * <br/>
  * `request.csrfToken()` returns the session's token, minting it first if there is none - call it wherever a token
@@ -1923,8 +1964,8 @@ function keepFromSharedCaches( response ) {
  * {@link csrfProtectionHandler}.
  * <br/>
  * The one thing done for such a request is to clear a token cookie it still carries: one with no session behind it is
- * dead, and front-end code that reads it would submit it and be refused. That response is made private, since it carries a
- * `Set-Cookie` (CA-573).
+ * dead, and front-end code that reads it would submit it and be refused. Like every response that sets a cookie, that
+ * one is kept out of shared caches ({@link sharedCacheGuardHandler}).
  *
  * @method
  * @param {TiWebServer} instance
@@ -1944,7 +1985,6 @@ module.exports.csrfInitHandler = ( instance ) => {
                     // as web-content's account menu does, would submit it and be refused with 403 every time. Cleared,
                     // the next submission asks for a fresh token instead.
                     response.clearCookie( CSRF_COOKIE_NAME, csrfCookieOptions( instance, request ) );
-                    keepFromSharedCaches( response );
                 }
             }
             next();
