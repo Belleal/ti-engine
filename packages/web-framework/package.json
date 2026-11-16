@@ -1,6 +1,6 @@
 {
   "name": "@ti-engine/web-framework",
-  "version": "1.61.3",
+  "version": "1.62.0",
   "description": "A web-framework based on the ti-engine. It provides a customizable ready-to-use web-server microservice and a set of tools for creating web applications. NOTICE: This is still a work in progress and the full architecture, design, and functionality are not available!",
   "keywords": [
     "ti-engine",
@@ -106,6 +106,10 @@
       "types": "./types/components/feedback.d.ts",
       "default": "./components/feedback.js"
     },
+    "#framework-labels": {
+      "types": "./types/components/framework-labels.d.ts",
+      "default": "./components/framework-labels.js"
+    },
     "#fragment-fingerprint": {
       "types": "./types/components/fragment-fingerprint.d.ts",
       "default": "./components/fragment-fingerprint.js"
@@ -158,11 +162,12 @@
       "types": "./types/components/whats-new.d.ts",
       "default": "./components/whats-new.js"
     },
-    "#web-server-config": "./bin/web-server.json"
+    "#web-server-config": "./bin/web-server.json",
+    "#web-server-labels": "./bin/localization/web-server-labels.json"
   },
   "dependencies": {
     "@alpinejs/csp": "3.17.5",
-    "@ti-engine/core": ">=1.20.0",
+    "@ti-engine/core": ">=1.22.0",
     "@types/express": "^5.0.6",
     "@types/express-session": "^1.19.0",
     "@types/node": "^26.6.5",

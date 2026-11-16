@@ -621,6 +621,8 @@ OPERATION_MODE
 
 The **ti-engine** framework provides a localization mechanism that allows you to translate labels into localized text. The framework comes with a default set of labels that can be found in the `localization` module. You can add your own custom labels to this set by providing one or more JSON files with the same structure as the default one (see below). The path to these files should be specified in the `LOCALIZATION_LABELS_PATH` setting. On startup, the framework will load all the JSON files and merge them into a single repository.
 
+A framework package can lay its own catalogue under the application's with `localization.addCatalogue( catalogue )`, which it calls once, when its module loads; web-framework does this for its sign-in screen, shell, notices and screens. The layers are merged in this order, a later one winning for the same key: core's labels, each package's catalogue in the order added, then the files in `LOCALIZATION_LABELS_PATH`. So an application lists only its own file, gets every package's texts in each language the package carries, and rewords one by holding its key.
+
 The following is an example of a custom localization file. The names in brackets can be replaced with your own values. The depth of the three is unlimited and can be used to create a hierarchy of labels.
 
 ```json

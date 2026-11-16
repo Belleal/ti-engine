@@ -19,6 +19,8 @@ const exceptions = require( "@ti-engine/core/exceptions" );
 const logger = require( "@ti-engine/core/logger" );
 const tools = require( "@ti-engine/core/tools" );
 const localization = require( "@ti-engine/core/localization" );
+// Lays the framework's catalogue under the application's before any label here is read (CA-555).
+require( "#framework-labels" );
 const timeZone = require( "@ti-engine/core/time-zone" );
 const crypto = require( "node:crypto" );
 const path = require( "node:path" );
@@ -580,8 +582,9 @@ class TiWebAppManager {
      * <br/>
      * The hash is how the browser knows whether it already holds the catalogue. `/app/config` hands out the URL, the
      * URL is answered `immutable`, and the browser does not ask again until a release changes the catalogue — and
-     * with it the URL. The catalogue cannot change inside a process (core deep-freezes the labels at load), so the
-     * serialization is computed once per language and held.
+     * with it the URL. The catalogue does not change while requests are served (core deep-freezes it, and a framework
+     * package lays its own under the application's when the package loads), so the serialization is computed once per
+     * language and held.
      *
      * @method
      * @param {string} [language] The session's language; the configured one when absent.

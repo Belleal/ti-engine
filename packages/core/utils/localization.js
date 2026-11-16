@@ -239,10 +239,19 @@ const localizationLanguageEnum = tools.enum( {
 } );
 module.exports.localizationLanguage = localizationLanguageEnum;
 
-/** @type {TiLabelsTree} */
-const labels = require( "#labels" );
-
 /** @import { TiLabelsTree } from "#definitions" */
+
+/*
+ * The catalogue is three layers, merged in this order, so a later layer's text for a key wins:
+ * - core's own labels (`#labels`);
+ * - the catalogue of each framework package that adds one through `addCatalogue`, in the order they are added;
+ * - the application's files, `TI_LOCALIZATION_LABELS_PATH`.
+ * An application configures one labels path, its own, and before the middle layer a package's texts reached it only
+ * if it copied them into that file: a key it lacked showed its English fallback in every language (CA-555).
+ */
+const coreLabels = require( "#labels" );
+const packageCatalogues = [];
+const applicationLabels = {};
 
 // Load any custom labels defined in the configuration:
 const labelsPaths = config.getSetting( config.setting.LOCALIZATION_LABELS_PATH );
@@ -250,21 +259,50 @@ if ( labelsPaths && _.isArray( labelsPaths ) && labelsPaths.length > 0 ) {
     _.forEach( labelsPaths, ( labelsPath ) => {
         let filePath = path.normalize( path.join( process.cwd(), labelsPath ) );
         let fileLabels = require( filePath );
-        _.merge( labels, fileLabels );
+        _.merge( applicationLabels, fileLabels );
     } );
 }
 
-// Prevent further modifications to the TiLabels object:
-tools.deepFreeze( labels );
+// Merged into a new object every time, never into a layer: `require` hands every caller the same JSON object, and
+// merging into core's own would put a package's or an application's texts into it for good.
+const composeLabels = () => tools.deepFreeze( _.merge( {}, coreLabels, ...packageCatalogues, applicationLabels ) );
+
+/** @type {TiLabelsTree} */
+let labels = composeLabels();
+
+const labelsCacheByLanguage = new Map();
+
+/**
+ * Used to lay a framework package's label catalogue under the application's, so its texts reach every application
+ * without the application copying them. The application's own text for a key still wins, and a catalogue added later
+ * wins over one added earlier.
+ * <br/>
+ * NOTE: A package calls this once, when its module loads, before anything has been rendered. The lookups made after
+ * it see the new catalogue; a client bundle a package built from {@link getAllLabels} before it does not, so adding a
+ * catalogue while requests are served would leave the browser and the server reading different texts.
+ *
+ * @method
+ * @param {TiLabelsTree} catalogue The same shape as a labels file: a tree whose leaves map a language code to a text.
+ * @throws {TypeError} When the catalogue is not a plain object.
+ * @public
+ */
+module.exports.addCatalogue = ( catalogue ) => {
+    if ( !_.isPlainObject( catalogue ) ) {
+        throw new TypeError( "A label catalogue must be a plain object." );
+    }
+    packageCatalogues.push( _.cloneDeep( catalogue ) );
+    labels = composeLabels();
+    // A tree built for a language before this call lacks the new layer.
+    labelsCacheByLanguage.clear();
+};
 
 /**
  * Used to return the textual value for a label based on the current system language by default or the specified language code if provided.
  * <br/>
  * NOTE: A caller that has a sensible literal to show when the key is absent should pass it as `fallback` rather than
  * comparing the result against the not-found placeholder. That placeholder is an internal detail, and a caller that
- * hard-codes it is coupled to a string this module is free to change. This matters most for a framework-owned screen
- * whose strings live in a catalogue the consuming application does not load — an application configures exactly one
- * labels path, its own.
+ * hard-codes it is coupled to a string this module is free to change. A framework package's texts are found here once
+ * it has added its catalogue ({@link addCatalogue}); the fallback still covers an older package that has not.
  *
  * @method
  * @param {string} label This should be a dot-separated JSON path string.
@@ -293,8 +331,6 @@ module.exports.getLabel = ( label, language, fallback = defaultEmptyLabel ) => {
 module.exports.getSystemLanguage = () => {
     return config.getSetting( config.setting.LOCALIZATION_LANGUAGE );
 };
-
-const labelsCacheByLanguage = new Map();
 
 /**
  * Used to return the entire labels tree.
