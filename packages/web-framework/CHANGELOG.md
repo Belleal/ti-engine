@@ -8,7 +8,8 @@ This document will contain the list of changes made to the framework. The format
   user menu's title read `interface.topbar.user-profile`, the shell's start failure reads `error.application.init-failed`
   and a notice with no message reads `error.application.unexpected`. None was in this package's catalogue or core's, so
   an application that had not defined them showed "Your profile" in English in every language and "LABEL NOT FOUND" in
-  place of the two errors. competence carried all three in its own catalogue, which is why it went unseen.
+  place of the two errors. An application that carried all three in its own catalogue never showed the gap, which is
+  why it went unseen.
   * The catalogue now has them in English and Bulgarian.
   * The two error texts also carry their English as the fallback in `ti-framework.js`. The shell usually fails to start
     because `/app/config` or the labels bundle failed, before any label is loaded, so a catalogue entry alone still left

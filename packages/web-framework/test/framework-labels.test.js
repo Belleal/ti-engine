@@ -132,7 +132,7 @@ describe( "every label key the framework itself uses", () => {
     const RE_SCRIPT_KEY = /\b(?:getLabel|label)\(\s*(["'`])([a-z][\w.-]*)\1/g;
 
     // What a key must be found in: the framework's catalogue or core's, and nothing an application lays over them. A
-    // swept key that only an application defined is exactly the defect: competence's own catalogue hid these three.
+    // swept key that only an application defined is exactly the defect: an application's own catalogue hid these three.
     const CORE_LABELS = JSON.parse( fs.readFileSync( path.join( path.dirname( require.resolve( "@ti-engine/core/localization" ) ), "..", "bin", "localization", "labels.json" ), "utf8" ) );
     const DEFINED = new Map( leaves( CORE_LABELS ).concat( leaves( CATALOGUE ) ) );
     const LANGUAGES = [ ...new Set( leaves( CATALOGUE ).flatMap( ( [ , texts ] ) => Object.keys( texts ) ) ) ];
@@ -168,7 +168,7 @@ describe( "every label key the framework itself uses", () => {
 
     it( "is in the framework's catalogue or core's, in every language the framework carries (CA-577)", () => {
         // The sidebar's profile tooltip and the user menu's title read `interface.topbar.user-profile`, and the shell's
-        // start failure and a message-less notice read `error.application.*`; no catalogue but competence's defined them,
+        // start failure and a message-less notice read `error.application.*`; no catalogue but an application's own defined them,
         // so every other application showed English or "LABEL NOT FOUND" in their place.
         const used = usedKeys();
         assert.ok( used.size > 100, `the sweep found ${ used.size } keys` );
