@@ -58,7 +58,8 @@ class PublicSite extends TiWebServer {
             response.setHeader( "Cache-Control", "public, max-age=0, s-maxage=3600" );
             response.type( "text/plain" ).send( "a page" );
         } );
-        this.registerRoute( "get", "/download", ( request, response ) => {
+        // Content-addressed, as any URL promised `immutable` must be: the name changes with the file.
+        this.registerRoute( "get", "/download/report.3b8f1c2a.txt", ( request, response ) => {
             response.setHeader( "Cache-Control", "public, max-age=31536000, immutable" );
             response.type( "text/plain" ).send( "a file" );
         } );
@@ -121,7 +122,7 @@ describe( "a public site with no sign-in method", () => {
     } );
 
     it( "clears a dead token cookie on a public page and a download, and keeps that response out of shared caches", async () => {
-        const expected = { "/page": "private, max-age=0", "/download": "private, max-age=31536000, immutable" };
+        const expected = { "/page": "private, max-age=0", "/download/report.3b8f1c2a.txt": "private, max-age=31536000, immutable" };
         for ( const [ path, cacheControl ] of Object.entries( expected ) ) {
             const response = await fetch( url + path, { headers: DEAD_TOKEN } );
             assert.equal( response.status, 200 );
