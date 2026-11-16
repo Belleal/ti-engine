@@ -10,9 +10,13 @@ This document will contain the list of changes made to the framework. The format
   an application that had not defined them showed "Your profile" in English in every language and "LABEL NOT FOUND" in
   place of the two errors. competence carried all three in its own catalogue, which is why it went unseen.
   * The catalogue now has them in English and Bulgarian.
+  * The two error texts also carry their English as the fallback in `ti-framework.js`. The shell usually fails to start
+    because `/app/config` or the labels bundle failed, before any label is loaded, so a catalogue entry alone still left
+    "LABEL NOT FOUND" there. `test/ti-framework.get-label.test.js` drives both through the real script with no labels.
   * `test/framework-labels.test.js` sweeps every literal key the package's fragments bind (`x-text-label`) and its
-    scripts read (`getLabel( "…" )`, `label( "…" )`): 127 keys, each resolved through core in English and Bulgarian. It
-    found these three and fails without them.
+    scripts read (`getLabel( … )`, `label( … )`, any quotes; vendored `lib/` left out): 127 keys, each looked up in this
+    package's catalogue and core's alone, so an application's catalogue cannot hide one, in every language the catalogue
+    carries. It found these three and fails without them.
 
 ## Version 1.62.0
 
