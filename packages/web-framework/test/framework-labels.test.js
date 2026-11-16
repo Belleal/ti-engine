@@ -123,6 +123,69 @@ describe( "the framework's catalogue under the application's", () => {
 
 } );
 
+describe( "every label key the framework itself uses", () => {
+
+    // Each literal key a fragment binds with `x-text-label` (any attribute form) or a script reads with `getLabel( … )`
+    // or a `label( … )` helper, in any quotes. A key built at run time, or held in a constant first, is not a literal at
+    // the call and is not swept.
+    const RE_FRAGMENT_KEY = /x-text-label(?::[\w-]+)?=(["'])([^"']+)\1/g;
+    const RE_SCRIPT_KEY = /\b(?:getLabel|label)\(\s*(["'`])([a-z][\w.-]*)\1/g;
+
+    // What a key must be found in: the framework's catalogue or core's, and nothing an application lays over them. A
+    // swept key that only an application defined is exactly the defect: an application's own catalogue hid these three.
+    const CORE_LABELS = JSON.parse( fs.readFileSync( path.join( path.dirname( require.resolve( "@ti-engine/core/localization" ) ), "..", "bin", "localization", "labels.json" ), "utf8" ) );
+    const DEFINED = new Map( leaves( CORE_LABELS ).concat( leaves( CATALOGUE ) ) );
+    const LANGUAGES = [ ...new Set( leaves( CATALOGUE ).flatMap( ( [ , texts ] ) => Object.keys( texts ) ) ) ];
+
+    // Every file under a directory, `node_modules` and the vendored libraries in `lib` left out: their minified code may
+    // well call a `label( "…" )` of its own.
+    function walk( directory ) {
+        return fs.readdirSync( directory, { withFileTypes: true } ).flatMap( ( entry ) => {
+            const full = path.join( directory, entry.name );
+            if ( entry.isDirectory() ) {
+                return ( entry.name === "node_modules" || entry.name === "lib" ) ? [] : walk( full );
+            }
+            return [ full ];
+        } );
+    }
+
+    function usedKeys() {
+        const used = new Map();
+        const collect = ( file, pattern ) => {
+            for ( const match of fs.readFileSync( file, "utf8" ).matchAll( pattern ) ) {
+                used.set( match[ 2 ], used.get( match[ 2 ] ) || path.relative( PACKAGE_ROOT, file ) );
+            }
+        };
+        for ( const file of walk( path.join( PACKAGE_ROOT, "bin" ) ).concat( walk( path.join( PACKAGE_ROOT, "components" ) ) ) ) {
+            if ( file.endsWith( ".html" ) ) {
+                collect( file, RE_FRAGMENT_KEY );
+            } else if ( file.endsWith( ".js" ) ) {
+                collect( file, RE_SCRIPT_KEY );
+            }
+        }
+        return used;
+    }
+
+    it( "is in the framework's catalogue or core's, in every language the framework carries (CA-577)", () => {
+        // The sidebar's profile tooltip and the user menu's title read `interface.topbar.user-profile`, and the shell's
+        // start failure and a message-less notice read `error.application.*`; no catalogue but an application's own defined them,
+        // so every other application showed English or "LABEL NOT FOUND" in their place.
+        const used = usedKeys();
+        assert.ok( used.size > 100, `the sweep found ${ used.size } keys` );
+        assert.ok( LANGUAGES.includes( "en" ) && LANGUAGES.includes( "bg" ), `the sweep read the languages: ${ LANGUAGES }` );
+        const missing = [];
+        for ( const [ key, file ] of used ) {
+            for ( const language of LANGUAGES ) {
+                if ( typeof DEFINED.get( key )?.[ language ] !== "string" ) {
+                    missing.push( `${ key } (${ language }), used in ${ file }` );
+                }
+            }
+        }
+        assert.deepEqual( missing, [] );
+    } );
+
+} );
+
 describe( "whichever framework module an application reaches first", () => {
 
     it( "is required by every module of the package that reads labels", () => {

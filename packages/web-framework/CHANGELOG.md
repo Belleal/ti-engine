@@ -2,6 +2,23 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.62.1
+
+* fix(labels): **three keys the framework used were in no catalogue** (CA-577). The sidebar's profile tooltip and the
+  user menu's title read `interface.topbar.user-profile`, the shell's start failure reads `error.application.init-failed`
+  and a notice with no message reads `error.application.unexpected`. None was in this package's catalogue or core's, so
+  an application that had not defined them showed "Your profile" in English in every language and "LABEL NOT FOUND" in
+  place of the two errors. An application that carried all three in its own catalogue never showed the gap, which is
+  why it went unseen.
+  * The catalogue now has them in English and Bulgarian.
+  * The two error texts also carry their English as the fallback in `ti-framework.js`. The shell usually fails to start
+    because `/app/config` or the labels bundle failed, before any label is loaded, so a catalogue entry alone still left
+    "LABEL NOT FOUND" there. `test/ti-framework.get-label.test.js` drives both through the real script with no labels.
+  * `test/framework-labels.test.js` sweeps every literal key the package's fragments bind (`x-text-label`) and its
+    scripts read (`getLabel( … )`, `label( … )`, any quotes; vendored `lib/` left out): 127 keys, each looked up in this
+    package's catalogue and core's alone, so an application's catalogue cannot hide one, in every language the catalogue
+    carries. It found these three and fails without them.
+
 ## Version 1.62.0
 
 * feat(labels): **the framework's texts reach every application without being copied** (CA-555). The package lays its

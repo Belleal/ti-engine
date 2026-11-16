@@ -86,6 +86,38 @@ describe( "tiApplication.getLabel — nested keys", () => {
 
 } );
 
+describe( "the shell's own error texts, before any labels are loaded (CA-577)", () => {
+
+    // The shell fails to start, typically because `/app/config` or the labels bundle failed, before any label is loaded;
+    // a notice with no message can be raised then too. Both read their key with no fallback and showed "LABEL NOT FOUND".
+    const CATALOGUE = JSON.parse( fs.readFileSync( path.join( __dirname, "..", "bin", "localization", "web-server-labels.json" ), "utf8" ) );
+    const english = CATALOGUE.error.application;
+
+    it( "names a start that failed before the labels arrived in English, as the catalogue words it", async () => {
+        const { stores: fresh } = loadTiFramework();
+        const application = fresh.tiApplication;
+        const notices = [];
+        application.sendRequest = () => Promise.reject( new Error( "Service Unavailable" ) );
+        application.notify = ( notice ) => notices.push( notice );
+        application.init();
+        await new Promise( ( resolve ) => setImmediate( resolve ) );
+        assert.equal( notices.length, 1 );
+        assert.ok( notices[ 0 ].message.startsWith( english[ "init-failed" ].en + " " ), notices[ 0 ].message );
+    } );
+
+    it( "gives a notice with no message the English text while no labels are loaded", () => {
+        const added = [];
+        const { stores: fresh, sandbox } = loadTiFramework();
+        sandbox.document.querySelector = ( selector ) => ( selector === "#ti-notifications" ) ? {} : null;
+        sandbox.Alpine.$data = () => ( { add: ( notice ) => added.push( notice ) } );
+        fresh.tiApplication.configuration = {};
+        fresh.tiApplication.notify( {} );
+        assert.equal( added.length, 1 );
+        assert.equal( added[ 0 ].message, english.unexpected.en );
+    } );
+
+} );
+
 describe( "tiApplication.getLabel — flat keys containing a literal dot", () => {
 
     // The shape competence uses for its audit-log field labels: the key is an employee field path.

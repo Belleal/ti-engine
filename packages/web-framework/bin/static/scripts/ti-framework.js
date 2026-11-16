@@ -1460,7 +1460,9 @@ const configureApplication = () => {
                 this.user = null;
                 this.isInitialized = false;
                 const formatted = this.formatException( error );
-                this.notify( { message: this.getLabel( "error.application.init-failed" ) + " " + formatted.message, details: formatted.details } );
+                // The usual cause is `/app/config` or the labels bundle failing, so no labels are loaded yet: the English
+                // is the fallback, or the notice read "LABEL NOT FOUND" (CA-577).
+                this.notify( { message: this.getLabel( "error.application.init-failed", "The application could not start:" ) + " " + formatted.message, details: formatted.details } );
             } );
         },
 
@@ -1952,7 +1954,8 @@ const configureApplication = () => {
                 const payload = ( message && typeof message === "object" ) ? message : { message: message };
                 Alpine.$data( notificationBar ).add( {
                     id: this.notificationIDCounter++,
-                    message: payload.message || this.getLabel( "error.application.unexpected" ),
+                    // English when no labels are loaded yet, as for a notice raised while the shell starts (CA-577).
+                    message: payload.message || this.getLabel( "error.application.unexpected", "An unexpected error occurred in the application." ),
                     details: payload.details || "",
                     timeout: timeout
                 } );

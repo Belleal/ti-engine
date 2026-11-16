@@ -151,6 +151,10 @@
         "en": "My Profile",
         "bg": "Моят профил"
       },
+      "user-profile": {
+        "en": "Your profile",
+        "bg": "Вашият профил"
+      },
       "about": {
         "en": "About",
         "bg": "Информация"
@@ -692,6 +696,16 @@
       "picture-not-found": {
         "en": "This picture is no longer available.",
         "bg": "Тази снимка вече не е налична."
+      }
+    },
+    "application": {
+      "init-failed": {
+        "en": "The application could not start:",
+        "bg": "Приложението не можа да стартира:"
+      },
+      "unexpected": {
+        "en": "An unexpected error occurred in the application.",
+        "bg": "В приложението възникна неочаквана грешка."
       }
     }
   }
