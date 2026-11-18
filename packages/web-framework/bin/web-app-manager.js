@@ -1437,16 +1437,13 @@ class TiWebAppManager {
             // release no answer ever names.
             return html;
         }
-        const releaseMeta = `<meta name="ti-release" content="${ this.releaseId }"/>`;
-        const anchor = RE_RELEASE_META_ANCHORS.find( ( pattern ) => pattern.test( html ) );
-        return anchor ? html.replace( anchor, ( tag ) => `${ tag }\n    ${ releaseMeta }` ) : `${ releaseMeta }\n${ html }`;
+        return this.#withMeta( html, "ti-release", this.releaseId );
     }
 
     /**
      * A shell page with the application's home (CA-584): `<meta name="ti-home">`, where the page's scripts go when they
-     * give up on a screen, placed as {@link #withReleaseMeta} places its tag. Only for a home other than `/`, so a
-     * page at the default home is the page it was before 1.63.0, and only for a plain path ({@link RE_APPLICATION_HOME}),
-     * since it is written into an attribute.
+     * give up on a screen. Only for a home other than `/`, so a page at the default home is the page it was before
+     * 1.63.0, and only for a plain path ({@link RE_APPLICATION_HOME}), since it is written into an attribute.
      *
      * @method
      * @param {string} html
@@ -1457,9 +1454,23 @@ class TiWebAppManager {
         if ( typeof home !== "string" || home === "/" || !RE_APPLICATION_HOME.test( home ) ) {
             return html;
         }
-        const homeMeta = `<meta name="ti-home" content="${ home }"/>`;
+        return this.#withMeta( html, "ti-home", home );
+    }
+
+    /**
+     * A shell page with one `<meta>` more, at the first of {@link RE_RELEASE_META_ANCHORS} the page has, or before it
+     * all when it has none. The content is the caller's to have made safe for an attribute.
+     *
+     * @method
+     * @param {string} html
+     * @param {string} name
+     * @param {string} content
+     * @returns {string}
+     */
+    #withMeta( html, name, content ) {
+        const meta = `<meta name="${ name }" content="${ content }"/>`;
         const anchor = RE_RELEASE_META_ANCHORS.find( ( pattern ) => pattern.test( html ) );
-        return anchor ? html.replace( anchor, ( tag ) => `${ tag }\n    ${ homeMeta }` ) : `${ homeMeta }\n${ html }`;
+        return anchor ? html.replace( anchor, ( tag ) => `${ tag }\n    ${ meta }` ) : `${ meta }\n${ html }`;
     }
 
     /**

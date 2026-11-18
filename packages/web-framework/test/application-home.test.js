@@ -69,6 +69,18 @@ describe( "TiWebServer.resolveApplicationHome", () => {
         }
     } );
 
+    it( "refuses a home inside the framework's own routes, which it would shadow or be shadowed by", () => {
+        // The review pass: `/app` put the shell over `GET /app` (Express matches `/app` at the route `/app/`), and
+        // `/static/` would put it over the assets.
+        for ( const home of [ "/app", "/app/studio/", "/static/", "/login/", "/logout", "/language/", "/me", "/health",
+            "/csrf-token", "/admin/", "/service/", "/.well-known/", "/_ti/", "/APP/" ] ) {
+            const resolved = TiWebServer.resolveApplicationHome( { home: home } );
+            assert.match( resolved.error || "", /framework/, `${ home } is refused as the framework's` );
+        }
+        assert.equal( TiWebServer.resolveApplicationHome( { home: "/apps/" } ).error, null, "a segment that only begins like one is fine" );
+        assert.equal( TiWebServer.resolveApplicationHome( { home: "/studio/app/" } ).error, null, "and so is one further down" );
+    } );
+
     it( "stops the server from being constructed with a refused home, rather than putting the shell at /", () => {
         // A typo falling back to `/` would put the shell over the very site the home was moved off.
         assert.throws( () => new TiWebServer( "ti-home-refused", { application: { home: "studio" } } ), ( error ) => error.code === exceptions.exceptionCode.E_GEN_INVALID_ARGUMENT_TYPE );
@@ -128,6 +140,36 @@ describe( "the shell page names its home", () => {
     it( "writes nothing into a screen, which is swapped into a page that has it already", async () => {
         const html = await new Harness().assembleHtmlView( { user: { roles: [] } }, [ FRAMEWORK_STATIC ], "/app/about", { view: "about", isPartial: true, home: "/studio/" } );
         assert.doesNotMatch( html, /ti-home/ );
+    } );
+
+} );
+
+// The review pass: the pattern a home must match is written three times, and cannot be one constant. The browser's copy
+// is in a plain script that requires nothing, and the manager's is checked by a public method any caller can hand a home.
+// A copy that drifted would refuse quietly: the tag left out, or ignored, and the shell back at `/`. So they are pinned.
+describe( "the home pattern, in its three places", () => {
+
+    const fs = require( "node:fs" );
+    const read = ( ...parts ) => fs.readFileSync( path.join( __dirname, "..", ...parts ), "utf8" );
+    const PATTERN = String.raw`/^\/(?:(?!\.{1,2}\/)[A-Za-z0-9._~-]+\/)*$/`;
+
+    it( "is the same pattern in the server, the manager and the browser", () => {
+        assert.ok( read( "bin", "web-server.js" ).includes( `const RE_APPLICATION_HOME = ${ PATTERN };` ), "web-server.js" );
+        assert.ok( read( "bin", "web-app-manager.js" ).includes( `const RE_APPLICATION_HOME = ${ PATTERN };` ), "web-app-manager.js" );
+        assert.ok( read( "bin", "static", "scripts", "ti-framework.js" ).includes( `${ PATTERN }.test( content )` ), "ti-framework.js" );
+    } );
+
+    it( "keeps the manager from writing a home that is not a plain path, whoever hands it one", async () => {
+        class Harness extends TiWebAppManager {
+            constructor() {
+                super( "application-home-pattern-test" );
+                this.setEnabledAuthMethods( [ "local" ] );
+            }
+        }
+        for ( const home of [ "//evil.example/", "/a/../", "/a\"onload=\"x/" ] ) {
+            const html = await new Harness().assembleHtmlView( {}, [ FRAMEWORK_STATIC ], "/", { home: home } );
+            assert.doesNotMatch( html, /ti-home/, home );
+        }
     } );
 
 } );

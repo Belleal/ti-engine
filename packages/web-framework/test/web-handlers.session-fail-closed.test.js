@@ -165,4 +165,62 @@ describe( "an asynchronous augmentSession", () => {
         assert.ok( forwarded );
     } );
 
+    // The review pass: an `async` hook that changes the session in place and returns nothing resolved `undefined`, which
+    // became `request.session`; its save threw inside a promise nobody handled, and the sign-in was never answered.
+    const signIn = async ( augmentSession ) => {
+        const session = mockSession( { oidc: { codeVerifier: "verifier", state: "xyz" } } );
+        const request = mockRequest( session );
+        let saved = null;
+        session.save = ( callback ) => {
+            session.calls.save++;
+            saved = request.session.user.roles.slice();
+            callback( null );
+        };
+        const instance = {
+            serviceConfig: { language: "en", auth: { admins: [] } },
+            authorize: () => Promise.resolve( AUTHENTICATED_USER ),
+            augmentSession: augmentSession
+        };
+        const outcome = { redirected: null, forwarded: null, saved: () => saved, session: session };
+        const unhandled = ( reason ) => {
+            outcome.unhandled = reason;
+        };
+        process.on( "unhandledRejection", unhandled );
+        try {
+            webHandlers.authorizedOAuth2CallbackHandler( instance, "openid-azure" )( request, { redirect: ( status, to ) => { outcome.redirected = to || status; } }, ( error ) => {
+                outcome.forwarded = error;
+            } );
+            await settle();
+        } finally {
+            process.off( "unhandledRejection", unhandled );
+        }
+        return outcome;
+    };
+
+    it( "accepts an asynchronous hook that changes the session in place and resolves nothing", async () => {
+        const outcome = await signIn( async ( augmented ) => {
+            await new Promise( ( resolve ) => setImmediate( resolve ) );
+            augmented.user.roles = [ "editor" ];
+        } );
+        assert.equal( outcome.unhandled, undefined );
+        assert.deepEqual( outcome.saved(), [ "editor" ], "the session it was given, as it changed it" );
+        assert.ok( outcome.redirected, "the sign-in completes" );
+    } );
+
+    it( "accepts a synchronous hook that returns nothing, which used to throw out of the session callback", async () => {
+        const outcome = await signIn( ( augmented ) => {
+            augmented.user.roles = [ "reader" ];
+        } );
+        assert.deepEqual( outcome.saved(), [ "reader" ] );
+        assert.ok( outcome.redirected );
+    } );
+
+    it( "refuses, rather than hangs, when the hook resolves something that is not a session", async () => {
+        const outcome = await signIn( async () => 42 );
+        assert.equal( outcome.unhandled, undefined );
+        assert.equal( outcome.session.calls.save, 0 );
+        assert.equal( outcome.session.calls.destroy, 1 );
+        assert.ok( outcome.forwarded, "the refusal reaches the error handler" );
+    } );
+
 } );

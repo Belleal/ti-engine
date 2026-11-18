@@ -13,11 +13,14 @@ Three seams an application with its own public site, and its own people in a dat
   and the e-mail link's page. An application with a public site of its own could not keep `/` for that site.
   * The home is trimmed and ended with `/` (`/studio` is `/studio/`). Anything that is not a plain path on this site -
     `//host`, a scheme, a `.` or `..` segment, a query, a fragment, an escape, an empty segment - **refuses the start**:
-    falling back to `/` would put the shell over the very site it was moved off.
+    falling back to `/` would put the shell over the very site it was moved off. So does a home under a segment the
+    framework routes itself (`/app`, `/static`, `/login`, `/logout`, `/language`, `/me`, `/health`, `/csrf-token`,
+    `/admin`, `/service`, `/.well-known`, `/_ti`): at `/app/` the shell answered `GET /app`.
   * The shell is served at `<home>` and its not-found page at `<home>not-found`; both are unprotected. Every redirect
     above goes there, and errors to `<home>?error=<code>`. The screens stay at `/app/*`.
   * A shell page whose home is not `/` carries `<meta name="ti-home">`, and the browser's two fallbacks that give up on
-    a screen go there instead of `/`. At the default home no tag is written, so the page is the page of 1.62.
+    a screen go there instead of `/`, as does the default sidebar's link. At the default home no tag is written, so the
+    page is the page of 1.62.
   * `TiWebServer#applicationHome` gives the resolved home. The web application manager is now loaded on
     `application.classPath` rather than on the presence of `application`, which the environment variable creates on
     its own.
@@ -30,7 +33,10 @@ Three seams an application with its own public site, and its own people in a dat
   * The refresh is waited for before any route runs, then the admin allowlist's role is applied, as after a hook that
     answers at once. A rejection fails closed like a throw: logged, the application's roles dropped, the request served.
   * The sign-in waits for `augmentSession` before applying the allowlist and saving. A rejection destroys the session,
-    saves nothing and forwards the error, as a throw does.
+    saves nothing and forwards the error, as a throw does. A hook that changes the session in place and returns, or
+    resolves, nothing accepts the session it was given; one that returned nothing used to throw out of the session
+    store's callback, and an asynchronous one left the sign-in unanswered. Anything else that is not a session refuses
+    the sign-in. `refreshSession` always changes the session in place; what it returns is not read.
   * A hook that answers at once keeps the request synchronous, as before. The refresh is waited for on every signed-in
     request: keep it to one cheap lookup.
 * feat(auth): **an Entra sign-in carries the object ID and the tenant ID** (CA-586). The user's `objectID` (`oid`) and

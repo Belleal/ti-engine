@@ -341,7 +341,15 @@ let regenerateAndSaveSession = ( request, redirectTo, modifier ) => {
                 reject( error );
             } );
         };
-        const save = () => {
+        // Saves what the modifier gave back. Anything but a session is refused here: it used to become `request.session`,
+        // whose `save` then threw - out of the store's callback, or inside a promise nobody handled, leaving the sign-in
+        // unanswered (the review pass).
+        const save = ( session ) => {
+            if ( !session || typeof session.save !== "function" ) {
+                refuse( exceptions.raise( exceptions.exceptionCode.E_GEN_JS_INTERNAL_ERROR, { detail: "The session hook gave back no session." } ) );
+                return;
+            }
+            request.session = session;
             request.session.save( ( error ) => {
                 if ( error ) {
                     reject( error );
@@ -367,14 +375,10 @@ let regenerateAndSaveSession = ( request, redirectTo, modifier ) => {
             // A modifier may answer later: the augment hook may read a store (CA-585). The session is saved only once
             // it has, so it is never written before the application has decided.
             if ( isThenable( modified ) ) {
-                Promise.resolve( modified ).then( ( session ) => {
-                    request.session = session;
-                    save();
-                }, refuse );
+                Promise.resolve( modified ).then( save, refuse );
                 return;
             }
-            request.session = modified;
-            save();
+            save( modified );
         } );
     } );
 };
@@ -725,8 +729,10 @@ let signInUser = ( instance, request, user, method ) => {
         // three methods came to share this one.
         delete session.oidc;
 
+        // A hook that changed the session in place and returned nothing, as an `async` one written that way does, accepted
+        // the session it was given.
         const finish = ( augmented ) => {
-            const signedIn = applyAdminRoleFor( instance, augmented, request );
+            const signedIn = applyAdminRoleFor( instance, ( augmented === undefined ) ? session : augmented, request );
             if ( isAdminWithheldByMethod( instance, signedIn ) && authorization.isAdminIdentity( signedIn.user, instance.serviceConfig?.auth?.admins ) ) {
                 // Said once, at sign-in, so an operator who finds an administrator without the role learns why.
                 logger.log( `User '${ signedIn.user.userID }' is on the admin allowlist but signed in by e-mail link, which does not carry the admin role unless 'auth.emailLink.grantsAdmin' is true.`, logger.logSeverity.NOTICE );

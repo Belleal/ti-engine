@@ -43,7 +43,7 @@ OpenID Connect providers are configured with their own variables — `TI_AZURE_A
 
 `TiWebServer#refreshSession( session, request )` is its companion on **every** request that carries a signed-in user, after the static handlers and before any route, so a role the application withdraws is gone on the next click rather than when the session ends. The framework applies the `admin` allowlist role after it, so the hook may replace `session.user.roles` wholesale. A throw fails closed rather than refusing the request: the application's roles are dropped and the request goes on with the allowlist's role alone. The default is a no-op.
 
-Both hooks may return a promise (1.63.0), and the framework waits for it: an application that keeps its people and roles in a database reads them there, rather than in each process's memory, which is correct only while one process serves the sessions. A rejection counts as a throw. The refresh is waited for on every signed-in request, so keep it to one cheap lookup; a hook that answers at once keeps the request synchronous.
+Both hooks may return a promise (1.63.0), and the framework waits for it: an application that keeps its people and roles in a database reads them there, rather than in each process's memory, which is correct only while one process serves the sessions. A rejection counts as a throw. `augmentSession` may also change the session in place and return, or resolve, nothing; the refresh always works that way, and what it returns is not read. The refresh is waited for on every signed-in request, so keep it to one cheap lookup; a hook that answers at once keeps the request synchronous.
 
 `TiWebServer#withholdsAdminRole( session, request )` lets an application run a session **without** the `admin` role its identity would hold, for example to show an administrator the application as everyone else sees it (1.50.0). The framework asks it at sign-in, on the session `augmentSession` returned, and again on every request; returning `true` removes the role, and returning `false` restores it on the next request. It can only withhold: the allowlist stays the only thing that grants the role, only a strict `true` counts, and a hook that throws withholds nothing. The default returns `false`.
 
@@ -299,11 +299,12 @@ Every answer that sends the browser home then goes there: a sign-in, a sign-out,
 (`/studio/?error=<code>`), a language chosen, a screen asked for without a session, and the page of a link sent by
 e-mail. An unknown address goes to `/studio/not-found`. The screens stay at `/app/*`, and so do `/login/*`, `/logout`
 and `/csrf-token`. The home is ended with `/` (`/studio` is `/studio/`, and both are served); one that is not a plain
-path on the site (`//host`, a scheme, a `.` or `..` segment, a query, a fragment, an escape) refuses the start rather
-than falling back to `/`, which would put the shell over the site it was moved off. The shell page names a home other
-than `/` in `<meta name="ti-home">`, which is where its scripts go when they give up on a screen.
-
-The sidebar's placeholder link, which an application replaces with its own navigation, still points at `/`.
+path on the site (`//host`, a scheme, a `.` or `..` segment, a query, a fragment, an escape), or that starts with a
+segment the framework routes itself (`/app`, `/static`, `/login`, `/logout`, `/language`, `/me`, `/health`,
+`/csrf-token`, `/admin`, `/service`, `/.well-known`, `/_ti`), refuses the start rather than falling back to `/`, which
+would put the shell over the site it was moved off. The shell page names a home other than `/` in
+`<meta name="ti-home">`, which is where its scripts go when they give up on a screen, and where the default sidebar's
+link points.
 
 ## The login screen
 

@@ -809,6 +809,8 @@ const configureSidebarNav = () => {
 
     return {
         active: "",
+        // The default navigation's one link (CA-584): the shell's home, not `/`, which may be another site's.
+        home: shellHome(),
 
         init() {
             this.$watch( () => tiApplication.isInitialized, ( isInitialized ) => {

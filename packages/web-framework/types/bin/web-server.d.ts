@@ -348,7 +348,9 @@ declare class TiWebServer extends ServiceConsumer {
      * <br/>
      * **It may answer later** (CA-585): return a promise of the session, and the framework waits for it before it
      * applies the `admin` role and saves the session. An application keeping its principals in a database can record a
-     * first sign-in, or read the roles, here. A hook that returns the session at once works as it always has.
+     * first sign-in, or read the roles, here. A hook that returns the session at once works as it always has. One that
+     * changes the session in place and returns, or resolves, nothing accepts the session it was given; anything else that
+     * is not a session refuses the sign-in.
      * <br/>
      * **Refusing a login.** Throwing from this hook, or returning a promise that rejects, refuses the sign-in: the
      * framework destroys the freshly regenerated session (so no usable session survives the refusal), the login handler
@@ -360,10 +362,10 @@ declare class TiWebServer extends ServiceConsumer {
      * @virtual
      * @param {TiSession} session
      * @param {Object} [request] Optional Express request object that can be used to read body/cookies/query data.
-     * @returns {TiSession|Promise<TiSession>}
+     * @returns {TiSession|Promise<TiSession>|void|Promise<void>}
      * @public
      */
-    augmentSession(session: TiSession, request?: Object): TiSession | Promise<TiSession>;
+    augmentSession(session: TiSession, request?: Object): TiSession | Promise<TiSession> | void | Promise<void>;
     /**
      * Hook for the application to re-derive the session's application-owned state on **every** request — the
      * companion to {@link TiWebServer#augmentSession}, which runs only at sign-in. The default is a no-op.
@@ -375,7 +377,9 @@ declare class TiWebServer extends ServiceConsumer {
      * per request makes withdrawal take effect on the next click instead.
      * <br/>
      * **Contract.** Runs on each request that carries a session user, after the static handlers and before any
-     * application route. The framework re-applies the additive `admin` role immediately afterwards, so an
+     * application route. **It changes the session in place**: what it returns, or a promise of it resolves with, is not
+     * read, so a hook that builds a new session object changes nothing. The framework re-applies the additive `admin`
+     * role immediately afterwards, so an
      * implementation may replace `session.user.roles` wholesale without stranding an allowlisted administrator. Assign
      * only when the value actually changes: express-session persists a session whose serialized form differs, so
      * rewriting an equal array is free but rewriting a *new* value on every request is a store write on every request.

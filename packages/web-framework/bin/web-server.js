@@ -246,6 +246,15 @@ const NOT_FOUND_PAGE = "not-found";
 const RE_APPLICATION_HOME = /^\/(?:(?!\.{1,2}\/)[A-Za-z0-9._~-]+\/)*$/;
 
 /**
+ * The first path segments the framework routes itself, which an `application.home` may not start with: at `/app/` the
+ * shell would answer `GET /app`, which Express matches at the route `/app/`, and at `/static/` it would sit over the
+ * assets. Compared without regard to case, as Express routes are.
+ *
+ * @type {Set<string>}
+ */
+const FRAMEWORK_SEGMENTS = new Set( [ "app", "static", "login", "logout", "language", "me", "health", "csrf-token", "admin", "service", ".well-known", "_ti" ] );
+
+/**
  * How often the `internal` trigger runs a tick, in milliseconds. A daily job falls due within this of its time.
  *
  * @type {number}
@@ -810,7 +819,9 @@ class TiWebServer extends ServiceConsumer {
      * <br/>
      * **It may answer later** (CA-585): return a promise of the session, and the framework waits for it before it
      * applies the `admin` role and saves the session. An application keeping its principals in a database can record a
-     * first sign-in, or read the roles, here. A hook that returns the session at once works as it always has.
+     * first sign-in, or read the roles, here. A hook that returns the session at once works as it always has. One that
+     * changes the session in place and returns, or resolves, nothing accepts the session it was given; anything else that
+     * is not a session refuses the sign-in.
      * <br/>
      * **Refusing a login.** Throwing from this hook, or returning a promise that rejects, refuses the sign-in: the
      * framework destroys the freshly regenerated session (so no usable session survives the refusal), the login handler
@@ -822,7 +833,7 @@ class TiWebServer extends ServiceConsumer {
      * @virtual
      * @param {TiSession} session
      * @param {Object} [request] Optional Express request object that can be used to read body/cookies/query data.
-     * @returns {TiSession|Promise<TiSession>}
+     * @returns {TiSession|Promise<TiSession>|void|Promise<void>}
      * @public
      */
     augmentSession( session, request ) {
@@ -840,7 +851,9 @@ class TiWebServer extends ServiceConsumer {
      * per request makes withdrawal take effect on the next click instead.
      * <br/>
      * **Contract.** Runs on each request that carries a session user, after the static handlers and before any
-     * application route. The framework re-applies the additive `admin` role immediately afterwards, so an
+     * application route. **It changes the session in place**: what it returns, or a promise of it resolves with, is not
+     * read, so a hook that builds a new session object changes nothing. The framework re-applies the additive `admin`
+     * role immediately afterwards, so an
      * implementation may replace `session.user.roles` wholesale without stranding an allowlisted administrator. Assign
      * only when the value actually changes: express-session persists a session whose serialized form differs, so
      * rewriting an equal array is free but rewriting a *new* value on every request is a store write on every request.
@@ -1290,6 +1303,13 @@ class TiWebServer extends ServiceConsumer {
         const home = trimmed.endsWith( "/" ) ? trimmed : trimmed + "/";
         if ( !RE_APPLICATION_HOME.test( home ) ) {
             return refusal( `'${ trimmed.slice( 0, 60 ) }'` );
+        }
+        const first = home.split( "/" )[ 1 ].toLowerCase();
+        if ( FRAMEWORK_SEGMENTS.has( first ) ) {
+            return {
+                home: "/",
+                error: `The application home '${ home }' (application.home or TI_WEB_APPLICATION_HOME) is under '/${ first }', which the framework routes itself; choose another, such as '/studio/'.`
+            };
         }
         return { home: home, error: null };
     }

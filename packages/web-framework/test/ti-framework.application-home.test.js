@@ -98,3 +98,28 @@ describe( "the shell's start page is its home (CA-584)", () => {
     } );
 
 } );
+
+// The review pass: the default sidebar's one link was a literal `/`, so an application that kept the framework's sidebar
+// sent its users from the shell to the public site.
+describe( "the default sidebar's link is the home (CA-584)", () => {
+
+    const fs = require( "node:fs" );
+    const path = require( "node:path" );
+
+    const navOn = ( home ) => {
+        const { components, sandbox } = loadTiFramework();
+        sandbox.document.querySelector = ( selector ) => ( selector === "meta[name=\"ti-home\"]" && home !== null ) ? { getAttribute: () => home } : null;
+        return components.tiComponentSidebarNav();
+    };
+
+    it( "names the home to the link, and / on a page that names none", () => {
+        assert.equal( navOn( "/studio/" ).home, "/studio/" );
+        assert.equal( navOn( null ).home, "/" );
+    } );
+
+    it( "binds the link to it, keeping / for a page whose scripts have not run", () => {
+        const markup = fs.readFileSync( path.join( __dirname, "..", "bin", "static", "fragments", "components", "component-sidebar.html" ), "utf8" );
+        assert.match( markup, /<a href="\/" x-bind:href="home" class="ti-sidebar-item" data-tip="Dashboard"/ );
+    } );
+
+} );
