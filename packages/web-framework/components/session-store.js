@@ -372,10 +372,14 @@ class SessionStore extends session.Store {
         const now = Date.now();
         this.#ended.delete( sessionID );
         if ( this.#ended.size >= HELD_SESSIONS_LIMIT ) {
+            // Every entry lives ENDED_SECONDS from when it was added, in the map's order, so the lapsed ones are all at
+            // the front: the scan stops at the first live one, rather than walking the whole map on every sign-out at the
+            // limit (the review pass).
             for ( const [ knownID, until ] of this.#ended ) {
-                if ( now >= until ) {
-                    this.#ended.delete( knownID );
+                if ( now < until ) {
+                    break;
                 }
+                this.#ended.delete( knownID );
             }
             if ( this.#ended.size >= HELD_SESSIONS_LIMIT ) {
                 // The map's order is the order they were ended in, so the first is the oldest.
