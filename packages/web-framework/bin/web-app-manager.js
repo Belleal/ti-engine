@@ -173,6 +173,8 @@ const RE_HTMX_CONFIG = /\{ti-htmx-config-placeholder}/g;
  * @type {RegExp[]}
  */
 const RE_RELEASE_META_ANCHORS = [ /<head(?:\s[^>]*)?>/i, /<html(?:\s[^>]*)?>/i, /<!DOCTYPE[^>]*>/i ];
+// A home the shell page may name (CA-584): the plain path `TiWebServer.resolveApplicationHome` admits.
+const RE_APPLICATION_HOME = /^\/(?:(?!\.{1,2}\/)[A-Za-z0-9._~-]+\/)*$/;
 const RE_CSP_NONCE = /^[A-Za-z0-9+/=_-]{16,}$/;
 const TI_NESTED_FRAME_PLACEHOLDER = "ti-nested-frame-placeholder";
 const OAUTH_METHODS = [ "openid-google", "openid-azure" ];
@@ -710,6 +712,8 @@ class TiWebAppManager {
      * @param {() => void} [options.onAddressed] Called when the partial being rendered is an immutable fragment, `version`
      * is its current address, and its markup is the markup that address was computed from - the one case where the
      * response may be kept by the browser for good.
+     * @param {string} [options.home] The application's home (CA-584), written into a shell page as `<meta name="ti-home">`
+     * when it is not `/`. The route stays `/` or `/not-found` wherever the home is.
      * @returns {Promise<string>}
      * @public
      */
@@ -1405,8 +1409,9 @@ class TiWebAppManager {
                 return this.transformHtml( fileData, { ...options, title: fragment.title || options.title } );
             } ).then( ( fileData ) => {
                 // The release, here rather than in `transformHtml`, which an application overrides: a shell page without
-                // it would be answered with the whole page on every screen change it made (CA-553).
-                return ( options.isHome === true ) ? this.#withReleaseMeta( fileData ) : fileData;
+                // it would be answered with the whole page on every screen change it made (CA-553). The home likewise
+                // (CA-584): without it the page's scripts would leave for `/`.
+                return ( options.isHome === true ) ? this.#withHomeMeta( this.#withReleaseMeta( fileData ), options.home ) : fileData;
             } ).then( ( fileData ) => {
                 // After the application's own transform, so a reference it adds is fingerprinted too. A reference that
                 // carries its file's hash can be cached for good; a bare one costs a conditional request per page load.
@@ -1435,6 +1440,26 @@ class TiWebAppManager {
         const releaseMeta = `<meta name="ti-release" content="${ this.releaseId }"/>`;
         const anchor = RE_RELEASE_META_ANCHORS.find( ( pattern ) => pattern.test( html ) );
         return anchor ? html.replace( anchor, ( tag ) => `${ tag }\n    ${ releaseMeta }` ) : `${ releaseMeta }\n${ html }`;
+    }
+
+    /**
+     * A shell page with the application's home (CA-584): `<meta name="ti-home">`, where the page's scripts go when they
+     * give up on a screen, placed as {@link #withReleaseMeta} places its tag. Only for a home other than `/`, so a
+     * page at the default home is the page it was before 1.63.0, and only for a plain path ({@link RE_APPLICATION_HOME}),
+     * since it is written into an attribute.
+     *
+     * @method
+     * @param {string} html
+     * @param {string} [home]
+     * @returns {string}
+     */
+    #withHomeMeta( html, home ) {
+        if ( typeof home !== "string" || home === "/" || !RE_APPLICATION_HOME.test( home ) ) {
+            return html;
+        }
+        const homeMeta = `<meta name="ti-home" content="${ home }"/>`;
+        const anchor = RE_RELEASE_META_ANCHORS.find( ( pattern ) => pattern.test( html ) );
+        return anchor ? html.replace( anchor, ( tag ) => `${ tag }\n    ${ homeMeta }` ) : `${ homeMeta }\n${ html }`;
     }
 
     /**

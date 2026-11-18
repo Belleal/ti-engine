@@ -163,7 +163,7 @@ describe( "EmailLink — the settings", () => {
         assert.equal( warnings.length, 3 );
     } );
 
-    it( "has no setting for the sign-in page, which is always /, where every sign-in's failure goes too", () => {
+    it( "has no setting of its own for the sign-in page, which is the application's home, where every sign-in's failure goes too", () => {
         assert.equal( Object.hasOwn( EmailLink.resolveSettings( { path: "/app" } ).settings, "path" ), false );
         assert.equal( EmailLink.answerFor( "sent" ), "/?email-link=sent" );
     } );
@@ -584,6 +584,31 @@ describe( "AuthManager — the email-link method", () => {
 
         await assert.rejects( auth.authorize( "email-link", null, { token: token } ), ( error ) => error.code === 2000 && error.httpCode === 401 );
         await assert.rejects( auth.authorize( "email-link", null, {} ), ( error ) => error.code === 2000 );
+    } );
+
+} );
+
+// The sign-in page is the application's home (CA-584), which need not be `/`: a link must land where the sign-in screen
+// is, and a request for one must be answered there.
+describe( "EmailLink — an application whose home is not /", () => {
+
+    it( "answers a request for a link at the home", () => {
+        assert.equal( EmailLink.answerFor( "sent", "/studio/" ), "/studio/?email-link=sent" );
+        assert.equal( EmailLink.answerFor( EmailLink.OUTCOME.EXPIRED, "/studio/" ), "/studio/?email-link=expired" );
+    } );
+
+    it( "sends a link to the home", async () => {
+        const link = new EmailLink( {}, { home: "/studio/" } ).registerNotice();
+        assert.equal( await link.request( { email: "parent@example.com", client: "203.0.113.7" } ), "sent" );
+        const token = tokenOf( sent[ 0 ] );
+        assert.ok( sent[ 0 ].text.includes( `${ PUBLIC_URL }/studio/#email-link=${ token }` ), sent[ 0 ].text );
+    } );
+
+    it( "is told the home by AuthManager, which answers a request there", async () => {
+        const auth = new AuthManager( { enabledMethods: [ "email-link" ], local: {}, oauth2: {}, emailLink: {} }, { home: "/studio/" } );
+        await auth.initialize();
+        assert.deepEqual( await auth.authenticate( "email-link", { email: "parent@example.com", client: "203.0.113.7" } ), { redirectTo: "/studio/?email-link=sent", outcome: "sent" } );
+        assert.ok( sent[ 0 ].text.includes( `${ PUBLIC_URL }/studio/#email-link=` ) );
     } );
 
 } );

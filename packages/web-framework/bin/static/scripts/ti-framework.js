@@ -1790,7 +1790,7 @@ const configureApplication = () => {
             const [ basePath, ...queryParts ] = ( screen || "" ).split( "?" );
             const query = queryParts.length ? "?" + queryParts.join( "?" ) : "";
             if ( !basePath || !/^[\w-]+$/.test( basePath ) || !window.htmx ) {
-                window.location.href = "/";
+                window.location.href = shellHome();
             } else {
                 this.loadScreen( basePath, "/app/" + basePath + query, true );
             }
@@ -1828,7 +1828,7 @@ const configureApplication = () => {
                 // HTMX rejects a request it aborted as it does one that failed, and a newer screen aborts this
                 // one's (CA-463). Leaving for the start page then would throw away the screen opened since.
                 if ( newestContentRequest === request ) {
-                    window.location.href = "/";
+                    window.location.href = shellHome();
                 }
             } );
         },
@@ -2209,6 +2209,20 @@ const RELEASE_NAVIGATION_GRACE_MS = 3 * 1000;
  * @type {{page: (string|null|undefined), hiddenSince: (number|null), touched: boolean}}
  */
 const releaseState = { page: undefined, hiddenSince: ( document.visibilityState === "hidden" ) ? Date.now() : null, touched: false };
+
+/**
+ * Where the shell's start page is (CA-584): the shell page's `<meta name="ti-home">`, which the server writes when the
+ * application moved its shell off `/`, and `/` on a page without one. Read each time it is needed, which is only when the
+ * shell gives up on a screen. A tag that is not a plain path on this site is ignored: the shell must not be sent off it.
+ *
+ * @method
+ * @returns {string}
+ */
+const shellHome = () => {
+    const meta = ( typeof document.querySelector === "function" ) ? document.querySelector( "meta[name=\"ti-home\"]" ) : null;
+    const content = meta ? ( typeof meta.getAttribute === "function" ? meta.getAttribute( "content" ) : meta.content ) : null;
+    return ( typeof content === "string" && /^\/(?:(?!\.{1,2}\/)[A-Za-z0-9._~-]+\/)*$/.test( content ) ) ? content : "/";
+};
 
 /**
  * The release the page's scripts belong to: the shell page's `<meta name="ti-release">`, which the server writes into

@@ -76,6 +76,8 @@ class AuthManager {
     #clientConfigOAuth2Azure = {};
     /** @type {EmailLink|null} */
     #emailLink = null;
+    // The application's home, where the sign-in page is (CA-584).
+    #home = "/";
 
     // Whether the local user directory is genuinely usable: set true only after #loadLocalUserDirectory performs
     // a successful reconcile that produced at least one record. Every other outcome — no 'usersPath' configured,
@@ -115,11 +117,15 @@ class AuthManager {
     /**
      * @constructor
      * @param {SettingsAuth} settings
+     * @param {Object} [options]
+     * @param {string} [options.home] The application's home, where the sign-in page is (CA-584): `/` unless given. A
+     *        link sent by e-mail lands there, and a request for one is answered there.
      */
-    constructor( settings ) {
+    constructor( settings, options = {} ) {
         if ( settings ) {
             this.#authSettings = settings;
         }
+        this.#home = ( options && typeof options.home === "string" ) ? options.home : "/";
 
         // Set up OAuth2 configuration:
         this.#authSettings.oauth2 = this.#authSettings.oauth2 || {};
@@ -142,7 +148,7 @@ class AuthManager {
         if ( this.isAuthEnabled( authMethodEnum.EMAIL_LINK ) ) {
             // `TI_WEB_AUTH_EMAIL_LINK_ALLOWED_DOMAINS` has already replaced the list (web-config-env); this normalizes it.
             const emailLink = this.#authSettings.emailLink || {};
-            this.#emailLink = new EmailLink( Object.assign( {}, emailLink, { allowedDomains: AuthManager.toDomainList( emailLink.allowedDomains ) } ) );
+            this.#emailLink = new EmailLink( Object.assign( {}, emailLink, { allowedDomains: AuthManager.toDomainList( emailLink.allowedDomains ) } ), { home: this.#home } );
         }
     }
 
@@ -468,7 +474,7 @@ class AuthManager {
         }
         const details = authDetails || {};
         return this.#emailLink.request( { email: details.email, client: details.client, language: details.language } ).then( ( outcome ) => {
-            return { redirectTo: EmailLink.answerFor( outcome ), outcome: outcome };
+            return { redirectTo: EmailLink.answerFor( outcome, this.#home ), outcome: outcome };
         } );
     }
 

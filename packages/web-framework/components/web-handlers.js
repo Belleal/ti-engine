@@ -510,6 +510,19 @@ let convertUriToString = ( uri ) => {
 };
 
 /**
+ * Where an answer that sends the browser home sends it (CA-584): the server's `applicationHome`, `/` unless the
+ * application moved its shell. An instance that names none, such as a test's stand-in, is at `/`, as before 1.63.0.
+ *
+ * @method
+ * @param {TiWebServer} [instance]
+ * @returns {string}
+ * @private
+ */
+let homeOf = ( instance ) => {
+    return ( instance && typeof instance.applicationHome === "string" ) ? instance.applicationHome : "/";
+};
+
+/**
  * Handler for requests that are received while the web server is shutting down.
  *
  * @method
@@ -608,7 +621,7 @@ module.exports.resourceProtectionHandler = ( instance ) => {
             return next();
         }
 
-        const redirectTo = "/";
+        const redirectTo = homeOf( instance );
         const refuse = () => {
             if ( isHtmxRequest( request ) ) {
                 response.set( "HX-Redirect", redirectTo );
@@ -698,11 +711,11 @@ let applyAdminRoleFor = ( instance, session, request ) => {
  * @param {ExpressRequest} request
  * @param {User} user
  * @param {TiAuthMethod} method
- * @returns {Promise<string>} Where to send the browser: `/`.
+ * @returns {Promise<string>} Where to send the browser: the application's home, `/` unless moved (CA-584).
  * @private
  */
 let signInUser = ( instance, request, user, method ) => {
-    return regenerateAndSaveSession( request, "/", ( session ) => {
+    return regenerateAndSaveSession( request, homeOf( instance ), ( session ) => {
         session.user = user.asJSON();
         session.language = resolveSessionLanguage( user, instance, readLanguageChoice( request, instance ) );
         session.authMethod = method;
@@ -784,7 +797,7 @@ module.exports.authenticationHandler = ( instance ) => {
                     if ( exception.code === exceptions.exceptionCode.E_SEC_INVALID_AUTH_TOKEN ) {
                         // Logged as every other refused sign-in is, since it never reaches the error handler; never the token.
                         logger.log( "Refused an e-mail sign-in link: unknown, already used or expired.", logger.logSeverity.DEBUG, exception );
-                        return EmailLink.answerFor( EmailLink.OUTCOME.EXPIRED );
+                        return EmailLink.answerFor( EmailLink.OUTCOME.EXPIRED, homeOf( instance ) );
                     }
                     throw exception;
                 } ).then( ( redirectTo ) => {
@@ -936,26 +949,29 @@ module.exports.authorizedOAuth2CallbackHandler = ( instance, authMethod ) => {
 };
 
 /**
- * Handler for server-side logout. The session is destroyed, and the browser is sent to `/` in a page load of its own.
+ * Handler for server-side logout. The session is destroyed, and the browser is sent home - `/` unless the application
+ * moved its shell (CA-584) - in a page load of its own.
  * <br/>
- * A sign-out made by htmx - the user menu's - is answered `204` with `HX-Redirect: /`, which htmx turns into a page load,
+ * A sign-out made by htmx - the user menu's - is answered `204` with `HX-Redirect` home, which htmx turns into a page load,
  * as {@link module.exports.resourceProtectionHandler} answers an htmx request whose session has ended. A `303` would be
  * followed inside htmx's request and the sign-in page swapped into the signed-in one, so that page never ended: its
  * store kept the signed-out user, and its components' watchers asked for data with no session (CA-498). Any other
  * sign-out, such as a plain form, gets the `303` the browser follows itself.
  *
  * @method
+ * @param {TiWebServer} [instance] The server, for its home; without one the browser is sent to `/`.
  * @returns {ExpressHandler}
  * @public
  */
-module.exports.logoutHandler = () => {
+module.exports.logoutHandler = ( instance ) => {
     return ( request, response, next ) => {
+        const home = homeOf( instance );
         const done = ( error ) => {
             if ( isHtmxRequest( request ) ) {
-                response.set( "HX-Redirect", "/" );
+                response.set( "HX-Redirect", home );
                 response.status( exceptions.httpCode.C_204 ).end();
             } else {
-                response.redirect( exceptions.httpCode.C_303, "/" );
+                response.redirect( exceptions.httpCode.C_303, home );
             }
         };
         if ( request.session ) {
@@ -1321,7 +1337,8 @@ module.exports.languageChoiceHandler = ( instance ) => {
                 request.session.language = code;
             }
         }
-        response.redirect( exceptions.httpCode.C_303, "/" );
+        // Home, where the sign-in screen the switch is on is served (CA-584).
+        response.redirect( exceptions.httpCode.C_303, homeOf( instance ) );
     };
 };
 
@@ -1487,13 +1504,18 @@ let visibleServerErrorData = ( exception, language ) => {
  * business — for a raised `Error` it holds the stack — and it is logged instead, under that ID (see
  * {@link logFailedRequest}). The one exception is a `details` label (see {@link visibleServerErrorData}). A client error
  * keeps its data, which is how a form learns what was wrong with it.
+ * <br/>
+ * A navigation is sent home with the reason, `<home>?error=<code>`, and an unknown address to `<home>not-found`: `/`
+ * and `/not-found` unless the application moved its shell (CA-584).
  *
  * @method
+ * @param {TiWebServer} [instance] The server, for its home; without one the home is `/`.
  * @returns {ExpressErrorHandler}
  * @public
  */
-module.exports.defaultErrorHandler = () => {
+module.exports.defaultErrorHandler = ( instance ) => {
     return ( error, request, response, next ) => {
+        const home = homeOf( instance );
         const exception = raiseForResponse( error );
         const isServerError = ( resolveHttpCode( exception ) >= exceptions.httpCode.C_500 );
         const exceptionJSON = exception.asJSON( !isServerError );
@@ -1513,10 +1535,10 @@ module.exports.defaultErrorHandler = () => {
             logger.log( `Received request to an invalid route: "${ request.originalUrl }"`, logger.logSeverity.DEBUG, exception );
 
             if ( isHtmxRequest( request ) ) {
-                response.set( "HX-Redirect", "/not-found" );
+                response.set( "HX-Redirect", home + "not-found" );
                 response.status( exceptions.httpCode.C_204 ).end();
             } else if ( isAcceptingResponseType( request, "html" ) && request.method === "GET" ) {
-                response.redirect( exceptions.httpCode.C_303, "/not-found" );
+                response.redirect( exceptions.httpCode.C_303, home + "not-found" );
             } else {
                 response.status( exceptions.httpCode.C_404 ).send( payload );
             }
@@ -1534,14 +1556,14 @@ module.exports.defaultErrorHandler = () => {
                 } );
                 return response.status( status ).send( "" );
                 // A 503 means "try again shortly", not a failure to report on the sign-in page: redirecting a navigation
-                // to `/` would send it straight back into whatever is unavailable — while the instance starts, into the
+                // home would send it straight back into whatever is unavailable — while the instance starts, into the
                 // same held request. It is answered where it was asked, as text a browser shows as it is.
             } else if ( status === exceptions.httpCode.C_503 && isAcceptingResponseType( request, "html" ) ) {
                 response.status( status ).type( "text/plain" ).send( payload.message );
                 // A 401 on an HTML request means "you are not signed in" whatever the method — the useful answer is the
                 // sign-in page carrying the reason, so local auth's POST presents exactly like the OAuth callback's GET.
             } else if ( isAcceptingResponseType( request, "html" ) && ( request.method === "GET" || status === exceptions.httpCode.C_401 ) ) {
-                response.redirect( exceptions.httpCode.C_303, "/?error=" + encodeURIComponent( exception.code ) );
+                response.redirect( exceptions.httpCode.C_303, home + "?error=" + encodeURIComponent( exception.code ) );
             } else {
                 response.status( status ).send( payload );
             }
@@ -1705,10 +1727,13 @@ module.exports.cspHeaderHandler = ( contentSecurityPolicy ) => {
  *
  * @method
  * @param {TiWebServer} instance
+ * @param {string} [route] The route the manager renders, `/` for the shell or `/not-found` for its not-found page,
+ *        whatever the address it was asked at (CA-584): at a home of `/studio/` the request's own path names neither.
+ *        Without it, the request's path.
  * @returns {ExpressHandler}
  * @public
  */
-module.exports.webAppHandler = ( instance ) => {
+module.exports.webAppHandler = ( instance, route ) => {
     return ( request, response, next ) => {
         /**
          * @param {TiException} exception
@@ -1750,12 +1775,14 @@ module.exports.webAppHandler = ( instance ) => {
                     const nonce = isPartial ? nonceHeader : ( request.cspNonce || request.nonce || resLocals.cspNonce || resLocals.nonce );
                     let embedsCsrfToken = false;
                     let isAddressed = false;
-                    instance.webAppManager.assembleHtmlView( request.session, instance.staticContentPaths, request.path, {
+                    instance.webAppManager.assembleHtmlView( request.session, instance.staticContentPaths, ( typeof route === "string" ) ? route : request.path, {
                         nonce: nonce,
                         isPartial: isPartial,
                         view: request.params.view,
                         language: language,
                         languages: languages,
+                        // Written into the shell page when it is not `/`, so its scripts go home rather than to `/`.
+                        home: homeOf( instance ),
                         // The content address a reference to an immutable fragment carries (CA-183). The manager says
                         // whether it names what was rendered; only then may the browser keep the answer for good.
                         version: ( request.query && typeof request.query.v === "string" ) ? request.query.v : undefined,
