@@ -137,7 +137,7 @@ history and older PR bodies; it is no longer the working branch.
 | `utils/logger.js` | Severity: DEBUG/INFO/NOTICE/WARNING/ERROR/CRITICAL/ALERT |
 | `utils/config.js` | Config enum + ENV overrides; frozen after init |
 | `utils/cache.js` | `CommonMemoryCache` singleton — owns operational state, connection observation and one shared guard; delegates storage to a `CacheProvider`. `createCacheStore()` (1.17.0) opens an independent, frozen instance beside it |
-| `components/cache/cache-provider.js` | **Abstract** backend contract (23 data methods + lifecycle) and `hasCapability()`. `hashGetAll` (1.21.0) is the newest; `HttpCacheProvider` leaves it and `hashSetFields` abstract though it declares `HASH_FIELDS`. `listPushValue` takes an optional `expiration` (1.23.0), set in the push's MULTI; Redis refuses one that is not a whole number above 0, and a custom backend declaring `key-expiry` must apply it |
+| `components/cache/cache-provider.js` | **Abstract** backend contract (23 data methods + lifecycle) and `hasCapability()`. `hashGetAll` (1.21.0) is the newest; `HttpCacheProvider` leaves it and `hashSetFields` abstract though it declares `HASH_FIELDS`. `listPushValue` takes an optional `expiration` (1.23.0), set with the push in one Lua script on Redis (so it needs scripting: `EVAL`); Redis refuses one that is not a whole number above 0, a push Redis refuses (`WRONGTYPE`) rejects and sets no expiry, and a custom backend declaring `key-expiry` must apply it |
 | `components/cache/cache-capability.js` | `TiCacheCapability` enum — the optional behaviors a backend may declare |
 | `components/cache/redis-cache-provider.js` | Redis/RedisJSON implementation — every Redis-specific detail in the cache path lives here |
 | `components/cache/http-cache-provider.js` | State over HTTP (1.15.0) — the ten methods the state store uses; lists/sets stay abstract |
@@ -161,7 +161,8 @@ history and older PR bodies; it is no longer the working branch.
     is a framework UUID. A field added to the message later stays out until it is named there. `TiTraceSnapshot` is the
     typedef;
   - **one list per chain**, `ti:messages:trace:<chainID>` (the message ID without a chain), newest first, pushed with
-    `cache.listPushValue( key, [ entry ], traceExpirationTime )` so the push and the expiry are one MULTI, then
+    `cache.listPushValue( key, [ entry ], traceExpirationTime )` so the push and the expiry are one Lua script on
+    Redis (a refused push, `WRONGTYPE`, ends it before the EXPIRE and rejects: a MULTI is not rolled back), then
     `expireValue` once more for a custom backend that ignores the new argument. No JSON, no set, nothing written at
     `initialize`. A backend without `lists` or `key-expiry` gets no trace and one warning. Cost: one key per chain of
     the last hour, which every `matchKeys` (Redis `KEYS`) reads;
@@ -410,7 +411,7 @@ module.exports.service = function (serviceDefinition, serviceParams, serviceCall
 
 **Test commands**:
 ```bash
-npm test    # node --test — 319 tests / 71 suites: 32 test files, plus the eleven test/fixtures/
+npm test    # node --test — 323 tests / 72 suites: 32 test files, plus the eleven test/fixtures/
             # modules, which node's default pattern runs as files too (each counts as one test)
             # (auditing-json-console, cache-capabilities, cache-get-values, cache-provider-selection,
             #  cache-store, d1-state-service, d1-state-service.partitions, d1-state-service.differential,
@@ -1667,7 +1668,7 @@ Token: YouTrack → Profile → Account Security → New token (scope: YouTrack)
 2. **Extending the web UI**: subclass `TiWebAppManager`, add an HTML fragment + matching Alpine component; reuse framework CSS primitives; obey the Alpine CSP rules (no inline styles, no `?.`).
 3. **Config-management, from a consumer's side**: a consuming application registers a config document (schema + file default + semantic validators + optional composite editor) through `TiWebAppManager.registerConfigDocument` / `registerConfigEditor`. Those seams live here; the documents themselves live in the consumer. Changing either seam is a breaking change for every consumer, so treat the `exports` map and these signatures as API.
 4. **Testing**: Node.js built-in `node --test` (no external framework); each package's `test/` directory. `npm test`
-   at the root fans out across workspaces — **2380 tests today: core 319, web-framework 1438, web-content 434,
+   at the root fans out across workspaces — **2384 tests today: core 323, web-framework 1438, web-content 434,
    cloudflare 189, tester none** (it is a runnable service, not a unit-tested one). The three checks that gate a push are in
    `CLAUDE.md` → *Definition of done*: `npm test`, `npm run lint` (0 errors; ESLint runs `@eslint/js`'s
    recommended rules with `no-unused-vars` turned down to a **warning** — `no-control-regex` is an error, measured in

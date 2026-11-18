@@ -29,14 +29,20 @@ This document contains the list of changes made to the framework. The format is 
       describes it.
     * **Each chain's trace is a list of its own**, `ti:messages:trace:<chainID>` (the message's ID without a chain),
       newest first. Every entry sets the list's expiry to `traceExpirationTime` in the same step as the push, so a
-      chain's trace is gone that long after its last message, on any Redis, with or without the JSON module, and then
+      chain's trace is gone that long after its last message, on any Redis with scripting, with or without the JSON module, and then
       once more on its own, for a custom backend written before the push took an expiration. The tracer writes nothing
       else: no document, no set, and nothing at `initialize`.
-    * **`cache.listPushValue( listName, values, expiration )`**: the optional expiration goes into the push's MULTI, so a
-      list can never be left without its time-to-live by a process that stops between the two. Redis refuses one that
-      is not a whole number of seconds above 0 with `E_GEN_INVALID_ARGUMENT_TYPE` before writing anything: inside the
-      MULTI it would refuse the EXPIRE alone, after the push, and a negative one deletes the list. **For a custom cache
-      backend**: one that declares `key-expiry` must apply the expiration.
+    * **`cache.listPushValue( listName, values, expiration )`**: on Redis, the optional expiration and the push are one
+      Lua script, so a list can never be left without its time-to-live by a process that stops between the two. A push
+      that Redis refuses (`WRONGTYPE`, when the key holds a value of another type) ends the script before the EXPIRE:
+      an EXPIRE queued in a MULTI beside the LPUSH runs anyway, since Redis does not roll a MULTI back, and would give
+      that value a time-to-live it never had (CodeRabbit). A refused push now rejects, with or without an expiration;
+      it used to resolve `null`, which also let the tracer go on to set that key's expiry itself. Redis refuses an
+      expiration that is not a whole number of seconds above 0 with `E_GEN_INVALID_ARGUMENT_TYPE` before writing
+      anything: inside the script it would refuse the EXPIRE alone, after the push, and a negative one deletes the
+      list. The script needs Lua scripting (`EVAL`), which every Redis since 2.6 has: a server built without it, or an
+      ACL user without `@scripting`, gets no trace and a warning for each entry. **For a custom cache backend**: one
+      that declares `key-expiry` must apply the expiration, and a push it refuses rejects without setting one.
     * **`messageExchange.traceRepositoryEnabled`** (`TI_MESSAGE_EXCHANGE_TRACE_REPOSITORY_ENABLED`, default `true`) turns
       the store off; **`TI_MESSAGE_EXCHANGE_TRACE_EXPIRATION_TIME`** sets the retention. An expiration that is not a whole
       number of seconds, 0 or more, makes `initialize` reject with `E_GEN_INVALID_ARGUMENT_TYPE`, so the instance does
@@ -56,10 +62,13 @@ This document contains the list of changes made to the framework. The format is 
   * **Rejected:** keeping one key and trimming it (a sorted set by time, or a capped list). A sorted set needs a new
     method in the cache contract and a trim on every write; a capped list bounds the count, not the age, so under light
     traffic an entry could stay for weeks. A chain ends, so a list per chain expires on its own.
-  * `test/message-tracer.test.js` (14 tests, against a backend that records every write), `test/message-tracer.settings.test.js`
-    (12, one process per environment), `test/message-tracer.redis.test.js` (3, a real bus call to a provider process on a
-    real Redis, the list expiry, and the refusal of a bad one). All 29 fail on 1.22.0. The live-instance suite turns the
-    trace store off: its cleanup finds keys by its domains, which a trace list's name no longer carries.
+  * `test/message-tracer.test.js` (15 tests, against a backend that records every write), `test/message-tracer.settings.test.js`
+    (12, one process per environment), `test/message-tracer.redis.test.js` (6, a real bus call to a provider process on a
+    real Redis, the list expiry, the refusal of a bad one, 8,500 values in one push, and a push onto a key that holds
+    another type, through the cache and through the tracer). All 33 fail on 1.22.0. The two on a key of another type
+    also fail with the push and the expiry in one MULTI, and the one with 8,500 values fails with one `unpack` of them
+    all. The live-instance suite turns the trace store off: its cleanup finds keys by its domains, which a trace list's
+    name no longer carries.
 
 ## Version 1.22.0
 

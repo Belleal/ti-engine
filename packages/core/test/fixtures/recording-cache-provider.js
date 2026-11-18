@@ -37,6 +37,8 @@ class RecordingCacheProvider extends CacheProvider {
     static declaredCapabilities = [ cacheCapability.KEY_EXPIRY, cacheCapability.LISTS ];
     /** Every write asked for, in order: `{ method, args }`. */
     static writes = [];
+    /** Write methods that record the call and then reject, as a backend that refuses the write does. */
+    static refused = [];
 
     #observers = [];
     #connectionIdentifier;
@@ -95,7 +97,7 @@ class RecordingCacheProvider extends CacheProvider {
     "hashDeleteField", "setJSON", "editJSON", "arrayAppendJSON" ].forEach( ( method ) => {
     RecordingCacheProvider.prototype[ method ] = function( ...args ) {
         RecordingCacheProvider.writes.push( { method: method, args: args } );
-        return Promise.resolve();
+        return RecordingCacheProvider.refused.includes( method ) ? Promise.reject( new Error( `${ method } refused` ) ) : Promise.resolve();
     };
 } );
 

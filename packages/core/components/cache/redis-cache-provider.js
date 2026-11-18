@@ -27,6 +27,27 @@ const exceptions = require( "#exceptions" );
 const cacheCapability = require( "#cache-capability" ).cacheCapability;
 
 /**
+ * Pushes `ARGV[ 2.. ]` onto the list `KEYS[ 1 ]`, then sets its time-to-live to `ARGV[ 1 ]` seconds, and returns the
+ * list's length. A push that Redis refuses raises an error inside the script, which ends it before the EXPIRE: a value
+ * of another type under the list's name keeps the time-to-live it had.
+ * <br/>
+ * NOTE: The values go in LPUSHes of up to 1,000, one for any ordinary push, as without an expiration. Several leave the
+ * values in the order one LPUSH of them all would (the last one at the head), and keep `unpack` below its limit, which
+ * is Lua's stack. With no values it fails, as an LPUSH with none does, and sets no expiry.
+ * <br/>
+ * NOTE: It needs Lua scripting (`EVAL`), which every Redis since 2.6 has. A server built without it, or an ACL user
+ * without `@scripting`, refuses the push.
+ *
+ * @type {string}
+ * @private
+ */
+const LIST_PUSH_AND_EXPIRE_SCRIPT = "if #ARGV < 2 then return redis.error_reply( 'ERR wrong number of arguments for LPUSH' ) end " +
+    "local length = 0 " +
+    "for first = 2, #ARGV, 1000 do length = redis.call( 'LPUSH', KEYS[ 1 ], unpack( ARGV, first, math.min( first + 999, #ARGV ) ) ) end " +
+    "redis.call( 'EXPIRE', KEYS[ 1 ], ARGV[ 1 ] ) " +
+    "return length";
+
+/**
  * Decodes one entry of a `multi(...).exec()` result into the value it carries.
  * <br/>
  * Each entry is an ioredis `[ error, value ]` pair, so the value sits at index 1 and is a string when the key existed.
@@ -390,16 +411,20 @@ class RedisCacheProvider extends CacheProvider {
     /**
      * Used to add the specified values to a list.
      * <br/>
-     * NOTE: An expiration goes into the same MULTI as the push, so the list never exists without its time-to-live. One
-     * that is not a whole number of seconds above 0 is refused before anything is written: inside the MULTI, Redis
-     * would refuse the EXPIRE alone, after the push, and a negative one deletes the list.
+     * NOTE: With an expiration, the push and the expiry are one Lua script, so the list never exists without its
+     * time-to-live, and a push that Redis refuses stops the script before the expiry. One that is not a whole number of
+     * seconds above 0 is refused before anything is written: Redis would refuse the EXPIRE alone, after the push, and a
+     * negative one deletes the list.
+     * <br/>
+     * NOTE: A push that Redis refuses rejects, with or without an expiration: it used to resolve `null`.
      *
      * @method
      * @param {string} listName
      * @param {Object[]} values
      * @param {number} [expiration] Expiration value is in seconds, for the whole list, counted from this push.
-     * @returns {Promise<number>}
+     * @returns {Promise<number>} The list's length after the push.
      * @throws {TiException.E_GEN_INVALID_ARGUMENT_TYPE} If the expiration is given and is not a whole number above 0.
+     * @throws {TiException} If Redis refuses the push, as it does when the key holds a value that is not a list.
      * @public
      */
     listPushValue( listName, values, expiration ) {
@@ -408,19 +433,25 @@ class RedisCacheProvider extends CacheProvider {
                 reject( exceptions.raise( exceptions.exceptionCode.E_GEN_INVALID_ARGUMENT_TYPE, { details: `A list's expiration must be a whole number of seconds above 0, not '${ expiration }'.` } ) );
                 return;
             }
-            let commandPushValues = [ redis.cacheCommands.LIST_PUSH, listName ];
+            let pushedValues = [];
             _.forEach( values, ( value ) => {
                 if ( value ) {
-                    commandPushValues.push( tools.stringifyJSON( value ) );
+                    pushedValues.push( tools.stringifyJSON( value ) );
                 }
             } );
-            let commands = [ commandPushValues ];
-            if ( expiration ) {
-                commands.push( [ redis.cacheCommands.EXPIRE, listName, expiration ] );
-            }
-            this.#redisClient.executeCommands( commands ).then( ( results ) => {
-                results = results[ 0 ];
-                resolve( ( results && results.length > 1 ) ? results[ 1 ] : undefined );
+            // Not an EXPIRE queued beside the LPUSH: Redis does not roll a MULTI back, so when the key held a value of
+            // another type the push failed with WRONGTYPE and the EXPIRE still gave that value a time-to-live
+            // (CodeRabbit on CA-589). The script stops at the refused push.
+            let command = ( expiration ) ? [ redis.cacheCommands.EVAL, LIST_PUSH_AND_EXPIRE_SCRIPT, 1, listName, expiration, ...pushedValues ] : [ redis.cacheCommands.LIST_PUSH, listName, ...pushedValues ];
+            this.#redisClient.executeCommands( [ command ] ).then( ( results ) => {
+                let [ error, length ] = ( results && results[ 0 ] ) || [];
+                // A refused command does not reject the MULTI: it is its entry's error. Resolving with the missing
+                // length let the message tracer go on to set the expiry of that same key on its own.
+                if ( error ) {
+                    reject( exceptions.raise( error ) );
+                    return;
+                }
+                resolve( length );
             } ).catch( ( error ) => {
                 reject( error );
             } );

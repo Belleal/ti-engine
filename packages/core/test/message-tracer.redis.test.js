@@ -225,7 +225,7 @@ describe( "a list pushed with an expiration (the cache contract)", () => {
     it( "refuses an expiration that is not a whole number of seconds above 0, and writes nothing", async ( t ) => {
         if ( !redisReachable ) return t.skip( `no Redis at ${ REDIS_HOST }:${ REDIS_PORT }` );
 
-        // Inside the MULTI, Redis refuses the EXPIRE alone, after the push (1.5, "abc"), or deletes the list (-1).
+        // Inside the script, Redis would refuse the EXPIRE alone, after the push (1.5, "abc"), or delete the list (-1).
         const exceptions = require( "@ti-engine/core/exceptions" );
         for ( const expiration of [ 1.5, "abc", -1 ] ) {
             const key = "message-tracer-test:refused:" + crypto.randomUUID();
@@ -233,6 +233,87 @@ describe( "a list pushed with an expiration (the cache contract)", () => {
             await assert.rejects( cache.instance.listPushValue( key, [ { n: 1 } ], expiration ), ( error ) => error.code === exceptions.exceptionCode.E_GEN_INVALID_ARGUMENT_TYPE );
             assert.equal( await redis.exists( key ), 0, `a refused push with expiration ${ expiration } wrote the list` );
         }
+    } );
+
+    it( "leaves many values in the order one LPUSH of them all would, with an expiration as without", async ( t ) => {
+        if ( !redisReachable ) return t.skip( `no Redis at ${ REDIS_HOST }:${ REDIS_PORT }` );
+
+        // With an expiration the values go through the script in LPUSHes of up to 1,000, which keeps `unpack` below
+        // Lua's stack limit: one `unpack` of 8,000 values fails on Redis 7.0 ("too many results to unpack"), so 8,500
+        // take nine.
+        const expiring = "message-tracer-test:many-expiring:" + crypto.randomUUID();
+        const lasting = "message-tracer-test:many-lasting:" + crypto.randomUUID();
+        OWN_KEYS.push( expiring, lasting );
+        const values = Array.from( { length: 8500 }, ( value, index ) => ( { n: index } ) );
+
+        assert.equal( await cache.instance.listPushValue( expiring, values, 30 ), 8500 );
+        assert.equal( await cache.instance.listPushValue( lasting, values ), 8500 );
+        const expiringList = await redis.lrange( expiring, 0, -1 );
+        assert.deepEqual( expiringList, await redis.lrange( lasting, 0, -1 ) );
+        assert.deepEqual( [ JSON.parse( expiringList[ 0 ] ).n, JSON.parse( expiringList[ 8499 ] ).n ], [ 8499, 0 ] );
+        const ttl = await redis.ttl( expiring );
+        assert.ok( ttl > 0 && ttl <= 30, `the list expires in ${ ttl } s` );
+    } );
+
+    it( "rejects a push onto a key that holds another type, and leaves that value and its time-to-live alone", async ( t ) => {
+        if ( !redisReachable ) return t.skip( `no Redis at ${ REDIS_HOST }:${ REDIS_PORT }` );
+
+        // The EXPIRE used to be queued in the MULTI beside the LPUSH. Redis does not roll a MULTI back, so when it
+        // refused the push with WRONGTYPE the EXPIRE still ran and the value gained a time-to-live, and the push resolved
+        // `null` (CodeRabbit on CA-589).
+        const exceptions = require( "@ti-engine/core/exceptions" );
+        const key = "message-tracer-test:not-a-list:" + crypto.randomUUID();
+        OWN_KEYS.push( key );
+        await redis.set( key, "not a list" );
+        for ( const expiration of [ 30, undefined ] ) {
+            await assert.rejects( cache.instance.listPushValue( key, [ { n: 1 } ], expiration ),
+                ( error ) => error.code === exceptions.exceptionCode.E_GEN_JS_INTERNAL_ERROR && JSON.stringify( error.data ).includes( "WRONGTYPE" ) );
+            assert.equal( await redis.ttl( key ), -1, `a refused push with expiration ${ expiration } set one` );
+            assert.equal( await redis.get( key ), "not a list" );
+        }
+    } );
+
+} );
+
+describe( "a trace entry whose chain's key holds another type", () => {
+
+    it( "gives that key no expiry, and says it could not be stored", async ( t ) => {
+        if ( !redisReachable ) return t.skip( `no Redis at ${ REDIS_HOST }:${ REDIS_PORT }` );
+
+        // The tracer sets the expiry again on its own once the push resolves. A refused push used to resolve, so the
+        // value under the chain's key gained the trace's hour twice over (CodeRabbit on CA-589).
+        const logger = require( "@ti-engine/core/logger" );
+        const messageTracer = require( "#message-tracer" );
+        const chainID = crypto.randomUUID();
+        const key = "ti:messages:trace:" + chainID;
+        OWN_KEYS.push( key );
+        await redis.set( key, "not a list" );
+
+        const warnings = [];
+        const log = logger.log;
+        logger.log = ( message, level, ...rest ) => {
+            if ( level === logger.logSeverity.WARNING ) {
+                warnings.push( message );
+            }
+            return log( message, level, ...rest );
+        };
+        try {
+            messageTracer.instance.recordTraceEntry( {
+                chainID: chainID,
+                chainLevel: 1,
+                createdOn: Date.now(),
+                destination: { route: DOMAIN },
+                messageID: crypto.randomUUID(),
+                serviceAddress: { serviceAlias: "echo", serviceDomainName: DOMAIN, serviceVersion: 1 },
+                source: { instanceID: "ti-instance-test", route: "message-tracer-test" }
+            }, messageTracer.messageType.MESSAGE_REQUEST, messageTracer.dispatchEvent.SENT, messageTracer.messageState.PENDING );
+            await waitFor( () => warnings.some( ( message ) => message.startsWith( "Failed to add message trace entry" ) ), 5000, "the tracer's warning" );
+        } finally {
+            logger.log = log;
+        }
+
+        assert.equal( await redis.ttl( key ), -1 );
+        assert.equal( await redis.get( key ), "not a list" );
     } );
 
 } );

@@ -112,6 +112,7 @@ before( async () => {
 
 beforeEach( async () => {
     RecordingCacheProvider.declaredCapabilities = [ cacheCapability.KEY_EXPIRY, cacheCapability.LISTS ];
+    RecordingCacheProvider.refused = [];
     await messageTracer.instance.initialize();
     warnings = [];
 } );
@@ -138,6 +139,15 @@ describe( "where a trace entry is stored", () => {
         const writes = await trace( message );
         assert.equal( writes[ 1 ].method, "expireValue" );
         assert.deepEqual( writes[ 1 ].args.slice( 0, 2 ), [ "ti:messages:trace:" + message.chainID, 3600 ] );
+    } );
+
+    it( "sets no expiry of its own after a push the backend refused, and says the entry was not stored", async () => {
+        // Redis refuses a push onto a key that holds a value of another type: an expiry set after it would land on that
+        // value (CodeRabbit on CA-589). message-tracer.redis.test.js makes Redis refuse for real.
+        RecordingCacheProvider.refused = [ "listPushValue" ];
+        const writes = await trace( serviceCall() );
+        assert.deepEqual( writes.map( ( write ) => write.method ), [ "listPushValue" ] );
+        assert.equal( warnings.filter( ( message ) => message.startsWith( "Failed to add message trace entry" ) ).length, 1 );
     } );
 
     it( "files a message without a chain under its own ID", async () => {
