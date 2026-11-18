@@ -1349,7 +1349,16 @@ class TiWebServer extends ServiceConsumer {
         if ( home === "/" ) {
             return null;
         }
-        const comparable = ( value ) => String( value ).toLowerCase().replace( /\/+$/, "" );
+        // Trailing slashes counted off by hand: `/\/+$/` tries every start in a run of slashes, which is quadratic, 1.9 s
+        // for 100k of them (CodeQL alert 27).
+        const comparable = ( value ) => {
+            const text = String( value ).toLowerCase();
+            let end = text.length;
+            while ( end > 0 && text[ end - 1 ] === "/" ) {
+                end--;
+            }
+            return text.slice( 0, end );
+        };
         const shellPaths = [ comparable( home ), comparable( home + NOT_FOUND_PAGE ) ];
         const taken = ( Array.isArray( paths ) ? paths : [] ).find( ( value ) => typeof value === "string" && value !== "" && shellPaths.includes( comparable( value ) ) );
         return ( taken === undefined ) ? null

@@ -115,6 +115,14 @@ describe( "TiWebServer.homeCollision", () => {
         assert.match( TiWebServer.homeCollision( "/auth/", [ "/auth/not-found" ] ) || "", /callback/ );
     } );
 
+    it( "reads a long run of slashes in linear time", () => {
+        // CodeQL (alert 27) on #226: `/\/+$/` tried every start in a run of slashes; 100k of them before a letter took
+        // 1947 ms in Node 26 here, 50k took 504 ms.
+        const started = Date.now();
+        assert.equal( TiWebServer.homeCollision( "/studio/", [ "/".repeat( 100000 ) + "a" ] ), null );
+        assert.ok( Date.now() - started < 200, `${ Date.now() - started } ms` );
+    } );
+
     it( "lets a callback beside or below the home be", () => {
         assert.equal( TiWebServer.homeCollision( "/auth/", [ "/auth/return" ] ), null );
         assert.equal( TiWebServer.homeCollision( "/studio/", [ "/login/azure-callback", null, "" ] ), null );
