@@ -205,8 +205,10 @@ describe( "SessionStore — held (sessions.held, CA-557)", () => {
         await read.reached;
         await promisify( ( done ) => sessions.destroy( "s1", done ) );
         read.release();
-        assert.equal( ( await reading ).user, "before", "the read answers what it read" );
-        assert.equal( await promisify( ( done ) => sessions.get( "s1", done ) ), null, "but nobody else is answered it" );
+        // Until 1.63.1 the read answered what it read. The sign-out landed before the answer, so it answers no session
+        // (CA-587; CodeRabbit on #227), and it holds nothing either.
+        assert.equal( await reading, null, "the read is answered after the sign-out, so with no session" );
+        assert.equal( await promisify( ( done ) => sessions.get( "s1", done ) ), null, "and nobody else is answered it" );
     } );
 
     it( "does not hold what a read got while a write to that session was in flight", async () => {

@@ -267,7 +267,9 @@ class SessionStore extends session.Store {
             // person is using must not be the first to go because it was held first.
             this.#held.delete( sessionID );
             this.#held.set( sessionID, held );
-            setImmediate( () => callback( null, session ) );
+            // Checked again on delivery: a sign-out between now and then must not be answered with the session (CodeRabbit
+            // on #227).
+            setImmediate( () => callback( null, this.#isEndedHere( sessionID ) ? null : session ) );
             return;
         }
         this.#held.delete( sessionID );
@@ -288,7 +290,9 @@ class SessionStore extends session.Store {
                     logger.log( `Error while trying to hold user session in memory!`, logger.logSeverity.WARNING, error );
                 }
             }
-            callback( null, session );
+            // A read that began before a sign-out in this process and answers after it delivers no session (CodeRabbit on
+            // #227); its `#endRead` already kept it from being held, since the sign-out's write overtook it.
+            callback( null, this.#isEndedHere( sessionID ) ? null : session );
         } ).catch( ( error ) => {
             this.#endRead( sessionID, read );
             logger.log( `Error while trying to fetch user session from cache!`, logger.logSeverity.ERROR, error );
@@ -307,12 +311,15 @@ class SessionStore extends session.Store {
     destroy( sessionID, callback ) {
         this.#expiryWrittenAt.delete( sessionID );
         // Remembered in this process at once, before anything can fail, so its own late writes and reads see it ended.
-        this.#markEndedHere( sessionID );
+        const ended = this.#markEndedHere( sessionID );
         const write = this.#startWrite( sessionID );
         // The mark first, then the delete, so a request's write that lands after the delete finds the mark (CA-587). A
         // mark that cannot be written does not keep the session alive: the delete goes ahead, this process still knows
         // the session ended, and only another process's late write could bring it back.
-        Promise.resolve().then( () => cache.instance.setValue( endedKeyOf( sessionID ), "1", ENDED_SECONDS ) ).catch( ( error ) => {
+        Promise.resolve().then( () => cache.instance.setValue( endedKeyOf( sessionID ), "1", ENDED_SECONDS ) ).then( () => {
+            // Covered by the store from here on, so the memory's bound may evict it before one whose mark failed.
+            ended.marked = true;
+        }, ( error ) => {
             logger.log( "Could not mark a user session as ended in the store; another process still holding it could write it back.", logger.logSeverity.ERROR, { stack: error?.stack } );
         } ).then( () => cache.instance.hashDeleteField( sessionStoreName, sessionID ) ).then( () => {
             this.#endWrite( sessionID, write, true );
@@ -375,18 +382,29 @@ class SessionStore extends session.Store {
             // Every entry lives ENDED_SECONDS from when it was added, in the map's order, so the lapsed ones are all at
             // the front: the scan stops at the first live one, rather than walking the whole map on every sign-out at the
             // limit (the review pass).
-            for ( const [ knownID, until ] of this.#ended ) {
-                if ( now < until ) {
+            for ( const [ knownID, entry ] of this.#ended ) {
+                if ( now < entry.until ) {
                     break;
                 }
                 this.#ended.delete( knownID );
             }
             if ( this.#ended.size >= HELD_SESSIONS_LIMIT ) {
-                // The map's order is the order they were ended in, so the first is the oldest.
-                this.#ended.delete( this.#ended.keys().next().value );
+                // The oldest whose store mark was written, which still covers it. One whose mark failed has only this
+                // memory, so it stays (CodeRabbit on #227). Only when none has a mark, the store failing for every
+                // sign-out in this map, does the oldest go regardless, so that the bound holds.
+                let evicted = this.#ended.keys().next().value;
+                for ( const [ knownID, entry ] of this.#ended ) {
+                    if ( entry.marked ) {
+                        evicted = knownID;
+                        break;
+                    }
+                }
+                this.#ended.delete( evicted );
             }
         }
-        this.#ended.set( sessionID, now + ENDED_SECONDS * 1000 );
+        const entry = { until: now + ENDED_SECONDS * 1000, marked: false };
+        this.#ended.set( sessionID, entry );
+        return entry;
     }
 
     /**
@@ -397,11 +415,11 @@ class SessionStore extends session.Store {
      * @returns {boolean}
      */
     #isEndedHere( sessionID ) {
-        const until = this.#ended.get( sessionID );
-        if ( until === undefined ) {
+        const entry = this.#ended.get( sessionID );
+        if ( entry === undefined ) {
             return false;
         }
-        if ( Date.now() >= until ) {
+        if ( Date.now() >= entry.until ) {
             this.#ended.delete( sessionID );
             return false;
         }

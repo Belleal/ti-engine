@@ -228,6 +228,30 @@ for ( const held of [ false, true ] ) {
             assert.equal( await promisify( ( done ) => other.get( "s1", done ) ), null );
         } );
 
+        // CodeRabbit on #227: a read that began before a sign-out, and answers after it, delivered the ended session. The
+        // held copy is answered on a later turn and a store read on its reply, so the check is made again at delivery.
+        it( "answers no session to a read that began before the sign-out and answers after it", async () => {
+            await promisify( ( done ) => sessions.set( "s1", sessionData( { user: { roles: [ "editor" ] } } ), done ) );
+            const reading = promisify( ( done ) => sessions.get( "s1", done ) );
+            sessions.destroy( "s1", () => {} );
+            assert.equal( await reading, null );
+        } );
+
+        // CodeRabbit on #227: at the limit, the oldest entry went first even when its store mark had failed, though this
+        // memory was then the only thing keeping that session ended here. Entries with a mark go first.
+        it( "keeps an ID whose store mark failed when the limit evicts, for its whole time", async ( t ) => {
+            t.mock.method( logger, "log", () => {} );
+            store.failNext( "setValue" );
+            await promisify( ( done ) => sessions.destroy( "unmarked", done ) );
+            for ( let index = 0; index < SessionStore.HELD_SESSIONS_LIMIT; index++ ) {
+                await promisify( ( done ) => sessions.destroy( `s${ index }`, done ) );
+            }
+            const before = store.calls.length;
+            await promisify( ( done ) => sessions.set( "unmarked", sessionData( { user: {} } ), done ) );
+            assert.deepEqual( store.calls.slice( before ), [], "still refused here, with nothing written" );
+            assert.equal( store.fields.has( "unmarked" ), false );
+        } );
+
         it( `remembers no more than ${ SessionStore.HELD_SESSIONS_LIMIT } ended IDs, and the store's mark covers one it forgot`, async () => {
             await promisify( ( done ) => sessions.destroy( "first", done ) );
             for ( let index = 0; index < SessionStore.HELD_SESSIONS_LIMIT; index++ ) {

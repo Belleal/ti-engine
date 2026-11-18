@@ -18,7 +18,11 @@ This document will contain the list of changes made to the framework. The format
     * a `set` or `touch` is not made.
 
     In that process an ended session cannot be read between a late write and its undo, even when the mark could not be
-    written or the delete failed.
+    written or the delete failed. A read that began before the sign-out and answers after it also delivers no session:
+    the check is made again on delivery, for a store read and a held copy alike. When the memory's bound evicts, an entry
+    whose store mark was written goes first, since the mark still covers it; one whose mark failed stays for its full
+    time. Only if no entry has a mark, so the store failed for every sign-out the memory holds, does the oldest go
+    regardless, and the bound holds.
   * **A mark that cannot be read now undoes the write** and reports the failure, so a sign-in whose save it is gets
     refused: a session that cannot be shown not to have ended is not accepted. A mark that cannot be written still does
     not keep the session alive, since the delete goes ahead. Both are logged at `ERROR`, with the stack alone.
@@ -35,10 +39,13 @@ This document will contain the list of changes made to the framework. The format
   * a write to a destroyed ID, which reaches the store not at all;
   * a failed mark write and a failed mark read;
   * another process's late write;
-  * the memory's bound.
+  * the memory's bound;
+  * a read answered after the sign-out;
+  * an ID whose mark failed, kept when the bound evicts.
 
-  8 of these were RED on 1.63.0 (4 per mode). Three existing store tests that relied on reusing a destroyed ID were
-  updated, and a new one pins that a sign-out whose delete fails is still not answered by the process.
+  12 of these were RED on 1.63.0 (6 per mode). Four existing store tests relied on reusing a destroyed ID, or on a read
+  begun before a sign-out answering with the session, and were updated. A new one pins that a sign-out whose delete
+  fails is still not answered by the process.
 
 ## Version 1.63.0
 
