@@ -38,6 +38,9 @@ process.env.TI_WEB_HOST = "127.0.0.1";
 process.env.TI_WEB_PORT = "0";
 process.env.TI_WEB_AUTH_METHODS = "local";
 process.env.TI_WEB_AUTH_LOCAL_USERS_PATH = USERS;
+// The home is the configuration's, `/studio`, written so that its normalization is tested too: an inherited override
+// would replace it (CodeRabbit on #226). This process runs this file alone, so nothing needs restoring.
+delete process.env.TI_WEB_APPLICATION_HOME;
 
 const { describe, it, before, after } = require( "node:test" );
 const assert = require( "node:assert/strict" );
@@ -167,6 +170,12 @@ describe( "TiWebServer with application.home /studio", () => {
         // The not-found view, not the shell at another address (CodeRabbit on #226): both answer 200 with the tag.
         assert.match( html, /id="ti-not-found"/ );
         assert.doesNotMatch( await ( await get( "/studio/" ) ).text(), /id="ti-not-found"/ );
+
+        // Express answers `/studio/not-found/` at the same route, so a visitor without a session must reach it there as
+        // well, not be sent home by the session check (CodeRabbit on #226).
+        const alias = await get( "/studio/not-found/" );
+        assert.equal( alias.status, 200 );
+        assert.match( await alias.text(), /id="ti-not-found"/ );
     } );
 
     it( "sends a language choice home", async () => {

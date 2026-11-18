@@ -203,6 +203,19 @@ describe( "sessionRefreshHandler with an asynchronous hook", () => {
         assert.equal( result.error, undefined );
     } );
 
+    it( "fails closed when the hook's answer throws as it is asked whether it is a promise", async () => {
+        // CodeRabbit on #226: a `then` getter that throws was read outside the refresh's failure boundary, so the
+        // request took the error path instead of going on without the application's roles.
+        const instance = mockInstance( () => ( {
+            get then() {
+                throw new Error( "no then" );
+            }
+        } ) );
+        const result = await runAsync( instance, { user: { userID: "u1", roles: [ "editor" ] } } );
+        assert.deepEqual( result.session.user.roles, [] );
+        assert.equal( result.error, undefined );
+    } );
+
     it( "logs a failed refresh's stack alone, never the error's own properties", async ( t ) => {
         // The logger writes an error's own properties out, and a database client's error can carry its connection
         // string there (CodeRabbit on #226), as `applyAdminRoleFor` already guards against.

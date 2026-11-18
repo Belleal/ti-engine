@@ -328,10 +328,15 @@ home that:
   `/health`, `/csrf-token`, `/admin`, `/service`, `/.well-known`, `/_ti`);
 * is, or has its not-found page at, the path of an enabled OpenID callback (`TI_AZURE_AUTH_CALLBACK_URL`,
   `TI_GCLOUD_AUTH_CALLBACK_URL`), which the shell would answer instead. This holds at the default `/` as well: a
-  callback at `/` or `/not-found` refuses the start, where in 1.62 it was a sign-in that could never complete;
+  callback at `/` or `/not-found` refuses the start, where in 1.62 it was a sign-in that could never complete. A
+  provider with no client ID is not counted: it is dropped at start, and its callback never routed;
 * is not `/` and comes with no `application.classPath`: the shell is the web application manager's to serve.
 
-The home is ended with `/` (`/studio` is `/studio/`, and both are served).
+A `classPath` that is given but names nothing (empty, blank, not a string) refuses the start too, at any home, as it
+did in 1.62.
+
+The home is ended with `/` (`/studio` is `/studio/`, and both are served), and so is its not-found page
+(`/studio/not-found/` as well as `/studio/not-found`).
 
 ## The login screen
 

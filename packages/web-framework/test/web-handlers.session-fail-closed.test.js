@@ -244,6 +244,66 @@ describe( "an asynchronous augmentSession", () => {
         } );
     }
 
+    it( "neither saves nor redirects while the hook is still deciding", async () => {
+        // Held on a promise the test releases, so what happens between the hook starting and settling can be seen
+        // (CodeRabbit on #226): a handler that redirected first and saved later would pass on its final state alone.
+        let release;
+        let started = false;
+        const decided = new Promise( ( resolve ) => {
+            release = resolve;
+        } );
+        const session = mockSession( { oidc: { codeVerifier: "verifier", state: "xyz" } } );
+        const request = mockRequest( session );
+        const instance = {
+            serviceConfig: { language: "en", auth: { admins: [] } },
+            authorize: () => Promise.resolve( AUTHENTICATED_USER ),
+            augmentSession: async ( augmented ) => {
+                started = true;
+                await decided;
+                augmented.user.roles = [ "editor" ];
+                return augmented;
+            }
+        };
+        let redirected = null;
+        webHandlers.authorizedOAuth2CallbackHandler( instance, "openid-azure" )( request, { redirect: ( status, to ) => { redirected = to || status; } }, () => {} );
+        await settle();
+
+        assert.ok( started, "the hook is running" );
+        assert.equal( session.calls.save, 0, "nothing is saved before the hook has decided" );
+        assert.equal( redirected, null, "and the browser is not sent on" );
+
+        release();
+        await settle();
+        assert.equal( session.calls.save, 1 );
+        assert.ok( redirected );
+    } );
+
+    it( "refuses, rather than hangs, a replacement session that cannot be destroyed", async () => {
+        // CodeRabbit on #226: a replacement with `save` and no `destroy` was installed, its failing save called
+        // `refuse`, and `refuse` threw on the missing `destroy`, so the sign-in was never answered. The regenerated
+        // session is the one destroyed.
+        const outcome = await signIn( async ( augmented ) => ( {
+            user: augmented.user,
+            save: ( callback ) => callback( new Error( "store unavailable" ) )
+        } ) );
+        assert.equal( outcome.unhandled, undefined );
+        assert.equal( outcome.session.calls.destroy, 1, "the regenerated session is destroyed" );
+        assert.ok( outcome.forwarded, "the refusal reaches the error handler" );
+        assert.equal( outcome.redirected, null );
+    } );
+
+    it( "refuses a hook whose answer throws when asked whether it is a promise", async () => {
+        // CodeRabbit on #226: a `then` getter that throws was read outside every failure boundary.
+        const outcome = await signIn( () => ( {
+            get then() {
+                throw new Error( "no then" );
+            }
+        } ) );
+        assert.equal( outcome.unhandled, undefined );
+        assert.equal( outcome.session.calls.destroy, 1 );
+        assert.ok( outcome.forwarded );
+    } );
+
     it( "refuses, rather than hangs, when the hook resolves something that is not a session", async () => {
         const outcome = await signIn( async () => 42 );
         assert.equal( outcome.unhandled, undefined );

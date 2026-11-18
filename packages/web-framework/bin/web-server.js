@@ -335,10 +335,7 @@ class TiWebServer extends ServiceConsumer {
         this.#authManager = new AuthManager( this.serviceConfig.auth, { home: this.#applicationHome } );
 
         // Only now are the callbacks known: the AuthManager reads them, with their environment variables.
-        const callbackPaths = [ authMethod.OPENID_GOOGLE, authMethod.OPENID_AZURE ]
-            .filter( ( method ) => this.#authManager.isAuthEnabled( method ) === true )
-            .map( ( method ) => this.#authManager.getOAuth2CallbackPath( method ) );
-        const collision = TiWebServer.homeCollision( this.#applicationHome, callbackPaths );
+        const collision = TiWebServer.homeCollision( this.#applicationHome, TiWebServer.callbackPathsOf( this.#authManager ) );
         if ( collision ) {
             logger.log( collision, logger.logSeverity.ERROR );
             throw exceptions.raise( exceptions.exceptionCode.E_GEN_INVALID_ARGUMENT_TYPE, { setting: "application.home", detail: collision } );
@@ -1121,6 +1118,9 @@ class TiWebServer extends ServiceConsumer {
             this.#unprotectedRoutes.push( this.#applicationHome.slice( 0, -1 ) );
         }
         this.#unprotectedRoutes.push( this.#applicationHome + NOT_FOUND_PAGE );
+        // And with a trailing slash, which Express answers at the same route: without it a visitor with no session was
+        // sent home from the not-found page, at `/not-found/` in 1.62 as well (CodeRabbit on #226).
+        this.#unprotectedRoutes.push( this.#applicationHome + NOT_FOUND_PAGE + "/" );
         this.#unprotectedRoutes.push( "/app" );
         this.#unprotectedRoutes.push( "/app/enter" );
         this.#unprotectedRoutes.push( "/app/config" );
@@ -1289,7 +1289,8 @@ class TiWebServer extends ServiceConsumer {
      * Resolves `application.home` into where the application shell is served (CA-584): trimmed and ended with `/`, so
      * `/studio` is `/studio/`; `/` when nothing names one. Anything that is not a plain path on this site
      * ({@link RE_APPLICATION_HOME}) is refused with an `error`, and the home given back with it is `/` only so the
-     * result keeps its shape: the constructor refuses to start.
+     * result keeps its shape: the constructor refuses to start. So is a home under a framework route, a home off `/`
+     * with no `application.classPath` to serve the shell there, and a `classPath` that is given but names nothing.
      *
      * @method
      * @static
@@ -1298,6 +1299,12 @@ class TiWebServer extends ServiceConsumer {
      * @public
      */
     static resolveApplicationHome( application ) {
+        // A classPath that is given but names nothing failed the start in 1.62, loading it; the manager is now loaded on a
+        // usable one alone, so it is refused here, or the server would start and its shell throw (CodeRabbit on #226).
+        const classPath = _.isObjectLike( application ) ? application.classPath : undefined;
+        if ( classPath !== undefined && !( typeof classPath === "string" && classPath.trim() !== "" ) ) {
+            return { home: "/", error: "application.classPath is given but names no web application manager; name its module, or leave it out." };
+        }
         const configured = _.isObjectLike( application ) ? application.home : undefined;
         if ( configured === undefined || configured === null || ( typeof configured === "string" && configured.trim() === "" ) ) {
             return { home: "/", error: null };
@@ -1330,6 +1337,24 @@ class TiWebServer extends ServiceConsumer {
             };
         }
         return { home: home, error: null };
+    }
+
+    /**
+     * The paths of the OpenID callbacks the server will register: those of the providers that are enabled and configured.
+     * A provider with no client ID is dropped by {@link AuthManager#initialize}, its callback never routed, and 1.62
+     * started without it; it may not refuse the start through {@link TiWebServer.homeCollision} (CodeRabbit on #226).
+     * Exposed for unit testing.
+     *
+     * @method
+     * @static
+     * @param {AuthManager} authManager
+     * @returns {Array<string|null>}
+     * @public
+     */
+    static callbackPathsOf( authManager ) {
+        return [ authMethod.OPENID_GOOGLE, authMethod.OPENID_AZURE ]
+            .filter( ( method ) => authManager.isOpenIDProviderConfigured( method ) === true )
+            .map( ( method ) => authManager.getOAuth2CallbackPath( method ) );
     }
 
     /**

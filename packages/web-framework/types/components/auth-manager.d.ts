@@ -136,6 +136,17 @@ declare class AuthManager {
      */
     getOAuth2CallbackPath(authMethod: TiAuthMethod): string | null;
     /**
+     * Whether an OpenID Connect provider is enabled and will stay so: {@link AuthManager#initialize} drops an enabled
+     * provider with no client ID, and its callback is then never routed. Asked before `initialize` runs, by a server that
+     * must judge only the callbacks it will register (CodeRabbit on #226).
+     *
+     * @method
+     * @param {TiAuthMethod} authMethod `openid-google` or `openid-azure`.
+     * @returns {boolean}
+     * @public
+     */
+    isOpenIDProviderConfigured(authMethod: TiAuthMethod): boolean;
+    /**
      * Reduces a configured OAuth2 callback value to the local route path it corresponds to. Accepts an absolute URL
      * ('https://host/login/azure-callback'), a protocol-relative URL, or a path with or without its leading slash,
      * and strips any query string or fragment. Pure and static; exposed for unit testing.

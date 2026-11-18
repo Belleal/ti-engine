@@ -17,7 +17,12 @@ Three seams an application with its own public site, and its own people in a dat
     framework routes itself (`/app`, `/static`, `/login`, `/logout`, `/language`, `/me`, `/health`, `/csrf-token`,
     `/admin`, `/service`, `/.well-known`, `/_ti`): at `/app/` the shell answered `GET /app`. And so does a home at an
     enabled OpenID callback's path, which the shell, routed first, would answer instead (`TiWebServer.homeCollision`),
-    and a home off `/` with no `application.classPath`, whose shell route threw on its first request.
+    and a home off `/` with no `application.classPath`, whose shell route threw on its first request. Only providers
+    that will be routed count: one with no client ID, which `AuthManager#initialize` drops, does not refuse the start
+    (`TiWebServer.callbackPathsOf`, `AuthManager#isOpenIDProviderConfigured`). A `classPath` that is given but names
+    nothing refuses the start at any home, as 1.62 did when it tried to load it.
+  * The not-found page is reachable without a session at `<home>not-found/` as well, which Express answers at the same
+    route; a visitor with no session was sent home from it, at `/not-found/` in 1.62 too.
   * **A callback at `/` or `/not-found` now refuses the start at the default home as well.** In 1.62 the shell answered
     it, so sign-in through that provider could never complete; a deployment it stops was already unable to sign in
     through it.
@@ -47,7 +52,10 @@ Three seams an application with its own public site, and its own people in a dat
     the sign-in. `refreshSession` always changes the session in place; what it returns is not read.
   * **A sign-in whose session cannot be saved is refused** like a hook's refusal: the session destroyed, the error
     forwarded. A failed save used to leave the signed-in session on the request for express-session to write at the
-    response's end, and a save that threw was lost.
+    response's end, and a save that threw was lost. The session destroyed is the regenerated one, whose ID the cookie
+    carries; a replacement the hook gives back must have both `save` and `destroy`; and the refusal is answered even if
+    destroying throws. A hook's answer whose `then` throws when read is a failure like any other, at sign-in and on
+    refresh.
   * **A failed refresh logs its stack alone**, as the admin hook's failure already did: the logger writes an error's own
     properties out, and a store's error can carry its connection string there.
   * A hook that answers at once keeps the request synchronous, as before. The refresh is waited for on every signed-in

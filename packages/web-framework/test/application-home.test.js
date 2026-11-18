@@ -59,6 +59,16 @@ describe( "TiWebServer.resolveApplicationHome", () => {
         assert.deepEqual( at( "/a-b_c.d~e/" ), { home: "/a-b_c.d~e/", error: null } );
     } );
 
+    it( "refuses a classPath that is given but names nothing, as 1.62 did", () => {
+        // CodeRabbit on #226: 1.62 failed to start loading `classPath: ""`; with the manager loaded on a usable classPath
+        // alone, the server started and its shell route threw on the first request instead.
+        for ( const classPath of [ "", "   ", 42, null ] ) {
+            assert.match( TiWebServer.resolveApplicationHome( { classPath: classPath } ).error || "", /classPath/, JSON.stringify( classPath ) );
+        }
+        assert.equal( TiWebServer.resolveApplicationHome( {} ).error, null, "no classPath at all is a server without a manager, as before" );
+        assert.equal( TiWebServer.resolveApplicationHome( { classPath: "app.js" } ).error, null );
+    } );
+
     it( "refuses a home off / with no web application manager to serve the shell there", () => {
         // CodeRabbit on #226: `TI_WEB_APPLICATION_HOME` alone creates `application` without a `classPath`, and the shell
         // route then threw on its first request, reading the release of a manager that was never made.
@@ -130,6 +140,27 @@ describe( "TiWebServer.homeCollision", () => {
         const started = Date.now();
         assert.equal( TiWebServer.homeCollision( "/studio/", [ "/".repeat( 100000 ) + "a" ] ), null );
         assert.ok( Date.now() - started < 200, `${ Date.now() - started } ms` );
+    } );
+
+    it( "checks only the callbacks that will be routed: a provider with no client ID is dropped at start, as in 1.62", () => {
+        // CodeRabbit on #226: the check took every enabled provider, so one AuthManager#initialize would drop for want
+        // of a client ID refused the start, where 1.62 started without it.
+        const AuthManager = require( "#auth-manager" );
+        const variables = [ "TI_AZURE_AUTH_CLIENT_ID", "TI_AZURE_AUTH_CALLBACK_URL", "TI_GCLOUD_AUTH_CLIENT_ID", "TI_GCLOUD_AUTH_CALLBACK_URL" ];
+        const inherited = Object.fromEntries( variables.map( ( name ) => [ name, process.env[ name ] ] ) );
+        variables.forEach( ( name ) => delete process.env[ name ] );
+        try {
+            const manager = ( azure ) => new AuthManager( { enabledMethods: [ "openid-azure" ], local: {}, oauth2: { azure: azure } } );
+            assert.deepEqual( TiWebServer.callbackPathsOf( manager( { callbackUrl: "https://app.example.com/auth/return" } ) ), [], "no client ID" );
+            assert.deepEqual( TiWebServer.callbackPathsOf( manager( { clientID: "  ", callbackUrl: "/auth/return" } ) ), [], "a blank one" );
+            assert.deepEqual( TiWebServer.callbackPathsOf( manager( { clientID: "client", callbackUrl: "https://app.example.com/auth/return" } ) ), [ "/auth/return" ] );
+        } finally {
+            variables.forEach( ( name ) => {
+                if ( inherited[ name ] !== undefined ) {
+                    process.env[ name ] = inherited[ name ];
+                }
+            } );
+        }
     } );
 
     it( "lets a callback beside or below the home be", () => {
@@ -223,9 +254,11 @@ describe( "the home pattern, in its three places", () => {
     // What each layer hands on, not merely whether it objected (CodeRabbit on #226): the server's resolved home, the
     // `content` of every tag the manager wrote, and every address the browser left for.
     const server = ( home ) => TiWebServer.resolveApplicationHome( { classPath: "app.js", home: home } );
+    // Every `ti-home` element, its content however it is written: a tag with a broken attribute must still be counted,
+    // not skipped by a pattern that expects a well-formed one (CodeRabbit on #226).
     const managerTags = async ( home ) => {
         const html = await new Harness().assembleHtmlView( {}, [ FRAMEWORK_STATIC ], "/", { home: home } );
-        return [ ...html.matchAll( /<meta name="ti-home" content="([^"]*)"\/>/g ) ].map( ( match ) => match[ 1 ] );
+        return [ ...html.matchAll( /<meta\b[^>]*\bname="ti-home"[^>]*>/g ) ].map( ( match ) => match[ 0 ] );
     };
     const browserDepartures = ( home ) => {
         const { stores, sandbox } = loadTiFramework();
@@ -245,7 +278,7 @@ describe( "the home pattern, in its three places", () => {
             const resolved = server( home );
             assert.equal( resolved.home, accepted ? home : "/", `server's home: ${ home }` );
             assert.equal( resolved.error === null, accepted, `server's verdict: ${ home }` );
-            assert.deepEqual( await managerTags( home ), accepted ? [ home ] : [], `manager: ${ home }` );
+            assert.deepEqual( await managerTags( home ), accepted ? [ `<meta name="ti-home" content="${ home }"/>` ] : [], `manager: ${ home }` );
             assert.deepEqual( browserDepartures( home ), [ accepted ? home : "/" ], `browser: ${ home }` );
         }
     } );

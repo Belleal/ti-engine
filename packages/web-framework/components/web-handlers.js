@@ -336,16 +336,24 @@ let regenerateAndSaveSession = ( request, redirectTo, modifier ) => {
         // hook ran, and `verifySession` only checks that it exists — so a merely-rejected session would still be
         // persisted by express-session at response end and would admit the user. Destroy it before rejecting so a
         // refusal is genuinely fail-closed, whether the hook threw or its promise rejected (CA-585).
+        // The session destroyed is the regenerated one, whose ID the cookie carries, and not whatever the hook put in its
+        // place; and the refusal is answered even if destroying throws, or the sign-in would hang (CodeRabbit on #226).
+        let regenerated = null;
         const refuse = ( error ) => {
-            request.session.destroy( () => {
+            try {
+                ( regenerated || request.session ).destroy( () => {
+                    reject( error );
+                } );
+            } catch {
                 reject( error );
-            } );
+            }
         };
         // Saves what the modifier gave back. Anything but a session is refused here: it used to become `request.session`,
         // whose `save` then threw - out of the store's callback, or inside a promise nobody handled, leaving the sign-in
-        // unanswered (the review pass).
+        // unanswered (the review pass). A session can be saved and destroyed; one that cannot be destroyed could not be
+        // refused if its save failed (CodeRabbit on #226).
         const save = ( session ) => {
-            if ( !session || typeof session.save !== "function" ) {
+            if ( !session || typeof session.save !== "function" || typeof session.destroy !== "function" ) {
                 refuse( exceptions.raise( exceptions.exceptionCode.E_GEN_JS_INTERNAL_ERROR, { detail: "The session hook gave back no session." } ) );
                 return;
             }
@@ -370,18 +378,23 @@ let regenerateAndSaveSession = ( request, redirectTo, modifier ) => {
                 reject( error );
                 return;
             }
+            regenerated = request.session;
             let modified = request.session;
+            // Set inside the boundary below; the refusal in its `catch` returns before it is read.
+            let pending;
             try {
                 if ( modifier && typeof modifier === "function" ) {
                     modified = modifier( request.session );
                 }
+                // Inside the boundary: asking an answer whether it is a promise reads its `then`, which can throw.
+                pending = isThenable( modified );
             } catch ( error ) {
                 refuse( error );
                 return;
             }
             // A modifier may answer later: the augment hook may read a store (CA-585). The session is saved only once
             // it has, so it is never written before the application has decided.
-            if ( isThenable( modified ) ) {
+            if ( pending ) {
                 Promise.resolve( modified ).then( save, refuse );
                 return;
             }
@@ -1914,15 +1927,19 @@ module.exports.sessionRefreshHandler = ( instance ) => {
             session.user.roles = [];
         };
         let refreshed;
+        let pending = false;
         try {
             refreshed = instance.refreshSession( session, request );
+            // Inside the boundary: asking the answer whether it is a promise reads its `then`, which can throw, and that is
+            // a failed refresh like any other (CodeRabbit on #226).
+            pending = isThenable( refreshed );
         } catch ( error ) {
             failed( error );
         }
         // A hook that reads a store answers later (CA-585). The request waits for it, so no route sees a role it has
         // taken away, and the allowlist's role is applied after it, as for a hook that answers at once. A rejection is
         // a failure like a throw. A hook that answers at once keeps the request synchronous, as before.
-        if ( isThenable( refreshed ) ) {
+        if ( pending ) {
             Promise.resolve( refreshed ).catch( failed ).then( () => {
                 applyAdminRoleFor( instance, session, request );
             } ).then( () => next(), ( error ) => next( error ) );

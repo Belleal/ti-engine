@@ -1,6 +1,7 @@
 /// <reference types="node" />
 export = TiWebServer;
 import ServiceConsumer = require("@ti-engine/core/service-consumer");
+import AuthManager = require("#auth-manager");
 export type NodeServer = import("node:http").Server;
 export type TiWebServiceConfiguration = ServiceConfiguration;
 export type TiWebApplicationConfig = {
@@ -581,7 +582,8 @@ declare class TiWebServer extends ServiceConsumer {
      * Resolves `application.home` into where the application shell is served (CA-584): trimmed and ended with `/`, so
      * `/studio` is `/studio/`; `/` when nothing names one. Anything that is not a plain path on this site
      * ({@link RE_APPLICATION_HOME}) is refused with an `error`, and the home given back with it is `/` only so the
-     * result keeps its shape: the constructor refuses to start.
+     * result keeps its shape: the constructor refuses to start. So is a home under a framework route, a home off `/`
+     * with no `application.classPath` to serve the shell there, and a `classPath` that is given but names nothing.
      *
      * @method
      * @static
@@ -593,6 +595,19 @@ declare class TiWebServer extends ServiceConsumer {
         home: string;
         error: string | null;
     };
+    /**
+     * The paths of the OpenID callbacks the server will register: those of the providers that are enabled and configured.
+     * A provider with no client ID is dropped by {@link AuthManager#initialize}, its callback never routed, and 1.62
+     * started without it; it may not refuse the start through {@link TiWebServer.homeCollision} (CodeRabbit on #226).
+     * Exposed for unit testing.
+     *
+     * @method
+     * @static
+     * @param {AuthManager} authManager
+     * @returns {Array<string|null>}
+     * @public
+     */
+    static callbackPathsOf(authManager: AuthManager): Array<string | null>;
     /**
      * Whether the application's home would capture a route the server registers after the shell (CodeRabbit on #226):
      * the shell and its not-found page are routed first, so a callback at `<home>` or `<home>not-found` would be
