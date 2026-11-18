@@ -67,7 +67,7 @@ A sign-in is resolved from the validated ID token claims and the `userinfo` resp
 | `objectID`    | the `oid` claim from either source, only when sent (1.63.0)                      |
 | `tenantID`    | the `tid` claim from either source, only when sent (1.63.0)                      |
 
-Entra's `sub` is pairwise: the same person has a different subject, and so a different `userID`, in each app registration. Its object ID (`oid`) is the same in every registration of the tenant, so an application that may move between registrations, from a development one to production say, keys its own records by `objectID` and keeps `userID` for the framework. A provider that sends neither claim (Google) adds neither field.
+Entra's `sub` is pairwise: the same person has a different subject, and so a different `userID`, in each app registration. Its object ID (`oid`) is the same in every registration **of the same tenant**, so an application that may move between registrations in one tenant, from a development one to production say, keys its own records by `objectID` and keeps `userID` for the framework. The same person has a different object ID in another tenant: an application whose people come from several tenants keys by `tenantID` and `objectID` together, and a move to another tenant needs its accounts mapped explicitly. A provider that sends neither claim (Google) adds neither field.
 
 Both sources are needed because of what the Microsoft identity platform returns. Its `userinfo` endpoint answers with `sub`, `name`, `family_name`, `given_name`, `picture` and — only when the optional claim is configured — an `email` taken from the directory's `mail` attribute. It never returns `preferred_username`: on Entra that claim lives in the ID token, and it holds the UPN. The UPN is the address an operator actually knows and lists in `auth.admins`, so reading `userinfo` alone dropped the one identifier such a deployment is configured around, and an allowlisted administrator had nothing on their session for `isAdminIdentity` to match.
 
@@ -296,15 +296,38 @@ site:
 ```
 
 Every answer that sends the browser home then goes there: a sign-in, a sign-out, a refused sign-in
-(`/studio/?error=<code>`), a language chosen, a screen asked for without a session, and the page of a link sent by
-e-mail. An unknown address goes to `/studio/not-found`. The screens stay at `/app/*`, and so do `/login/*`, `/logout`
-and `/csrf-token`. The home is ended with `/` (`/studio` is `/studio/`, and both are served); one that is not a plain
-path on the site (`//host`, a scheme, a `.` or `..` segment, a query, a fragment, an escape), or that starts with a
-segment the framework routes itself (`/app`, `/static`, `/login`, `/logout`, `/language`, `/me`, `/health`,
-`/csrf-token`, `/admin`, `/service`, `/.well-known`, `/_ti`), refuses the start rather than falling back to `/`, which
-would put the shell over the site it was moved off. The shell page names a home other than `/` in
-`<meta name="ti-home">`, which is where its scripts go when they give up on a screen, and where the default sidebar's
-link points.
+(`/studio/?error=<code>`), a language chosen, any address asked for without a session, and the page of a link sent by
+e-mail. An unknown address asked for **with** a session goes to `/studio/not-found`; without one, the session check
+answers first and sends the browser home. The screens stay at `/app/*`, and so do `/login/*`, `/logout` and
+`/csrf-token`. The shell page names a home other than `/` in `<meta name="ti-home">`, which is where its scripts go
+when they give up on a screen, and where the default sidebar's link points.
+
+**Keep `/` public yourself.** The framework no longer exempts `/` from the session check once the shell has moved, so an
+anonymous visitor to the site's own `/` would be sent to the home. Exempt it in the server's subclass; the string
+matches `/` alone:
+
+```javascript
+defineUnprotectedRoutes() {
+    super.defineUnprotectedRoutes();
+    this.addUnprotectedRoute( "/" );
+}
+```
+
+The home and `<home>not-found` are exempt from the session check for **every** method, as `/` and `/not-found` always
+were; the framework answers only `GET` there. A route an application registers at exactly those two paths is therefore
+public: register anything that needs a session at another path.
+
+The start is refused, rather than falling back to `/`, which would put the shell over the site it was moved off, for a
+home that:
+
+* is not a plain path on the site (`//host`, a scheme, a `.` or `..` segment, a query, a fragment, an escape);
+* starts with a segment the framework routes itself (`/app`, `/static`, `/login`, `/logout`, `/language`, `/me`,
+  `/health`, `/csrf-token`, `/admin`, `/service`, `/.well-known`, `/_ti`);
+* is, or has its not-found page at, the path of an enabled OpenID callback (`TI_AZURE_AUTH_CALLBACK_URL`,
+  `TI_GCLOUD_AUTH_CALLBACK_URL`), which the shell would answer instead;
+* is not `/` and comes with no `application.classPath`: the shell is the web application manager's to serve.
+
+The home is ended with `/` (`/studio` is `/studio/`, and both are served).
 
 ## The login screen
 

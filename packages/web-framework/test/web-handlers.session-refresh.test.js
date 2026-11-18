@@ -31,6 +31,7 @@ const { describe, it } = require( "node:test" );
 const assert = require( "node:assert/strict" );
 const fs = require( "node:fs" );
 const path = require( "node:path" );
+const logger = require( "@ti-engine/core/logger" );
 const webHandlers = require( "#web-handlers" );
 
 const ADMIN_EMAIL = "admin@example.com";
@@ -151,10 +152,14 @@ describe( "sessionRefreshHandler — mounting", () => {
 // The hook may be asynchronous (CA-585): an application whose roles are in a database reads them on every request.
 describe( "sessionRefreshHandler with an asynchronous hook", () => {
 
-    // Runs the handler and resolves when it has called next, with what the request then holds.
+    // Runs the handler and resolves when it has called next, with the roles the route would see at that moment: copied
+    // there, so nothing the handler did after `next` can pass for what the route saw (CodeRabbit on #226).
     const runAsync = ( instance, session ) => new Promise( ( resolve ) => {
         const request = { session: session, method: "GET", originalUrl: "/app/dashboard" };
-        webHandlers.sessionRefreshHandler( instance )( request, {}, ( error ) => resolve( { error: error, session: session } ) );
+        webHandlers.sessionRefreshHandler( instance )( request, {}, ( error ) => resolve( {
+            error: error,
+            session: { user: { roles: request.session.user.roles.slice() } }
+        } ) );
     } );
     const tick = () => new Promise( ( resolve ) => setImmediate( resolve ) );
 
@@ -188,11 +193,34 @@ describe( "sessionRefreshHandler with an asynchronous hook", () => {
     } );
 
     it( "keeps an administrator's access when the hook rejects", async () => {
+        // Starting with an application role and no `admin`, so the outcome tells the recovery from doing nothing
+        // (CodeRabbit on #226): the application's role dropped, the allowlist's applied, the request served.
         const instance = mockInstance( async () => {
             throw new Error( "database unavailable" );
         }, [ ADMIN_EMAIL ] );
-        const result = await runAsync( instance, { user: { userID: "u1", email: ADMIN_EMAIL, roles: [ "admin" ] } } );
+        const result = await runAsync( instance, { user: { userID: "u1", email: ADMIN_EMAIL, roles: [ "editor" ] } } );
         assert.deepEqual( result.session.user.roles, [ "admin" ] );
+        assert.equal( result.error, undefined );
+    } );
+
+    it( "logs a failed refresh's stack alone, never the error's own properties", async ( t ) => {
+        // The logger writes an error's own properties out, and a database client's error can carry its connection
+        // string there (CodeRabbit on #226), as `applyAdminRoleFor` already guards against.
+        const logged = [];
+        t.mock.method( logger, "log", ( message, severity, data ) => logged.push( data ) );
+        const failure = Object.assign( new Error( "database unavailable" ), { connectionString: "postgres://user:SECRET@db/x" } );
+        for ( const hook of [ () => {
+            throw failure;
+        }, async () => {
+            throw failure;
+        } ] ) {
+            await runAsync( mockInstance( hook ), { user: { userID: "u1", roles: [ "editor" ] } } );
+        }
+        assert.equal( logged.length, 2 );
+        logged.forEach( ( data ) => {
+            assert.doesNotMatch( JSON.stringify( data ), /SECRET/ );
+            assert.equal( data.stack, failure.stack, "where it failed is still in the log" );
+        } );
     } );
 
     it( "does not hold one request on another's hook", async () => {

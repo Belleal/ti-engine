@@ -334,6 +334,16 @@ class TiWebServer extends ServiceConsumer {
 
         this.#authManager = new AuthManager( this.serviceConfig.auth, { home: this.#applicationHome } );
 
+        // Only now are the callbacks known: the AuthManager reads them, with their environment variables.
+        const callbackPaths = [ authMethod.OPENID_GOOGLE, authMethod.OPENID_AZURE ]
+            .filter( ( method ) => this.#authManager.isAuthEnabled( method ) === true )
+            .map( ( method ) => this.#authManager.getOAuth2CallbackPath( method ) );
+        const collision = TiWebServer.homeCollision( this.#applicationHome, callbackPaths );
+        if ( collision ) {
+            logger.log( collision, logger.logSeverity.ERROR );
+            throw exceptions.raise( exceptions.exceptionCode.E_GEN_INVALID_ARGUMENT_TYPE, { setting: "application.home", detail: collision } );
+        }
+
         const offered = TiWebServer.resolveOfferedLanguages( this.serviceConfig.languages );
         offered.warnings.forEach( ( warning ) => logger.log( warning, logger.logSeverity.WARNING ) );
         this.#offeredLanguages = Object.freeze( offered.languages );
@@ -1311,7 +1321,39 @@ class TiWebServer extends ServiceConsumer {
                 error: `The application home '${ home }' (application.home or TI_WEB_APPLICATION_HOME) is under '/${ first }', which the framework routes itself; choose another, such as '/studio/'.`
             };
         }
+        // The shell is the manager's to render. Without one its route threw on the first request, and the environment
+        // variable alone makes an `application` with no manager (CodeRabbit on #226). `/` keeps 1.62's behaviour.
+        if ( home !== "/" && !( typeof application.classPath === "string" && application.classPath.trim() !== "" ) ) {
+            return {
+                home: "/",
+                error: `The application home '${ home }' (application.home or TI_WEB_APPLICATION_HOME) needs a web application manager to serve the shell there, and application.classPath names none.`
+            };
+        }
         return { home: home, error: null };
+    }
+
+    /**
+     * Whether the application's home would capture a route the server registers after the shell (CodeRabbit on #226):
+     * the shell and its not-found page are routed first, so a callback at `<home>` or `<home>not-found` would be
+     * answered with the shell and sign-in through it would never complete. Compared as Express matches a route: in any
+     * case, with or without a trailing slash. Pure; the constructor passes the enabled OpenID callbacks' paths.
+     *
+     * @method
+     * @static
+     * @param {string} home A home as {@link TiWebServer.resolveApplicationHome} resolved it.
+     * @param {Array<string|null>} paths The paths of the routes registered after the shell.
+     * @returns {string|null} Why the home is refused, or `null`.
+     * @public
+     */
+    static homeCollision( home, paths ) {
+        if ( home === "/" ) {
+            return null;
+        }
+        const comparable = ( value ) => String( value ).toLowerCase().replace( /\/+$/, "" );
+        const shellPaths = [ comparable( home ), comparable( home + NOT_FOUND_PAGE ) ];
+        const taken = ( Array.isArray( paths ) ? paths : [] ).find( ( value ) => typeof value === "string" && value !== "" && shellPaths.includes( comparable( value ) ) );
+        return ( taken === undefined ) ? null
+            : `The application home '${ home }' (application.home or TI_WEB_APPLICATION_HOME) would answer the OpenID callback at '${ taken }' with the shell; choose another home, or another callback.`;
     }
 
     /**

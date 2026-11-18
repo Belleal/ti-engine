@@ -594,6 +594,20 @@ declare class TiWebServer extends ServiceConsumer {
         error: string | null;
     };
     /**
+     * Whether the application's home would capture a route the server registers after the shell (CodeRabbit on #226):
+     * the shell and its not-found page are routed first, so a callback at `<home>` or `<home>not-found` would be
+     * answered with the shell and sign-in through it would never complete. Compared as Express matches a route: in any
+     * case, with or without a trailing slash. Pure; the constructor passes the enabled OpenID callbacks' paths.
+     *
+     * @method
+     * @static
+     * @param {string} home A home as {@link TiWebServer.resolveApplicationHome} resolved it.
+     * @param {Array<string|null>} paths The paths of the routes registered after the shell.
+     * @returns {string|null} Why the home is refused, or `null`.
+     * @public
+     */
+    static homeCollision(home: string, paths: Array<string | null>): string | null;
+    /**
      * Decides what triggers the scheduled jobs (CA-486). `route` is refused unless the deployment states that it sits
      * behind a Worker that refuses the path from the internet: the route is outside sign-in, and a server reached
      * directly would let a stranger run the jobs. Absent, the trigger is `internal`.

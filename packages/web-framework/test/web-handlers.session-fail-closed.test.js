@@ -114,11 +114,14 @@ describe( "an asynchronous augmentSession", () => {
     };
 
     it( "waits for the hook, and saves the session it resolves with", async () => {
+        // A session of the hook's own, not the one it was handed: a handler that waited and then saved the original would
+        // pass with the same one (CodeRabbit on #226).
         const session = mockSession( { oidc: { codeVerifier: "verifier", state: "xyz" } } );
         const request = mockRequest( session );
+        const resolved = mockSession();
         let saveSawRoles = null;
-        session.save = ( callback ) => {
-            session.calls.save++;
+        resolved.save = ( callback ) => {
+            resolved.calls.save++;
             saveSawRoles = request.session.user.roles.slice();
             callback( null );
         };
@@ -127,8 +130,8 @@ describe( "an asynchronous augmentSession", () => {
             authorize: () => Promise.resolve( AUTHENTICATED_USER ),
             augmentSession: async ( augmented ) => {
                 await new Promise( ( resolve ) => setImmediate( resolve ) );
-                augmented.user.roles = [ "editor" ];
-                return augmented;
+                resolved.user = Object.assign( {}, augmented.user, { roles: [ "editor" ] } );
+                return resolved;
             }
         };
 
@@ -136,7 +139,9 @@ describe( "an asynchronous augmentSession", () => {
         webHandlers.authorizedOAuth2CallbackHandler( instance, "openid-azure" )( request, { redirect: ( status, to ) => { redirected = to || status; } }, () => {} );
         await settle();
 
-        assert.equal( session.calls.save, 1 );
+        assert.equal( resolved.calls.save, 1 );
+        assert.equal( session.calls.save, 0, "the session the hook was handed is not the one saved" );
+        assert.equal( request.session, resolved );
         assert.deepEqual( saveSawRoles, [ "editor" ], "the session is saved with what the hook resolved, not before it" );
         assert.equal( session.calls.destroy, 0 );
         assert.ok( redirected, "the sign-in completes" );
@@ -214,6 +219,30 @@ describe( "an asynchronous augmentSession", () => {
         assert.deepEqual( outcome.saved(), [ "reader" ] );
         assert.ok( outcome.redirected );
     } );
+
+    // CodeRabbit on #226: a save that failed left the regenerated session, user and all, on the request, where
+    // express-session could write it again at the response's end; and a save that threw was lost in a promise nobody
+    // handled. Both must refuse the sign-in as a hook's refusal does.
+    for ( const [ name, failure ] of [
+        [ "reports an error", ( callback ) => callback( new Error( "store unavailable" ) ) ],
+        [ "throws", () => {
+            throw new TypeError( "Do not know how to serialize a BigInt" );
+        } ]
+    ] ) {
+        it( `refuses the sign-in, destroying the session, when its save ${ name }`, async () => {
+            const outcome = await signIn( async ( augmented ) => {
+                augmented.save = ( callback ) => {
+                    augmented.calls.save++;
+                    failure( callback );
+                };
+                return augmented;
+            } );
+            assert.equal( outcome.unhandled, undefined );
+            assert.equal( outcome.session.calls.destroy, 1, "nothing signed in is left for the response's end to write" );
+            assert.ok( outcome.forwarded, "the failure reaches the error handler" );
+            assert.equal( outcome.redirected, null );
+        } );
+    }
 
     it( "refuses, rather than hangs, when the hook resolves something that is not a session", async () => {
         const outcome = await signIn( async () => 42 );

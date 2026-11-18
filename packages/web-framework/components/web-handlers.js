@@ -350,13 +350,20 @@ let regenerateAndSaveSession = ( request, redirectTo, modifier ) => {
                 return;
             }
             request.session = session;
-            request.session.save( ( error ) => {
-                if ( error ) {
-                    reject( error );
-                } else {
-                    resolve( redirectTo );
-                }
-            } );
+            // A save that fails refuses the sign-in like the hook's refusal: rejected alone, it left the session, user and
+            // all, on the request for express-session to write at the response's end; and one that throws, as a store
+            // does for a value it cannot serialize, was lost in the promise around it (CodeRabbit on #226).
+            try {
+                request.session.save( ( error ) => {
+                    if ( error ) {
+                        refuse( error );
+                    } else {
+                        resolve( redirectTo );
+                    }
+                } );
+            } catch ( error ) {
+                refuse( error );
+            }
         };
         request.session.regenerate( ( error ) => {
             if ( error ) {
@@ -1901,7 +1908,9 @@ module.exports.sessionRefreshHandler = ( instance ) => {
             return next();
         }
         const failed = ( error ) => {
-            logger.log( `Failed to refresh the session for user '${ session.user.userID || session.user.employeeID }'; continuing without application roles.`, logger.logSeverity.ERROR, error );
+            // The stack alone, as in `applyAdminRoleFor`: the logger writes an error's own properties out, and a store's
+            // error can carry its connection string there (CodeRabbit on #226).
+            logger.log( `Failed to refresh the session for user '${ session.user.userID || session.user.employeeID }'; continuing without application roles.`, logger.logSeverity.ERROR, { stack: error?.stack } );
             session.user.roles = [];
         };
         let refreshed;

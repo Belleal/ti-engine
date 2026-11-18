@@ -162,7 +162,11 @@ describe( "TiWebServer with application.home /studio", () => {
 
         const page = await get( "/studio/not-found" );
         assert.equal( page.status, 200, "reachable without a session, like every not-found page" );
-        assert.match( await page.text(), /<meta name="ti-home" content="\/studio\/"\/>/ );
+        const html = await page.text();
+        assert.match( html, /<meta name="ti-home" content="\/studio\/"\/>/ );
+        // The not-found view, not the shell at another address (CodeRabbit on #226): both answer 200 with the tag.
+        assert.match( html, /id="ti-not-found"/ );
+        assert.doesNotMatch( await ( await get( "/studio/" ) ).text(), /id="ti-not-found"/ );
     } );
 
     it( "sends a language choice home", async () => {

@@ -80,7 +80,9 @@ describe( "The Entra object ID and tenant ID", () => {
         const signedIn = new User( AuthManager.resolveOpenIDIdentity( { sub: "s" }, { sub: "s", oid: OID, tid: TID } ) ).asJSON();
         assert.equal( signedIn.objectID, OID );
         assert.equal( signedIn.tenantID, TID );
-        const google = JSON.parse( JSON.stringify( new User( AuthManager.resolveOpenIDIdentity( { sub: "g" }, { sub: "g" } ) ).asJSON() ) );
+        // The object sign-in puts on the session as it is, not through JSON, which would drop a key holding `undefined`
+        // and hide it (CodeRabbit on #226).
+        const google = new User( AuthManager.resolveOpenIDIdentity( { sub: "g" }, { sub: "g" } ) ).asJSON();
         assert.equal( Object.hasOwn( google, "objectID" ), false );
         assert.equal( Object.hasOwn( google, "tenantID" ), false );
     } );

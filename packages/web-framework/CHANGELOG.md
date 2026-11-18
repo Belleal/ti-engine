@@ -15,7 +15,12 @@ Three seams an application with its own public site, and its own people in a dat
     `//host`, a scheme, a `.` or `..` segment, a query, a fragment, an escape, an empty segment - **refuses the start**:
     falling back to `/` would put the shell over the very site it was moved off. So does a home under a segment the
     framework routes itself (`/app`, `/static`, `/login`, `/logout`, `/language`, `/me`, `/health`, `/csrf-token`,
-    `/admin`, `/service`, `/.well-known`, `/_ti`): at `/app/` the shell answered `GET /app`.
+    `/admin`, `/service`, `/.well-known`, `/_ti`): at `/app/` the shell answered `GET /app`. And so does a home at an
+    enabled OpenID callback's path, which the shell, routed first, would answer instead (`TiWebServer.homeCollision`),
+    and a home off `/` with no `application.classPath`, whose shell route threw on its first request.
+  * **An application with a public `/` exempts it itself** (`addUnprotectedRoute( "/" )` in `defineUnprotectedRoutes`):
+    once the shell has moved, the framework no longer does. The home and `<home>not-found` are exempt for every method,
+    as `/` and `/not-found` always were.
   * The shell is served at `<home>` and its not-found page at `<home>not-found`; both are unprotected. Every redirect
     above goes there, and errors to `<home>?error=<code>`. The screens stay at `/app/*`.
   * A shell page whose home is not `/` carries `<meta name="ti-home">`, and the browser's two fallbacks that give up on
@@ -37,13 +42,19 @@ Three seams an application with its own public site, and its own people in a dat
     resolves, nothing accepts the session it was given; one that returned nothing used to throw out of the session
     store's callback, and an asynchronous one left the sign-in unanswered. Anything else that is not a session refuses
     the sign-in. `refreshSession` always changes the session in place; what it returns is not read.
+  * **A sign-in whose session cannot be saved is refused** like a hook's refusal: the session destroyed, the error
+    forwarded. A failed save used to leave the signed-in session on the request for express-session to write at the
+    response's end, and a save that threw was lost.
+  * **A failed refresh logs its stack alone**, as the admin hook's failure already did: the logger writes an error's own
+    properties out, and a store's error can carry its connection string there.
   * A hook that answers at once keeps the request synchronous, as before. The refresh is waited for on every signed-in
     request: keep it to one cheap lookup.
 * feat(auth): **an Entra sign-in carries the object ID and the tenant ID** (CA-586). The user's `objectID` (`oid`) and
   `tenantID` (`tid`) are read from `userinfo`, then the ID token, by the rule every other value follows, and the session's
   user carries both. Entra's subject is pairwise, a different `sub` in each app registration, so an application that
   moves from one registration to another sees each person under two `userID`s; the object ID is the same in every
-  registration of a tenant. **`userID` is unchanged**, and a provider that sends neither (Google) adds no keys.
+  registration of **one** tenant (across tenants, key by `tenantID` and `objectID` together). **`userID` is
+  unchanged**, and a provider that sends neither (Google) adds no keys.
 
 ## Version 1.62.1
 

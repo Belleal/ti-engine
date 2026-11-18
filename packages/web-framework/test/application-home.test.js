@@ -52,10 +52,18 @@ describe( "TiWebServer.resolveApplicationHome", () => {
     } );
 
     it( "ends a home with a slash, so the not-found page and the sign-in answers are addresses under it", () => {
-        assert.deepEqual( TiWebServer.resolveApplicationHome( { home: "/studio" } ), { home: "/studio/", error: null } );
-        assert.deepEqual( TiWebServer.resolveApplicationHome( { home: "/studio/" } ), { home: "/studio/", error: null } );
-        assert.deepEqual( TiWebServer.resolveApplicationHome( { home: " /staff/area " } ), { home: "/staff/area/", error: null } );
-        assert.deepEqual( TiWebServer.resolveApplicationHome( { home: "/a-b_c.d~e/" } ), { home: "/a-b_c.d~e/", error: null } );
+        const at = ( home ) => TiWebServer.resolveApplicationHome( { classPath: "app.js", home: home } );
+        assert.deepEqual( at( "/studio" ), { home: "/studio/", error: null } );
+        assert.deepEqual( at( "/studio/" ), { home: "/studio/", error: null } );
+        assert.deepEqual( at( " /staff/area " ), { home: "/staff/area/", error: null } );
+        assert.deepEqual( at( "/a-b_c.d~e/" ), { home: "/a-b_c.d~e/", error: null } );
+    } );
+
+    it( "refuses a home off / with no web application manager to serve the shell there", () => {
+        // CodeRabbit on #226: `TI_WEB_APPLICATION_HOME` alone creates `application` without a `classPath`, and the shell
+        // route then threw on its first request, reading the release of a manager that was never made.
+        assert.match( TiWebServer.resolveApplicationHome( { home: "/studio/" } ).error || "", /classPath/ );
+        assert.equal( TiWebServer.resolveApplicationHome( { home: "/" } ).error, null, "`/` keeps the behaviour of 1.62" );
     } );
 
     it( "refuses anything that is not a plain path on this site", () => {
@@ -74,16 +82,43 @@ describe( "TiWebServer.resolveApplicationHome", () => {
         // `/static/` would put it over the assets.
         for ( const home of [ "/app", "/app/studio/", "/static/", "/login/", "/logout", "/language/", "/me", "/health",
             "/csrf-token", "/admin/", "/service/", "/.well-known/", "/_ti/", "/APP/" ] ) {
-            const resolved = TiWebServer.resolveApplicationHome( { home: home } );
+            const resolved = TiWebServer.resolveApplicationHome( { classPath: "app.js", home: home } );
             assert.match( resolved.error || "", /framework/, `${ home } is refused as the framework's` );
         }
-        assert.equal( TiWebServer.resolveApplicationHome( { home: "/apps/" } ).error, null, "a segment that only begins like one is fine" );
-        assert.equal( TiWebServer.resolveApplicationHome( { home: "/studio/app/" } ).error, null, "and so is one further down" );
+        assert.equal( TiWebServer.resolveApplicationHome( { classPath: "app.js", home: "/apps/" } ).error, null, "a segment that only begins like one is fine" );
+        assert.equal( TiWebServer.resolveApplicationHome( { classPath: "app.js", home: "/studio/app/" } ).error, null, "and so is one further down" );
     } );
 
     it( "stops the server from being constructed with a refused home, rather than putting the shell at /", () => {
-        // A typo falling back to `/` would put the shell over the very site the home was moved off.
-        assert.throws( () => new TiWebServer( "ti-home-refused", { application: { home: "studio" } } ), ( error ) => error.code === exceptions.exceptionCode.E_GEN_INVALID_ARGUMENT_TYPE );
+        // A typo falling back to `/` would put the shell over the very site the home was moved off. The variable is
+        // cleared for the test: inherited, it would replace the home being refused (CodeRabbit on #226).
+        const inherited = process.env.TI_WEB_APPLICATION_HOME;
+        delete process.env.TI_WEB_APPLICATION_HOME;
+        try {
+            assert.throws( () => new TiWebServer( "ti-home-refused", { application: { home: "studio" } } ), ( error ) => error.code === exceptions.exceptionCode.E_GEN_INVALID_ARGUMENT_TYPE );
+        } finally {
+            if ( inherited !== undefined ) {
+                process.env.TI_WEB_APPLICATION_HOME = inherited;
+            }
+        }
+    } );
+
+} );
+
+// CodeRabbit on #226: the shell is routed before the OpenID callbacks, so a home at a callback's path would answer the
+// provider's redirect with the shell, and sign-in through that provider could never complete.
+describe( "TiWebServer.homeCollision", () => {
+
+    it( "refuses a home whose shell or not-found page is a callback's path", () => {
+        assert.match( TiWebServer.homeCollision( "/auth/return/", [ "/auth/return" ] ) || "", /callback/ );
+        assert.match( TiWebServer.homeCollision( "/auth/return/", [ "/Auth/Return/" ] ) || "", /callback/, "as Express matches: any case, either slash" );
+        assert.match( TiWebServer.homeCollision( "/auth/", [ "/auth/not-found" ] ) || "", /callback/ );
+    } );
+
+    it( "lets a callback beside or below the home be", () => {
+        assert.equal( TiWebServer.homeCollision( "/auth/", [ "/auth/return" ] ), null );
+        assert.equal( TiWebServer.homeCollision( "/studio/", [ "/login/azure-callback", null, "" ] ), null );
+        assert.equal( TiWebServer.homeCollision( "/", [ "/" ] ), null, "the default home is the framework's own, as in 1.62" );
     } );
 
 } );
@@ -144,31 +179,51 @@ describe( "the shell page names its home", () => {
 
 } );
 
-// The review pass: the pattern a home must match is written three times, and cannot be one constant. The browser's copy
-// is in a plain script that requires nothing, and the manager's is checked by a public method any caller can hand a home.
-// A copy that drifted would refuse quietly: the tag left out, or ignored, and the shell back at `/`. So they are pinned.
+// The pattern a home must match is written three times, and cannot be one constant: the browser's copy is in a plain
+// script that requires nothing, and the manager's guards a public method any caller can hand a home. A copy that drifted
+// would refuse quietly, the tag left out or ignored and the shell back at `/`. So one table of homes is put through all
+// three, and each must accept and refuse the same ones (the review pass, and CodeRabbit on #226, which asked for the
+// behaviour to be compared rather than the source).
 describe( "the home pattern, in its three places", () => {
 
-    const fs = require( "node:fs" );
-    const read = ( ...parts ) => fs.readFileSync( path.join( __dirname, "..", ...parts ), "utf8" );
-    const PATTERN = String.raw`/^\/(?:(?!\.{1,2}\/)[A-Za-z0-9._~-]+\/)*$/`;
+    const { loadTiFramework } = require( "./helpers/ti-framework-sandbox.js" );
 
-    it( "is the same pattern in the server, the manager and the browser", () => {
-        assert.ok( read( "bin", "web-server.js" ).includes( `const RE_APPLICATION_HOME = ${ PATTERN };` ), "web-server.js" );
-        assert.ok( read( "bin", "web-app-manager.js" ).includes( `const RE_APPLICATION_HOME = ${ PATTERN };` ), "web-app-manager.js" );
-        assert.ok( read( "bin", "static", "scripts", "ti-framework.js" ).includes( `${ PATTERN }.test( content )` ), "ti-framework.js" );
-    } );
+    // Each already ends with `/`, as the server hands a home on; none is under a framework prefix, which only the server
+    // checks.
+    const HOMES = [
+        [ "/studio/", true ], [ "/staff/area/", true ], [ "/a-b_c.d~e/", true ], [ "/x.y/", true ],
+        [ "//evil.example/", false ], [ "/a/../", false ], [ "/a/./", false ], [ "/a//b/", false ], [ "/a?x=1/", false ],
+        [ "/a#x/", false ], [ "/a b/", false ], [ "/a%2Fb/", false ], [ "/a\"onload=\"x/", false ], [ "studio/", false ],
+        [ "https://evil.example/", false ]
+    ];
 
-    it( "keeps the manager from writing a home that is not a plain path, whoever hands it one", async () => {
-        class Harness extends TiWebAppManager {
-            constructor() {
-                super( "application-home-pattern-test" );
-                this.setEnabledAuthMethods( [ "local" ] );
-            }
+    class Harness extends TiWebAppManager {
+        constructor() {
+            super( "application-home-pattern-test" );
+            this.setEnabledAuthMethods( [ "local" ] );
         }
-        for ( const home of [ "//evil.example/", "/a/../", "/a\"onload=\"x/" ] ) {
-            const html = await new Harness().assembleHtmlView( {}, [ FRAMEWORK_STATIC ], "/", { home: home } );
-            assert.doesNotMatch( html, /ti-home/, home );
+    }
+
+    const serverAccepts = ( home ) => TiWebServer.resolveApplicationHome( { classPath: "app.js", home: home } ).error === null;
+    const managerAccepts = async ( home ) => /<meta name="ti-home" content="/.test( await new Harness().assembleHtmlView( {}, [ FRAMEWORK_STATIC ], "/", { home: home } ) );
+    const browserAccepts = ( home ) => {
+        const { stores, sandbox } = loadTiFramework();
+        const departures = [];
+        sandbox.document.querySelector = ( selector ) => ( selector === "meta[name=\"ti-home\"]" ) ? { getAttribute: () => home } : null;
+        sandbox.location = {
+            pathname: "/", search: "", set href( url ) {
+                departures.push( url );
+            }
+        };
+        stores.tiApplication.openScreen( "../not-a-screen" );
+        return departures[ 0 ] === home;
+    };
+
+    it( "is accepted and refused alike by the server, the manager and the browser", async () => {
+        for ( const [ home, accepted ] of HOMES ) {
+            assert.equal( serverAccepts( home ), accepted, `server: ${ home }` );
+            assert.equal( await managerAccepts( home ), accepted, `manager: ${ home }` );
+            assert.equal( browserAccepts( home ), accepted, `browser: ${ home }` );
         }
     } );
 
