@@ -296,9 +296,11 @@ site:
 ```
 
 Every answer that sends the browser home then goes there: a sign-in, a sign-out, a refused sign-in
-(`/studio/?error=<code>`), a language chosen, any address asked for without a session, and the page of a link sent by
-e-mail. An unknown address asked for **with** a session goes to `/studio/not-found`; without one, the session check
-answers first and sends the browser home. The screens stay at `/app/*`, and so do `/login/*`, `/logout` and
+(`/studio/?error=<code>`), a language chosen, an HTML request for a protected address without a session, and the page
+of a link sent by e-mail. A request for a protected address that does not accept HTML gets a `401` instead. An HTML
+`GET` that reaches the 404 handler goes to `/studio/not-found`: an unknown address asked for with a session, or an
+unknown unprotected one. An unknown protected address asked for without a session never gets that far: the session
+check answers first and sends the browser home. The screens stay at `/app/*`, and so do `/login/*`, `/logout` and
 `/csrf-token`. The shell page names a home other than `/` in `<meta name="ti-home">`, which is where its scripts go
 when they give up on a screen, and where the default sidebar's link points.
 
@@ -324,7 +326,8 @@ home that:
 * starts with a segment the framework routes itself (`/app`, `/static`, `/login`, `/logout`, `/language`, `/me`,
   `/health`, `/csrf-token`, `/admin`, `/service`, `/.well-known`, `/_ti`);
 * is, or has its not-found page at, the path of an enabled OpenID callback (`TI_AZURE_AUTH_CALLBACK_URL`,
-  `TI_GCLOUD_AUTH_CALLBACK_URL`), which the shell would answer instead;
+  `TI_GCLOUD_AUTH_CALLBACK_URL`), which the shell would answer instead. This holds at the default `/` as well: a
+  callback at `/` or `/not-found` refuses the start, where in 1.62 it was a sign-in that could never complete;
 * is not `/` and comes with no `application.classPath`: the shell is the web application manager's to serve.
 
 The home is ended with `/` (`/studio` is `/studio/`, and both are served).

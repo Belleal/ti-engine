@@ -115,6 +115,15 @@ describe( "TiWebServer.homeCollision", () => {
         assert.match( TiWebServer.homeCollision( "/auth/", [ "/auth/not-found" ] ) || "", /callback/ );
     } );
 
+    it( "refuses a callback at the default home's shell or not-found page too", () => {
+        // CodeRabbit on #226: the default home was skipped, so a callback at `/` or `/not-found` went on being answered by
+        // the shell, as in 1.62, while the README said such a start is refused. It was already a sign-in that could
+        // never complete; now it is a start that says why.
+        assert.match( TiWebServer.homeCollision( "/", [ "/" ] ) || "", /callback/ );
+        assert.match( TiWebServer.homeCollision( "/", [ "/not-found" ] ) || "", /callback/ );
+        assert.equal( TiWebServer.homeCollision( "/", [ "/login/azure-callback", "/login/google-callback" ] ), null, "the defaults" );
+    } );
+
     it( "reads a long run of slashes in linear time", () => {
         // CodeQL (alert 27) on #226: `/\/+$/` tried every start in a run of slashes; 100k of them before a letter took
         // 1947 ms in Node 26 here, 50k took 504 ms.
@@ -126,7 +135,6 @@ describe( "TiWebServer.homeCollision", () => {
     it( "lets a callback beside or below the home be", () => {
         assert.equal( TiWebServer.homeCollision( "/auth/", [ "/auth/return" ] ), null );
         assert.equal( TiWebServer.homeCollision( "/studio/", [ "/login/azure-callback", null, "" ] ), null );
-        assert.equal( TiWebServer.homeCollision( "/", [ "/" ] ), null, "the default home is the framework's own, as in 1.62" );
     } );
 
 } );
@@ -212,9 +220,14 @@ describe( "the home pattern, in its three places", () => {
         }
     }
 
-    const serverAccepts = ( home ) => TiWebServer.resolveApplicationHome( { classPath: "app.js", home: home } ).error === null;
-    const managerAccepts = async ( home ) => /<meta name="ti-home" content="/.test( await new Harness().assembleHtmlView( {}, [ FRAMEWORK_STATIC ], "/", { home: home } ) );
-    const browserAccepts = ( home ) => {
+    // What each layer hands on, not merely whether it objected (CodeRabbit on #226): the server's resolved home, the
+    // `content` of every tag the manager wrote, and every address the browser left for.
+    const server = ( home ) => TiWebServer.resolveApplicationHome( { classPath: "app.js", home: home } );
+    const managerTags = async ( home ) => {
+        const html = await new Harness().assembleHtmlView( {}, [ FRAMEWORK_STATIC ], "/", { home: home } );
+        return [ ...html.matchAll( /<meta name="ti-home" content="([^"]*)"\/>/g ) ].map( ( match ) => match[ 1 ] );
+    };
+    const browserDepartures = ( home ) => {
         const { stores, sandbox } = loadTiFramework();
         const departures = [];
         sandbox.document.querySelector = ( selector ) => ( selector === "meta[name=\"ti-home\"]" ) ? { getAttribute: () => home } : null;
@@ -224,14 +237,16 @@ describe( "the home pattern, in its three places", () => {
             }
         };
         stores.tiApplication.openScreen( "../not-a-screen" );
-        return departures[ 0 ] === home;
+        return departures;
     };
 
     it( "is accepted and refused alike by the server, the manager and the browser", async () => {
         for ( const [ home, accepted ] of HOMES ) {
-            assert.equal( serverAccepts( home ), accepted, `server: ${ home }` );
-            assert.equal( await managerAccepts( home ), accepted, `manager: ${ home }` );
-            assert.equal( browserAccepts( home ), accepted, `browser: ${ home }` );
+            const resolved = server( home );
+            assert.equal( resolved.home, accepted ? home : "/", `server's home: ${ home }` );
+            assert.equal( resolved.error === null, accepted, `server's verdict: ${ home }` );
+            assert.deepEqual( await managerTags( home ), accepted ? [ home ] : [], `manager: ${ home }` );
+            assert.deepEqual( browserDepartures( home ), [ accepted ? home : "/" ], `browser: ${ home }` );
         }
     } );
 

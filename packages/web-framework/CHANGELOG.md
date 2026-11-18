@@ -18,6 +18,9 @@ Three seams an application with its own public site, and its own people in a dat
     `/admin`, `/service`, `/.well-known`, `/_ti`): at `/app/` the shell answered `GET /app`. And so does a home at an
     enabled OpenID callback's path, which the shell, routed first, would answer instead (`TiWebServer.homeCollision`),
     and a home off `/` with no `application.classPath`, whose shell route threw on its first request.
+  * **A callback at `/` or `/not-found` now refuses the start at the default home as well.** In 1.62 the shell answered
+    it, so sign-in through that provider could never complete; a deployment it stops was already unable to sign in
+    through it.
   * **An application with a public `/` exempts it itself** (`addUnprotectedRoute( "/" )` in `defineUnprotectedRoutes`):
     once the shell has moved, the framework no longer does. The home and `<home>not-found` are exempt for every method,
     as `/` and `/not-found` always were.

@@ -1346,9 +1346,8 @@ class TiWebServer extends ServiceConsumer {
      * @public
      */
     static homeCollision( home, paths ) {
-        if ( home === "/" ) {
-            return null;
-        }
+        // The default home too (CodeRabbit on #226): a callback at `/` or `/not-found` was answered by the shell in 1.62
+        // as well, a sign-in that could never complete; refusing the start says why.
         // Trailing slashes counted off by hand: `/\/+$/` tries every start in a run of slashes, which is quadratic, 1.9 s
         // for 100k of them (CodeQL alert 27).
         const comparable = ( value ) => {
