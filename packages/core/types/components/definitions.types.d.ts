@@ -74,6 +74,7 @@ export type SettingsMessageExchange = {
     traceExpirationTime: number;
     traceLogEnabled: boolean;
     traceRepository: string;
+    traceRepositoryEnabled: boolean;
 };
 export type SettingsServiceConfig = {
     executionTimeout: number;
@@ -125,12 +126,53 @@ export type TiLogEntry = {
      */
     data: Object;
 };
+export type TiTraceSnapshot = {
+    /**
+     * `OBSCURED_BY_SYSTEM` when the message carried a token; absent when it carried none.
+     */
+    authToken?: string;
+    chainLevel?: number;
+    createdOn?: number;
+    /**
+     * Its `route` and `instanceID` only.
+     */
+    destination?: MessageDestination;
+    /**
+     * Which exception the call
+     * ended with, if one; its `id` only when it is a UUID the framework made.
+     */
+    exception?: {
+        code?: number;
+        httpCode?: number;
+        id?: string;
+        label?: string;
+    };
+    executionTime?: number;
+    finishedOn?: number;
+    isCompleted?: boolean;
+    isSuccessful?: boolean;
+    predecessor?: string;
+    /**
+     * Its `serviceAlias`, `serviceDomainName` and `serviceVersion` only.
+     */
+    serviceAddress?: ServiceAddress;
+    /**
+     * `OBSCURED_BY_SYSTEM` when the message carried parameters; absent when it carried
+     * none.
+     */
+    serviceParams?: string;
+    /**
+     * Its `route` and `instanceID` only.
+     */
+    source?: MessageSource;
+    successors?: string[];
+};
 export type TiTraceEntry = {
     chainID: string;
     dispatchEvent: string;
     fromAddress: string;
     messageID: string;
-    messageSnapshot: Object;
+    messageSnapshot: TiTraceSnapshot;
     messageState: string;
     messageType: string;
     toAddress: string;
@@ -349,6 +391,7 @@ export type Message = {
  * @property {number} traceExpirationTime
  * @property {boolean} traceLogEnabled
  * @property {string} traceRepository
+ * @property {boolean} traceRepositoryEnabled
  */
 /**
  * @typedef {Object} SettingsServiceConfig
@@ -395,12 +438,35 @@ export type Message = {
  * @property {Object} data Additional JSON data to go with the message.
  */
 /**
+ * What a trace entry keeps of the message it traces: where it went, when, and how it ended. Never the auth token, the
+ * parameters (not even their names), the payload, or an exception's description and data (CA-589). A field the message
+ * lacks is absent.
+ *
+ * @typedef {Object} TiTraceSnapshot
+ * @property {string} [authToken] `OBSCURED_BY_SYSTEM` when the message carried a token; absent when it carried none.
+ * @property {number} [chainLevel]
+ * @property {number} [createdOn]
+ * @property {MessageDestination} [destination] Its `route` and `instanceID` only.
+ * @property {{ code?: number, httpCode?: number, id?: string, label?: string }} [exception] Which exception the call
+ * ended with, if one; its `id` only when it is a UUID the framework made.
+ * @property {number} [executionTime]
+ * @property {number} [finishedOn]
+ * @property {boolean} [isCompleted]
+ * @property {boolean} [isSuccessful]
+ * @property {string} [predecessor]
+ * @property {ServiceAddress} [serviceAddress] Its `serviceAlias`, `serviceDomainName` and `serviceVersion` only.
+ * @property {string} [serviceParams] `OBSCURED_BY_SYSTEM` when the message carried parameters; absent when it carried
+ * none.
+ * @property {MessageSource} [source] Its `route` and `instanceID` only.
+ * @property {string[]} [successors]
+ */
+/**
  * @typedef {Object} TiTraceEntry
  * @property {string} chainID
  * @property {string} dispatchEvent
  * @property {string} fromAddress
  * @property {string} messageID
- * @property {Object} messageSnapshot
+ * @property {TiTraceSnapshot} messageSnapshot
  * @property {string} messageState
  * @property {string} messageType
  * @property {string} toAddress

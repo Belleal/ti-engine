@@ -56,6 +56,7 @@ const settingsEnum = tools.enum( {
     MESSAGE_EXCHANGE_TRACE_EXPIRATION_TIME: [ "messageExchange.traceExpirationTime", "traceExpirationTime", "" ],
     MESSAGE_EXCHANGE_TRACE_LOG_ENABLED: [ "messageExchange.traceLogEnabled", "traceLogEnabled", "" ],
     MESSAGE_EXCHANGE_TRACE_REPOSITORY: [ "messageExchange.traceRepository", "traceRepository", "" ],
+    MESSAGE_EXCHANGE_TRACE_REPOSITORY_ENABLED: [ "messageExchange.traceRepositoryEnabled", "traceRepositoryEnabled", "" ],
     SERVICE_EXECUTION_TIMEOUT: [ "serviceConfig.executionTimeout", "executionTimeout", "" ],
     SERVICE_HEALTH_CHECK_ADDRESS: [ "serviceConfig.healthCheckAddress", "healthCheckAddress", "" ],
     SERVICE_HEALTH_CHECK_ENABLED: [ "serviceConfig.healthCheckEnabled", "healthCheckEnabled", "" ],
@@ -109,7 +110,16 @@ if ( settings.messageExchange ) {
     settings.messageExchange.enabled = ( process.env.TI_MESSAGE_EXCHANGE_ENABLED !== undefined ) ? tools.toBool( process.env.TI_MESSAGE_EXCHANGE_ENABLED ) : settings.messageExchange.enabled;
     settings.messageExchange.securityHashEnabled = ( process.env.TI_MESSAGE_EXCHANGE_SECURITY_HASH_ENABLED !== undefined ) ? tools.toBool( process.env.TI_MESSAGE_EXCHANGE_SECURITY_HASH_ENABLED ) : settings.messageExchange.securityHashEnabled;
     settings.messageExchange.securityHashKey = ( process.env.TI_MESSAGE_EXCHANGE_SECURITY_HASH_KEY !== undefined ) ? process.env.TI_MESSAGE_EXCHANGE_SECURITY_HASH_KEY : settings.messageExchange.securityHashKey;
+    // The trace's retention and the switch for its store. Both lived only in this package's own settings file, which no
+    // application can override, so a deployment that must not keep traces, or must keep them for less than an hour,
+    // had no way to say so (CA-589). The message tracer refuses an expiration that is not a whole number of seconds, and
+    // an empty value is made one it refuses: `Number( "" )` is 0, which means "keep every trace for good".
+    const traceExpirationTime = process.env.TI_MESSAGE_EXCHANGE_TRACE_EXPIRATION_TIME;
+    settings.messageExchange.traceExpirationTime = ( traceExpirationTime !== undefined )
+        ? ( ( traceExpirationTime.trim() === "" ) ? Number.NaN : Number( traceExpirationTime ) )
+        : settings.messageExchange.traceExpirationTime;
     settings.messageExchange.traceLogEnabled = ( process.env.TI_MESSAGE_EXCHANGE_TRACE_LOG_ENABLED !== undefined ) ? tools.toBool( process.env.TI_MESSAGE_EXCHANGE_TRACE_LOG_ENABLED ) : settings.messageExchange.traceLogEnabled;
+    settings.messageExchange.traceRepositoryEnabled = ( process.env.TI_MESSAGE_EXCHANGE_TRACE_REPOSITORY_ENABLED !== undefined ) ? tools.toBool( process.env.TI_MESSAGE_EXCHANGE_TRACE_REPOSITORY_ENABLED ) : settings.messageExchange.traceRepositoryEnabled;
 }
 if ( settings.serviceConfig ) {
     // The heartbeat an orchestrator watches. 1.14.0 made it optional, but without this the switch lived only in this

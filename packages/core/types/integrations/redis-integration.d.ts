@@ -14,6 +14,7 @@ export type TiRedisCommand = string;
 declare let cacheCommandsEnum: import("../components/definitions.types").TiEnumOf<{
     ADD_TO_SET: string[];
     DELETE_VALUE: string[];
+    EVAL: string[];
     EXPIRE: string[];
     GET_ALL_FROM_SET: string[];
     GET_VALUE: string[];

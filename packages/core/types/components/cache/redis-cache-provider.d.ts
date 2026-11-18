@@ -165,14 +165,24 @@ declare class RedisCacheProvider extends CacheProvider {
     expireValue(key: string, seconds: number, name?: string): Promise<number>;
     /**
      * Used to add the specified values to a list.
+     * <br/>
+     * NOTE: With an expiration, the push and the expiry are one Lua script, so the list never exists without its
+     * time-to-live, and a push that Redis refuses stops the script before the expiry. One that is not a whole number of
+     * seconds above 0 is refused before anything is written: Redis would refuse the EXPIRE alone, after the push, and a
+     * negative one deletes the list.
+     * <br/>
+     * NOTE: A push that Redis refuses rejects, with or without an expiration: it used to resolve `null`.
      *
      * @method
      * @param {string} listName
      * @param {Object[]} values
-     * @returns {Promise<number>}
+     * @param {number} [expiration] Expiration value is in seconds, for the whole list, counted from this push.
+     * @returns {Promise<number>} The list's length after the push.
+     * @throws {TiException.E_GEN_INVALID_ARGUMENT_TYPE} If the expiration is given and is not a whole number above 0.
+     * @throws {TiException} If Redis refuses the push, as it does when the key holds a value that is not a list.
      * @public
      */
-    listPushValue(listName: string, values: Object[]): Promise<number>;
+    listPushValue(listName: string, values: Object[], expiration?: number): Promise<number>;
     /**
      * Used to add the specified value to a set.
      *

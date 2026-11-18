@@ -254,10 +254,12 @@ declare class CommonMemoryCache extends ConnectionObserver {
      * @method
      * @param {string} listName
      * @param {Object[]} values
-     * @returns {Promise<number>}
+     * @param {number} [expiration] Expiration value is in seconds, for the whole list, counted from this push.
+     * @returns {Promise<number>} The list's length after the push. A push the backend refuses rejects and sets no
+     * expiry.
      * @public
      */
-    listPushValue(listName: string, values: Object[]): Promise<number>;
+    listPushValue(listName: string, values: Object[], expiration?: number): Promise<number>;
     /**
      * Used to add the specified value to a set.
      *

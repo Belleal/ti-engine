@@ -575,7 +575,8 @@ MESSAGE_EXCHANGE_SECURITY_HASH_KEY (Advanced)
 
 MESSAGE_EXCHANGE_TRACE_EXPIRATION_TIME
 : JSON path `messageExchange.traceExpirationTime`, type `number`, default `3600`
-: This setting specifies the expiration time in seconds of the Redis key that will hold the message trace entries. Set this to `0` to disable expiration altogether.
+: ENV variable `TI_MESSAGE_EXCHANGE_TRACE_EXPIRATION_TIME`
+: This setting specifies how many seconds a chain's message trace is kept after its last entry. Each chain's entries are a list of their own (see `MESSAGE_EXCHANGE_TRACE_REPOSITORY`), and every entry sets that list's expiry in the same step as it is added, so a chain's trace is gone this long after its last message. Set this to `0` to keep every trace for good, which grows the cache for as long as calls keep coming. With the trace store on (`MESSAGE_EXCHANGE_TRACE_REPOSITORY_ENABLED`) and the message exchange running, a value that is not a whole number of seconds, an empty one included, stops the instance from starting: since version 1.23.0 it is refused rather than read as "never expire". The cache then holds one key for each chain of the last `traceExpirationTime` seconds, which is worth knowing on a busy deployment: anything that lists keys by pattern (`matchKeys`) reads them all.
 
 MESSAGE_EXCHANGE_TRACE_LOG_ENABLED
 : JSON path `messageExchange.traceLogEnabled`, type `boolean`, default `false`
@@ -584,7 +585,12 @@ MESSAGE_EXCHANGE_TRACE_LOG_ENABLED
 
 MESSAGE_EXCHANGE_TRACE_REPOSITORY (Advanced)
 : JSON path `messageExchange.traceRepository`, type `string`, default `ti:messages:trace`
-: This setting holds the Redis key name for the message trace cache storage. This is not something you should modify unless you are making a customized implementation of the tier 1 architectural layer.
+: This setting holds the prefix of the Redis keys that hold the message trace. Since version 1.23.0 each chain's entries are a list of their own, newest first, under this prefix followed by `:` and the chain's ID: `ti:messages:trace:<chainID>`. Read a chain's trace with `LRANGE`, and find them with `SCAN` over `ti:messages:trace:*`. An entry records where a message went, when, and how it ended, never the auth token, the parameters (not even their names), the payload, or an exception's description and data. A trace needs a cache backend with the `lists` and `key-expiry` capabilities; on one without them nothing is stored, and the instance says so once when it starts. This is not something you should modify unless you are making a customized implementation of the tier 1 architectural layer.
+
+MESSAGE_EXCHANGE_TRACE_REPOSITORY_ENABLED
+: JSON path `messageExchange.traceRepositoryEnabled`, type `boolean`, default `true`
+: ENV variable `TI_MESSAGE_EXCHANGE_TRACE_REPOSITORY_ENABLED`
+: This setting controls whether message trace entries are stored in the cache (see `MESSAGE_EXCHANGE_TRACE_REPOSITORY`). Turn it off for a deployment that has no use for the trace, or must not keep one. It does not affect `MESSAGE_EXCHANGE_TRACE_LOG_ENABLED`, which writes the same entries to the log instead.
 
 SERVICE_EXECUTION_TIMEOUT
 : JSON path `serviceConfig.executionTimeout`, type `number`, default `180000`

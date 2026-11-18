@@ -32,6 +32,7 @@ const _ = require( "lodash" );
 let cacheCommandsEnum = tools.enum( {
     ADD_TO_SET: [ "sadd", "add to set", "https://redis.io/docs/latest/commands/sadd/" ],
     DELETE_VALUE: [ "del", "delete value", "https://redis.io/docs/latest/commands/del/" ],
+    EVAL: [ "eval", "run a Lua script", "https://redis.io/docs/latest/commands/eval/" ],
     EXPIRE: [ "expire", "expire", "https://redis.io/docs/latest/commands/expire/" ],
     GET_ALL_FROM_SET: [ "smembers", "get all set members", "https://redis.io/docs/latest/commands/smembers/" ],
     GET_VALUE: [ "get", "get value", "https://redis.io/docs/latest/commands/get/" ],
