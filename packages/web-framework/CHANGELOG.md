@@ -2,6 +2,51 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.63.1
+
+* fix(sessions): **an ended session is not read back in the meantime, nor kept on a failed check** (CA-587). 1.63.0 undid
+  a late write to a signed-out session, but it left two gaps, both found by CodeRabbit on #226:
+  * **A read in the moment between the late write landing and its undo** was answered with the ended session. `set`
+    writes, then reads the "ended" mark, then deletes.
+  * **The race reopened when the mark itself failed.** A write whose mark could not be read was kept, and a sign-out
+    whose mark could not be written left no mark.
+
+  What changed:
+  * **The process that signed a session out remembers it** for the same 15 minutes, bounded at
+    `SessionStore.HELD_SESSIONS_LIMIT`; the store's mark covers an ID forgotten early. For that ID:
+    * a `get` answers no session without a store read;
+    * a `set` or `touch` is not made.
+
+    In that process an ended session cannot be read between a late write and its undo, even when the mark could not be
+    written or the delete failed. A read that began before the sign-out and answers after it also delivers no session:
+    the check is made again on delivery, for a store read and a held copy alike. When the memory's bound evicts, an entry
+    whose store mark was written goes first, since the mark still covers it; one whose mark failed stays for its full
+    time. Only if no entry has a mark, so the store failed for every sign-out the memory holds, does the oldest go
+    regardless, and the bound holds.
+  * **A mark that cannot be read now undoes the write** and reports the failure, so a sign-in whose save it is gets
+    refused: a session that cannot be shown not to have ended is not accepted. A mark that cannot be written still does
+    not keep the session alive, since the delete goes ahead. Both are logged at `ERROR`, with the stack alone.
+  * **No session is written or re-timed under an ID that was destroyed.** Until now a `set` or `touch` after a `destroy`
+    wrote again at once. express-session never reuses an ID: a new session gets a new one.
+
+  **What remains, with more than one process:** a read on a process that did not sign the session out can still find
+  it in the two store round trips between another process's late write landing and its undo. Closing that needs either
+  a mark read on every session read, which would double the store reads per request, or a conditional write in core's
+  cache. A single process has no such window; that covers the Cloudflare template and every `sessions.held` deployment.
+
+  Tests: `test/session-store.ended.test.js`, held and not, covers:
+  * a read held between a late write landing and its undo;
+  * a write to a destroyed ID, which reaches the store not at all;
+  * a failed mark write and a failed mark read;
+  * another process's late write;
+  * the memory's bound;
+  * a read answered after the sign-out;
+  * an ID whose mark failed, kept when the bound evicts.
+
+  12 of these were RED on 1.63.0 (6 per mode). Four existing store tests relied on reusing a destroyed ID, or on a read
+  begun before a sign-out answering with the session, and were updated. A new one pins that a sign-out whose delete
+  fails is still not answered by the process.
+
 ## Version 1.63.0
 
 Three seams an application with its own public site, and its own people in a database, needed and could not build, and a

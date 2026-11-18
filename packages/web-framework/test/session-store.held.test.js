@@ -178,12 +178,23 @@ describe( "SessionStore — held (sessions.held, CA-557)", () => {
         assert.equal( answered, true );
     } );
 
-    it( "keeps nothing of a destroyed session: the next get reads the store and finds none", async () => {
+    it( "keeps nothing of a destroyed session: the next get finds none, without asking the store", async () => {
+        // The process remembers the sign-out (CA-587), so the answer is no session whatever the store holds.
         const sessions = new SessionStore( { held: true } );
         await promisify( ( done ) => sessions.set( "s1", sessionData(), done ) );
         await promisify( ( done ) => sessions.destroy( "s1", done ) );
         assert.equal( await promisify( ( done ) => sessions.get( "s1", done ) ), null );
-        assert.equal( store.count( "hashGetField" ), 1 );
+        assert.equal( store.count( "hashGetField" ), 0 );
+    } );
+
+    it( "ends a session in this process even when the sign-out's delete fails", async () => {
+        // The delete may still land, or not; either way the person asked to sign out, and this process answers so.
+        const sessions = new SessionStore( { held: true } );
+        await promisify( ( done ) => sessions.set( "s1", sessionData( { user: "a" } ), done ) );
+        store.holdNext( "hashDeleteField", { fail: true } ).release();
+        await assert.rejects( promisify( ( done ) => sessions.destroy( "s1", done ) ) );
+        assert.equal( store.fields.has( "s1" ), true, "the store still has it" );
+        assert.equal( await promisify( ( done ) => sessions.get( "s1", done ) ), null, "this process does not answer it" );
     } );
 
     it( "does not hold what a read got when a write to that session started while it was in flight", async () => {
@@ -194,8 +205,10 @@ describe( "SessionStore — held (sessions.held, CA-557)", () => {
         await read.reached;
         await promisify( ( done ) => sessions.destroy( "s1", done ) );
         read.release();
-        assert.equal( ( await reading ).user, "before", "the read answers what it read" );
-        assert.equal( await promisify( ( done ) => sessions.get( "s1", done ) ), null, "but nobody else is answered it" );
+        // Until 1.63.1 the read answered what it read. The sign-out landed before the answer, so it answers no session
+        // (CA-587; CodeRabbit on #227), and it holds nothing either.
+        assert.equal( await reading, null, "the read is answered after the sign-out, so with no session" );
+        assert.equal( await promisify( ( done ) => sessions.get( "s1", done ) ), null, "and nobody else is answered it" );
     } );
 
     it( "does not hold what a read got while a write to that session was in flight", async () => {
@@ -247,9 +260,11 @@ describe( "SessionStore — held (sessions.held, CA-557)", () => {
     it( "after a failed write, reads the store for two minutes and holds nothing, then holds again", async () => {
         mock.timers.enable( { apis: [ "Date" ], now: 1_000_000 } );
         const sessions = new SessionStore( { held: true } );
-        store.holdNext( "hashDeleteField", { fail: true } ).release();
-        await assert.rejects( promisify( ( done ) => sessions.destroy( "s1", done ) ) );
-        // A sign-out that timed out may still land: until it must have, every request asks the store.
+        // A failed save, not a failed sign-out: a sign-out ends the session in this process whether or not its delete
+        // lands (CA-587), so it no longer reads the store at all.
+        store.holdNext( "hashSetField", { fail: true } ).release();
+        await assert.rejects( promisify( ( done ) => sessions.set( "s1", sessionData( { user: "b" } ), done ) ) );
+        // A write that timed out may still land: until it must have, every request asks the store.
         store.fields.set( "s1", JSON.stringify( sessionData( { user: "a" } ) ) );
         await promisify( ( done ) => sessions.get( "s1", done ) );
         await promisify( ( done ) => sessions.get( "s1", done ) );
