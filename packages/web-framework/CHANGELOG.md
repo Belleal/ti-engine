@@ -19,7 +19,9 @@ Three seams an application with its own public site, and its own people in a dat
     enabled OpenID callback's path, which the shell, routed first, would answer instead (`TiWebServer.homeCollision`),
     and a home off `/` with no `application.classPath`, whose shell route threw on its first request. Only providers
     that will be routed count: one with no client ID, which `AuthManager#initialize` drops, does not refuse the start
-    (`TiWebServer.callbackPathsOf`, `AuthManager#isOpenIDProviderConfigured`). A `classPath` that is given but names
+    (`TiWebServer.callbackPathsOf`, `AuthManager#isOpenIDProviderConfigured`), and only those have their callback
+    routed: the callback of a provider with no client ID was registered before `initialize` dropped it, and took its
+    path ahead of an application route there, as in 1.62. A `classPath` that is given but names
     nothing refuses the start at any home, as 1.62 did when it tried to load it.
   * The not-found page is reachable without a session at `<home>not-found/` as well, which Express answers at the same
     route; a visitor with no session was sent home from it, at `/not-found/` in 1.62 too.

@@ -1073,8 +1073,11 @@ class TiWebServer extends ServiceConsumer {
         this.#webServer.get( "/app/labels/:hash", webHandlers.labelsBundleHandler( this ) );
         // NOTE: A callback is registered by its path, never by the configured value verbatim — that value is commonly
         // the absolute URL registered with the identity provider, which Express cannot parse as a route pattern.
+        // Only a provider that will stay enabled: these routes are defined before `AuthManager#initialize` drops one with
+        // no client ID, whose callback then took its path ahead of an application route there, to answer it with a
+        // refused sign-in. The same rule as `callbackPathsOf`, which the home is checked against (CodeRabbit on #226).
         [ authMethod.OPENID_GOOGLE, authMethod.OPENID_AZURE ].forEach( ( method ) => {
-            if ( this.#authManager.isAuthEnabled( method ) === true ) {
+            if ( this.#authManager.isOpenIDProviderConfigured( method ) === true ) {
                 const callbackPath = this.#authManager.getOAuth2CallbackPath( method );
                 if ( callbackPath ) {
                     this.#webServer.get( callbackPath, webHandlers.authorizedOAuth2CallbackHandler( this, method ) );
