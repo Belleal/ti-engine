@@ -242,6 +242,22 @@ describe( "allowed domains through a real OpenID sign-in", () => {
         assert.equal( user.email, "kostadinov.boris@gmail.com" );
     } );
 
+    it( "carries an Entra sign-in's object ID and tenant ID onto the signed-in user (CA-586)", async () => {
+        const manager = new AuthManager( settingsFor( "azure" ) );
+        await manager.initialize();
+        const identity = entraIdentity( "b.kostadinov@is-bg.net" );
+        identity.claims = { ...identity.claims, oid: "4c1d6b3a-0000-4000-8000-00000000000a", tid: "9e2f7c11-0000-4000-8000-00000000000b" };
+
+        const user = await signIn( manager, "openid-azure", identity );
+        // Through the real openid-client and the User the session is written from, not the resolver alone.
+        assert.equal( user.objectID, "4c1d6b3a-0000-4000-8000-00000000000a" );
+        assert.equal( user.asJSON().tenantID, "9e2f7c11-0000-4000-8000-00000000000b" );
+        assert.equal( user.userID, "oauth2:a-1" );
+        const resolved = logged.find( ( entry ) => entry.message.startsWith( "OpenID sign-in resolved" ) );
+        assert.match( resolved.message, /object ID from 'claims\.oid'/ );
+        assert.doesNotMatch( resolved.message, /4c1d6b3a/ );
+    } );
+
     it( "lets the environment variable replace the configured list", async () => {
         process.env.TI_AZURE_AUTH_ALLOWED_DOMAINS = " IS-BG.net ";
         const manager = new AuthManager( settingsFor( "azure", { allowedDomains: [ "other.test" ] } ) );

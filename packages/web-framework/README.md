@@ -31,6 +31,7 @@ The web server configuration (host, port, TLS, cookies, etc.) is normally provid
 * `TI_WEB_SERVER_TIMING` (`true`/`false`) overrides `serverTiming`: whether every response says, in a `Server-Timing` header, where its time went in the process. Off by default. See [Timing a response](#timing-a-response).
 * `TI_WEB_LANGUAGES` (comma-separated) **replaces** `languages`: the interface languages a visitor may choose between on the sign-in screen. See [Choosing the language on the sign-in screen](#choosing-the-language-on-the-sign-in-screen).
 * `TI_WEB_PUBLIC_URL` overrides `publicUrl`, the deployment's public base URL, which every link in a notice starts from. See [E-mail notices](#e-mail-notices).
+* `TI_WEB_APPLICATION_HOME` overrides `application.home`, where the application shell is served (`/` unless stated). A value that is not a plain path on the site refuses the start. See [The application's home](#the-applications-home).
 * `TI_WEB_NOTIFY_TRANSPORT` (`off`/`log`/`cloudflare`), `TI_WEB_NOTIFY_SENDER`, `TI_WEB_NOTIFY_SENDER_NAME`, `TI_WEB_NOTIFY_REPLY_TO` and `TI_WEB_NOTIFY_RELAY_URL` override the `notifications` settings: how notices are sent, and from whom. Off by default.
 * `TI_WEB_JOBS_TRIGGER` (`internal`/`route`/`off`) and `TI_WEB_JOBS_BEHIND_WORKER` (`true`/`false`) override the `jobs` settings: what runs the scheduled jobs. See [Scheduled jobs](#scheduled-jobs).
 
@@ -39,6 +40,12 @@ OpenID Connect providers are configured with their own variables — `TI_AZURE_A
 ## Authentication and authorization
 
 `TiWebServer#augmentSession` is the hook through which an application derives its own session roles — from an identity store, the org chart, or wherever a deployment keeps that mapping — once per login, before the framework's own additive `admin` role (`auth.admins`, see [Environment variables](#environment-variables)) is applied on top; the default is a no-op that returns the session unchanged. Throwing from the hook refuses the sign-in rather than admitting a session the application could not map to a principal: the framework destroys the freshly regenerated session so nothing usable survives the refusal, the login handler responds `401`, and the error handler sends the browser back to the login page with the exception code in the `?error=` query parameter — the same path a failed OpenID callback takes, regardless of which auth method was used.
+
+`TiWebServer#refreshSession( session, request )` is its companion on **every** request that carries a signed-in user, after the static handlers and before any route, so a role the application withdraws is gone on the next click rather than when the session ends. The framework applies the `admin` allowlist role after it, so the hook may replace `session.user.roles` wholesale. A throw fails closed rather than refusing the request: the application's roles are dropped and the request goes on with the allowlist's role alone. The default is a no-op.
+
+Both hooks may return a promise (1.63.0), and the framework waits for it: an application that keeps its people and roles in a database reads them there, rather than in each process's memory, which is correct only while one process serves the sessions. A rejection counts as a throw. `augmentSession` may also change the session in place and return, or resolve, nothing; the refresh always works that way, and what it returns is not read. The refresh is waited for on every signed-in request, so keep it to one cheap lookup; a hook that answers at once keeps the request synchronous.
+
+**A sign-out is final** (1.63.0, CA-587). A request that loaded the session before a sign-out ended it, and changed it afterwards (a role its refresh changed, a token minted), cannot write it back: the session store marks a destroyed session's ID as ended for a quarter of an hour, and a write that finds the mark after it lands is undone. Before this, the late write recreated the session and the old cookie signed the person in again.
 
 `TiWebServer#withholdsAdminRole( session, request )` lets an application run a session **without** the `admin` role its identity would hold, for example to show an administrator the application as everyone else sees it (1.50.0). The framework asks it at sign-in, on the session `augmentSession` returned, and again on every request; returning `true` removes the role, and returning `false` restores it on the next request. It can only withhold: the allowlist stays the only thing that grants the role, only a strict `true` counts, and a hook that throws withholds nothing. The default returns `false`.
 
@@ -59,6 +66,10 @@ A sign-in is resolved from the validated ID token claims and the `userinfo` resp
 | `username`    | `preferred_username`, then `upn`, then the e-mail, then `name`, then `sub:<sub>` |
 | `email`       | the `email` claim from either source — and nothing else                          |
 | `name`        | the `name` claim from either source                                              |
+| `objectID`    | the `oid` claim from either source, only when sent (1.63.0)                      |
+| `tenantID`    | the `tid` claim from either source, only when sent (1.63.0)                      |
+
+Entra's `sub` is pairwise: the same person has a different subject, and so a different `userID`, in each app registration. Its object ID (`oid`) is the same in every registration **of the same tenant**, so an application that may move between registrations in one tenant, from a development one to production say, keys its own records by `objectID` and keeps `userID` for the framework. The same person has a different object ID in another tenant: an application whose people come from several tenants keys by `tenantID` and `objectID` together, and a move to another tenant needs its accounts mapped explicitly. A provider that sends neither claim (Google) adds neither field.
 
 Both sources are needed because of what the Microsoft identity platform returns. Its `userinfo` endpoint answers with `sub`, `name`, `family_name`, `given_name`, `picture` and — only when the optional claim is configured — an `email` taken from the directory's `mail` attribute. It never returns `preferred_username`: on Entra that claim lives in the ID token, and it holds the UPN. The UPN is the address an operator actually knows and lists in `auth.admins`, so reading `userinfo` alone dropped the one identifier such a deployment is configured around, and an allowlisted administrator had nothing on their session for `isAdminIdentity` to match.
 
@@ -275,6 +286,59 @@ holding its sign-in for the rest of the hour (a link already received still work
 with enough networks, holding everybody's; a challenge on the form is the application's remedy for both. The counters
 are read and written back, not incremented in the store, so instances sharing a store overwrite each other's counts:
 with several instances the limits are approximate (the Cloudflare template runs one).
+
+## The application's home
+
+The application shell, which is also the sign-in screen, is served at `application.home` (1.63.0), `/` unless stated,
+or `TI_WEB_APPLICATION_HOME`. An application with a public site of its own moves the shell off `/` to keep `/` for the
+site:
+
+```json
+{ "application": { "classPath": "bin/studio-app.js", "home": "/studio/" } }
+```
+
+Every answer that sends the browser home then goes there: a sign-in, a sign-out, a refused sign-in
+(`/studio/?error=<code>`), a language chosen, and the page of a link sent by e-mail. So does a request for a protected
+address without a session: a navigation that accepts HTML by a `303`, an HTMX request by a `204` with `HX-Redirect`.
+Any other such request (an API call, say) gets a `401` and goes nowhere. A request that reaches the 404 handler, an
+unknown address asked for with a session or an unknown unprotected one, is sent to `/studio/not-found` the same two
+ways: an HTML `GET` by a `303`, an HTMX request by `HX-Redirect`. An unknown protected address asked for without a
+session never gets that far, because the session check answers first. The screens stay at `/app/*`, and so do `/login/*`, `/logout` and
+`/csrf-token`. The shell page names a home other than `/` in `<meta name="ti-home">`, which is where its scripts go
+when they give up on a screen, and where the default sidebar's link points.
+
+**Keep `/` public yourself.** The framework no longer exempts `/` from the session check once the shell has moved, so an
+anonymous visitor to the site's own `/` would be sent to the home. Exempt it in the server's subclass; the string
+matches `/` alone:
+
+```javascript
+defineUnprotectedRoutes() {
+    super.defineUnprotectedRoutes();
+    this.addUnprotectedRoute( "/" );
+}
+```
+
+The home and `<home>not-found` are exempt from the session check for **every** method, as `/` and `/not-found` always
+were; the framework answers only `GET` there. A route an application registers at exactly those two paths is therefore
+public: register anything that needs a session at another path.
+
+The start is refused, rather than falling back to `/`, which would put the shell over the site it was moved off, for a
+home that:
+
+* is not a plain path on the site (`//host`, a scheme, a `.` or `..` segment, a query, a fragment, an escape);
+* starts with a segment the framework routes itself (`/app`, `/static`, `/login`, `/logout`, `/language`, `/me`,
+  `/health`, `/csrf-token`, `/admin`, `/service`, `/.well-known`, `/_ti`);
+* is, or has its not-found page at, the path of an enabled OpenID callback (`TI_AZURE_AUTH_CALLBACK_URL`,
+  `TI_GCLOUD_AUTH_CALLBACK_URL`), which the shell would answer instead. This holds at the default `/` as well: a
+  callback at `/` or `/not-found` refuses the start, where in 1.62 it was a sign-in that could never complete. A
+  provider with no client ID is not counted: it is dropped at start, and its callback never routed;
+* is not `/` and comes with no `application.classPath`: the shell is the web application manager's to serve.
+
+A `classPath` that is given but names nothing (empty, blank, not a string) refuses the start too, at any home, as it
+did in 1.62.
+
+The home is ended with `/` (`/studio` is `/studio/`, and both are served), and so is its not-found page
+(`/studio/not-found/` as well as `/studio/not-found`).
 
 ## The login screen
 

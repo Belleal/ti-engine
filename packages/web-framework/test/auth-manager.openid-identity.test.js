@@ -36,6 +36,57 @@ const { describe, it } = require( "node:test" );
 const assert = require( "node:assert/strict" );
 const AuthManager = require( "#auth-manager" );
 const authorization = require( "#authorization" );
+const User = require( "#user" );
+
+// Entra's object ID and tenant ID (CA-586): the `sub` in `userID` is pairwise, a different value in each app
+// registration, so an application that moves its data between two registrations needs an identifier that is not.
+describe( "The Entra object ID and tenant ID", () => {
+
+    const OID = "4c1d6b3a-0000-4000-8000-00000000000a";
+    const TID = "9e2f7c11-0000-4000-8000-00000000000b";
+
+    it( "takes `oid` and `tid` from the ID token, and keeps `userID` the subject", () => {
+        const identity = AuthManager.resolveOpenIDIdentity( { sub: "pairwise-1" }, { sub: "pairwise-1", oid: OID, tid: TID } );
+        assert.equal( identity.objectID, OID );
+        assert.equal( identity.tenantID, TID );
+        // Applications in production key their records by `userID`: it must not move to the object ID.
+        assert.equal( identity.userID, "oauth2:pairwise-1" );
+        assert.deepEqual( [ identity.sources.objectID, identity.sources.tenantID ], [ "claims.oid", "claims.tid" ] );
+    } );
+
+    it( "prefers `userinfo` over the ID token, as for every other value", () => {
+        const identity = AuthManager.resolveOpenIDIdentity( { sub: "s", oid: "from-userinfo", tid: "tenant-userinfo" }, { sub: "s", oid: OID, tid: TID } );
+        assert.equal( identity.objectID, "from-userinfo" );
+        assert.equal( identity.sources.objectID, "userinfo.oid" );
+        assert.equal( identity.tenantID, "tenant-userinfo" );
+    } );
+
+    it( "counts only a non-empty string", () => {
+        for ( const value of [ "", "   ", 42, null, { id: OID }, [ OID ] ] ) {
+            const identity = AuthManager.resolveOpenIDIdentity( { sub: "s", oid: value }, { sub: "s", tid: value } );
+            assert.equal( identity.objectID, undefined, JSON.stringify( value ) );
+            assert.equal( identity.tenantID, undefined, JSON.stringify( value ) );
+        }
+    } );
+
+    it( "leaves both undefined for a provider that sends neither, as Google does", () => {
+        const identity = AuthManager.resolveOpenIDIdentity( { sub: "google-sub", email: "a@example.com", email_verified: true }, { sub: "google-sub" } );
+        assert.equal( identity.objectID, undefined );
+        assert.equal( identity.tenantID, undefined );
+        assert.equal( identity.sources.objectID, undefined );
+    } );
+
+    it( "carries both onto the session user, and only when present", () => {
+        const signedIn = new User( AuthManager.resolveOpenIDIdentity( { sub: "s" }, { sub: "s", oid: OID, tid: TID } ) ).asJSON();
+        assert.equal( signedIn.objectID, OID );
+        assert.equal( signedIn.tenantID, TID );
+        // The object sign-in puts on the session as it is, not through JSON, which would drop a key holding `undefined`
+        // and hide it (CodeRabbit on #226).
+        const google = new User( AuthManager.resolveOpenIDIdentity( { sub: "g" }, { sub: "g" } ) ).asJSON();
+        assert.equal( Object.hasOwn( google, "objectID" ), false );
+        assert.equal( Object.hasOwn( google, "tenantID" ), false );
+    } );
+} );
 
 describe( "AuthManager.resolveOpenIDIdentity", () => {
 

@@ -2,6 +2,92 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.63.0
+
+Three seams an application with its own public site, and its own people in a database, needed and could not build, and a
+sign-out race the asynchronous refresh made wider.
+
+* feat(web-server): **the application shell's home is configurable** (CA-584). `application.home`, overridable with
+  `TI_WEB_APPLICATION_HOME`, is where the shell is served: `/` unless stated, so nothing changes for an application that
+  does not set it. Until now every answer that sends the browser home went to `/`: a sign-in, a sign-out, a refused
+  sign-in (`/?error=`), a language chosen, a screen asked for without a session, every unknown address (`/not-found`)
+  and the e-mail link's page. An application with a public site of its own could not keep `/` for that site.
+  * The home is trimmed and ended with `/` (`/studio` is `/studio/`). Anything that is not a plain path on this site -
+    `//host`, a scheme, a `.` or `..` segment, a query, a fragment, an escape, an empty segment - **refuses the start**:
+    falling back to `/` would put the shell over the very site it was moved off. So does a home under a segment the
+    framework routes itself (`/app`, `/static`, `/login`, `/logout`, `/language`, `/me`, `/health`, `/csrf-token`,
+    `/admin`, `/service`, `/.well-known`, `/_ti`): at `/app/` the shell answered `GET /app`. And so does a home at an
+    enabled OpenID callback's path, which the shell, routed first, would answer instead (`TiWebServer.homeCollision`),
+    and a home off `/` with no `application.classPath`, whose shell route threw on its first request. Only providers
+    that will be routed count: one with no client ID, which `AuthManager#initialize` drops, does not refuse the start
+    (`TiWebServer.callbackPathsOf`, `AuthManager#isOpenIDProviderConfigured`), and only those have their callback
+    routed: the callback of a provider with no client ID was registered before `initialize` dropped it, and took its
+    path ahead of an application route there, as in 1.62. A `classPath` that is given but names
+    nothing refuses the start at any home, as 1.62 did when it tried to load it.
+  * The not-found page is reachable without a session at `<home>not-found/` as well, which Express answers at the same
+    route; a visitor with no session was sent home from it, at `/not-found/` in 1.62 too.
+  * **A callback at `/` or `/not-found` now refuses the start at the default home as well.** In 1.62 the shell answered
+    it, so sign-in through that provider could never complete; a deployment it stops was already unable to sign in
+    through it.
+  * **An application with a public `/` exempts it itself** (`addUnprotectedRoute( "/" )` in `defineUnprotectedRoutes`):
+    once the shell has moved, the framework no longer does. The home and `<home>not-found` are exempt for every method,
+    as `/` and `/not-found` always were.
+  * The shell is served at `<home>` and its not-found page at `<home>not-found`; both are unprotected. Every redirect
+    above goes there, and errors to `<home>?error=<code>`. The screens stay at `/app/*`.
+  * A shell page whose home is not `/` carries `<meta name="ti-home">`, and the browser's two fallbacks that give up on
+    a screen go there instead of `/`, as does the default sidebar's link. At the default home no tag is written, so the
+    page is the page of 1.62.
+  * `TiWebServer#applicationHome` gives the resolved home. The web application manager is now loaded on
+    `application.classPath` rather than on the presence of `application`, which the environment variable creates on
+    its own.
+  * `test/web-server.application-home.test.js` drives each answer on a real server with the home at `/studio`; every
+    one of its 9 tests fails on 1.62.1.
+* feat(web-server): **`augmentSession` and `refreshSession` may be asynchronous** (CA-585). Each may return a promise,
+  and the framework waits for it, so an application can read its roles from a database on every request, or record a
+  first sign-in, instead of keeping roles in each process's memory, which is correct only while one process serves the
+  sessions.
+  * The refresh is waited for before any route runs, then the admin allowlist's role is applied, as after a hook that
+    answers at once. A rejection fails closed like a throw: logged, the application's roles dropped, the request served.
+  * The sign-in waits for `augmentSession` before applying the allowlist and saving. A rejection destroys the session,
+    saves nothing and forwards the error, as a throw does. A hook that changes the session in place and returns, or
+    resolves, nothing accepts the session it was given; one that returned nothing used to throw out of the session
+    store's callback, and an asynchronous one left the sign-in unanswered. Anything else that is not a session refuses
+    the sign-in. `refreshSession` always changes the session in place; what it returns is not read.
+  * **A sign-in whose session cannot be saved is refused** like a hook's refusal: the session destroyed, the error
+    forwarded. A failed save used to leave the signed-in session on the request for express-session to write at the
+    response's end, and a save that threw was lost. The session destroyed is the regenerated one, whose ID the cookie
+    carries; a replacement the hook gives back must have both `save` and `destroy`; and the refusal is answered even if
+    destroying throws. A hook's answer whose `then` throws when read is a failure like any other, at sign-in and on
+    refresh.
+  * **A failed refresh logs its stack alone**, as the admin hook's failure already did: the logger writes an error's own
+    properties out, and a store's error can carry its connection string there.
+  * A hook that answers at once keeps the request synchronous, as before. The refresh is waited for on every signed-in
+    request: keep it to one cheap lookup.
+* fix(sessions): **a sign-out is final** (CA-587). A request that loaded a session before a sign-out destroyed it, and
+  changed it afterwards, wrote it back at its response's end: the store's `set` recreated the record, so the sign-out
+  was undone and the cookie the response re-stamped signed the person in again. Any request that changes its session had
+  this window; an asynchronous `refreshSession` widens it by its lookup, which is why it is fixed here. Found by
+  CodeRabbit on #226.
+  * The store has no compare-and-set, so two orderings meet. `destroy` marks the ID as ended for 15 minutes
+    (`SessionStore.ENDED_SECONDS`, longer than any request runs) **before** it deletes the session. `set` reads the mark
+    **after** its own write lands, and deletes the session again if the mark is there. Whichever of the two writes lands
+    last, no session is left. `touch` needs no check: on both backends it only re-times a session that exists.
+  * A mark that cannot be written does not keep a session alive: the delete goes ahead and only the race stays open. A
+    mark that cannot be read keeps the write, since that is almost always a live session. Both are logged with the
+    stack alone.
+  * A held store (`sessions.held`) keeps no copy of a session it undid.
+  * Each session write costs one more store read; reads, which are most of the traffic, cost nothing more.
+  * `test/web-server.sign-out-race.test.js` runs the race on a real server: a request held in an asynchronous
+    `refreshSession` while `/logout` completes. Before the fix the session was back in the store afterwards; now the
+    store is empty and the old cookie signs nobody in. `test/session-store.ended.test.js` covers both orderings, held
+    and not.
+* feat(auth): **an Entra sign-in carries the object ID and the tenant ID** (CA-586). The user's `objectID` (`oid`) and
+  `tenantID` (`tid`) are read from `userinfo`, then the ID token, by the rule every other value follows, and the session's
+  user carries both. Entra's subject is pairwise, a different `sub` in each app registration, so an application that
+  moves from one registration to another sees each person under two `userID`s; the object ID is the same in every
+  registration of **one** tenant (across tenants, key by `tenantID` and `objectID` together). **`userID` is
+  unchanged**, and a provider that sends neither (Google) adds no keys.
+
 ## Version 1.62.1
 
 * fix(labels): **three keys the framework used were in no catalogue** (CA-577). The sidebar's profile tooltip and the

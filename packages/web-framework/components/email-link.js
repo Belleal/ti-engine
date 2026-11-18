@@ -65,8 +65,9 @@ const NOTICE_LABELS = Object.freeze( {
  */
 const PARAMETER = "email-link";
 
-// The sign-in page, where the link lands and a request is answered. Always `/`, because that is where the framework
-// sends every sign-in's failure too (`/?error=`): a page of its own would split the two.
+// The sign-in page, where the link lands and a request is answered, unless the application moved its shell (CA-584).
+// It is the application's home and not a setting of this method, because the home is where the framework sends every
+// sign-in's failure too (`<home>?error=`): a page of its own would split the two.
 const SIGN_IN_PAGE = "/";
 
 /**
@@ -299,20 +300,23 @@ class EmailLink {
     /** @type {Readonly<SettingsAuthEmailLink>} */
     #settings;
     #now;
+    #home;
     #lock = new tools.KeyedLock();
 
     /**
      * @constructor
      * @param {SettingsAuthEmailLink} [settings] `auth.emailLink`, its `allowedDomains` already normalized by
      *        {@link AuthManager.toDomainList}, which is the one place a domain list is read.
-     * @param {Object} [options] For tests.
-     * @param {function(): number} [options.now] The clock, in milliseconds.
+     * @param {Object} [options]
+     * @param {function(): number} [options.now] The clock, in milliseconds. For tests.
+     * @param {string} [options.home] The application's home, where the sign-in page is (CA-584): `/` unless given.
      */
     constructor( settings = {}, options = {} ) {
         const resolved = EmailLink.resolveSettings( settings );
         resolved.warnings.forEach( ( warning ) => logger.log( warning, logger.logSeverity.WARNING ) );
         this.#settings = resolved.settings;
         this.#now = ( typeof options.now === "function" ) ? options.now : () => Date.now();
+        this.#home = ( typeof options.home === "string" ) ? options.home : SIGN_IN_PAGE;
     }
 
     /* Public interface */
@@ -341,7 +345,7 @@ class EmailLink {
             subject: NOTICE_LABELS.subject,
             text: NOTICE_LABELS.text,
             // A rendering without a token, such as an editor's preview, links to the sign-in page itself.
-            link: ( data ) => ( typeof data.token === "string" ) ? `${ SIGN_IN_PAGE }#${ PARAMETER }=${ data.token }` : SIGN_IN_PAGE,
+            link: ( data ) => ( typeof data.token === "string" ) ? `${ this.#home }#${ PARAMETER }=${ data.token }` : this.#home,
             // Only the lifetime may appear in the texts: the token reaches the message through the link alone.
             format: ( data ) => ( { minutes: String( isCount( data.minutes ) ? data.minutes : this.#settings.lifetimeMinutes ) } ),
             placeholders: [ "minutes" ]
@@ -496,11 +500,12 @@ class EmailLink {
      *
      * @method
      * @param {string} outcome One of {@link OUTCOME}.
+     * @param {string} [home] The application's home, where the sign-in page is (CA-584): `/` unless given.
      * @returns {string}
      * @public
      */
-    static answerFor( outcome ) {
-        return `${ SIGN_IN_PAGE }?${ PARAMETER }=${ encodeURIComponent( outcome ) }`;
+    static answerFor( outcome, home = SIGN_IN_PAGE ) {
+        return `${ home }?${ PARAMETER }=${ encodeURIComponent( outcome ) }`;
     }
 
     /**

@@ -29,6 +29,8 @@ class User {
     #username;
     #email;
     #name;
+    #objectID;
+    #tenantID;
     #language;
     #roles;
     #permissions;
@@ -41,6 +43,8 @@ class User {
      * @param {string} [userData.username]
      * @param {string} [userData.email]
      * @param {string} [userData.name]
+     * @param {string} [userData.objectID] Entra's object ID (`oid`), the same in every app registration of a tenant.
+     * @param {string} [userData.tenantID] Entra's tenant ID (`tid`).
      * @param {TiLocalizationLanguage} [userData.language]
      * @param {string[]} [userData.roles]
      * @param {string[]} [userData.permissions]
@@ -51,6 +55,8 @@ class User {
         this.#username = userData.username;
         this.#email = userData.email;
         this.#name = userData.name;
+        this.#objectID = userData.objectID;
+        this.#tenantID = userData.tenantID;
         this.#language = userData.language;
         this.#roles = Array.isArray( userData.roles ) ? userData.roles : [];
         this.#permissions = Array.isArray( userData.permissions ) ? userData.permissions : [];
@@ -94,6 +100,29 @@ class User {
     }
 
     /**
+     * Entra's object ID (`oid`), when the provider sent one (CA-586). Unlike the subject in `userID`, which Entra makes
+     * pairwise, it is the same in every app registration of a tenant.
+     *
+     * @property
+     * @returns {string|undefined}
+     * @public
+     */
+    get objectID() {
+        return this.#objectID;
+    }
+
+    /**
+     * Entra's tenant ID (`tid`), when the provider sent one (CA-586).
+     *
+     * @property
+     * @returns {string|undefined}
+     * @public
+     */
+    get tenantID() {
+        return this.#tenantID;
+    }
+
+    /**
      * @property
      * @returns {TiLocalizationLanguage}
      * @public
@@ -132,6 +161,9 @@ class User {
             username: this.#username,
             email: this.#email,
             name: this.#name,
+            // Only when the sign-in carried them (CA-586): every other session keeps the shape it had.
+            ...( this.#objectID === undefined ? {} : { objectID: this.#objectID } ),
+            ...( this.#tenantID === undefined ? {} : { tenantID: this.#tenantID } ),
             language: this.#language,
             roles: this.#roles,
             permissions: this.#permissions,

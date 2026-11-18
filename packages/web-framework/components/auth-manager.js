@@ -76,6 +76,8 @@ class AuthManager {
     #clientConfigOAuth2Azure = {};
     /** @type {EmailLink|null} */
     #emailLink = null;
+    // The application's home, where the sign-in page is (CA-584).
+    #home = "/";
 
     // Whether the local user directory is genuinely usable: set true only after #loadLocalUserDirectory performs
     // a successful reconcile that produced at least one record. Every other outcome — no 'usersPath' configured,
@@ -115,11 +117,15 @@ class AuthManager {
     /**
      * @constructor
      * @param {SettingsAuth} settings
+     * @param {Object} [options]
+     * @param {string} [options.home] The application's home, where the sign-in page is (CA-584): `/` unless given. A
+     *        link sent by e-mail lands there, and a request for one is answered there.
      */
-    constructor( settings ) {
+    constructor( settings, options = {} ) {
         if ( settings ) {
             this.#authSettings = settings;
         }
+        this.#home = ( options && typeof options.home === "string" ) ? options.home : "/";
 
         // Set up OAuth2 configuration:
         this.#authSettings.oauth2 = this.#authSettings.oauth2 || {};
@@ -142,7 +148,7 @@ class AuthManager {
         if ( this.isAuthEnabled( authMethodEnum.EMAIL_LINK ) ) {
             // `TI_WEB_AUTH_EMAIL_LINK_ALLOWED_DOMAINS` has already replaced the list (web-config-env); this normalizes it.
             const emailLink = this.#authSettings.emailLink || {};
-            this.#emailLink = new EmailLink( Object.assign( {}, emailLink, { allowedDomains: AuthManager.toDomainList( emailLink.allowedDomains ) } ) );
+            this.#emailLink = new EmailLink( Object.assign( {}, emailLink, { allowedDomains: AuthManager.toDomainList( emailLink.allowedDomains ) } ), { home: this.#home } );
         }
     }
 
@@ -353,6 +359,22 @@ class AuthManager {
     }
 
     /**
+     * Whether an OpenID Connect provider is enabled and will stay so: {@link AuthManager#initialize} drops an enabled
+     * provider with no client ID, and its callback is then never routed. Asked before `initialize` runs, by a server that
+     * must judge only the callbacks it will register (CodeRabbit on #226).
+     *
+     * @method
+     * @param {TiAuthMethod} authMethod `openid-google` or `openid-azure`.
+     * @returns {boolean}
+     * @public
+     */
+    isOpenIDProviderConfigured( authMethod ) {
+        const oauth2 = ( authMethod === authMethodEnum.OPENID_GOOGLE ) ? this.#authSettings.oauth2.google
+            : ( authMethod === authMethodEnum.OPENID_AZURE ) ? this.#authSettings.oauth2.azure : undefined;
+        return this.isAuthEnabled( authMethod ) && this.#isOpenIDConfigured( oauth2 );
+    }
+
+    /**
      * Reduces a configured OAuth2 callback value to the local route path it corresponds to. Accepts an absolute URL
      * ('https://host/login/azure-callback'), a protocol-relative URL, or a path with or without its leading slash,
      * and strips any query string or fragment. Pure and static; exposed for unit testing.
@@ -468,7 +490,7 @@ class AuthManager {
         }
         const details = authDetails || {};
         return this.#emailLink.request( { email: details.email, client: details.client, language: details.language } ).then( ( outcome ) => {
-            return { redirectTo: EmailLink.answerFor( outcome ), outcome: outcome };
+            return { redirectTo: EmailLink.answerFor( outcome, this.#home ), outcome: outcome };
         } );
     }
 
@@ -769,12 +791,20 @@ class AuthManager {
      * The order is therefore the same as {@link AuthManager.isEmailReportedUnverified}'s, and it is the precedence
      * order too: the winning source comes first.
      *
+     * **Entra's object ID and tenant ID** (`oid`, `tid`) are carried as `objectID` and `tenantID`, by the same rule, when
+     * the provider sends them (CA-586). `userID` stays the subject, which applications key their records by. But Entra's
+     * `sub` is pairwise: the same person has a different one in each app registration, while `oid` is the same in
+     * every registration of a tenant. An application that moves its data from one registration to another, say from a
+     * development deployment to production, keys a person by the object ID instead. Google sends neither, and both are
+     * then `undefined`.
+     *
      * @method
      * @param {Object} [userInfo] The provider's `userinfo` response.
      * @param {Object} [claims] The validated ID token claims.
-     * @returns {{userID: string, username: string, email: (string|undefined), name: (string|undefined), sources: Object}}
-     *          `sources` names the claim and response each value came from (e.g. `claims.preferred_username`), so a
-     *          deployment can report how its provider is understood without logging anybody's identifiers.
+     * @returns {{userID: string, username: string, email: (string|undefined), name: (string|undefined),
+     *          objectID: (string|undefined), tenantID: (string|undefined), sources: Object}} `sources` names the claim
+     *          and response each value came from (e.g. `claims.preferred_username`), so a deployment can report how its
+     *          provider is understood without logging anybody's identifiers.
      * @public
      */
     static resolveOpenIDIdentity( userInfo, claims ) {
@@ -800,6 +830,8 @@ class AuthManager {
         const subject = pick( "userID", [ [ "userinfo.sub", info.sub ], [ "claims.sub", token.sub ] ] );
         const email = pick( "email", [ [ "userinfo.email", info.email ], [ "claims.email", token.email ] ] );
         const name = pick( "name", [ [ "userinfo.name", info.name ], [ "claims.name", token.name ] ] );
+        const objectID = pick( "objectID", [ [ "userinfo.oid", info.oid ], [ "claims.oid", token.oid ] ] );
+        const tenantID = pick( "tenantID", [ [ "userinfo.tid", info.tid ], [ "claims.tid", token.tid ] ] );
 
         // `preferred_username` before `upn` REGARDLESS of source, then the e-mail, then `name`, then the subject.
         // The source rule and the claim rule are separate, and the claim rule is the stronger of the two: these are
@@ -823,6 +855,9 @@ class AuthManager {
             username: username === undefined ? `sub:${ subject === undefined ? "" : subject }` : username,
             email: email,
             name: name,
+            // Only when sent, so an identity from a provider without them (Google) keeps exactly the shape it had.
+            ...( objectID === undefined ? {} : { objectID: objectID } ),
+            ...( tenantID === undefined ? {} : { tenantID: tenantID } ),
             // Which claim, in which response, each value came from. Carries no identity of its own, so a deployment
             // can report how its provider is understood without putting anybody's identifiers in a log.
             sources: sources
@@ -930,7 +965,7 @@ class AuthManager {
                 // Logging the values would not: `auditing.logMinLevel` ships at 0 with console logging on, so a
                 // deployment on the defaults would write every signed-in person's user ID, username and e-mail to
                 // its console on every successful sign-in, for a diagnostic needed once per provider.
-                logger.log( `OpenID sign-in resolved: userID from '${ identity.sources.userID || "(none)" }', username from '${ identity.sources.username || "the subject fallback" }', e-mail from '${ identity.sources.email || "(none)" }'.`, logger.logSeverity.DEBUG );
+                logger.log( `OpenID sign-in resolved: userID from '${ identity.sources.userID || "(none)" }', username from '${ identity.sources.username || "the subject fallback" }', e-mail from '${ identity.sources.email || "(none)" }', object ID from '${ identity.sources.objectID || "(none)" }'.`, logger.logSeverity.DEBUG );
                 resolve( new User( identity ) );
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );

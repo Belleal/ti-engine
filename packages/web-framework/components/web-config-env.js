@@ -24,7 +24,7 @@ const tools = require( "@ti-engine/core/tools" );
  * Each override is applied ONLY when its environment variable is defined, so an absent variable leaves the
  * configured/default value untouched (fully backward compatible). This gives ti-engine web servers 12-factor,
  * container-friendly control over network binding, TLS, the session cookie secret, the enabled authentication
- * methods, the admin allowlist, the local auth users file path, the domains that may sign in with an e-mail link, the trusted request origins, the `/static` cache policy, whether responses carry `Server-Timing`, the languages a visitor may choose, the public URL, how notifications are sent, how scheduled jobs are triggered and whether the sessions are held in the process, without editing config files. Note `TI_WEB_AUTH_METHODS`,
+ * methods, the admin allowlist, the local auth users file path, the domains that may sign in with an e-mail link, the trusted request origins, the `/static` cache policy, whether responses carry `Server-Timing`, the languages a visitor may choose, the public URL, where the application shell is served, how notifications are sent, how scheduled jobs are triggered and whether the sessions are held in the process, without editing config files. Note `TI_WEB_AUTH_METHODS`,
  * `TI_WEB_AUTH_ADMINS`, `TI_WEB_AUTH_EMAIL_LINK_ALLOWED_DOMAINS`, `TI_WEB_TRUSTED_ORIGINS`, `TI_WEB_STATIC_IMMUTABLE_PATHS` and `TI_WEB_LANGUAGES` fully REPLACE their config arrays (`auth.enabledMethods` / `auth.admins` / `auth.emailLink.allowedDomains` / `trustedOrigins` / `staticCache.immutablePaths` / `languages`) rather than
  * merging — the config-file merge is by-index and cannot cleanly override an array.
  *
@@ -133,6 +133,12 @@ function applyWebConfigEnvOverrides( config, env = process.env ) {
     if ( env.TI_WEB_PUBLIC_URL !== undefined ) {
         // The base of a link in a notice (CA-486). A notice is rendered outside any request, so it cannot be taken from one.
         config.publicUrl = env.TI_WEB_PUBLIC_URL.trim();
+    }
+    if ( env.TI_WEB_APPLICATION_HOME !== undefined ) {
+        // Where the application shell is served (CA-584). Validated by TiWebServer.resolveApplicationHome, which refuses
+        // to start on a value that is not a plain path on the site.
+        config.application = config.application || {};
+        config.application.home = env.TI_WEB_APPLICATION_HOME.trim();
     }
     // The notification settings (CA-486), each a string the notification service validates when it is configured.
     const notifySettings = {

@@ -75,7 +75,12 @@ const timeZone = require( "@ti-engine/core/time-zone" );
 
 /**
  * @typedef {Object} TiWebApplicationConfig
- * @property {string} classPath
+ * @property {string} [classPath] The web application manager's module, relative to the working directory. Without it
+ *           the server runs no manager.
+ * @property {string} [home] Where the application shell is served (CA-584), overridable with `TI_WEB_APPLICATION_HOME`:
+ *           a path on this site such as `/studio/`, `/` unless stated. Every answer that sends the browser home goes
+ *           there, and the not-found page is `<home>not-found`; the screens stay at `/app/*`. An application with a
+ *           public site of its own moves the shell off `/` to keep `/` for the site.
  */
 
 /**
@@ -224,6 +229,32 @@ const FEEDBACK_BODY_LIMIT = "1536kb";
 const JOBS_ROUTE = "/_ti/jobs/run";
 
 /**
+ * The not-found page's name under the application's home (CA-584): `/not-found` at the default home.
+ *
+ * @type {string}
+ */
+const NOT_FOUND_PAGE = "not-found";
+
+/**
+ * A usable `application.home` once it ends in `/` (CA-584): a path of unreserved characters only. It is written into a
+ * `Location` header, an `HX-Redirect` header and the shell page, so it may not leave the site (`//host`), carry a query,
+ * a fragment or an escape of its own, or hold an empty segment. Nor a `.` or `..` segment, which a browser resolves:
+ * `/a/../` is `/`, the very address the home was moved off.
+ *
+ * @type {RegExp}
+ */
+const RE_APPLICATION_HOME = /^\/(?:(?!\.{1,2}\/)[A-Za-z0-9._~-]+\/)*$/;
+
+/**
+ * The first path segments the framework routes itself, which an `application.home` may not start with: at `/app/` the
+ * shell would answer `GET /app`, which Express matches at the route `/app/`, and at `/static/` it would sit over the
+ * assets. Compared without regard to case, as Express routes are.
+ *
+ * @type {Set<string>}
+ */
+const FRAMEWORK_SEGMENTS = new Set( [ "app", "static", "login", "logout", "language", "me", "health", "csrf-token", "admin", "service", ".well-known", "_ti" ] );
+
+/**
  * How often the `internal` trigger runs a tick, in milliseconds. A daily job falls due within this of its time.
  *
  * @type {number}
@@ -265,6 +296,7 @@ class TiWebServer extends ServiceConsumer {
     #allowedHosts = [];
     #unprotectedRoutes = [];
     #offeredLanguages = [];
+    #applicationHome = "/";
     #jobsTrigger = "off";
     #jobsTimer = null;
     #webAppManager;
@@ -291,7 +323,23 @@ class TiWebServer extends ServiceConsumer {
             this.#staticContentPaths.push( customStaticContentPath );
         }
 
-        this.#authManager = new AuthManager( this.serviceConfig.auth );
+        // Refused rather than defaulted: a home that is not usable falling back to `/` would put the shell over the very
+        // site it was moved off (CA-584). Before the AuthManager, which tells the e-mail link where the sign-in page is.
+        const home = TiWebServer.resolveApplicationHome( this.serviceConfig.application );
+        if ( home.error ) {
+            logger.log( home.error, logger.logSeverity.ERROR );
+            throw exceptions.raise( exceptions.exceptionCode.E_GEN_INVALID_ARGUMENT_TYPE, { setting: "application.home", detail: home.error } );
+        }
+        this.#applicationHome = home.home;
+
+        this.#authManager = new AuthManager( this.serviceConfig.auth, { home: this.#applicationHome } );
+
+        // Only now are the callbacks known: the AuthManager reads them, with their environment variables.
+        const collision = TiWebServer.homeCollision( this.#applicationHome, TiWebServer.callbackPathsOf( this.#authManager ) );
+        if ( collision ) {
+            logger.log( collision, logger.logSeverity.ERROR );
+            throw exceptions.raise( exceptions.exceptionCode.E_GEN_INVALID_ARGUMENT_TYPE, { setting: "application.home", detail: collision } );
+        }
 
         const offered = TiWebServer.resolveOfferedLanguages( this.serviceConfig.languages );
         offered.warnings.forEach( ( warning ) => logger.log( warning, logger.logSeverity.WARNING ) );
@@ -319,8 +367,9 @@ class TiWebServer extends ServiceConsumer {
         // overrides, so a container that names its admins in `TI_WEB_AUTH_ADMINS` is the list written to.
         feedback.instance.configure( { admins: this.serviceConfig.auth && this.serviceConfig.auth.admins } );
 
-        // If there is a web application configuration, create the web application manager:
-        if ( this.serviceConfig.application ) {
+        // If there is a web application manager configured, create it. On `classPath` rather than `application`, which
+        // `TI_WEB_APPLICATION_HOME` creates on its own, and a server with no manager would then fail looking for one:
+        if ( this.serviceConfig.application && this.serviceConfig.application.classPath ) {
             try {
                 const webApplicationConstructor = require( path.join( process.cwd(), this.serviceConfig.application.classPath ) );
                 this.#webAppManager = new webApplicationConstructor();
@@ -381,6 +430,19 @@ class TiWebServer extends ServiceConsumer {
      */
     get offeredLanguages() {
         return this.#offeredLanguages;
+    }
+
+    /**
+     * Property returning where the application shell is served (CA-584): `application.home` as
+     * {@link TiWebServer.resolveApplicationHome} resolved it, a rooted path ending in `/`. Every answer that sends the
+     * browser home goes here.
+     *
+     * @property
+     * @returns {string}
+     * @public
+     */
+    get applicationHome() {
+        return this.#applicationHome;
     }
 
     /**
@@ -652,7 +714,7 @@ class TiWebServer extends ServiceConsumer {
                 // a path with a malformed escape (`/bg/%E0%A4%A`) never reached it (CA-573). The error handler answers
                 // such a failure on any other route with a 404 too.
                 this.#webServer.all( RE_ANY_PATH, webHandlers.invalidRouteHandler() );
-                this.#webServer.use( webHandlers.defaultErrorHandler() );
+                this.#webServer.use( webHandlers.defaultErrorHandler( this ) );
 
                 // Set up the unprotected routes:
                 this.defineUnprotectedRoutes();
@@ -759,19 +821,26 @@ class TiWebServer extends ServiceConsumer {
 
     /**
      * Hook for the application to augment the freshly-authenticated session (e.g. derive domain roles from an
-     * identity store or the org chart). Runs synchronously, once per login, before the framework's additive `admin`
-     * role is applied. The default is a no-op. Any test-user role injection is an override of whatever the app derives.
+     * identity store or the org chart). Runs once per login, before the framework's additive `admin` role is applied.
+     * The default is a no-op. Any test-user role injection is an override of whatever the app derives.
      * <br/>
-     * **Refusing a login.** Throwing from this hook refuses the sign-in: the framework destroys the freshly regenerated
-     * session (so no usable session survives the refusal), the login handler raises `401`, and the error handler
-     * redirects the browser to the login page with the exception code in `?error=`. Throw when the authenticated
-     * identity cannot be mapped to an application principal; return the session unchanged to accept it.
+     * **It may answer later** (CA-585): return a promise of the session, and the framework waits for it before it
+     * applies the `admin` role and saves the session. An application keeping its principals in a database can record a
+     * first sign-in, or read the roles, here. A hook that returns the session at once works as it always has. One that
+     * changes the session in place and returns, or resolves, nothing accepts the session it was given; anything else that
+     * is not a session refuses the sign-in.
+     * <br/>
+     * **Refusing a login.** Throwing from this hook, or returning a promise that rejects, refuses the sign-in: the
+     * framework destroys the freshly regenerated session (so no usable session survives the refusal), the login handler
+     * raises `401`, and the error handler redirects the browser to the login page with the exception code in `?error=`.
+     * Throw when the authenticated identity cannot be mapped to an application principal; return the session unchanged
+     * to accept it.
      *
      * @method
      * @virtual
      * @param {TiSession} session
      * @param {Object} [request] Optional Express request object that can be used to read body/cookies/query data.
-     * @returns {TiSession}
+     * @returns {TiSession|Promise<TiSession>|void|Promise<void>}
      * @public
      */
     augmentSession( session, request ) {
@@ -788,23 +857,30 @@ class TiWebServer extends ServiceConsumer {
      * cookie an active user's session need never expire, so "until they sign out" can mean indefinitely. Deriving
      * per request makes withdrawal take effect on the next click instead.
      * <br/>
-     * **Contract.** Runs synchronously on each request that carries a session user, after the static handlers and
-     * before any application route, so it must stay cheap and free of I/O — read in-memory state, not a store. The
-     * framework re-applies the additive `admin` role immediately afterwards, so an implementation may replace
-     * `session.user.roles` wholesale without stranding an allowlisted administrator. Assign only when the value
-     * actually changes: express-session persists a session whose serialized form differs, so rewriting an equal array
-     * is free but rewriting a *new* value on every request is a store write on every request.
+     * **Contract.** Runs on each request that carries a session user, after the static handlers and before any
+     * application route. **It changes the session in place**: what it returns, or a promise of it resolves with, is not
+     * read, so a hook that builds a new session object changes nothing. The framework re-applies the additive `admin`
+     * role immediately afterwards, so an
+     * implementation may replace `session.user.roles` wholesale without stranding an allowlisted administrator. Assign
+     * only when the value actually changes: express-session persists a session whose serialized form differs, so
+     * rewriting an equal array is free but rewriting a *new* value on every request is a store write on every request.
      * <br/>
-     * **Failure is fail-closed, not fatal.** Throwing does not refuse the request the way it does at sign-in — there
-     * is no sign-in to refuse. The framework logs the failure, strips the session's application roles, and lets the
-     * request continue with the `admin` allowlist role alone. A viewer who cannot be authorized keeps no authority,
-     * while an administrator retains the access that exists precisely to repair broken application data.
+     * **It may read a store** (CA-585). Return a promise, and the request waits for it: no route runs until it settles,
+     * so a role the store no longer grants is gone on the next request, however many processes serve the sessions.
+     * That wait is on every signed-in request, so keep the read to one cheap lookup. A hook that returns at once keeps
+     * the request synchronous, as before.
+     * <br/>
+     * **Failure is fail-closed, not fatal.** Throwing, or a promise that rejects, does not refuse the request the way
+     * it does at sign-in — there is no sign-in to refuse. The framework logs the failure, strips the session's
+     * application roles, and lets the request continue with the `admin` allowlist role alone. A viewer who cannot be
+     * authorized keeps no authority, while an administrator retains the access that exists precisely to repair broken
+     * application data.
      *
      * @method
      * @virtual
      * @param {TiSession} session
      * @param {Object} [request] Optional Express request object.
-     * @returns {TiSession}
+     * @returns {TiSession|Promise<TiSession>|void|Promise<void>}
      * @public
      */
     refreshSession( session, request ) {
@@ -934,10 +1010,10 @@ class TiWebServer extends ServiceConsumer {
 
     /**
      * Used to check if the specified route is unprotected (i.e., does not require authentication). The default unprotected routes are:
-     * - /
+     * - the application's home, `/` unless `application.home` says otherwise (see {@link TiWebServer#applicationHome})
      * - /static/...
      * - /.well-known/...
-     * - /not-found
+     * - `<home>not-found`, `/not-found` at the default home
      * - /app
      * - /app/enter
      * - /app/config
@@ -970,8 +1046,10 @@ class TiWebServer extends ServiceConsumer {
      * @public
      */
     defineWebApplicationRoutes() {
-        this.#webServer.get( "/", webHandlers.webAppHandler( this ) );
-        this.#webServer.get( "/not-found", webHandlers.webAppHandler( this ) );
+        // The shell and its not-found page at the home (CA-584), each told which of the two it is: at `/studio/` the
+        // request's own path names neither.
+        this.#webServer.get( this.#applicationHome, webHandlers.webAppHandler( this, "/" ) );
+        this.#webServer.get( this.#applicationHome + NOT_FOUND_PAGE, webHandlers.webAppHandler( this, "/not-found" ) );
         this.#webServer.get( "/app", webHandlers.webAppHandler( this ) );
         this.#webServer.get( "/app/:view", webHandlers.webAppHandler( this ) );
         this.#webServer.post( "/app/:service", webHandlers.webAppHandler( this ) );
@@ -982,7 +1060,7 @@ class TiWebServer extends ServiceConsumer {
         this.#webServer.post( "/login/:method", this.#whileSignInPossible( webHandlers.authenticationHandler( this ) ) );
         this.#webServer.get( "/me", this.#whileSignInPossible( webHandlers.userInformationHandler() ) );
         // Sign-out stays: it creates nothing, and a session left from before the last method was removed must end.
-        this.#webServer.post( "/logout", webHandlers.logoutHandler() );
+        this.#webServer.post( "/logout", webHandlers.logoutHandler( this ) );
         this.#webServer.get( "/health", webHandlers.healthHandler() );
         // The visitor's choice of interface language, before or after sign-in (CA-410).
         this.#webServer.get( "/language/:code", webHandlers.languageChoiceHandler( this ) );
@@ -995,8 +1073,11 @@ class TiWebServer extends ServiceConsumer {
         this.#webServer.get( "/app/labels/:hash", webHandlers.labelsBundleHandler( this ) );
         // NOTE: A callback is registered by its path, never by the configured value verbatim — that value is commonly
         // the absolute URL registered with the identity provider, which Express cannot parse as a route pattern.
+        // Only a provider that will stay enabled: these routes are defined before `AuthManager#initialize` drops one with
+        // no client ID, whose callback then took its path ahead of an application route there, to answer it with a
+        // refused sign-in. The same rule as `callbackPathsOf`, which the home is checked against (CodeRabbit on #226).
         [ authMethod.OPENID_GOOGLE, authMethod.OPENID_AZURE ].forEach( ( method ) => {
-            if ( this.#authManager.isAuthEnabled( method ) === true ) {
+            if ( this.#authManager.isOpenIDProviderConfigured( method ) === true ) {
                 const callbackPath = this.#authManager.getOAuth2CallbackPath( method );
                 if ( callbackPath ) {
                     this.#webServer.get( callbackPath, webHandlers.authorizedOAuth2CallbackHandler( this, method ) );
@@ -1034,8 +1115,15 @@ class TiWebServer extends ServiceConsumer {
      * @public
      */
     defineUnprotectedRoutes() {
-        this.#unprotectedRoutes.push( "/" );
-        this.#unprotectedRoutes.push( "/not-found" );
+        this.#unprotectedRoutes.push( this.#applicationHome );
+        if ( this.#applicationHome !== "/" ) {
+            // Express answers `/studio` at the route `/studio/`, so the sign-in screen must be reachable there as well.
+            this.#unprotectedRoutes.push( this.#applicationHome.slice( 0, -1 ) );
+        }
+        this.#unprotectedRoutes.push( this.#applicationHome + NOT_FOUND_PAGE );
+        // And with a trailing slash, which Express answers at the same route: without it a visitor with no session was
+        // sent home from the not-found page, at `/not-found/` in 1.62 as well (CodeRabbit on #226).
+        this.#unprotectedRoutes.push( this.#applicationHome + NOT_FOUND_PAGE + "/" );
         this.#unprotectedRoutes.push( "/app" );
         this.#unprotectedRoutes.push( "/app/enter" );
         this.#unprotectedRoutes.push( "/app/config" );
@@ -1198,6 +1286,110 @@ class TiWebServer extends ServiceConsumer {
     static #toServedPath( rootPath, filePath ) {
         // Split on the platform separator only: on POSIX a backslash is a legal filename character, not a delimiter.
         return "/" + path.relative( String( rootPath || "" ), String( filePath || "" ) ).split( path.sep ).join( "/" );
+    }
+
+    /**
+     * Resolves `application.home` into where the application shell is served (CA-584): trimmed and ended with `/`, so
+     * `/studio` is `/studio/`; `/` when nothing names one. Anything that is not a plain path on this site
+     * ({@link RE_APPLICATION_HOME}) is refused with an `error`, and the home given back with it is `/` only so the
+     * result keeps its shape: the constructor refuses to start. So is a home under a framework route, a home off `/`
+     * with no `application.classPath` to serve the shell there, and a `classPath` that is given but names nothing.
+     *
+     * @method
+     * @static
+     * @param {TiWebApplicationConfig} [application]
+     * @returns {{home: string, error: string|null}}
+     * @public
+     */
+    static resolveApplicationHome( application ) {
+        // A classPath that is given but names nothing failed the start in 1.62, loading it; the manager is now loaded on a
+        // usable one alone, so it is refused here, or the server would start and its shell throw (CodeRabbit on #226).
+        const classPath = _.isObjectLike( application ) ? application.classPath : undefined;
+        if ( classPath !== undefined && !( typeof classPath === "string" && classPath.trim() !== "" ) ) {
+            return { home: "/", error: "application.classPath is given but names no web application manager; name its module, or leave it out." };
+        }
+        const configured = _.isObjectLike( application ) ? application.home : undefined;
+        if ( configured === undefined || configured === null || ( typeof configured === "string" && configured.trim() === "" ) ) {
+            return { home: "/", error: null };
+        }
+        const refusal = ( shown ) => ( {
+            home: "/",
+            error: `The application home ${ shown } (application.home or TI_WEB_APPLICATION_HOME) is not a plain path on this site, such as '/studio/'.`
+        } );
+        if ( typeof configured !== "string" ) {
+            return refusal( `of type ${ Array.isArray( configured ) ? "array" : typeof configured }` );
+        }
+        const trimmed = configured.trim();
+        const home = trimmed.endsWith( "/" ) ? trimmed : trimmed + "/";
+        if ( !RE_APPLICATION_HOME.test( home ) ) {
+            return refusal( `'${ trimmed.slice( 0, 60 ) }'` );
+        }
+        const first = home.split( "/" )[ 1 ].toLowerCase();
+        if ( FRAMEWORK_SEGMENTS.has( first ) ) {
+            return {
+                home: "/",
+                error: `The application home '${ home }' (application.home or TI_WEB_APPLICATION_HOME) is under '/${ first }', which the framework routes itself; choose another, such as '/studio/'.`
+            };
+        }
+        // The shell is the manager's to render. Without one its route threw on the first request, and the environment
+        // variable alone makes an `application` with no manager (CodeRabbit on #226). `/` keeps 1.62's behaviour.
+        if ( home !== "/" && !( typeof application.classPath === "string" && application.classPath.trim() !== "" ) ) {
+            return {
+                home: "/",
+                error: `The application home '${ home }' (application.home or TI_WEB_APPLICATION_HOME) needs a web application manager to serve the shell there, and application.classPath names none.`
+            };
+        }
+        return { home: home, error: null };
+    }
+
+    /**
+     * The paths of the OpenID callbacks the server will register: those of the providers that are enabled and configured.
+     * A provider with no client ID is dropped by {@link AuthManager#initialize}, its callback never routed, and 1.62
+     * started without it; it may not refuse the start through {@link TiWebServer.homeCollision} (CodeRabbit on #226).
+     * Exposed for unit testing.
+     *
+     * @method
+     * @static
+     * @param {AuthManager} authManager
+     * @returns {Array<string|null>}
+     * @public
+     */
+    static callbackPathsOf( authManager ) {
+        return [ authMethod.OPENID_GOOGLE, authMethod.OPENID_AZURE ]
+            .filter( ( method ) => authManager.isOpenIDProviderConfigured( method ) === true )
+            .map( ( method ) => authManager.getOAuth2CallbackPath( method ) );
+    }
+
+    /**
+     * Whether the application's home would capture a route the server registers after the shell (CodeRabbit on #226):
+     * the shell and its not-found page are routed first, so a callback at `<home>` or `<home>not-found` would be
+     * answered with the shell and sign-in through it would never complete. Compared as Express matches a route: in any
+     * case, with or without a trailing slash. Pure; the constructor passes the enabled OpenID callbacks' paths.
+     *
+     * @method
+     * @static
+     * @param {string} home A home as {@link TiWebServer.resolveApplicationHome} resolved it.
+     * @param {Array<string|null>} paths The paths of the routes registered after the shell.
+     * @returns {string|null} Why the home is refused, or `null`.
+     * @public
+     */
+    static homeCollision( home, paths ) {
+        // The default home too (CodeRabbit on #226): a callback at `/` or `/not-found` was answered by the shell in 1.62
+        // as well, a sign-in that could never complete; refusing the start says why.
+        // Trailing slashes counted off by hand: `/\/+$/` tries every start in a run of slashes, which is quadratic, 1.9 s
+        // for 100k of them (CodeQL alert 27).
+        const comparable = ( value ) => {
+            const text = String( value ).toLowerCase();
+            let end = text.length;
+            while ( end > 0 && text[ end - 1 ] === "/" ) {
+                end--;
+            }
+            return text.slice( 0, end );
+        };
+        const shellPaths = [ comparable( home ), comparable( home + NOT_FOUND_PAGE ) ];
+        const taken = ( Array.isArray( paths ) ? paths : [] ).find( ( value ) => typeof value === "string" && value !== "" && shellPaths.includes( comparable( value ) ) );
+        return ( taken === undefined ) ? null
+            : `The application home '${ home }' (application.home or TI_WEB_APPLICATION_HOME) would answer the OpenID callback at '${ taken }' with the shell; choose another home, or another callback.`;
     }
 
     /**

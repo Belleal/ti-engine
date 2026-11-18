@@ -332,35 +332,86 @@ let resolveSessionLanguage = ( user, instance, chosen ) => {
  */
 let regenerateAndSaveSession = ( request, redirectTo, modifier ) => {
     return new Promise( ( resolve, reject ) => {
-        request.session.regenerate( ( error ) => {
-            if ( error ) {
+        // The application's augment hook refused this login. `session.user` was already assigned in place before the
+        // hook ran, and `verifySession` only checks that it exists — so a merely-rejected session would still be
+        // persisted by express-session at response end and would admit the user. Destroy it before rejecting so a
+        // refusal is genuinely fail-closed, whether the hook threw or its promise rejected (CA-585).
+        // The session destroyed is the regenerated one, whose ID the cookie carries, and not whatever the hook put in its
+        // place; and the refusal is answered even if destroying throws, or the sign-in would hang (CodeRabbit on #226).
+        let regenerated = null;
+        const refuse = ( error ) => {
+            try {
+                ( regenerated || request.session ).destroy( () => {
+                    reject( error );
+                } );
+            } catch {
                 reject( error );
-            } else {
-                try {
-                    if ( modifier && typeof modifier === "function" ) {
-                        request.session = modifier( request.session );
-                    }
-                } catch ( error ) {
-                    // The application's augment hook refused this login. `session.user` was already assigned in place
-                    // before the hook ran, and `verifySession` only checks that it exists — so a merely-rejected
-                    // session would still be persisted by express-session at response end and would admit the user.
-                    // Destroy it before rejecting so a refusal is genuinely fail-closed.
-                    request.session.destroy( () => {
-                        reject( error );
-                    } );
-                    return;
-                }
+            }
+        };
+        // Saves what the modifier gave back. Anything but a session is refused here: it used to become `request.session`,
+        // whose `save` then threw - out of the store's callback, or inside a promise nobody handled, leaving the sign-in
+        // unanswered (the review pass). A session can be saved and destroyed; one that cannot be destroyed could not be
+        // refused if its save failed (CodeRabbit on #226).
+        const save = ( session ) => {
+            if ( !session || typeof session.save !== "function" || typeof session.destroy !== "function" ) {
+                refuse( exceptions.raise( exceptions.exceptionCode.E_GEN_JS_INTERNAL_ERROR, { detail: "The session hook gave back no session." } ) );
+                return;
+            }
+            request.session = session;
+            // A save that fails refuses the sign-in like the hook's refusal: rejected alone, it left the session, user and
+            // all, on the request for express-session to write at the response's end; and one that throws, as a store
+            // does for a value it cannot serialize, was lost in the promise around it (CodeRabbit on #226).
+            try {
                 request.session.save( ( error ) => {
                     if ( error ) {
-                        reject( error );
+                        refuse( error );
                     } else {
                         resolve( redirectTo );
                     }
-                } )
+                } );
+            } catch ( error ) {
+                refuse( error );
             }
-        } )
+        };
+        request.session.regenerate( ( error ) => {
+            if ( error ) {
+                reject( error );
+                return;
+            }
+            regenerated = request.session;
+            let modified = request.session;
+            // Set inside the boundary below; the refusal in its `catch` returns before it is read.
+            let pending;
+            try {
+                if ( modifier && typeof modifier === "function" ) {
+                    modified = modifier( request.session );
+                }
+                // Inside the boundary: asking an answer whether it is a promise reads its `then`, which can throw.
+                pending = isThenable( modified );
+            } catch ( error ) {
+                refuse( error );
+                return;
+            }
+            // A modifier may answer later: the augment hook may read a store (CA-585). The session is saved only once
+            // it has, so it is never written before the application has decided.
+            if ( pending ) {
+                Promise.resolve( modified ).then( save, refuse );
+                return;
+            }
+            save( modified );
+        } );
     } );
 };
+
+/**
+ * Whether a value is a promise, or anything else that can be awaited: an application hook that may answer later.
+ *
+ * @method
+ * @param {*} value
+ * @returns {boolean}
+ * @private
+ */
+let isThenable = ( value ) => value !== null && ( typeof value === "object" || typeof value === "function" ) && typeof value.then === "function";
 
 /**
  * Check if the request is an HTMX request.
@@ -483,6 +534,19 @@ let convertUriToString = ( uri ) => {
 };
 
 /**
+ * Where an answer that sends the browser home sends it (CA-584): the server's `applicationHome`, `/` unless the
+ * application moved its shell. An instance that names none, such as a test's stand-in, is at `/`, as before 1.63.0.
+ *
+ * @method
+ * @param {TiWebServer} [instance]
+ * @returns {string}
+ * @private
+ */
+let homeOf = ( instance ) => {
+    return ( instance && typeof instance.applicationHome === "string" ) ? instance.applicationHome : "/";
+};
+
+/**
  * Handler for requests that are received while the web server is shutting down.
  *
  * @method
@@ -581,7 +645,7 @@ module.exports.resourceProtectionHandler = ( instance ) => {
             return next();
         }
 
-        const redirectTo = "/";
+        const redirectTo = homeOf( instance );
         const refuse = () => {
             if ( isHtmxRequest( request ) ) {
                 response.set( "HX-Redirect", redirectTo );
@@ -671,11 +735,11 @@ let applyAdminRoleFor = ( instance, session, request ) => {
  * @param {ExpressRequest} request
  * @param {User} user
  * @param {TiAuthMethod} method
- * @returns {Promise<string>} Where to send the browser: `/`.
+ * @returns {Promise<string>} Where to send the browser: the application's home, `/` unless moved (CA-584).
  * @private
  */
 let signInUser = ( instance, request, user, method ) => {
-    return regenerateAndSaveSession( request, "/", ( session ) => {
+    return regenerateAndSaveSession( request, homeOf( instance ), ( session ) => {
         session.user = user.asJSON();
         session.language = resolveSessionLanguage( user, instance, readLanguageChoice( request, instance ) );
         session.authMethod = method;
@@ -685,12 +749,20 @@ let signInUser = ( instance, request, user, method ) => {
         // three methods came to share this one.
         delete session.oidc;
 
-        const signedIn = applyAdminRoleFor( instance, instance.augmentSession( session, request ), request );
-        if ( isAdminWithheldByMethod( instance, signedIn ) && authorization.isAdminIdentity( signedIn.user, instance.serviceConfig?.auth?.admins ) ) {
-            // Said once, at sign-in, so an operator who finds an administrator without the role learns why.
-            logger.log( `User '${ signedIn.user.userID }' is on the admin allowlist but signed in by e-mail link, which does not carry the admin role unless 'auth.emailLink.grantsAdmin' is true.`, logger.logSeverity.NOTICE );
-        }
-        return signedIn;
+        // A hook that changed the session in place and returned nothing, as an `async` one written that way does, accepted
+        // the session it was given.
+        const finish = ( augmented ) => {
+            const signedIn = applyAdminRoleFor( instance, ( augmented === undefined ) ? session : augmented, request );
+            if ( isAdminWithheldByMethod( instance, signedIn ) && authorization.isAdminIdentity( signedIn.user, instance.serviceConfig?.auth?.admins ) ) {
+                // Said once, at sign-in, so an operator who finds an administrator without the role learns why.
+                logger.log( `User '${ signedIn.user.userID }' is on the admin allowlist but signed in by e-mail link, which does not carry the admin role unless 'auth.emailLink.grantsAdmin' is true.`, logger.logSeverity.NOTICE );
+            }
+            return signedIn;
+        };
+        // The hook may answer later (CA-585), and the allowlist's role is applied only once it has: applied before, an
+        // application replacing the roles would strip it again.
+        const augmented = instance.augmentSession( session, request );
+        return isThenable( augmented ) ? Promise.resolve( augmented ).then( finish ) : finish( augmented );
     } );
 };
 
@@ -751,7 +823,7 @@ module.exports.authenticationHandler = ( instance ) => {
                     if ( exception.code === exceptions.exceptionCode.E_SEC_INVALID_AUTH_TOKEN ) {
                         // Logged as every other refused sign-in is, since it never reaches the error handler; never the token.
                         logger.log( "Refused an e-mail sign-in link: unknown, already used or expired.", logger.logSeverity.DEBUG, exception );
-                        return EmailLink.answerFor( EmailLink.OUTCOME.EXPIRED );
+                        return EmailLink.answerFor( EmailLink.OUTCOME.EXPIRED, homeOf( instance ) );
                     }
                     throw exception;
                 } ).then( ( redirectTo ) => {
@@ -903,26 +975,29 @@ module.exports.authorizedOAuth2CallbackHandler = ( instance, authMethod ) => {
 };
 
 /**
- * Handler for server-side logout. The session is destroyed, and the browser is sent to `/` in a page load of its own.
+ * Handler for server-side logout. The session is destroyed, and the browser is sent home - `/` unless the application
+ * moved its shell (CA-584) - in a page load of its own.
  * <br/>
- * A sign-out made by htmx - the user menu's - is answered `204` with `HX-Redirect: /`, which htmx turns into a page load,
+ * A sign-out made by htmx - the user menu's - is answered `204` with `HX-Redirect` home, which htmx turns into a page load,
  * as {@link module.exports.resourceProtectionHandler} answers an htmx request whose session has ended. A `303` would be
  * followed inside htmx's request and the sign-in page swapped into the signed-in one, so that page never ended: its
  * store kept the signed-out user, and its components' watchers asked for data with no session (CA-498). Any other
  * sign-out, such as a plain form, gets the `303` the browser follows itself.
  *
  * @method
+ * @param {TiWebServer} [instance] The server, for its home; without one the browser is sent to `/`.
  * @returns {ExpressHandler}
  * @public
  */
-module.exports.logoutHandler = () => {
+module.exports.logoutHandler = ( instance ) => {
     return ( request, response, next ) => {
+        const home = homeOf( instance );
         const done = ( error ) => {
             if ( isHtmxRequest( request ) ) {
-                response.set( "HX-Redirect", "/" );
+                response.set( "HX-Redirect", home );
                 response.status( exceptions.httpCode.C_204 ).end();
             } else {
-                response.redirect( exceptions.httpCode.C_303, "/" );
+                response.redirect( exceptions.httpCode.C_303, home );
             }
         };
         if ( request.session ) {
@@ -1288,7 +1363,8 @@ module.exports.languageChoiceHandler = ( instance ) => {
                 request.session.language = code;
             }
         }
-        response.redirect( exceptions.httpCode.C_303, "/" );
+        // Home, where the sign-in screen the switch is on is served (CA-584).
+        response.redirect( exceptions.httpCode.C_303, homeOf( instance ) );
     };
 };
 
@@ -1454,13 +1530,18 @@ let visibleServerErrorData = ( exception, language ) => {
  * business — for a raised `Error` it holds the stack — and it is logged instead, under that ID (see
  * {@link logFailedRequest}). The one exception is a `details` label (see {@link visibleServerErrorData}). A client error
  * keeps its data, which is how a form learns what was wrong with it.
+ * <br/>
+ * A navigation is sent home with the reason, `<home>?error=<code>`, and an unknown address to `<home>not-found`: `/`
+ * and `/not-found` unless the application moved its shell (CA-584).
  *
  * @method
+ * @param {TiWebServer} [instance] The server, for its home; without one the home is `/`.
  * @returns {ExpressErrorHandler}
  * @public
  */
-module.exports.defaultErrorHandler = () => {
+module.exports.defaultErrorHandler = ( instance ) => {
     return ( error, request, response, next ) => {
+        const home = homeOf( instance );
         const exception = raiseForResponse( error );
         const isServerError = ( resolveHttpCode( exception ) >= exceptions.httpCode.C_500 );
         const exceptionJSON = exception.asJSON( !isServerError );
@@ -1480,10 +1561,10 @@ module.exports.defaultErrorHandler = () => {
             logger.log( `Received request to an invalid route: "${ request.originalUrl }"`, logger.logSeverity.DEBUG, exception );
 
             if ( isHtmxRequest( request ) ) {
-                response.set( "HX-Redirect", "/not-found" );
+                response.set( "HX-Redirect", home + "not-found" );
                 response.status( exceptions.httpCode.C_204 ).end();
             } else if ( isAcceptingResponseType( request, "html" ) && request.method === "GET" ) {
-                response.redirect( exceptions.httpCode.C_303, "/not-found" );
+                response.redirect( exceptions.httpCode.C_303, home + "not-found" );
             } else {
                 response.status( exceptions.httpCode.C_404 ).send( payload );
             }
@@ -1501,14 +1582,14 @@ module.exports.defaultErrorHandler = () => {
                 } );
                 return response.status( status ).send( "" );
                 // A 503 means "try again shortly", not a failure to report on the sign-in page: redirecting a navigation
-                // to `/` would send it straight back into whatever is unavailable — while the instance starts, into the
+                // home would send it straight back into whatever is unavailable — while the instance starts, into the
                 // same held request. It is answered where it was asked, as text a browser shows as it is.
             } else if ( status === exceptions.httpCode.C_503 && isAcceptingResponseType( request, "html" ) ) {
                 response.status( status ).type( "text/plain" ).send( payload.message );
                 // A 401 on an HTML request means "you are not signed in" whatever the method — the useful answer is the
                 // sign-in page carrying the reason, so local auth's POST presents exactly like the OAuth callback's GET.
             } else if ( isAcceptingResponseType( request, "html" ) && ( request.method === "GET" || status === exceptions.httpCode.C_401 ) ) {
-                response.redirect( exceptions.httpCode.C_303, "/?error=" + encodeURIComponent( exception.code ) );
+                response.redirect( exceptions.httpCode.C_303, home + "?error=" + encodeURIComponent( exception.code ) );
             } else {
                 response.status( status ).send( payload );
             }
@@ -1672,10 +1753,13 @@ module.exports.cspHeaderHandler = ( contentSecurityPolicy ) => {
  *
  * @method
  * @param {TiWebServer} instance
+ * @param {string} [route] The route the manager renders, `/` for the shell or `/not-found` for its not-found page,
+ *        whatever the address it was asked at (CA-584): at a home of `/studio/` the request's own path names neither.
+ *        Without it, the request's path.
  * @returns {ExpressHandler}
  * @public
  */
-module.exports.webAppHandler = ( instance ) => {
+module.exports.webAppHandler = ( instance, route ) => {
     return ( request, response, next ) => {
         /**
          * @param {TiException} exception
@@ -1717,12 +1801,14 @@ module.exports.webAppHandler = ( instance ) => {
                     const nonce = isPartial ? nonceHeader : ( request.cspNonce || request.nonce || resLocals.cspNonce || resLocals.nonce );
                     let embedsCsrfToken = false;
                     let isAddressed = false;
-                    instance.webAppManager.assembleHtmlView( request.session, instance.staticContentPaths, request.path, {
+                    instance.webAppManager.assembleHtmlView( request.session, instance.staticContentPaths, ( typeof route === "string" ) ? route : request.path, {
                         nonce: nonce,
                         isPartial: isPartial,
                         view: request.params.view,
                         language: language,
                         languages: languages,
+                        // Written into the shell page when it is not `/`, so its scripts go home rather than to `/`.
+                        home: homeOf( instance ),
                         // The content address a reference to an immutable fragment carries (CA-183). The manager says
                         // whether it names what was rendered; only then may the browser keep the answer for good.
                         version: ( request.query && typeof request.query.v === "string" ) ? request.query.v : undefined,
@@ -1834,11 +1920,30 @@ module.exports.sessionRefreshHandler = ( instance ) => {
         if ( !session || !session.user ) {
             return next();
         }
-        try {
-            instance.refreshSession( session, request );
-        } catch ( error ) {
-            logger.log( `Failed to refresh the session for user '${ session.user.userID || session.user.employeeID }'; continuing without application roles.`, logger.logSeverity.ERROR, error );
+        const failed = ( error ) => {
+            // The stack alone, as in `applyAdminRoleFor`: the logger writes an error's own properties out, and a store's
+            // error can carry its connection string there (CodeRabbit on #226).
+            logger.log( `Failed to refresh the session for user '${ session.user.userID || session.user.employeeID }'; continuing without application roles.`, logger.logSeverity.ERROR, { stack: error?.stack } );
             session.user.roles = [];
+        };
+        let refreshed;
+        let pending = false;
+        try {
+            refreshed = instance.refreshSession( session, request );
+            // Inside the boundary: asking the answer whether it is a promise reads its `then`, which can throw, and that is
+            // a failed refresh like any other (CodeRabbit on #226).
+            pending = isThenable( refreshed );
+        } catch ( error ) {
+            failed( error );
+        }
+        // A hook that reads a store answers later (CA-585). The request waits for it, so no route sees a role it has
+        // taken away, and the allowlist's role is applied after it, as for a hook that answers at once. A rejection is
+        // a failure like a throw. A hook that answers at once keeps the request synchronous, as before.
+        if ( pending ) {
+            Promise.resolve( refreshed ).catch( failed ).then( () => {
+                applyAdminRoleFor( instance, session, request );
+            } ).then( () => next(), ( error ) => next( error ) );
+            return;
         }
         applyAdminRoleFor( instance, session, request );
         next();
