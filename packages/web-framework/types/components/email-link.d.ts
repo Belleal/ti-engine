@@ -63,8 +63,9 @@ declare class EmailLink {
      * @constructor
      * @param {SettingsAuthEmailLink} [settings] `auth.emailLink`, its `allowedDomains` already normalized by
      *        {@link AuthManager.toDomainList}, which is the one place a domain list is read.
-     * @param {Object} [options] For tests.
-     * @param {function(): number} [options.now] The clock, in milliseconds.
+     * @param {Object} [options]
+     * @param {function(): number} [options.now] The clock, in milliseconds. For tests.
+     * @param {string} [options.home] The application's home, where the sign-in page is (CA-584): `/` unless given.
      */
     constructor(settings?: SettingsAuthEmailLink, options?: Object);
     /**
@@ -137,10 +138,11 @@ declare class EmailLink {
      *
      * @method
      * @param {string} outcome One of {@link OUTCOME}.
+     * @param {string} [home] The application's home, where the sign-in page is (CA-584): `/` unless given.
      * @returns {string}
      * @public
      */
-    static answerFor(outcome: string): string;
+    static answerFor(outcome: string, home?: string): string;
     /**
      * Reads `auth.emailLink` into the settings in effect: each missing or malformed value takes its default, with a
      * warning for a malformed one. Pure, so the rules are testable without a server.

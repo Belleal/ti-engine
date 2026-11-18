@@ -29,8 +29,13 @@ declare class AuthManager {
     /**
      * @constructor
      * @param {SettingsAuth} settings
+     * @param {Object} [options]
+     * @param {string} [options.home] The application's home, where the sign-in page is (CA-584): `/` unless given. A
+     *        link sent by e-mail lands there, and a request for one is answered there.
      */
-    constructor(settings: SettingsAuth);
+    constructor(settings: SettingsAuth, options?: {
+        home?: string;
+    });
     /**
      * Used to initialize the authentication manager.
      *
@@ -225,12 +230,20 @@ declare class AuthManager {
      * The order is therefore the same as {@link AuthManager.isEmailReportedUnverified}'s, and it is the precedence
      * order too: the winning source comes first.
      *
+     * **Entra's object ID and tenant ID** (`oid`, `tid`) are carried as `objectID` and `tenantID`, by the same rule, when
+     * the provider sends them (CA-586). `userID` stays the subject, which applications key their records by. But Entra's
+     * `sub` is pairwise: the same person has a different one in each app registration, while `oid` is the same in
+     * every registration of a tenant. An application that moves its data from one registration to another, say from a
+     * development deployment to production, keys a person by the object ID instead. Google sends neither, and both are
+     * then `undefined`.
+     *
      * @method
      * @param {Object} [userInfo] The provider's `userinfo` response.
      * @param {Object} [claims] The validated ID token claims.
-     * @returns {{userID: string, username: string, email: (string|undefined), name: (string|undefined), sources: Object}}
-     *          `sources` names the claim and response each value came from (e.g. `claims.preferred_username`), so a
-     *          deployment can report how its provider is understood without logging anybody's identifiers.
+     * @returns {{userID: string, username: string, email: (string|undefined), name: (string|undefined),
+     *          objectID: (string|undefined), tenantID: (string|undefined), sources: Object}} `sources` names the claim
+     *          and response each value came from (e.g. `claims.preferred_username`), so a deployment can report how its
+     *          provider is understood without logging anybody's identifiers.
      * @public
      */
     static resolveOpenIDIdentity(userInfo?: Object, claims?: Object): {
@@ -238,6 +251,8 @@ declare class AuthManager {
         username: string;
         email: (string | undefined);
         name: (string | undefined);
+        objectID: (string | undefined);
+        tenantID: (string | undefined);
         sources: Object;
     };
     /**

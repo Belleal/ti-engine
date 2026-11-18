@@ -4,7 +4,18 @@ import ServiceConsumer = require("@ti-engine/core/service-consumer");
 export type NodeServer = import("node:http").Server;
 export type TiWebServiceConfiguration = ServiceConfiguration;
 export type TiWebApplicationConfig = {
-    classPath: string;
+    /**
+     * The web application manager's module, relative to the working directory. Without it
+     * the server runs no manager.
+     */
+    classPath?: string;
+    /**
+     * Where the application shell is served (CA-584), overridable with `TI_WEB_APPLICATION_HOME`:
+     * a path on this site such as `/studio/`, `/` unless stated. Every answer that sends the browser home goes
+     * there, and the not-found page is `<home>not-found`; the screens stay at `/app/*`. An application with a
+     * public site of its own moves the shell off `/` to keep `/` for the site.
+     */
+    home?: string;
 };
 export type ApiConfig = {
     endpointEnabled: boolean;
@@ -210,6 +221,16 @@ declare class TiWebServer extends ServiceConsumer {
      */
     get offeredLanguages(): string[];
     /**
+     * Property returning where the application shell is served (CA-584): `application.home` as
+     * {@link TiWebServer.resolveApplicationHome} resolved it, a rooted path ending in `/`. Every answer that sends the
+     * browser home goes here.
+     *
+     * @property
+     * @returns {string}
+     * @public
+     */
+    get applicationHome(): string;
+    /**
      * Property returning the list of static content directories.
      *
      * @property
@@ -322,22 +343,27 @@ declare class TiWebServer extends ServiceConsumer {
     verifySession(session: TiSession): boolean;
     /**
      * Hook for the application to augment the freshly-authenticated session (e.g. derive domain roles from an
-     * identity store or the org chart). Runs synchronously, once per login, before the framework's additive `admin`
-     * role is applied. The default is a no-op. Any test-user role injection is an override of whatever the app derives.
+     * identity store or the org chart). Runs once per login, before the framework's additive `admin` role is applied.
+     * The default is a no-op. Any test-user role injection is an override of whatever the app derives.
      * <br/>
-     * **Refusing a login.** Throwing from this hook refuses the sign-in: the framework destroys the freshly regenerated
-     * session (so no usable session survives the refusal), the login handler raises `401`, and the error handler
-     * redirects the browser to the login page with the exception code in `?error=`. Throw when the authenticated
-     * identity cannot be mapped to an application principal; return the session unchanged to accept it.
+     * **It may answer later** (CA-585): return a promise of the session, and the framework waits for it before it
+     * applies the `admin` role and saves the session. An application keeping its principals in a database can record a
+     * first sign-in, or read the roles, here. A hook that returns the session at once works as it always has.
+     * <br/>
+     * **Refusing a login.** Throwing from this hook, or returning a promise that rejects, refuses the sign-in: the
+     * framework destroys the freshly regenerated session (so no usable session survives the refusal), the login handler
+     * raises `401`, and the error handler redirects the browser to the login page with the exception code in `?error=`.
+     * Throw when the authenticated identity cannot be mapped to an application principal; return the session unchanged
+     * to accept it.
      *
      * @method
      * @virtual
      * @param {TiSession} session
      * @param {Object} [request] Optional Express request object that can be used to read body/cookies/query data.
-     * @returns {TiSession}
+     * @returns {TiSession|Promise<TiSession>}
      * @public
      */
-    augmentSession(session: TiSession, request?: Object): TiSession;
+    augmentSession(session: TiSession, request?: Object): TiSession | Promise<TiSession>;
     /**
      * Hook for the application to re-derive the session's application-owned state on **every** request — the
      * companion to {@link TiWebServer#augmentSession}, which runs only at sign-in. The default is a no-op.
@@ -348,26 +374,31 @@ declare class TiWebServer extends ServiceConsumer {
      * cookie an active user's session need never expire, so "until they sign out" can mean indefinitely. Deriving
      * per request makes withdrawal take effect on the next click instead.
      * <br/>
-     * **Contract.** Runs synchronously on each request that carries a session user, after the static handlers and
-     * before any application route, so it must stay cheap and free of I/O — read in-memory state, not a store. The
-     * framework re-applies the additive `admin` role immediately afterwards, so an implementation may replace
-     * `session.user.roles` wholesale without stranding an allowlisted administrator. Assign only when the value
-     * actually changes: express-session persists a session whose serialized form differs, so rewriting an equal array
-     * is free but rewriting a *new* value on every request is a store write on every request.
+     * **Contract.** Runs on each request that carries a session user, after the static handlers and before any
+     * application route. The framework re-applies the additive `admin` role immediately afterwards, so an
+     * implementation may replace `session.user.roles` wholesale without stranding an allowlisted administrator. Assign
+     * only when the value actually changes: express-session persists a session whose serialized form differs, so
+     * rewriting an equal array is free but rewriting a *new* value on every request is a store write on every request.
      * <br/>
-     * **Failure is fail-closed, not fatal.** Throwing does not refuse the request the way it does at sign-in — there
-     * is no sign-in to refuse. The framework logs the failure, strips the session's application roles, and lets the
-     * request continue with the `admin` allowlist role alone. A viewer who cannot be authorized keeps no authority,
-     * while an administrator retains the access that exists precisely to repair broken application data.
+     * **It may read a store** (CA-585). Return a promise, and the request waits for it: no route runs until it settles,
+     * so a role the store no longer grants is gone on the next request, however many processes serve the sessions.
+     * That wait is on every signed-in request, so keep the read to one cheap lookup. A hook that returns at once keeps
+     * the request synchronous, as before.
+     * <br/>
+     * **Failure is fail-closed, not fatal.** Throwing, or a promise that rejects, does not refuse the request the way
+     * it does at sign-in — there is no sign-in to refuse. The framework logs the failure, strips the session's
+     * application roles, and lets the request continue with the `admin` allowlist role alone. A viewer who cannot be
+     * authorized keeps no authority, while an administrator retains the access that exists precisely to repair broken
+     * application data.
      *
      * @method
      * @virtual
      * @param {TiSession} session
      * @param {Object} [request] Optional Express request object.
-     * @returns {TiSession}
+     * @returns {TiSession|Promise<TiSession>|void|Promise<void>}
      * @public
      */
-    refreshSession(session: TiSession, request?: Object): TiSession;
+    refreshSession(session: TiSession, request?: Object): TiSession | Promise<TiSession> | void | Promise<void>;
     /**
      * Hook for the application to run a session **without** the `admin` role its identity would otherwise hold — for
      * example a development aid that lets an administrator see the application as everyone else sees it. Without it
@@ -466,10 +497,10 @@ declare class TiWebServer extends ServiceConsumer {
     static isFeedbackSubmission(request: Object): boolean;
     /**
      * Used to check if the specified route is unprotected (i.e., does not require authentication). The default unprotected routes are:
-     * - /
+     * - the application's home, `/` unless `application.home` says otherwise (see {@link TiWebServer#applicationHome})
      * - /static/...
      * - /.well-known/...
-     * - /not-found
+     * - `<home>not-found`, `/not-found` at the default home
      * - /app
      * - /app/enter
      * - /app/config
@@ -542,6 +573,22 @@ declare class TiWebServer extends ServiceConsumer {
      * @public
      */
     addUnprotectedRoute(pattern: string | RegExp): TiWebServer;
+    /**
+     * Resolves `application.home` into where the application shell is served (CA-584): trimmed and ended with `/`, so
+     * `/studio` is `/studio/`; `/` when nothing names one. Anything that is not a plain path on this site
+     * ({@link RE_APPLICATION_HOME}) is refused with an `error`, and the home given back with it is `/` only so the
+     * result keeps its shape: the constructor refuses to start.
+     *
+     * @method
+     * @static
+     * @param {TiWebApplicationConfig} [application]
+     * @returns {{home: string, error: string|null}}
+     * @public
+     */
+    static resolveApplicationHome(application?: TiWebApplicationConfig): {
+        home: string;
+        error: string | null;
+    };
     /**
      * Decides what triggers the scheduled jobs (CA-486). `route` is refused unless the deployment states that it sits
      * behind a Worker that refuses the path from the internet: the route is outside sign-in, and a server reached

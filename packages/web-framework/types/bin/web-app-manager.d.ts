@@ -258,6 +258,8 @@ declare class TiWebAppManager {
      * @param {() => void} [options.onAddressed] Called when the partial being rendered is an immutable fragment, `version`
      * is its current address, and its markup is the markup that address was computed from - the one case where the
      * response may be kept by the browser for good.
+     * @param {string} [options.home] The application's home (CA-584), written into a shell page as `<meta name="ti-home">`
+     * when it is not `/`. The route stays `/` or `/not-found` wherever the home is.
      * @returns {Promise<string>}
      * @public
      */
@@ -268,6 +270,7 @@ declare class TiWebAppManager {
         nonce?: string;
         version?: string;
         onAddressed?: () => void;
+        home?: string;
     }): Promise<string>;
     /**
      * Used to process a request for a data resource.

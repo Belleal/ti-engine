@@ -2,6 +2,43 @@
 
 This document will contain the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.63.0
+
+Three seams an application with its own public site, and its own people in a database, needed and could not build.
+
+* feat(web-server): **the application shell's home is configurable** (CA-584). `application.home`, overridable with
+  `TI_WEB_APPLICATION_HOME`, is where the shell is served: `/` unless stated, so nothing changes for an application that
+  does not set it. Until now every answer that sends the browser home went to `/`: a sign-in, a sign-out, a refused
+  sign-in (`/?error=`), a language chosen, a screen asked for without a session, every unknown address (`/not-found`)
+  and the e-mail link's page. An application with a public site of its own could not keep `/` for that site.
+  * The home is trimmed and ended with `/` (`/studio` is `/studio/`). Anything that is not a plain path on this site -
+    `//host`, a scheme, a `.` or `..` segment, a query, a fragment, an escape, an empty segment - **refuses the start**:
+    falling back to `/` would put the shell over the very site it was moved off.
+  * The shell is served at `<home>` and its not-found page at `<home>not-found`; both are unprotected. Every redirect
+    above goes there, and errors to `<home>?error=<code>`. The screens stay at `/app/*`.
+  * A shell page whose home is not `/` carries `<meta name="ti-home">`, and the browser's two fallbacks that give up on
+    a screen go there instead of `/`. At the default home no tag is written, so the page is the page of 1.62.
+  * `TiWebServer#applicationHome` gives the resolved home. The web application manager is now loaded on
+    `application.classPath` rather than on the presence of `application`, which the environment variable creates on
+    its own.
+  * `test/web-server.application-home.test.js` drives each answer on a real server with the home at `/studio`; every
+    one of its 9 tests fails on 1.62.1.
+* feat(web-server): **`augmentSession` and `refreshSession` may be asynchronous** (CA-585). Each may return a promise,
+  and the framework waits for it, so an application can read its roles from a database on every request, or record a
+  first sign-in, instead of keeping roles in each process's memory, which is correct only while one process serves the
+  sessions.
+  * The refresh is waited for before any route runs, then the admin allowlist's role is applied, as after a hook that
+    answers at once. A rejection fails closed like a throw: logged, the application's roles dropped, the request served.
+  * The sign-in waits for `augmentSession` before applying the allowlist and saving. A rejection destroys the session,
+    saves nothing and forwards the error, as a throw does.
+  * A hook that answers at once keeps the request synchronous, as before. The refresh is waited for on every signed-in
+    request: keep it to one cheap lookup.
+* feat(auth): **an Entra sign-in carries the object ID and the tenant ID** (CA-586). The user's `objectID` (`oid`) and
+  `tenantID` (`tid`) are read from `userinfo`, then the ID token, by the rule every other value follows, and the session's
+  user carries both. Entra's subject is pairwise, a different `sub` in each app registration, so an application that
+  moves from one registration to another sees each person under two `userID`s; the object ID is the same in every
+  registration of a tenant. **`userID` is unchanged**, and a provider that sends neither (Google) adds no keys.
+
 ## Version 1.62.1
 
 * fix(labels): **three keys the framework used were in no catalogue** (CA-577). The sidebar's profile tooltip and the
