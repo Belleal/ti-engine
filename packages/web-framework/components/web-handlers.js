@@ -332,35 +332,62 @@ let resolveSessionLanguage = ( user, instance, chosen ) => {
  */
 let regenerateAndSaveSession = ( request, redirectTo, modifier ) => {
     return new Promise( ( resolve, reject ) => {
+        // The application's augment hook refused this login. `session.user` was already assigned in place before the
+        // hook ran, and `verifySession` only checks that it exists — so a merely-rejected session would still be
+        // persisted by express-session at response end and would admit the user. Destroy it before rejecting so a
+        // refusal is genuinely fail-closed, whether the hook threw or its promise rejected (CA-585).
+        const refuse = ( error ) => {
+            request.session.destroy( () => {
+                reject( error );
+            } );
+        };
+        const save = () => {
+            request.session.save( ( error ) => {
+                if ( error ) {
+                    reject( error );
+                } else {
+                    resolve( redirectTo );
+                }
+            } );
+        };
         request.session.regenerate( ( error ) => {
             if ( error ) {
                 reject( error );
-            } else {
-                try {
-                    if ( modifier && typeof modifier === "function" ) {
-                        request.session = modifier( request.session );
-                    }
-                } catch ( error ) {
-                    // The application's augment hook refused this login. `session.user` was already assigned in place
-                    // before the hook ran, and `verifySession` only checks that it exists — so a merely-rejected
-                    // session would still be persisted by express-session at response end and would admit the user.
-                    // Destroy it before rejecting so a refusal is genuinely fail-closed.
-                    request.session.destroy( () => {
-                        reject( error );
-                    } );
-                    return;
-                }
-                request.session.save( ( error ) => {
-                    if ( error ) {
-                        reject( error );
-                    } else {
-                        resolve( redirectTo );
-                    }
-                } )
+                return;
             }
-        } )
+            let modified = request.session;
+            try {
+                if ( modifier && typeof modifier === "function" ) {
+                    modified = modifier( request.session );
+                }
+            } catch ( error ) {
+                refuse( error );
+                return;
+            }
+            // A modifier may answer later: the augment hook may read a store (CA-585). The session is saved only once
+            // it has, so it is never written before the application has decided.
+            if ( isThenable( modified ) ) {
+                Promise.resolve( modified ).then( ( session ) => {
+                    request.session = session;
+                    save();
+                }, refuse );
+                return;
+            }
+            request.session = modified;
+            save();
+        } );
     } );
 };
+
+/**
+ * Whether a value is a promise, or anything else that can be awaited: an application hook that may answer later.
+ *
+ * @method
+ * @param {*} value
+ * @returns {boolean}
+ * @private
+ */
+let isThenable = ( value ) => value !== null && ( typeof value === "object" || typeof value === "function" ) && typeof value.then === "function";
 
 /**
  * Check if the request is an HTMX request.
@@ -685,12 +712,18 @@ let signInUser = ( instance, request, user, method ) => {
         // three methods came to share this one.
         delete session.oidc;
 
-        const signedIn = applyAdminRoleFor( instance, instance.augmentSession( session, request ), request );
-        if ( isAdminWithheldByMethod( instance, signedIn ) && authorization.isAdminIdentity( signedIn.user, instance.serviceConfig?.auth?.admins ) ) {
-            // Said once, at sign-in, so an operator who finds an administrator without the role learns why.
-            logger.log( `User '${ signedIn.user.userID }' is on the admin allowlist but signed in by e-mail link, which does not carry the admin role unless 'auth.emailLink.grantsAdmin' is true.`, logger.logSeverity.NOTICE );
-        }
-        return signedIn;
+        const finish = ( augmented ) => {
+            const signedIn = applyAdminRoleFor( instance, augmented, request );
+            if ( isAdminWithheldByMethod( instance, signedIn ) && authorization.isAdminIdentity( signedIn.user, instance.serviceConfig?.auth?.admins ) ) {
+                // Said once, at sign-in, so an operator who finds an administrator without the role learns why.
+                logger.log( `User '${ signedIn.user.userID }' is on the admin allowlist but signed in by e-mail link, which does not carry the admin role unless 'auth.emailLink.grantsAdmin' is true.`, logger.logSeverity.NOTICE );
+            }
+            return signedIn;
+        };
+        // The hook may answer later (CA-585), and the allowlist's role is applied only once it has: applied before, an
+        // application replacing the roles would strip it again.
+        const augmented = instance.augmentSession( session, request );
+        return isThenable( augmented ) ? Promise.resolve( augmented ).then( finish ) : finish( augmented );
     } );
 };
 
@@ -1834,11 +1867,24 @@ module.exports.sessionRefreshHandler = ( instance ) => {
         if ( !session || !session.user ) {
             return next();
         }
-        try {
-            instance.refreshSession( session, request );
-        } catch ( error ) {
+        const failed = ( error ) => {
             logger.log( `Failed to refresh the session for user '${ session.user.userID || session.user.employeeID }'; continuing without application roles.`, logger.logSeverity.ERROR, error );
             session.user.roles = [];
+        };
+        let refreshed;
+        try {
+            refreshed = instance.refreshSession( session, request );
+        } catch ( error ) {
+            failed( error );
+        }
+        // A hook that reads a store answers later (CA-585). The request waits for it, so no route sees a role it has
+        // taken away, and the allowlist's role is applied after it, as for a hook that answers at once. A rejection is
+        // a failure like a throw. A hook that answers at once keeps the request synchronous, as before.
+        if ( isThenable( refreshed ) ) {
+            Promise.resolve( refreshed ).catch( failed ).then( () => {
+                applyAdminRoleFor( instance, session, request );
+            } ).then( () => next(), ( error ) => next( error ) );
+            return;
         }
         applyAdminRoleFor( instance, session, request );
         next();

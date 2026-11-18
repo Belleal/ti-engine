@@ -102,3 +102,67 @@ describe( "a refused augmentSession must not leave a usable session", () => {
     } );
 
 } );
+
+// An augment hook may be asynchronous (CA-585): an application that keeps its principals in a database records a first
+// sign-in, or reads its roles, before the session is written.
+describe( "an asynchronous augmentSession", () => {
+
+    const settle = async () => {
+        for ( let turn = 0; turn < 5; turn++ ) {
+            await new Promise( ( resolve ) => setImmediate( resolve ) );
+        }
+    };
+
+    it( "waits for the hook, and saves the session it resolves with", async () => {
+        const session = mockSession( { oidc: { codeVerifier: "verifier", state: "xyz" } } );
+        const request = mockRequest( session );
+        let saveSawRoles = null;
+        session.save = ( callback ) => {
+            session.calls.save++;
+            saveSawRoles = request.session.user.roles.slice();
+            callback( null );
+        };
+        const instance = {
+            serviceConfig: { language: "en", auth: { admins: [] } },
+            authorize: () => Promise.resolve( AUTHENTICATED_USER ),
+            augmentSession: async ( augmented ) => {
+                await new Promise( ( resolve ) => setImmediate( resolve ) );
+                augmented.user.roles = [ "editor" ];
+                return augmented;
+            }
+        };
+
+        let redirected = null;
+        webHandlers.authorizedOAuth2CallbackHandler( instance, "openid-azure" )( request, { redirect: ( status, to ) => { redirected = to || status; } }, () => {} );
+        await settle();
+
+        assert.equal( session.calls.save, 1 );
+        assert.deepEqual( saveSawRoles, [ "editor" ], "the session is saved with what the hook resolved, not before it" );
+        assert.equal( session.calls.destroy, 0 );
+        assert.ok( redirected, "the sign-in completes" );
+    } );
+
+    it( "refuses the sign-in when the hook rejects: destroyed, never saved, the error forwarded", async () => {
+        const session = mockSession( { oidc: { codeVerifier: "verifier", state: "xyz" } } );
+        const request = mockRequest( session );
+        const instance = {
+            serviceConfig: { language: "en", auth: { admins: [] } },
+            authorize: () => Promise.resolve( AUTHENTICATED_USER ),
+            augmentSession: async () => {
+                await new Promise( ( resolve ) => setImmediate( resolve ) );
+                throw new Error( "no staff record" );
+            }
+        };
+
+        let forwarded;
+        webHandlers.authorizedOAuth2CallbackHandler( instance, "openid-azure" )( request, {}, ( error ) => {
+            forwarded = error;
+        } );
+        await settle();
+
+        assert.equal( session.calls.destroy, 1 );
+        assert.equal( session.calls.save, 0 );
+        assert.ok( forwarded );
+    } );
+
+} );

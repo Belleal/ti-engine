@@ -147,3 +147,78 @@ describe( "sessionRefreshHandler — mounting", () => {
     } );
 
 } );
+
+// The hook may be asynchronous (CA-585): an application whose roles are in a database reads them on every request.
+describe( "sessionRefreshHandler with an asynchronous hook", () => {
+
+    // Runs the handler and resolves when it has called next, with what the request then holds.
+    const runAsync = ( instance, session ) => new Promise( ( resolve ) => {
+        const request = { session: session, method: "GET", originalUrl: "/app/dashboard" };
+        webHandlers.sessionRefreshHandler( instance )( request, {}, ( error ) => resolve( { error: error, session: session } ) );
+    } );
+    const tick = () => new Promise( ( resolve ) => setImmediate( resolve ) );
+
+    it( "waits for the hook, so the request sees the roles it read", async () => {
+        const instance = mockInstance( async ( session ) => {
+            await tick();
+            session.user.roles = [ "approver" ];
+        } );
+        const result = await runAsync( instance, { user: { userID: "u1", roles: [ "editor", "approver" ] } } );
+        assert.deepEqual( result.session.user.roles, [ "approver" ], "a role the database no longer grants is gone before any route runs" );
+        assert.equal( result.error, undefined );
+    } );
+
+    it( "applies the admin allowlist after the hook settles, not before", async () => {
+        const instance = mockInstance( async ( session ) => {
+            await tick();
+            session.user.roles = [ "reader" ];
+        }, [ ADMIN_EMAIL ] );
+        const result = await runAsync( instance, { user: { userID: "u1", email: ADMIN_EMAIL, roles: [ "admin" ] } } );
+        assert.deepEqual( result.session.user.roles, [ "reader", "admin" ] );
+    } );
+
+    it( "fails closed when the hook rejects: roles stripped, request still served", async () => {
+        const instance = mockInstance( async () => {
+            await tick();
+            throw new Error( "database unavailable" );
+        } );
+        const result = await runAsync( instance, { user: { userID: "u1", roles: [ "editor" ] } } );
+        assert.deepEqual( result.session.user.roles, [] );
+        assert.equal( result.error, undefined, "one failed lookup must not take the whole application down" );
+    } );
+
+    it( "keeps an administrator's access when the hook rejects", async () => {
+        const instance = mockInstance( async () => {
+            throw new Error( "database unavailable" );
+        }, [ ADMIN_EMAIL ] );
+        const result = await runAsync( instance, { user: { userID: "u1", email: ADMIN_EMAIL, roles: [ "admin" ] } } );
+        assert.deepEqual( result.session.user.roles, [ "admin" ] );
+    } );
+
+    it( "does not hold one request on another's hook", async () => {
+        let release;
+        const slow = new Promise( ( resolve ) => {
+            release = resolve;
+        } );
+        const order = [];
+        const instance = mockInstance( async ( session ) => {
+            if ( session.user.userID === "slow" ) {
+                await slow;
+            }
+        } );
+        const first = runAsync( instance, { user: { userID: "slow", roles: [] } } ).then( () => order.push( "slow" ) );
+        const second = runAsync( instance, { user: { userID: "fast", roles: [] } } ).then( () => order.push( "fast" ) );
+        await second;
+        release();
+        await first;
+        assert.deepEqual( order, [ "fast", "slow" ] );
+    } );
+
+    it( "keeps a synchronous hook synchronous: next is called before the handler returns", () => {
+        const result = run( mockInstance( ( session ) => {
+            session.user.roles = [ 1 ];
+        } ), { user: { userID: "u1", roles: [ 1, 2 ] } } );
+        assert.equal( result.nextCalls, 1 );
+    } );
+
+} );
