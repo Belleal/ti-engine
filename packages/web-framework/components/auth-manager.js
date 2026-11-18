@@ -769,12 +769,20 @@ class AuthManager {
      * The order is therefore the same as {@link AuthManager.isEmailReportedUnverified}'s, and it is the precedence
      * order too: the winning source comes first.
      *
+     * **Entra's object ID and tenant ID** (`oid`, `tid`) are carried as `objectID` and `tenantID`, by the same rule, when
+     * the provider sends them (CA-586). `userID` stays the subject, which applications key their records by. But Entra's
+     * `sub` is pairwise: the same person has a different one in each app registration, while `oid` is the same in
+     * every registration of a tenant. An application that moves its data from one registration to another, say from a
+     * development deployment to production, keys a person by the object ID instead. Google sends neither, and both are
+     * then `undefined`.
+     *
      * @method
      * @param {Object} [userInfo] The provider's `userinfo` response.
      * @param {Object} [claims] The validated ID token claims.
-     * @returns {{userID: string, username: string, email: (string|undefined), name: (string|undefined), sources: Object}}
-     *          `sources` names the claim and response each value came from (e.g. `claims.preferred_username`), so a
-     *          deployment can report how its provider is understood without logging anybody's identifiers.
+     * @returns {{userID: string, username: string, email: (string|undefined), name: (string|undefined),
+     *          objectID: (string|undefined), tenantID: (string|undefined), sources: Object}} `sources` names the claim
+     *          and response each value came from (e.g. `claims.preferred_username`), so a deployment can report how its
+     *          provider is understood without logging anybody's identifiers.
      * @public
      */
     static resolveOpenIDIdentity( userInfo, claims ) {
@@ -800,6 +808,8 @@ class AuthManager {
         const subject = pick( "userID", [ [ "userinfo.sub", info.sub ], [ "claims.sub", token.sub ] ] );
         const email = pick( "email", [ [ "userinfo.email", info.email ], [ "claims.email", token.email ] ] );
         const name = pick( "name", [ [ "userinfo.name", info.name ], [ "claims.name", token.name ] ] );
+        const objectID = pick( "objectID", [ [ "userinfo.oid", info.oid ], [ "claims.oid", token.oid ] ] );
+        const tenantID = pick( "tenantID", [ [ "userinfo.tid", info.tid ], [ "claims.tid", token.tid ] ] );
 
         // `preferred_username` before `upn` REGARDLESS of source, then the e-mail, then `name`, then the subject.
         // The source rule and the claim rule are separate, and the claim rule is the stronger of the two: these are
@@ -823,6 +833,9 @@ class AuthManager {
             username: username === undefined ? `sub:${ subject === undefined ? "" : subject }` : username,
             email: email,
             name: name,
+            // Only when sent, so an identity from a provider without them (Google) keeps exactly the shape it had.
+            ...( objectID === undefined ? {} : { objectID: objectID } ),
+            ...( tenantID === undefined ? {} : { tenantID: tenantID } ),
             // Which claim, in which response, each value came from. Carries no identity of its own, so a deployment
             // can report how its provider is understood without putting anybody's identifiers in a log.
             sources: sources
@@ -930,7 +943,7 @@ class AuthManager {
                 // Logging the values would not: `auditing.logMinLevel` ships at 0 with console logging on, so a
                 // deployment on the defaults would write every signed-in person's user ID, username and e-mail to
                 // its console on every successful sign-in, for a diagnostic needed once per provider.
-                logger.log( `OpenID sign-in resolved: userID from '${ identity.sources.userID || "(none)" }', username from '${ identity.sources.username || "the subject fallback" }', e-mail from '${ identity.sources.email || "(none)" }'.`, logger.logSeverity.DEBUG );
+                logger.log( `OpenID sign-in resolved: userID from '${ identity.sources.userID || "(none)" }', username from '${ identity.sources.username || "the subject fallback" }', e-mail from '${ identity.sources.email || "(none)" }', object ID from '${ identity.sources.objectID || "(none)" }'.`, logger.logSeverity.DEBUG );
                 resolve( new User( identity ) );
             } ).catch( ( error ) => {
                 reject( exceptions.raise( error ) );
