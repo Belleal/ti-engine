@@ -72,15 +72,30 @@ sign-out race the asynchronous refresh made wider.
     (`SessionStore.ENDED_SECONDS`, longer than any request runs) **before** it deletes the session. `set` reads the mark
     **after** its own write lands, and deletes the session again if the mark is there. Whichever of the two writes lands
     last, no session is left. `touch` needs no check: on both backends it only re-times a session that exists.
-  * A mark that cannot be written does not keep a session alive: the delete goes ahead and only the race stays open. A
-    mark that cannot be read keeps the write, since that is almost always a live session. Both are logged with the
-    stack alone.
+  * **The process that signed a session out remembers it** for the same 15 minutes (bounded at
+    `SessionStore.HELD_SESSIONS_LIMIT`; the store's mark covers one forgotten early). A `get` for the ID answers no
+    session without a store read, and a `set` or `touch` is not made. In that process an ended session therefore
+    cannot be read in the moment between a late write landing and its undo. This holds even when the mark could not
+    be written, or the delete failed.
+  * **A mark that cannot be read undoes the write** and reports the failure, so a sign-in whose save it is gets
+    refused: a session that cannot be shown not to have ended is not accepted. A mark that cannot be written does not
+    keep the session alive; the delete goes ahead. Both are logged at `ERROR`, with the stack alone.
+  * **What remains, with more than one process:** a read on a process that did not sign the session out can find it in
+    the two store round trips between another process's late write landing and its undo. Closing that needs a mark
+    read on every session read, which would double the store reads per request, or a conditional write in core's
+    cache. A single process (the Cloudflare template, and every `sessions.held` deployment) has no such window.
+  * **No session is written back under an ID that was destroyed.** Until now a `set` or `touch` after a `destroy` wrote
+    again at once. express-session never reuses an ID: a new session gets a new one.
   * A held store (`sessions.held`) keeps no copy of a session it undid.
   * Each session write costs one more store read; reads, which are most of the traffic, cost nothing more.
   * `test/web-server.sign-out-race.test.js` runs the race on a real server: a request held in an asynchronous
     `refreshSession` while `/logout` completes. Before the fix the session was back in the store afterwards; now the
-    store is empty and the old cookie signs nobody in. `test/session-store.ended.test.js` covers both orderings, held
-    and not.
+    store is empty and the old cookie signs nobody in. `test/session-store.ended.test.js` covers, held and not:
+    * both orderings;
+    * a read between a late write and its undo;
+    * a failed mark read, and a failed mark write;
+    * another process's late write;
+    * the memory's bound.
 * feat(auth): **an Entra sign-in carries the object ID and the tenant ID** (CA-586). The user's `objectID` (`oid`) and
   `tenantID` (`tid`) are read from `userinfo`, then the ID token, by the rule every other value follows, and the session's
   user carries both. Entra's subject is pairwise, a different `sub` in each app registration, so an application that
