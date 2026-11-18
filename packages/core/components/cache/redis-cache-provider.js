@@ -389,14 +389,17 @@ class RedisCacheProvider extends CacheProvider {
 
     /**
      * Used to add the specified values to a list.
+     * <br/>
+     * NOTE: An expiration goes into the same MULTI as the push, so the list never exists without its time-to-live.
      *
      * @method
      * @param {string} listName
      * @param {Object[]} values
+     * @param {number} [expiration] Expiration value is in seconds, for the whole list, counted from this push.
      * @returns {Promise<number>}
      * @public
      */
-    listPushValue( listName, values ) {
+    listPushValue( listName, values, expiration ) {
         return new Promise( ( resolve, reject ) => {
             let commandPushValues = [ redis.cacheCommands.LIST_PUSH, listName ];
             _.forEach( values, ( value ) => {
@@ -404,7 +407,11 @@ class RedisCacheProvider extends CacheProvider {
                     commandPushValues.push( tools.stringifyJSON( value ) );
                 }
             } );
-            this.#redisClient.executeCommands( [ commandPushValues ] ).then( ( results ) => {
+            let commands = [ commandPushValues ];
+            if ( expiration ) {
+                commands.push( [ redis.cacheCommands.EXPIRE, listName, expiration ] );
+            }
+            this.#redisClient.executeCommands( commands ).then( ( results ) => {
                 results = results[ 0 ];
                 resolve( ( results && results.length > 1 ) ? results[ 1 ] : undefined );
             } ).catch( ( error ) => {

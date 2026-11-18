@@ -212,16 +212,20 @@ class CacheProvider {
 
     /**
      * Used to add the specified values to a list.
+     * <br/>
+     * NOTE: With an expiration, the list's time-to-live is set in the same step as the push, so a list can never be left
+     * without one by a process that stops between the two.
      *
      * @method
      * @param {string} listName
      * @param {Object[]} values
+     * @param {number} [expiration] Expiration value is in seconds, for the whole list, counted from this push.
      * @returns {Promise<number>}
      * @requires {TiCacheCapability.LISTS}
      * @abstract
      * @public
      */
-    listPushValue( listName, values ) {
+    listPushValue( listName, values, expiration ) {
         return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_GEN_ABSTRACT_METHOD_CALL, { name: this.constructor.name + "." + this.listPushValue.name } ) );
     }
 

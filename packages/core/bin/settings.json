@@ -37,7 +37,8 @@
     "securityHashKey": "",
     "traceExpirationTime": 3600,
     "traceLogEnabled": false,
-    "traceRepository": "ti:messages:trace"
+    "traceRepository": "ti:messages:trace",
+    "traceRepositoryEnabled": true
   },
   "serviceConfig": {
     "executionTimeout": 180000,

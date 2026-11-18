@@ -39,6 +39,7 @@ declare const settingsEnum: import("../components/definitions.types").TiEnumOf<{
     MESSAGE_EXCHANGE_TRACE_EXPIRATION_TIME: string[];
     MESSAGE_EXCHANGE_TRACE_LOG_ENABLED: string[];
     MESSAGE_EXCHANGE_TRACE_REPOSITORY: string[];
+    MESSAGE_EXCHANGE_TRACE_REPOSITORY_ENABLED: string[];
     SERVICE_EXECUTION_TIMEOUT: string[];
     SERVICE_HEALTH_CHECK_ADDRESS: string[];
     SERVICE_HEALTH_CHECK_ENABLED: string[];

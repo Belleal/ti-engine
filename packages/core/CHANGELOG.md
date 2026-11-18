@@ -2,6 +2,52 @@
 
 This document contains the list of changes made to the framework. The format is based on the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification.
 
+## Version 1.23.0
+
+* fix(message-tracer)!: **a trace entry holds no auth token or parameter value, and each chain's trace expires** (CA-589).
+  * **What was wrong.** Every bus call is traced six times, and each entry's snapshot was the whole message less its
+    payload and the values of keys that looked like a PIN, a password or a one-time code. So it kept the bearer token
+    and every parameter value. All of it went into one key, `ti:messages:trace`: with RedisJSON a document whose expiry
+    every write pushed back, so under steady traffic it never expired; without it a set with no expiry at all. There was
+    no switch: `traceRepository` and `traceExpirationTime` lived only in this package's settings file, which no
+    application can override, and the one environment override, `TI_MESSAGE_EXCHANGE_TRACE_LOG_ENABLED`, governs the
+    log lines, not the store. Abominations' public-deployment checkpoint (ABO-235) found a server that had run for two
+    days holding 2,424 entries, 2,124 of them with a token, among them e-mail addresses, reset codes and whole uploaded
+    logs.
+  * **Why it survived.** Nothing in the suite read the trace back. The masking looked like a guard, but it named what a
+    secret might be called rather than what a trace needs, so a token under `authToken` and an address under `email`
+    passed it.
+  * **What changed.**
+    * **The snapshot names what it keeps**: `chainLevel`, `createdOn`, `destination`, `executionTime`, `finishedOn`,
+      `isCompleted`, `isSuccessful`, `predecessor`, `serviceAddress`, `source`, `successors`. `authToken` is
+      `OBSCURED_BY_SYSTEM` when the message carried one; `serviceParams` keeps each name with the value
+      `OBSCURED_BY_SYSTEM`; an exception keeps `code`, `httpCode`, `id` and `label`, not its description or data. A field
+      a later version adds to the message stays out until somebody decides it belongs. The new `TiTraceSnapshot`
+      typedef describes it.
+    * **Each chain's trace is a list of its own**, `ti:messages:trace:<chainID>` (the message's ID without a chain),
+      newest first. Every entry sets the list's expiry to `traceExpirationTime` in the same step as the push, so a
+      chain's trace is gone that long after its last message, on any Redis, with or without the JSON module. The tracer
+      writes nothing else: no document, no set, and nothing at `initialize`.
+    * **`cache.listPushValue( listName, values, expiration )`**: the optional expiration goes into the push's MULTI, so a
+      list can never be left without its time-to-live by a process that stops between the two.
+    * **`messageExchange.traceRepositoryEnabled`** (`TI_MESSAGE_EXCHANGE_TRACE_REPOSITORY_ENABLED`, default `true`) turns
+      the store off; **`TI_MESSAGE_EXCHANGE_TRACE_EXPIRATION_TIME`** sets the retention. An expiration that is not a whole
+      number of seconds, 0 or more, makes `initialize` reject with `E_GEN_INVALID_ARGUMENT_TYPE`, so the instance does
+      not start: it used to fail `expiration > 0` and mean "keep for good". An empty value counts as not a number,
+      because `Number( "" )` is 0.
+    * A cache backend without the `lists` or `key-expiry` capability gets no trace, with one warning at start instead
+      of one for every message.
+  * **Breaking for a reader of the trace**: entries are no longer in `ti:messages:trace` but in one list per chain,
+    and the snapshot no longer holds the token, parameter values or exception data. Nothing in this repository reads
+    the trace. The old key is not written again or removed: delete it with `DEL ti:messages:trace` once its contents are
+    no longer wanted, since without RedisJSON it never expires.
+  * **Rejected:** keeping one key and trimming it (a sorted set by time, or a capped list). A sorted set needs a new
+    method in the cache contract and a trim on every write; a capped list bounds the count, not the age, so under light
+    traffic an entry could stay for weeks. A chain ends, so a list per chain expires on its own.
+  * `test/message-tracer.test.js` (12 tests, against a backend that records every write), `test/message-tracer.settings.test.js`
+    (11, one process per environment), `test/message-tracer.redis.test.js` (2, a real bus call to a provider process on a
+    real Redis, and the list expiry). All 25 fail on 1.22.0.
+
 ## Version 1.22.0
 
 * feat(localization): **a framework package can lay its label catalogue under the application's**, with

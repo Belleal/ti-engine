@@ -58,17 +58,27 @@ declare class MessageTracer {
     constructor();
     /**
      * Used to initialize the message tracer.
+     * <br/>
+     * NOTE: Nothing is written here. Each chain's trace is a list of its own, created by its first entry and gone
+     * `traceExpirationTime` seconds after its last one; see {@link MessageTracer#recordTraceEntry}.
      *
      * @method
      * @returns {Promise}
+     * @throws {TiException.E_GEN_INVALID_ARGUMENT_TYPE} If `traceExpirationTime` is not a whole number of seconds, 0 or more.
      * @public
      */
     initialize(): Promise<any>;
     /**
      * Used to create a trace entry for the provided {@link Message} and parameters.
      * <br/>
-     * NOTE: By default, all trace events are stored in the memory cache for further processing and analysis. The
-     * location is configured in the MESSAGE_EXCHANGE_TRACE_REPOSITORY setting.
+     * NOTE: Each chain's trace entries are stored in the memory cache, newest first, in a list of their own: the
+     * MESSAGE_EXCHANGE_TRACE_REPOSITORY setting followed by `:` and the chain's ID (the message's ID if it has no
+     * chain). Every entry sets the list to expire MESSAGE_EXCHANGE_TRACE_EXPIRATION_TIME seconds later, in the same
+     * step as the push, so a chain's trace is gone that long after its last message. The
+     * MESSAGE_EXCHANGE_TRACE_REPOSITORY_ENABLED setting turns the store off.
+     * <br/>
+     * NOTE: An entry never holds the message's auth token, its parameter values, its payload, or an exception's
+     * description and data. See {@link TiTraceSnapshot} for what it does hold.
      * <br/>
      * NOTE: Trace events are logged with severity level NOTICE or ERROR for failed dispatches. They still might be
      * filtered out if the minimum log level setting is set too high.
