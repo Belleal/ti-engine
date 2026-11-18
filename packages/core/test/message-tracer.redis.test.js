@@ -43,8 +43,10 @@ const REDIS_HOST = process.env.TI_MEMORY_CACHE_REDIS_HOST || "127.0.0.1";
 const REDIS_PORT = Number( process.env.TI_MEMORY_CACHE_REDIS_PORT || 6379 );
 const REDIS_REQUIRED = [ "1", "true", "yes" ].includes( String( process.env.TI_TEST_REDIS_REQUIRED || "" ).toLowerCase() );
 
-// Read once, when the framework is first required, so these go in before it is. The provider inherits them.
+// Read once, when the framework is first required, so these go in before it is. The provider inherits them. The
+// trace's own settings are taken out of the environment, so that a developer's shell cannot change what is measured.
 process.env.TI_AUDITING_LOG_CONSOLE_ENABLED = "false";
+Object.keys( process.env ).filter( ( name ) => name.startsWith( "TI_MESSAGE_EXCHANGE_TRACE_" ) ).forEach( ( name ) => delete process.env[ name ] );
 process.env.TI_MESSAGE_EXCHANGE_SECURITY_HASH_KEY = process.env.TI_MESSAGE_EXCHANGE_SECURITY_HASH_KEY || "message-tracer-test-" + crypto.randomUUID();
 
 const TOKEN = "bearer-" + crypto.randomUUID();
@@ -167,7 +169,7 @@ after( async () => {
 
 describe( "the message trace of a real bus call", () => {
 
-    it( "is one list for the chain, six entries, expiring an hour after the last, holding no token or parameter value", async ( t ) => {
+    it( "is one list for the chain, six entries, expiring an hour after the last, holding no token or parameter", async ( t ) => {
         if ( !redisReachable ) return t.skip( `no Redis at ${ REDIS_HOST }:${ REDIS_PORT }` );
 
         const result = await caller.callService( { serviceDomainName: DOMAIN, serviceAlias: "echo", serviceVersion: 1 },
@@ -218,6 +220,19 @@ describe( "a list pushed with an expiration (the cache contract)", () => {
         assert.ok( ttl > 0 && ttl <= 30, `the list expires in ${ ttl } s` );
         assert.equal( await redis.ttl( lasting ), -1 );
         assert.deepEqual( ( await redis.lrange( expiring, 0, -1 ) ).map( ( value ) => JSON.parse( value ).n ), [ 2, 1 ] );
+    } );
+
+    it( "refuses an expiration that is not a whole number of seconds above 0, and writes nothing", async ( t ) => {
+        if ( !redisReachable ) return t.skip( `no Redis at ${ REDIS_HOST }:${ REDIS_PORT }` );
+
+        // Inside the MULTI, Redis refuses the EXPIRE alone, after the push (1.5, "abc"), or deletes the list (-1).
+        const exceptions = require( "@ti-engine/core/exceptions" );
+        for ( const expiration of [ 1.5, "abc", -1 ] ) {
+            const key = "message-tracer-test:refused:" + crypto.randomUUID();
+            OWN_KEYS.push( key );
+            await assert.rejects( cache.instance.listPushValue( key, [ { n: 1 } ], expiration ), ( error ) => error.code === exceptions.exceptionCode.E_GEN_INVALID_ARGUMENT_TYPE );
+            assert.equal( await redis.exists( key ), 0, `a refused push with expiration ${ expiration } wrote the list` );
+        }
     } );
 
 } );

@@ -28,26 +28,28 @@ const { cacheCapability } = require( "#cache-capability" );
 const UNKNOWN_TOKEN = "UNKNOWN";
 const OBSCURED_TOKEN = "OBSCURED_BY_SYSTEM";
 
-// What a trace keeps of a message: where it went, when, and how it ended. Named one by one, because the snapshot used
-// to be the whole message less its payload and a few key names that looked like passwords, and so it kept every bearer
-// token and every parameter value - e-mail addresses, reset codes, uploaded logs - in the cache (CA-589). A field a
-// later version adds to the message stays out of the trace until somebody decides it belongs here.
+// What a trace keeps of a message: where it went, when, and how it ended. Named one by one, down to the fields of the
+// objects it keeps, because the snapshot used to be the whole message less its payload and a few key names that looked
+// like passwords, and so it kept every bearer token and every parameter value - e-mail addresses, reset codes, uploaded
+// logs - in the cache (CA-589). The service address is the caller's own object, so a field it added would ride along
+// too. A field a later version adds to the message stays out of the trace until somebody decides it belongs here.
 const SNAPSHOT_FIELDS = Object.freeze( [
     "chainLevel",
     "createdOn",
-    "destination",
     "executionTime",
     "finishedOn",
     "isCompleted",
     "isSuccessful",
     "predecessor",
-    "serviceAddress",
-    "source",
     "successors"
 ] );
+const SNAPSHOT_ROUTE_FIELDS = Object.freeze( [ "instanceID", "route" ] );
+const SNAPSHOT_ADDRESS_FIELDS = Object.freeze( [ "serviceAlias", "serviceDomainName", "serviceVersion" ] );
 // What a trace keeps of an exception: which one it was. Its description and data are the failing call's own words and
-// values, which can be as personal as the parameters that caused them.
-const SNAPSHOT_EXCEPTION_FIELDS = Object.freeze( [ "code", "httpCode", "id", "label" ] );
+// values, which can be as personal as the parameters that caused them; its ID only when it is one the framework made,
+// because a rejection with a plain object supplies its own.
+const SNAPSHOT_EXCEPTION_FIELDS = Object.freeze( [ "code", "httpCode", "label" ] );
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * Enum for listing message types.
@@ -138,8 +140,9 @@ class MessageTracer {
         // that used to mean the trace was kept for good without anybody having asked for it.
         let expiration = config.getSetting( config.setting.MESSAGE_EXCHANGE_TRACE_EXPIRATION_TIME );
         if ( !Number.isSafeInteger( expiration ) || expiration < 0 ) {
+            let given = Number.isNaN( expiration ) ? "an empty or non-numeric value" : `'${ expiration }'`;
             return Promise.reject( exceptions.raise( exceptions.exceptionCode.E_GEN_INVALID_ARGUMENT_TYPE, {
-                details: `The setting 'messageExchange.traceExpirationTime' must be a whole number of seconds, 0 or more, not '${ expiration }'.`
+                details: `The setting 'messageExchange.traceExpirationTime' (TI_MESSAGE_EXCHANGE_TRACE_EXPIRATION_TIME) must be a whole number of seconds, 0 or more, not ${ given }.`
             } ) );
         }
 
@@ -165,8 +168,8 @@ class MessageTracer {
      * step as the push, so a chain's trace is gone that long after its last message. The
      * MESSAGE_EXCHANGE_TRACE_REPOSITORY_ENABLED setting turns the store off.
      * <br/>
-     * NOTE: An entry never holds the message's auth token, its parameter values, its payload, or an exception's
-     * description and data. See {@link TiTraceSnapshot} for what it does hold.
+     * NOTE: An entry never holds the message's auth token, its parameters, its payload, or an exception's description
+     * and data. See {@link TiTraceSnapshot} for what it does hold.
      * <br/>
      * NOTE: Trace events are logged with severity level NOTICE or ERROR for failed dispatches. They still might be
      * filtered out if the minimum log level setting is set too high.
@@ -215,9 +218,14 @@ class MessageTracer {
         // One list per chain, and its expiry set with each push: the whole trace used to be one key whose expiry every
         // write pushed back, so under steady traffic it never expired, and without RedisJSON it was a set with no
         // expiry at all (CA-589). A chain ends, so its list does too.
+        // The push carries the expiry, so Redis sets both in one step and no stop in between can leave the list without
+        // one. It is set again on its own for a backend written before `listPushValue` took an expiration: one that
+        // ignores the argument would otherwise keep every chain's trace for good.
         let repository = config.getSetting( config.setting.MESSAGE_EXCHANGE_TRACE_REPOSITORY ) + ":" + ( message.chainID || message.messageID );
         let expiration = config.getSetting( config.setting.MESSAGE_EXCHANGE_TRACE_EXPIRATION_TIME );
-        cache.instance.listPushValue( repository, [ traceEntry ], ( expiration > 0 ) ? expiration : undefined ).catch( ( error ) => {
+        cache.instance.listPushValue( repository, [ traceEntry ], ( expiration > 0 ) ? expiration : undefined ).then( () => {
+            return ( expiration > 0 ) ? cache.instance.expireValue( repository, expiration ) : expiration;
+        } ).catch( ( error ) => {
             logger.log( `Failed to add message trace entry to the trace repository. While this will not prevent the application from running, it might still be a sign of a more serious problem!`, logger.logSeverity.WARNING, error );
         } );
     }
@@ -247,8 +255,12 @@ class MessageTracer {
     }
 
     /**
-     * Used to take the part of the message a trace keeps: the fields in `SNAPSHOT_FIELDS`, whether an auth token was
-     * there, the names of the parameters without their values, and which exception the call ended with.
+     * Used to take the part of the message a trace keeps: the fields in `SNAPSHOT_FIELDS`, the route of its source and
+     * destination, the service it addressed, whether it carried an auth token and parameters, and which exception the
+     * call ended with.
+     * <br/>
+     * NOTE: Not even the parameters' names. A gateway that passes a client's request body on as the parameters lets the
+     * client choose the names, so they can be data, and a call with many of them made an entry larger than the call.
      * <br/>
      * NOTE: The result is a copy, detached from the message, which keeps changing as it travels.
      *
@@ -258,16 +270,26 @@ class MessageTracer {
      */
     static #takeSnapshot( message ) {
         let snapshot = _.pick( message, SNAPSHOT_FIELDS );
+        if ( _.isObjectLike( message.source ) ) {
+            snapshot.source = _.pick( message.source, SNAPSHOT_ROUTE_FIELDS );
+        }
+        if ( _.isObjectLike( message.destination ) ) {
+            snapshot.destination = _.pick( message.destination, SNAPSHOT_ROUTE_FIELDS );
+        }
+        if ( _.isObjectLike( message.serviceAddress ) ) {
+            snapshot.serviceAddress = _.pick( message.serviceAddress, SNAPSHOT_ADDRESS_FIELDS );
+        }
         if ( !_.isEmpty( message.authToken ) ) {
             snapshot.authToken = OBSCURED_TOKEN;
         }
-        if ( _.isPlainObject( message.serviceParams ) ) {
-            snapshot.serviceParams = _.mapValues( message.serviceParams, () => OBSCURED_TOKEN );
-        } else if ( message.serviceParams !== undefined && message.serviceParams !== null ) {
+        if ( message.serviceParams !== undefined && message.serviceParams !== null ) {
             snapshot.serviceParams = OBSCURED_TOKEN;
         }
         if ( _.isObjectLike( message.exception ) ) {
             snapshot.exception = _.pick( message.exception, SNAPSHOT_EXCEPTION_FIELDS );
+            if ( _.isString( message.exception.id ) && UUID_PATTERN.test( message.exception.id ) ) {
+                snapshot.exception.id = message.exception.id;
+            }
         }
         // Through JSON, as the snapshot always was: a deep copy, and an undefined field is left out rather than kept.
         return tools.parseJSON( tools.stringifyJSON( snapshot ) );

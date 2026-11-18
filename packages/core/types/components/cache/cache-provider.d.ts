@@ -151,12 +151,15 @@ declare class CacheProvider {
      * Used to add the specified values to a list.
      * <br/>
      * NOTE: With an expiration, the list's time-to-live is set in the same step as the push, so a list can never be left
-     * without one by a process that stops between the two.
+     * without one by a process that stops between the two. A backend that declares {@link TiCacheCapability.KEY_EXPIRY}
+     * must apply it (1.23.0): one that ignores it keeps the list for good. The message trace sets its lists' expiry again
+     * on its own for a backend written before this argument existed.
      *
      * @method
      * @param {string} listName
      * @param {Object[]} values
-     * @param {number} [expiration] Expiration value is in seconds, for the whole list, counted from this push.
+     * @param {number} [expiration] Expiration value is in seconds, for the whole list, counted from this push. 0 or
+     * absent: none.
      * @returns {Promise<number>}
      * @requires {TiCacheCapability.LISTS}
      * @abstract

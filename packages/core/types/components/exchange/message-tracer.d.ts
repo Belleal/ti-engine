@@ -77,8 +77,8 @@ declare class MessageTracer {
      * step as the push, so a chain's trace is gone that long after its last message. The
      * MESSAGE_EXCHANGE_TRACE_REPOSITORY_ENABLED setting turns the store off.
      * <br/>
-     * NOTE: An entry never holds the message's auth token, its parameter values, its payload, or an exception's
-     * description and data. See {@link TiTraceSnapshot} for what it does hold.
+     * NOTE: An entry never holds the message's auth token, its parameters, its payload, or an exception's description
+     * and data. See {@link TiTraceSnapshot} for what it does hold.
      * <br/>
      * NOTE: Trace events are logged with severity level NOTICE or ERROR for failed dispatches. They still might be
      * filtered out if the minimum log level setting is set too high.

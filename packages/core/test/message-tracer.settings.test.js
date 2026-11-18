@@ -53,13 +53,17 @@ describe( "the trace store's settings from the environment", () => {
     it( "keeps a chain's trace for an hour by default", () => {
         assert.deepEqual( traceWith( {} ), {
             refusal: null,
-            writes: [ { method: "listPushValue", key: "ti:messages:trace:chain-1", expiration: 3600 } ]
+            writes: [
+                { method: "listPushValue", key: "ti:messages:trace:chain-1", expiration: 3600 },
+                { method: "expireValue", key: "ti:messages:trace:chain-1", expiration: 3600 }
+            ]
         } );
     } );
 
     it( "takes the expiration from TI_MESSAGE_EXCHANGE_TRACE_EXPIRATION_TIME", () => {
         assert.deepEqual( traceWith( { TI_MESSAGE_EXCHANGE_TRACE_EXPIRATION_TIME: "120" } ).writes, [
-            { method: "listPushValue", key: "ti:messages:trace:chain-1", expiration: 120 }
+            { method: "listPushValue", key: "ti:messages:trace:chain-1", expiration: 120 },
+            { method: "expireValue", key: "ti:messages:trace:chain-1", expiration: 120 }
         ] );
     } );
 
@@ -74,13 +78,19 @@ describe( "the trace store's settings from the environment", () => {
         it( `refuses to start with an expiration of '${ value }', and stores nothing`, () => {
             const result = traceWith( { TI_MESSAGE_EXCHANGE_TRACE_EXPIRATION_TIME: value } );
             assert.equal( result.refusal.code, exceptions.exceptionCode.E_GEN_INVALID_ARGUMENT_TYPE );
-            assert.match( result.refusal.details, /traceExpirationTime/ );
+            assert.match( result.refusal.details, /traceExpirationTime. \(TI_MESSAGE_EXCHANGE_TRACE_EXPIRATION_TIME\) must be a whole number of seconds/ );
+            assert.match( result.refusal.details, /TI_MESSAGE_EXCHANGE_TRACE_EXPIRATION_TIME/ );
             assert.deepEqual( result.writes, [] );
         } );
     }
 
     it( "stores nothing with TI_MESSAGE_EXCHANGE_TRACE_REPOSITORY_ENABLED=false", () => {
         assert.deepEqual( traceWith( { TI_MESSAGE_EXCHANGE_TRACE_REPOSITORY_ENABLED: "false" } ), { refusal: null, writes: [] } );
+    } );
+
+    it( "checks no expiration with the store off: there is nothing it would govern", () => {
+        assert.deepEqual( traceWith( { TI_MESSAGE_EXCHANGE_TRACE_REPOSITORY_ENABLED: "false", TI_MESSAGE_EXCHANGE_TRACE_EXPIRATION_TIME: "an hour" } ),
+            { refusal: null, writes: [] } );
     } );
 
     it( "stores nothing with the store off even when the trace is logged", () => {

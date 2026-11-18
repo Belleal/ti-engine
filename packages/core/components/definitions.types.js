@@ -177,25 +177,26 @@
  */
 
 /**
- * What a trace entry keeps of the message it traces: where it went, when, and how it ended. Never the auth token, a
- * parameter's value, the payload, or an exception's description and data (CA-589). A field the message lacks is absent.
+ * What a trace entry keeps of the message it traces: where it went, when, and how it ended. Never the auth token, the
+ * parameters (not even their names), the payload, or an exception's description and data (CA-589). A field the message
+ * lacks is absent.
  *
  * @typedef {Object} TiTraceSnapshot
  * @property {string} [authToken] `OBSCURED_BY_SYSTEM` when the message carried a token; absent when it carried none.
  * @property {number} [chainLevel]
  * @property {number} [createdOn]
- * @property {MessageDestination} [destination]
+ * @property {MessageDestination} [destination] Its `route` and `instanceID` only.
  * @property {{ code?: number, httpCode?: number, id?: string, label?: string }} [exception] Which exception the call
- * ended with, if one.
+ * ended with, if one; its `id` only when it is a UUID the framework made.
  * @property {number} [executionTime]
  * @property {number} [finishedOn]
  * @property {boolean} [isCompleted]
  * @property {boolean} [isSuccessful]
  * @property {string} [predecessor]
- * @property {ServiceAddress} [serviceAddress]
- * @property {Object.<string, string>|string} [serviceParams] Each parameter's name, its value `OBSCURED_BY_SYSTEM`;
- * `OBSCURED_BY_SYSTEM` alone when the parameters were not a plain object.
- * @property {MessageSource} [source]
+ * @property {ServiceAddress} [serviceAddress] Its `serviceAlias`, `serviceDomainName` and `serviceVersion` only.
+ * @property {string} [serviceParams] `OBSCURED_BY_SYSTEM` when the message carried parameters; absent when it carried
+ * none.
+ * @property {MessageSource} [source] Its `route` and `instanceID` only.
  * @property {string[]} [successors]
  */
 

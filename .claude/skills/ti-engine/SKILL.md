@@ -27,7 +27,7 @@ the header block verbatim from an existing file in the same package.
 ```
 ti-engine/                         npm workspace root (v1.3.1; workspaces = packages/*)
 ├── packages/
-│   ├── core/          v1.23.0     Framework foundation (pluggable cache backend — Redis or HTTP, optional messaging, lifecycle, utils) + the D1 state service + the deployment's time zone + a roster of running provider instances, so a call to a stopped service fails at once + shipped TypeScript declarations + a label catalogue in layers (core, each framework package, the application) + a message trace that keeps no token or parameter value, one expiring list per chain
+│   ├── core/          v1.23.0     Framework foundation (pluggable cache backend — Redis or HTTP, optional messaging, lifecycle, utils) + the D1 state service + the deployment's time zone + a roster of running provider instances, so a call to a stopped service fails at once + shipped TypeScript declarations + a label catalogue in layers (core, each framework package, the application) + a message trace that keeps no token or parameter, one expiring list per chain
 │   ├── web-framework/ v1.63.0     Express server + auth (incl. real local auth, per-provider allowed domains, sign-in with a link sent by e-mail) + admin config-management + config drift + Profile/About + ti-charts + role gate + TI_WEB_* env overrides + /health + route seams + content-addressed immutable fragments + opt-in Server-Timing + start-up gate + busy indicator + CSP source additions + no overscroll bounce + the sidebar as a drawer on a narrow screen + the interface language chosen on the sign-in screen + a config change's author by name + only the newest screen lands in `#ti-content` + e-mail notices raised by configurable rules over events, with editable texts, a branded HTML layout, attached files and a per-deployment interval for what waits + scheduled jobs + What's new and Feedback screens an application turns on, Feedback with a picture of the screen, personal information blanked + a page left open across a release reloads at a safe moment + sessions that can be held in the process + its own label catalogue laid under the application's + the shell at a home other than `/` + session hooks that may read a store + Entra's object ID on the session
 │   ├── web-content/   v0.5.4      Content-publishing engine — path-index routing, deny-by-default visibility, SEO documents, feeds, email capture with an optional Turnstile check (WIP)
 │   ├── cloudflare/    v0.6.1      The Cloudflare edge — the Worker in front of an application's container, assembled: scanner probes answered there, forwarding headers made true, the container's environment and egress, the order every request is decided in, the mail relay and the jobs cron, and the template a new application copies (WIP)
@@ -131,13 +131,13 @@ history and older PR bodies; it is no longer the working branch.
 | `components/exchange/message-handler.js` | **Abstract** base for senders/receivers; `createMessageHash()` — keyed **HMAC-SHA256** integrity hash + constant-time verify |
 | `components/exchange/default/default-message-exchange.js` | Redis (ioredis) implementation |
 | `components/exchange/message-dispatcher.js` / `message-sender.js` / `message-receiver.js` | Queue plumbing |
-| `components/exchange/message-tracer.js` | chainID / chainLevel tracking across hops. Since 1.23.0 (CA-589) each chain's entries are a list of their own, `ti:messages:trace:<chainID>`, whose expiry (`traceExpirationTime`) is set with every push; a snapshot keeps the fields it names (`SNAPSHOT_FIELDS`), never the token, a parameter value, the payload or an exception's description and data. `traceRepositoryEnabled` turns the store off |
+| `components/exchange/message-tracer.js` | chainID / chainLevel tracking across hops. Since 1.23.0 (CA-589) each chain's entries are a list of their own, `ti:messages:trace:<chainID>`, whose expiry (`traceExpirationTime`) is set with every push; a snapshot keeps the fields it names (`SNAPSHOT_FIELDS`, and named fields of `source`, `destination`, `serviceAddress`), never the token, the parameters (not even their names), the payload or an exception's description and data. `traceRepositoryEnabled` turns the store off |
 | `utils/tools.js` | `getUUID()`, `deepFreeze()`, `constantTimeEquals()`, `enum()` factory (enum value = **first element of its seed array**, not the key — see gotcha under competence enums), `RetryPolicy`, `KeyedLock` (1.19.0): `exclusively( keys, task )` runs tasks that touch the same keys one at a time, in arrival order, for a read-check-write spanning several store round trips. A task must not settle before its writes have — `whenAllSettled( promises )` (1.19.0), never `Promise.all` — and must never ask for a key it already holds: it would wait for itself. In-process only |
 | `utils/exceptions.js` | `TiException` + standardized error codes (see below) |
 | `utils/logger.js` | Severity: DEBUG/INFO/NOTICE/WARNING/ERROR/CRITICAL/ALERT |
 | `utils/config.js` | Config enum + ENV overrides; frozen after init |
 | `utils/cache.js` | `CommonMemoryCache` singleton — owns operational state, connection observation and one shared guard; delegates storage to a `CacheProvider`. `createCacheStore()` (1.17.0) opens an independent, frozen instance beside it |
-| `components/cache/cache-provider.js` | **Abstract** backend contract (23 data methods + lifecycle) and `hasCapability()`. `hashGetAll` (1.21.0) is the newest; `HttpCacheProvider` leaves it and `hashSetFields` abstract though it declares `HASH_FIELDS`. `listPushValue` takes an optional `expiration` (1.23.0), set in the push's MULTI |
+| `components/cache/cache-provider.js` | **Abstract** backend contract (23 data methods + lifecycle) and `hasCapability()`. `hashGetAll` (1.21.0) is the newest; `HttpCacheProvider` leaves it and `hashSetFields` abstract though it declares `HASH_FIELDS`. `listPushValue` takes an optional `expiration` (1.23.0), set in the push's MULTI; Redis refuses one that is not a whole number above 0, and a custom backend declaring `key-expiry` must apply it |
 | `components/cache/cache-capability.js` | `TiCacheCapability` enum — the optional behaviors a backend may declare |
 | `components/cache/redis-cache-provider.js` | Redis/RedisJSON implementation — every Redis-specific detail in the cache path lives here |
 | `components/cache/http-cache-provider.js` | State over HTTP (1.15.0) — the ten methods the state store uses; lists/sets stay abstract |
@@ -149,22 +149,27 @@ history and older PR bodies; it is no longer the working branch.
 **Public exports** (`package.json` `exports`): `.` (start-instance), `./tools`, `./cache`, `./exceptions`, `./logger`, `./localization`, `./service-instance`, `./service-consumer`, `./service-provider`, `./state-service` (1.17.0), `./time-zone` (1.20.0), `./definitions` (the shared typedefs).
 
 **Since the skill's last sync (1.9.0 → 1.23.0):**
-- **1.23.0 — the message trace keeps no token or parameter value, and each chain's trace expires** (CA-589, found by
+- **1.23.0 — the message trace keeps no token or parameter, and each chain's trace expires** (CA-589, found by
   Abominations' public-deployment checkpoint, ABO-235). The snapshot was the whole message less its payload and the
   values of keys that looked like a PIN, a password or a one-time code, so every bearer token and parameter value went
   into one key, `ti:messages:trace`, whose expiry every write pushed back (RedisJSON) or which had none (a set, without
   it). Now:
-  - **the snapshot is an allow-list**, `SNAPSHOT_FIELDS` in `message-tracer.js`: routing, timing and outcome.
-    `authToken` becomes `OBSCURED_BY_SYSTEM`; `serviceParams` keeps its names, each value `OBSCURED_BY_SYSTEM`; an
-    exception keeps `code`, `httpCode`, `id`, `label`. A field added to the message later stays out until it is named
-    there. `TiTraceSnapshot` is the typedef;
+  - **the snapshot is an allow-list**, `SNAPSHOT_FIELDS` and its siblings in `message-tracer.js`: routing, timing and
+    outcome, down to the fields of `source`, `destination` and `serviceAddress` (the caller's own object).
+    `authToken` and `serviceParams` become `OBSCURED_BY_SYSTEM`, not even the parameters' names (a gateway passing a
+    request body on lets the client choose them); an exception keeps `code`, `httpCode`, `label`, and `id` only when it
+    is a framework UUID. A field added to the message later stays out until it is named there. `TiTraceSnapshot` is the
+    typedef;
   - **one list per chain**, `ti:messages:trace:<chainID>` (the message ID without a chain), newest first, pushed with
-    `cache.listPushValue( key, [ entry ], traceExpirationTime )` so the push and the expiry are one MULTI. No JSON, no
-    set, nothing written at `initialize`. A backend without `lists` or `key-expiry` gets no trace and one warning;
+    `cache.listPushValue( key, [ entry ], traceExpirationTime )` so the push and the expiry are one MULTI, then
+    `expireValue` once more for a custom backend that ignores the new argument. No JSON, no set, nothing written at
+    `initialize`. A backend without `lists` or `key-expiry` gets no trace and one warning. Cost: one key per chain of
+    the last hour, which every `matchKeys` (Redis `KEYS`) reads;
   - **settings from the environment**: `TI_MESSAGE_EXCHANGE_TRACE_REPOSITORY_ENABLED` (`traceRepositoryEnabled`,
     default `true`) and `TI_MESSAGE_EXCHANGE_TRACE_EXPIRATION_TIME`. An expiration that is not a whole number of
     seconds ≥ 0 — an empty value included, since `Number( "" )` is 0 — makes `initialize` reject with
-    `E_GEN_INVALID_ARGUMENT_TYPE`, so the instance does not start; `0` still means "keep for good";
+    `E_GEN_INVALID_ARGUMENT_TYPE`, so the instance does not start (only with the store and the exchange on); `0`
+    still means "keep for good";
   - **breaking for a reader of the trace**; nothing in this repository reads it. The old key is neither written nor
     removed: an operator deletes it. Rejected: a sorted set trimmed on write (a new contract method, a trim per write)
     and a capped list (bounds the count, not the age).
@@ -381,7 +386,7 @@ history and older PR bodies; it is no longer the working branch.
 - `TI_MEMORY_CACHE_STATE_URL` / `_STATE_AUTH_TOKEN` / `_STATE_TIMEOUT` / `_STATE_ALLOW_INSECURE_AUTH` — where the `http` backend finds its state service, the bearer token to send (omitted when unset), the per-request timeout in ms, and the opt-in that lets a token travel as plain HTTP to a remote host (1.15.0, default `false`; loopback and HTTPS never need it, and the Cloudflare deployment sets no token at all). A bad timeout or an unparseable URL fails in the constructor, because `AbortSignal.timeout` throws synchronously and would otherwise break the promise contract. Ignored by the Redis backend
 - `TI_MESSAGE_EXCHANGE_ENABLED` — whether to run the message exchange at all (1.14.0, default `true`). Off means the dispatcher is never initialized or shut down; see the note on the cache backend below for why that is what lets a non-Redis backend work. **Broken for every web server until 1.15.2**: `ServiceConsumer.onStart` registered with the uninitialized dispatcher unconditionally, so `TiWebServer` crashed at boot with it off. Anything that reaches the dispatcher must check `ServiceInstance.isMessageExchangeEnabled` first — the dispatcher now throws `E_GEN_NOT_INITIALIZED` rather than a `TypeError` if it doesn't. A `ServiceProvider` with it off registers none of its configured services and logs a warning saying how many it skipped: it could receive no requests for them
 - `TI_MESSAGE_EXCHANGE_SECURITY_HASH_ENABLED` — toggle the message integrity hash (default `true`)
-- `TI_MESSAGE_EXCHANGE_TRACE_REPOSITORY_ENABLED` / `TI_MESSAGE_EXCHANGE_TRACE_EXPIRATION_TIME` — whether the message trace is stored in the cache (default `true`) and for how many seconds after a chain's last entry (default `3600`; `0` keeps it for good; anything else that is not a whole number of seconds stops the instance from starting). Both 1.23.0, CA-589. `TI_MESSAGE_EXCHANGE_TRACE_LOG_ENABLED` is the separate switch for writing the entries to the log
+- `TI_MESSAGE_EXCHANGE_TRACE_REPOSITORY_ENABLED` / `TI_MESSAGE_EXCHANGE_TRACE_EXPIRATION_TIME` — whether the message trace is stored in the cache (default `true`) and for how many seconds after a chain's last entry (default `3600`; `0` keeps it for good; with the store on, anything else that is not a whole number of seconds stops the instance from starting). Both 1.23.0, CA-589. `TI_MESSAGE_EXCHANGE_TRACE_LOG_ENABLED` is the separate switch for writing the entries to the log
 - `TI_SERVICE_HEALTH_CHECK_ENABLED` — whether to write the health heartbeat (1.16.0, default `true`). The setting arrived in 1.14.0 as `serviceConfig.healthCheckEnabled`, but core reads it only from its own `bin/settings.json`, so until this variable no application could actually turn it off. Off schedules no job at all — for a single instance with nothing watching the key.
 - `TI_MESSAGE_EXCHANGE_SECURITY_HASH_KEY` — message-exchange HMAC-SHA256 key. **Empty by default**: if unset (or equal to the old published default UUID) a one-time startup WARNING logs and tamper protection is ineffective — set a private value in production.
 
@@ -405,7 +410,7 @@ module.exports.service = function (serviceDefinition, serviceParams, serviceCall
 
 **Test commands**:
 ```bash
-npm test    # node --test — 315 tests / 71 suites: 32 test files, plus the eleven test/fixtures/
+npm test    # node --test — 319 tests / 71 suites: 32 test files, plus the eleven test/fixtures/
             # modules, which node's default pattern runs as files too (each counts as one test)
             # (auditing-json-console, cache-capabilities, cache-get-values, cache-provider-selection,
             #  cache-store, d1-state-service, d1-state-service.partitions, d1-state-service.differential,
@@ -421,7 +426,8 @@ npm test    # node --test — 315 tests / 71 suites: 32 test files, plus the ele
             #  plus service-instance.post-start-failure and service-roster.without-hash-get-all;
             #  and, 1.23.0, message-tracer (a backend that records every write), message-tracer.settings
             #  (one process per environment, through fixtures/trace-one-entry.js) and message-tracer.redis
-            #  (a real bus call to a spawned EchoProvider; skips without Redis like the live-instance suite))
+            #  (a real bus call to a spawned EchoProvider; skips without Redis like the live-instance suite,
+            #  which turns the trace store off: its cleanup finds keys by domain, a trace list's name has none))
             # test/fixtures/ holds StubCacheProvider (how the cache singleton is
             # driven without a live Redis), startStubStateServer (an in-memory
             # implementation of the state protocol, on node:http) and d1-sqlite
@@ -1652,7 +1658,7 @@ Token: YouTrack → Profile → Account Security → New token (scope: YouTrack)
 2. **Extending the web UI**: subclass `TiWebAppManager`, add an HTML fragment + matching Alpine component; reuse framework CSS primitives; obey the Alpine CSP rules (no inline styles, no `?.`).
 3. **Config-management, from a consumer's side**: a consuming application registers a config document (schema + file default + semantic validators + optional composite editor) through `TiWebAppManager.registerConfigDocument` / `registerConfigEditor`. Those seams live here; the documents themselves live in the consumer. Changing either seam is a breaking change for every consumer, so treat the `exports` map and these signatures as API.
 4. **Testing**: Node.js built-in `node --test` (no external framework); each package's `test/` directory. `npm test`
-   at the root fans out across workspaces — **2361 tests today: core 315, web-framework 1423, web-content 434,
+   at the root fans out across workspaces — **2365 tests today: core 319, web-framework 1423, web-content 434,
    cloudflare 189, tester none** (it is a runnable service, not a unit-tested one). The three checks that gate a push are in
    `CLAUDE.md` → *Definition of done*: `npm test`, `npm run lint` (0 errors; ESLint runs `@eslint/js`'s
    recommended rules with `no-unused-vars` turned down to a **warning** — `no-control-regex` is an error, measured in

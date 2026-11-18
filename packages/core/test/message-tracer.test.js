@@ -31,9 +31,11 @@
 
 const path = require( "node:path" );
 
-// Read once, when the framework is first required, so these go in before it is.
+// Read once, when the framework is first required, so these go in before it is. The trace's own settings are taken out
+// of the environment, so that a developer's shell cannot change what is measured.
 process.env.TI_MEMORY_CACHE_PROVIDER = path.resolve( __dirname, "fixtures", "recording-cache-provider.js" );
 process.env.TI_AUDITING_LOG_CONSOLE_ENABLED = "false";
+Object.keys( process.env ).filter( ( name ) => name.startsWith( "TI_MESSAGE_EXCHANGE_TRACE_" ) ).forEach( ( name ) => delete process.env[ name ] );
 
 const { before, beforeEach, describe, it } = require( "node:test" );
 const assert = require( "node:assert/strict" );
@@ -74,24 +76,26 @@ function serviceCall( overrides = {} ) {
         messageID: "message-" + Math.random().toString( 16 ).slice( 2 ),
         payload: { result: "a payload" },
         predecessor: "message-before",
-        serviceAddress: { serviceAlias: "request-reset", serviceDomainName: "accounts", serviceVersion: 1 },
-        serviceParams: { email: EMAIL, code: RESET_CODE, upload: { lines: [ LOG_LINE ] } },
-        source: { instanceID: "ti-instance-1", route: "gateway" },
+        serviceAddress: { serviceAlias: "request-reset", serviceDomainName: "accounts", serviceVersion: 1, onBehalfOf: EMAIL },
+        serviceParams: { email: EMAIL, code: RESET_CODE, upload: { lines: [ LOG_LINE ] }, [ EMAIL ]: true },
+        source: { instanceID: "ti-instance-1", route: "gateway", note: EMAIL },
         successors: undefined,
         ...overrides
     };
 }
 
 /**
- * Used to record one entry and hand back the pushes it made.
+ * Used to record one entry and hand back the writes it asked for.
  *
  * @param {Object} message
  * @param {number} [type]
- * @returns {Object[]} The `listPushValue` writes, as `{ listName, entry, expiration }`.
+ * @returns {Promise<Object[]>} The writes, as `{ method, args }`, once the tracer's promise chain has run.
  */
-function trace( message, type = messageTracer.messageType.MESSAGE_REQUEST ) {
+async function trace( message, type = messageTracer.messageType.MESSAGE_REQUEST ) {
     RecordingCacheProvider.writes = [];
     messageTracer.instance.recordTraceEntry( message, type, messageTracer.dispatchEvent.SENT, messageTracer.messageState.PENDING );
+    // The expiry is set again once the push has resolved, a turn of the promise chain later.
+    await new Promise( ( resolve ) => setImmediate( resolve ) );
     return RecordingCacheProvider.writes;
 }
 
@@ -114,14 +118,12 @@ beforeEach( async () => {
 
 describe( "where a trace entry is stored", () => {
 
-    it( "goes to its chain's own list, with the expiry set in the same push, and nowhere else", () => {
+    it( "goes to its chain's own list, with the expiry set in the same push, and nowhere else", async () => {
         const message = serviceCall();
-        const writes = trace( message );
+        const writes = await trace( message );
 
-        // One write: the old tracer appended to one shared key and then set its expiry in a second call, or added to a
-        // set and set none.
-        assert.equal( writes.length, 1 );
-        assert.equal( writes[ 0 ].method, "listPushValue" );
+        // The old tracer appended to one shared key and pushed its expiry back, or added to a set and set none.
+        assert.deepEqual( writes.map( ( write ) => write.method ), [ "listPushValue", "expireValue" ] );
         const [ listName, values, expiration ] = writes[ 0 ].args;
         assert.equal( listName, "ti:messages:trace:" + message.chainID );
         assert.equal( values.length, 1 );
@@ -129,9 +131,18 @@ describe( "where a trace entry is stored", () => {
         assert.equal( expiration, 3600 );
     } );
 
-    it( "files a message without a chain under its own ID", () => {
+    it( "sets the expiry again on its own, for a backend that ignores the push's", async () => {
+        // A backend written to the 1.22.0 contract implements listPushValue( listName, values ) and drops the third
+        // argument; with only the push's expiry, every chain's list would be kept for good.
+        const message = serviceCall();
+        const writes = await trace( message );
+        assert.equal( writes[ 1 ].method, "expireValue" );
+        assert.deepEqual( writes[ 1 ].args.slice( 0, 2 ), [ "ti:messages:trace:" + message.chainID, 3600 ] );
+    } );
+
+    it( "files a message without a chain under its own ID", async () => {
         const message = serviceCall( { chainID: undefined } );
-        const [ write ] = trace( message );
+        const [ write ] = await trace( message );
         assert.equal( write.args[ 0 ], "ti:messages:trace:" + message.messageID );
     } );
 
@@ -145,8 +156,8 @@ describe( "where a trace entry is stored", () => {
 
 describe( "what a trace entry keeps of the message", () => {
 
-    it( "keeps no auth token, parameter value, payload or hash", () => {
-        const [ write ] = trace( serviceCall() );
+    it( "keeps no auth token, parameter, payload or hash, and nothing a caller added to its objects", async () => {
+        const [ write ] = await trace( serviceCall() );
         const stored = JSON.stringify( write.args[ 1 ] );
 
         for ( const secret of [ TOKEN, EMAIL, RESET_CODE, LOG_LINE, "a payload", "a-message-hash" ] ) {
@@ -157,17 +168,19 @@ describe( "what a trace entry keeps of the message", () => {
         assert.equal( "hash" in snapshot, false );
     } );
 
-    it( "says that a token was there and which parameters were passed", () => {
-        const [ write ] = trace( serviceCall() );
+    it( "says that a token and parameters were there, not even the parameters' names", async () => {
+        // A gateway that passes a client's request body on as the parameters lets the client choose the names, so a
+        // name can be an address, as one is here.
+        const [ write ] = await trace( serviceCall() );
         const snapshot = write.args[ 1 ][ 0 ].messageSnapshot;
 
         assert.equal( snapshot.authToken, OBSCURED );
-        assert.deepEqual( snapshot.serviceParams, { email: OBSCURED, code: OBSCURED, upload: OBSCURED } );
+        assert.equal( snapshot.serviceParams, OBSCURED );
     } );
 
-    it( "keeps where the message went and when", () => {
+    it( "keeps where the message went and when", async () => {
         const message = serviceCall();
-        const [ write ] = trace( message );
+        const [ write ] = await trace( message );
         const entry = write.args[ 1 ][ 0 ];
 
         assert.deepEqual( entry.messageSnapshot, {
@@ -179,7 +192,7 @@ describe( "what a trace entry keeps of the message", () => {
             isCompleted: false,
             predecessor: "message-before",
             serviceAddress: { serviceAlias: "request-reset", serviceDomainName: "accounts", serviceVersion: 1 },
-            serviceParams: { email: OBSCURED, code: OBSCURED, upload: OBSCURED },
+            serviceParams: OBSCURED,
             source: { instanceID: "ti-instance-1", route: "gateway" }
         } );
         assert.equal( entry.messageID, message.messageID );
@@ -189,20 +202,20 @@ describe( "what a trace entry keeps of the message", () => {
         assert.equal( entry.dispatchEvent, "SENT" );
     } );
 
-    it( "has neither token nor parameters when the message carried none", () => {
-        const [ write ] = trace( serviceCall( { authToken: undefined, serviceParams: undefined } ) );
+    it( "has neither token nor parameters when the message carried none", async () => {
+        const [ write ] = await trace( serviceCall( { authToken: undefined, serviceParams: undefined } ) );
         const snapshot = write.args[ 1 ][ 0 ].messageSnapshot;
 
         assert.equal( "authToken" in snapshot, false );
         assert.equal( "serviceParams" in snapshot, false );
     } );
 
-    it( "obscures parameters that are not a plain object as a whole", () => {
-        const [ write ] = trace( serviceCall( { serviceParams: [ EMAIL ] } ) );
+    it( "obscures parameters that are not a plain object as well", async () => {
+        const [ write ] = await trace( serviceCall( { serviceParams: [ EMAIL ] } ) );
         assert.equal( write.args[ 1 ][ 0 ].messageSnapshot.serviceParams, OBSCURED );
     } );
 
-    it( "keeps which exception a call ended with, never its description or data", () => {
+    it( "keeps which exception a call ended with, never its description or data", async () => {
         const exception = exceptions.raise( exceptions.exceptionCode.E_GEN_INVALID_ARGUMENT_TYPE, { email: EMAIL } ).asJSON();
         const response = serviceCall( {
             exception: { ...exception, description: "no account for " + EMAIL },
@@ -212,7 +225,7 @@ describe( "what a trace entry keeps of the message", () => {
             isSuccessful: false,
             payload: undefined
         } );
-        const [ write ] = trace( response, messageTracer.messageType.MESSAGE_RESPONSE );
+        const [ write ] = await trace( response, messageTracer.messageType.MESSAGE_RESPONSE );
         const snapshot = write.args[ 1 ][ 0 ].messageSnapshot;
 
         assert.deepEqual( snapshot.exception, { code: exception.code, id: exception.id, label: exception.label } );
@@ -221,9 +234,18 @@ describe( "what a trace entry keeps of the message", () => {
         assert.equal( snapshot.executionTime, 12 );
     } );
 
-    it( "is a copy: a later change to the message does not reach it", () => {
+    it( "keeps an exception's ID only when the framework made it", async () => {
+        // A service that rejects with a plain object supplies the ID itself (exceptions.raise takes `source.id`).
+        const exception = exceptions.raise( { id: EMAIL, code: exceptions.exceptionCode.E_GEN_INVALID_ARGUMENT_TYPE } ).asJSON();
+        assert.equal( exception.id, EMAIL );
+        const [ write ] = await trace( serviceCall( { exception: exception, isSuccessful: false } ), messageTracer.messageType.MESSAGE_RESPONSE );
+
+        assert.deepEqual( write.args[ 1 ][ 0 ].messageSnapshot.exception, { code: exception.code, label: exception.label } );
+    } );
+
+    it( "is a copy: a later change to the message does not reach it", async () => {
         const message = serviceCall();
-        const [ write ] = trace( message );
+        const [ write ] = await trace( message );
         message.destination.instanceID = "ti-instance-2";
         message.serviceAddress.serviceAlias = "changed";
 
@@ -244,8 +266,8 @@ describe( "a backend that could not expire the trace", () => {
             RecordingCacheProvider.declaredCapabilities = capabilities;
             await messageTracer.instance.initialize();
 
-            assert.deepEqual( trace( serviceCall() ), [] );
-            assert.deepEqual( trace( serviceCall() ), [] );
+            assert.deepEqual( await trace( serviceCall() ), [] );
+            assert.deepEqual( await trace( serviceCall() ), [] );
             assert.equal( warnings.length, 1 );
             assert.match( warnings[ 0 ], new RegExp( `does not provide ${ missing }` ) );
         } );

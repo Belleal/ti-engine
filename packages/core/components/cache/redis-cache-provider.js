@@ -390,17 +390,24 @@ class RedisCacheProvider extends CacheProvider {
     /**
      * Used to add the specified values to a list.
      * <br/>
-     * NOTE: An expiration goes into the same MULTI as the push, so the list never exists without its time-to-live.
+     * NOTE: An expiration goes into the same MULTI as the push, so the list never exists without its time-to-live. One
+     * that is not a whole number of seconds above 0 is refused before anything is written: inside the MULTI, Redis
+     * would refuse the EXPIRE alone, after the push, and a negative one deletes the list.
      *
      * @method
      * @param {string} listName
      * @param {Object[]} values
      * @param {number} [expiration] Expiration value is in seconds, for the whole list, counted from this push.
      * @returns {Promise<number>}
+     * @throws {TiException.E_GEN_INVALID_ARGUMENT_TYPE} If the expiration is given and is not a whole number above 0.
      * @public
      */
     listPushValue( listName, values, expiration ) {
         return new Promise( ( resolve, reject ) => {
+            if ( expiration !== undefined && expiration !== null && expiration !== 0 && !( Number.isSafeInteger( expiration ) && expiration > 0 ) ) {
+                reject( exceptions.raise( exceptions.exceptionCode.E_GEN_INVALID_ARGUMENT_TYPE, { details: `A list's expiration must be a whole number of seconds above 0, not '${ expiration }'.` } ) );
+                return;
+            }
             let commandPushValues = [ redis.cacheCommands.LIST_PUSH, listName ];
             _.forEach( values, ( value ) => {
                 if ( value ) {

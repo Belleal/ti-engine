@@ -51,8 +51,15 @@ cache.instance.initialize().then( () => {
         messageID: "message-1",
         source: { instanceID: "ti-instance-1", route: "here" }
     }, messageTracer.messageType.MESSAGE_REQUEST, messageTracer.dispatchEvent.SENT, messageTracer.messageState.PENDING );
+    // The expiry is set again once the push has resolved, a turn of the promise chain later.
+    return new Promise( ( resolve ) => setImmediate( () => resolve( refusal ) ) );
+} ).then( ( refusal ) => {
     process.stdout.write( JSON.stringify( {
         refusal: refusal,
-        writes: RecordingCacheProvider.writes.map( ( write ) => ( { method: write.method, key: write.args[ 0 ], expiration: write.args[ 2 ] } ) )
+        writes: RecordingCacheProvider.writes.map( ( write ) => ( {
+            method: write.method,
+            key: write.args[ 0 ],
+            expiration: ( write.method === "expireValue" ) ? write.args[ 1 ] : write.args[ 2 ]
+        } ) )
     } ) + "\n" );
 } );

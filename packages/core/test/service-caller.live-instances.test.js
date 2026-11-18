@@ -49,6 +49,9 @@ const VERBOSE = !!process.env.TI_TEST_VERBOSE;
 
 // Settings are read once, when the framework is first required, so these go in before it is.
 process.env.TI_AUDITING_LOG_CONSOLE_ENABLED = VERBOSE ? "true" : "false";
+// The providers inherit this. Since 1.23.0 each call's trace is a list named by its chain, which the cleanup below,
+// matching this suite's domains in key names, cannot find; message-tracer.redis.test.js covers the trace (CA-589).
+process.env.TI_MESSAGE_EXCHANGE_TRACE_REPOSITORY_ENABLED = "false";
 // The providers inherit this, and a message is verified with the key of the instance that receives it.
 process.env.TI_MESSAGE_EXCHANGE_SECURITY_HASH_KEY = process.env.TI_MESSAGE_EXCHANGE_SECURITY_HASH_KEY || "live-instances-test-" + crypto.randomUUID();
 
