@@ -67,6 +67,7 @@ function installStore() {
     const store = {
         calls: [],
         fields: fields,
+        values: new Map(),
         holdNext( name, { fail = false, applyAtCall = false } = {} ) {
             const hold = { name: name, fail: fail, applyAtCall: applyAtCall, reached: deferred(), released: deferred() };
             holds.push( hold );
@@ -106,7 +107,13 @@ function installStore() {
         hashDeleteField: ( key, field ) => run( "hashDeleteField", () => {
             fields.delete( field );
         } ),
-        expireValue: () => run( "expireValue", () => undefined )
+        expireValue: () => run( "expireValue", () => undefined ),
+        // The "ended" mark a destroy writes and a set reads (CA-587).
+        setValue: ( key, value ) => run( "setValue", () => {
+            store.values.set( key, value );
+            return value;
+        } ),
+        getValue: ( key ) => run( "getValue", () => ( store.values.has( key ) ? store.values.get( key ) : null ) )
     };
     Object.defineProperty( cache, "instance", { value: recorder, configurable: true, writable: true, enumerable: true } );
     return store;

@@ -71,6 +71,26 @@ const HELD_IN_DOUBT_MILLISECONDS = 2 * 60 * 1000;
 const HELD_SESSIONS_LIMIT = 10000;
 
 /**
+ * How long, in seconds, a destroyed session's ID stays marked as ended (CA-587), so a request that loaded the session
+ * before it was destroyed cannot write it back at its response's end. Longer than any request runs (the server's
+ * `requestTimeout` is three minutes unless stated). A browser that still sends the cookie later finds no session and is
+ * given a new one with a new ID, so the mark has no further use.
+ *
+ * @type {number}
+ */
+const ENDED_SECONDS = 15 * 60;
+
+/**
+ * The key of a destroyed session's "ended" mark (CA-587).
+ *
+ * @param {string} sessionID
+ * @returns {string}
+ */
+function endedKeyOf( sessionID ) {
+    return `${ sessionStoreName }:ended:${ sessionID }`;
+}
+
+/**
  * Converts a session cookie's remaining lifetime into the expiry, in seconds, the store keeps the session for.
  *
  * @param {SessionData} session
@@ -90,6 +110,13 @@ function storeExpiryFor( session ) {
  * store round trip before any handler ran. Every write still goes to the store first, and the copy changes only once the
  * write has landed. The copy is sound only while this process is the one serving the sessions in its store: a session
  * another process changes or signs out is not seen here.
+ * <br/>
+ * **A destroyed session stays destroyed** (CA-587). A request that loaded a session before a sign-out destroyed it still
+ * holds its copy, and express-session writes that copy back at the response's end if the request changed it. Unchecked,
+ * the store recreated the record and the sign-out was undone. The store has no compare-and-set, so two orderings meet
+ * instead: `destroy` marks the ID as ended ({@link ENDED_SECONDS}) before it deletes the session, and `set` reads the
+ * mark after its own write lands and deletes the session again if it is there. Whichever write lands last, no session is
+ * left. `touch` needs no check: it only re-times a session that exists.
  *
  * @class SessionStore
  * @public
@@ -164,6 +191,24 @@ class SessionStore extends session.Store {
         Promise.resolve().then( () => cache.instance.hashSetField( sessionStoreName, sessionID, session ) ).then( () => {
             return ( expire ) ? cache.instance.expireValue( sessionID, expire, sessionStoreName ) : null;
         } ).then( () => {
+            // After the write has landed, not before: a sign-out whose delete lands after this write removes it itself,
+            // and one whose delete landed before it has left its mark for this read to find (CA-587).
+            return Promise.resolve().then( () => cache.instance.getValue( endedKeyOf( sessionID ) ) ).then( ( mark ) => !!mark, ( error ) => {
+                // Kept: a write that landed is almost always a live session's, and deleting it on a failed read would
+                // sign its user out at random. The stack alone, as an error's own properties can carry the store's address.
+                logger.log( "Could not read whether a user session has ended; keeping what was written.", logger.logSeverity.WARNING, { stack: error?.stack } );
+                return false;
+            } );
+        } ).then( ( ended ) => {
+            return ( ended ) ? Promise.resolve().then( () => cache.instance.hashDeleteField( sessionStoreName, sessionID ) ).then( () => true ) : false;
+        } ).then( ( ended ) => {
+            if ( ended ) {
+                // A request that loaded the session before a sign-out ended it: its write is undone and nothing is held.
+                // The ID is not logged, since it is the cookie's secret.
+                this.#endWrite( sessionID, write, true );
+                logger.log( "Did not write back a user session that had been signed out while a request still held it.", logger.logSeverity.DEBUG );
+                return callback();
+            }
             this.#rememberExpiryWrite( sessionID );
             if ( this.#endWrite( sessionID, write, true ) ) {
                 this.#hold( sessionID, text, ( expire ) ? startedAt + expire * 1000 : Infinity );
@@ -236,7 +281,11 @@ class SessionStore extends session.Store {
     destroy( sessionID, callback ) {
         this.#expiryWrittenAt.delete( sessionID );
         const write = this.#startWrite( sessionID );
-        Promise.resolve().then( () => cache.instance.hashDeleteField( sessionStoreName, sessionID ) ).then( () => {
+        // The mark first, then the delete, so a request's write that lands after the delete finds the mark (CA-587). A
+        // mark that cannot be written does not keep the session alive: the delete goes ahead, and only the race is open.
+        Promise.resolve().then( () => cache.instance.setValue( endedKeyOf( sessionID ), "1", ENDED_SECONDS ) ).catch( ( error ) => {
+            logger.log( "Could not mark a user session as ended; a request still holding it could write it back.", logger.logSeverity.WARNING, { stack: error?.stack } );
+        } ).then( () => cache.instance.hashDeleteField( sessionStoreName, sessionID ) ).then( () => {
             this.#endWrite( sessionID, write, true );
             callback();
         } ).catch( ( error ) => {
@@ -453,5 +502,6 @@ class SessionStore extends session.Store {
 SessionStore.TOUCH_INTERVAL_SECONDS = TOUCH_INTERVAL_SECONDS;
 SessionStore.HELD_IN_DOUBT_MILLISECONDS = HELD_IN_DOUBT_MILLISECONDS;
 SessionStore.HELD_SESSIONS_LIMIT = HELD_SESSIONS_LIMIT;
+SessionStore.ENDED_SECONDS = ENDED_SECONDS;
 
 module.exports = SessionStore;

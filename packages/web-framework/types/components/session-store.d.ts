@@ -34,6 +34,15 @@ declare const HELD_IN_DOUBT_MILLISECONDS: number;
  */
 declare const HELD_SESSIONS_LIMIT: number;
 /**
+ * How long, in seconds, a destroyed session's ID stays marked as ended (CA-587), so a request that loaded the session
+ * before it was destroyed cannot write it back at its response's end. Longer than any request runs (the server's
+ * `requestTimeout` is three minutes unless stated). A browser that still sends the cookie later finds no session and is
+ * given a new one with a new ID, so the mark has no further use.
+ *
+ * @type {number}
+ */
+declare const ENDED_SECONDS: number;
+/**
  * A session store for the web server using the standard 'cache' module of the ti-engine.
  * <br/>
  * NOTE: This implementation is compatible with the 'express-session' module.
@@ -43,6 +52,13 @@ declare const HELD_SESSIONS_LIMIT: number;
  * store round trip before any handler ran. Every write still goes to the store first, and the copy changes only once the
  * write has landed. The copy is sound only while this process is the one serving the sessions in its store: a session
  * another process changes or signs out is not seen here.
+ * <br/>
+ * **A destroyed session stays destroyed** (CA-587). A request that loaded a session before a sign-out destroyed it still
+ * holds its copy, and express-session writes that copy back at the response's end if the request changed it. Unchecked,
+ * the store recreated the record and the sign-out was undone. The store has no compare-and-set, so two orderings meet
+ * instead: `destroy` marks the ID as ended ({@link ENDED_SECONDS}) before it deletes the session, and `set` reads the
+ * mark after its own write lands and deletes the session again if it is there. Whichever write lands last, no session is
+ * left. `touch` needs no check: it only re-times a session that exists.
  *
  * @class SessionStore
  * @public
@@ -107,4 +123,5 @@ declare namespace SessionStore {
     export { TOUCH_INTERVAL_SECONDS };
     export { HELD_IN_DOUBT_MILLISECONDS };
     export { HELD_SESSIONS_LIMIT };
+    export { ENDED_SECONDS };
 }

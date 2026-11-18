@@ -57,6 +57,15 @@ function installRecordingCache() {
         expireValue( ...args ) {
             recorder.calls.push( [ "expireValue", ...args ] );
             return Promise.resolve();
+        },
+        // The "ended" mark a destroy writes and a set reads (CA-587): never found here.
+        setValue( ...args ) {
+            recorder.calls.push( [ "setValue", ...args ] );
+            return Promise.resolve( args[ 1 ] );
+        },
+        getValue( ...args ) {
+            recorder.calls.push( [ "getValue", ...args ] );
+            return Promise.resolve( null );
         }
     };
     Object.defineProperty( cache, "instance", { value: recorder, configurable: true, writable: true, enumerable: true } );

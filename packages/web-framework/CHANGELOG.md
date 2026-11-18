@@ -4,7 +4,8 @@ This document will contain the list of changes made to the framework. The format
 
 ## Version 1.63.0
 
-Three seams an application with its own public site, and its own people in a database, needed and could not build.
+Three seams an application with its own public site, and its own people in a database, needed and could not build, and a
+sign-out race the asynchronous refresh made wider.
 
 * feat(web-server): **the application shell's home is configurable** (CA-584). `application.home`, overridable with
   `TI_WEB_APPLICATION_HOME`, is where the shell is served: `/` unless stated, so nothing changes for an application that
@@ -62,6 +63,24 @@ Three seams an application with its own public site, and its own people in a dat
     properties out, and a store's error can carry its connection string there.
   * A hook that answers at once keeps the request synchronous, as before. The refresh is waited for on every signed-in
     request: keep it to one cheap lookup.
+* fix(sessions): **a sign-out is final** (CA-587). A request that loaded a session before a sign-out destroyed it, and
+  changed it afterwards, wrote it back at its response's end: the store's `set` recreated the record, so the sign-out
+  was undone and the cookie the response re-stamped signed the person in again. Any request that changes its session had
+  this window; an asynchronous `refreshSession` widens it by its lookup, which is why it is fixed here. Found by
+  CodeRabbit on #226.
+  * The store has no compare-and-set, so two orderings meet. `destroy` marks the ID as ended for 15 minutes
+    (`SessionStore.ENDED_SECONDS`, longer than any request runs) **before** it deletes the session. `set` reads the mark
+    **after** its own write lands, and deletes the session again if the mark is there. Whichever of the two writes lands
+    last, no session is left. `touch` needs no check: on both backends it only re-times a session that exists.
+  * A mark that cannot be written does not keep a session alive: the delete goes ahead and only the race stays open. A
+    mark that cannot be read keeps the write, since that is almost always a live session. Both are logged with the
+    stack alone.
+  * A held store (`sessions.held`) keeps no copy of a session it undid.
+  * Each session write costs one more store read; reads, which are most of the traffic, cost nothing more.
+  * `test/web-server.sign-out-race.test.js` runs the race on a real server: a request held in an asynchronous
+    `refreshSession` while `/logout` completes. Before the fix the session was back in the store afterwards; now the
+    store is empty and the old cookie signs nobody in. `test/session-store.ended.test.js` covers both orderings, held
+    and not.
 * feat(auth): **an Entra sign-in carries the object ID and the tenant ID** (CA-586). The user's `objectID` (`oid`) and
   `tenantID` (`tid`) are read from `userinfo`, then the ID token, by the rule every other value follows, and the session's
   user carries both. Entra's subject is pairwise, a different `sub` in each app registration, so an application that
