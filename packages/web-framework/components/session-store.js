@@ -141,6 +141,11 @@ class SessionStore extends session.Store {
     #inDoubtUntil = new Map();
     // When the held and in-doubt sessions that had lapsed were last dropped, in epoch milliseconds.
     #sweptAt = 0;
+    // The sessions this process destroyed, until the instant, in epoch milliseconds, after which they need not be
+    // remembered (CA-587). A read of one answers no session without asking the store, and a write to one is not made: in
+    // this process, an ended session cannot be answered between a late write landing and its undo, and stays ended even
+    // when the store's mark could not be written. Kept for every store, held or not, and bounded as the held copies are.
+    #ended = new Map();
 
     /**
      * @constructor
@@ -172,6 +177,13 @@ class SessionStore extends session.Store {
      * @public
      */
     set( sessionID, session, callback ) {
+        if ( this.#isEndedHere( sessionID ) ) {
+            // A session this process signed out (CA-587): the write is not made, so there is nothing for another read
+            // to find before it could be undone. The ID is not logged, since it is the cookie's secret.
+            logger.log( "Did not write back a user session that had been signed out while a request still held it.", logger.logSeverity.DEBUG );
+            setImmediate( () => callback() );
+            return;
+        }
         // Serialized now, as the provider serializes what it sends: express-session hands over its live session, which
         // a later change on the same request must not carry into the copy before the store has it.
         let text = null;
@@ -192,20 +204,28 @@ class SessionStore extends session.Store {
             return ( expire ) ? cache.instance.expireValue( sessionID, expire, sessionStoreName ) : null;
         } ).then( () => {
             // After the write has landed, not before: a sign-out whose delete lands after this write removes it itself,
-            // and one whose delete landed before it has left its mark for this read to find (CA-587).
-            return Promise.resolve().then( () => cache.instance.getValue( endedKeyOf( sessionID ) ) ).then( ( mark ) => !!mark, ( error ) => {
-                // Kept: a write that landed is almost always a live session's, and deleting it on a failed read would
-                // sign its user out at random. The stack alone, as an error's own properties can carry the store's address.
-                logger.log( "Could not read whether a user session has ended; keeping what was written.", logger.logSeverity.WARNING, { stack: error?.stack } );
-                return false;
+            // and one whose delete landed before it has left its mark for this read to find (CA-587). A sign-out in this
+            // process while the write was in flight is known without asking.
+            if ( this.#isEndedHere( sessionID ) ) {
+                return { ended: true, error: null };
+            }
+            return Promise.resolve().then( () => cache.instance.getValue( endedKeyOf( sessionID ) ) ).then( ( mark ) => ( { ended: !!mark, error: null } ), ( error ) => {
+                // Undone, not kept (CodeRabbit on #226): a session that cannot be shown not to have ended is not
+                // accepted, and the failure is reported, so a sign-in whose save this is is refused. The stack alone, as an
+                // error's own properties can carry the store's address.
+                logger.log( "Could not read whether a user session has ended; undoing what was written.", logger.logSeverity.ERROR, { stack: error?.stack } );
+                return { ended: true, error: error };
             } );
-        } ).then( ( ended ) => {
-            return ( ended ) ? Promise.resolve().then( () => cache.instance.hashDeleteField( sessionStoreName, sessionID ) ).then( () => true ) : false;
-        } ).then( ( ended ) => {
-            if ( ended ) {
+        } ).then( ( check ) => {
+            return ( check.ended ) ? Promise.resolve().then( () => cache.instance.hashDeleteField( sessionStoreName, sessionID ) ).then( () => check ) : check;
+        } ).then( ( check ) => {
+            if ( check.ended ) {
                 // A request that loaded the session before a sign-out ended it: its write is undone and nothing is held.
                 // The ID is not logged, since it is the cookie's secret.
                 this.#endWrite( sessionID, write, true );
+                if ( check.error ) {
+                    return callback( exceptions.raise( check.error ) );
+                }
                 logger.log( "Did not write back a user session that had been signed out while a request still held it.", logger.logSeverity.DEBUG );
                 return callback();
             }
@@ -230,6 +250,12 @@ class SessionStore extends session.Store {
      * @public
      */
     get( sessionID, callback ) {
+        if ( this.#isEndedHere( sessionID ) ) {
+            // Signed out in this process (CA-587): no session, whatever a late write may have put in the store for the
+            // moment before it is undone. Answered on a later turn, as a store read is.
+            setImmediate( () => callback( null, null ) );
+            return;
+        }
         const held = ( this.#isHeld ) ? this.#held.get( sessionID ) : undefined;
         if ( held && Date.now() < held.expiresAt ) {
             // A copy of its own, parsed as a store read is: express-session copies the session's fields onto
@@ -241,7 +267,9 @@ class SessionStore extends session.Store {
             // person is using must not be the first to go because it was held first.
             this.#held.delete( sessionID );
             this.#held.set( sessionID, held );
-            setImmediate( () => callback( null, session ) );
+            // Checked again on delivery: a sign-out between now and then must not be answered with the session (CodeRabbit
+            // on #227).
+            setImmediate( () => callback( null, this.#isEndedHere( sessionID ) ? null : session ) );
             return;
         }
         this.#held.delete( sessionID );
@@ -262,7 +290,9 @@ class SessionStore extends session.Store {
                     logger.log( `Error while trying to hold user session in memory!`, logger.logSeverity.WARNING, error );
                 }
             }
-            callback( null, session );
+            // A read that began before a sign-out in this process and answers after it delivers no session (CodeRabbit on
+            // #227); its `#endRead` already kept it from being held, since the sign-out's write overtook it.
+            callback( null, this.#isEndedHere( sessionID ) ? null : session );
         } ).catch( ( error ) => {
             this.#endRead( sessionID, read );
             logger.log( `Error while trying to fetch user session from cache!`, logger.logSeverity.ERROR, error );
@@ -280,11 +310,17 @@ class SessionStore extends session.Store {
      */
     destroy( sessionID, callback ) {
         this.#expiryWrittenAt.delete( sessionID );
+        // Remembered in this process at once, before anything can fail, so its own late writes and reads see it ended.
+        const ended = this.#markEndedHere( sessionID );
         const write = this.#startWrite( sessionID );
         // The mark first, then the delete, so a request's write that lands after the delete finds the mark (CA-587). A
-        // mark that cannot be written does not keep the session alive: the delete goes ahead, and only the race is open.
-        Promise.resolve().then( () => cache.instance.setValue( endedKeyOf( sessionID ), "1", ENDED_SECONDS ) ).catch( ( error ) => {
-            logger.log( "Could not mark a user session as ended; a request still holding it could write it back.", logger.logSeverity.WARNING, { stack: error?.stack } );
+        // mark that cannot be written does not keep the session alive: the delete goes ahead, this process still knows
+        // the session ended, and only another process's late write could bring it back.
+        Promise.resolve().then( () => cache.instance.setValue( endedKeyOf( sessionID ), "1", ENDED_SECONDS ) ).then( () => {
+            // Covered by the store from here on, so the memory's bound may evict it before one whose mark failed.
+            ended.marked = true;
+        }, ( error ) => {
+            logger.log( "Could not mark a user session as ended in the store; another process still holding it could write it back.", logger.logSeverity.ERROR, { stack: error?.stack } );
         } ).then( () => cache.instance.hashDeleteField( sessionStoreName, sessionID ) ).then( () => {
             this.#endWrite( sessionID, write, true );
             callback();
@@ -305,6 +341,10 @@ class SessionStore extends session.Store {
      * @public
      */
     touch( sessionID, session, callback ) {
+        if ( this.#isEndedHere( sessionID ) ) {
+            // Nothing to re-time: the session was signed out (CA-587).
+            return callback();
+        }
         const writtenAt = this.#expiryWrittenAt.get( sessionID );
         if ( writtenAt !== undefined && ( Date.now() - writtenAt ) < TOUCH_INTERVAL_SECONDS * 1000 ) {
             // The expiry written moments ago still outlasts the cookie this response re-stamps (see
@@ -326,6 +366,64 @@ class SessionStore extends session.Store {
             logger.log( `Error while trying to refresh user session expiration in cache!`, logger.logSeverity.ERROR, error );
             callback( exceptions.raise( error ) );
         } );
+    }
+
+    /**
+     * Remembers that this process destroyed a session, for {@link ENDED_SECONDS} (CA-587). At {@link HELD_SESSIONS_LIMIT}
+     * the lapsed entries go first, then the oldest: one forgotten early is still covered by the store's mark.
+     *
+     * @method
+     * @param {string} sessionID
+     */
+    #markEndedHere( sessionID ) {
+        const now = Date.now();
+        this.#ended.delete( sessionID );
+        if ( this.#ended.size >= HELD_SESSIONS_LIMIT ) {
+            // Every entry lives ENDED_SECONDS from when it was added, in the map's order, so the lapsed ones are all at
+            // the front: the scan stops at the first live one, rather than walking the whole map on every sign-out at the
+            // limit (the review pass).
+            for ( const [ knownID, entry ] of this.#ended ) {
+                if ( now < entry.until ) {
+                    break;
+                }
+                this.#ended.delete( knownID );
+            }
+            if ( this.#ended.size >= HELD_SESSIONS_LIMIT ) {
+                // The oldest whose store mark was written, which still covers it. One whose mark failed has only this
+                // memory, so it stays (CodeRabbit on #227). Only when none has a mark, the store failing for every
+                // sign-out in this map, does the oldest go regardless, so that the bound holds.
+                let evicted = this.#ended.keys().next().value;
+                for ( const [ knownID, entry ] of this.#ended ) {
+                    if ( entry.marked ) {
+                        evicted = knownID;
+                        break;
+                    }
+                }
+                this.#ended.delete( evicted );
+            }
+        }
+        const entry = { until: now + ENDED_SECONDS * 1000, marked: false };
+        this.#ended.set( sessionID, entry );
+        return entry;
+    }
+
+    /**
+     * Whether this process destroyed a session less than {@link ENDED_SECONDS} ago (CA-587).
+     *
+     * @method
+     * @param {string} sessionID
+     * @returns {boolean}
+     */
+    #isEndedHere( sessionID ) {
+        const entry = this.#ended.get( sessionID );
+        if ( entry === undefined ) {
+            return false;
+        }
+        if ( Date.now() >= entry.until ) {
+            this.#ended.delete( sessionID );
+            return false;
+        }
+        return true;
     }
 
     /**
