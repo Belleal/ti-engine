@@ -296,11 +296,12 @@ site:
 ```
 
 Every answer that sends the browser home then goes there: a sign-in, a sign-out, a refused sign-in
-(`/studio/?error=<code>`), a language chosen, an HTML request for a protected address without a session, and the page
-of a link sent by e-mail. A request for a protected address that does not accept HTML gets a `401` instead. An HTML
-`GET` that reaches the 404 handler goes to `/studio/not-found`: an unknown address asked for with a session, or an
-unknown unprotected one. An unknown protected address asked for without a session never gets that far: the session
-check answers first and sends the browser home. The screens stay at `/app/*`, and so do `/login/*`, `/logout` and
+(`/studio/?error=<code>`), a language chosen, and the page of a link sent by e-mail. So does a request for a protected
+address without a session: a navigation that accepts HTML by a `303`, an HTMX request by a `204` with `HX-Redirect`.
+Any other such request (an API call, say) gets a `401` and goes nowhere. A request that reaches the 404 handler, an
+unknown address asked for with a session or an unknown unprotected one, is sent to `/studio/not-found` the same two
+ways: an HTML `GET` by a `303`, an HTMX request by `HX-Redirect`. An unknown protected address asked for without a
+session never gets that far, because the session check answers first. The screens stay at `/app/*`, and so do `/login/*`, `/logout` and
 `/csrf-token`. The shell page names a home other than `/` in `<meta name="ti-home">`, which is where its scripts go
 when they give up on a screen, and where the default sidebar's link points.
 
