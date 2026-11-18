@@ -28,7 +28,7 @@ the header block verbatim from an existing file in the same package.
 ti-engine/                         npm workspace root (v1.3.1; workspaces = packages/*)
 ├── packages/
 │   ├── core/          v1.22.0     Framework foundation (pluggable cache backend — Redis or HTTP, optional messaging, lifecycle, utils) + the D1 state service + the deployment's time zone + a roster of running provider instances, so a call to a stopped service fails at once + shipped TypeScript declarations + a label catalogue in layers (core, each framework package, the application)
-│   ├── web-framework/ v1.63.0     Express server + auth (incl. real local auth, per-provider allowed domains, sign-in with a link sent by e-mail) + admin config-management + config drift + Profile/About + ti-charts + role gate + TI_WEB_* env overrides + /health + route seams + content-addressed immutable fragments + opt-in Server-Timing + start-up gate + busy indicator + CSP source additions + no overscroll bounce + the sidebar as a drawer on a narrow screen + the interface language chosen on the sign-in screen + a config change's author by name + only the newest screen lands in `#ti-content` + e-mail notices raised by configurable rules over events, with editable texts, a branded HTML layout, attached files and a per-deployment interval for what waits + scheduled jobs + What's new and Feedback screens an application turns on, Feedback with a picture of the screen, personal information blanked + a page left open across a release reloads at a safe moment + sessions that can be held in the process + its own label catalogue laid under the application's + the shell at a home other than `/` + session hooks that may read a store + Entra's object ID on the session
+│   ├── web-framework/ v1.63.1     Express server + auth (incl. real local auth, per-provider allowed domains, sign-in with a link sent by e-mail) + admin config-management + config drift + Profile/About + ti-charts + role gate + TI_WEB_* env overrides + /health + route seams + content-addressed immutable fragments + opt-in Server-Timing + start-up gate + busy indicator + CSP source additions + no overscroll bounce + the sidebar as a drawer on a narrow screen + the interface language chosen on the sign-in screen + a config change's author by name + only the newest screen lands in `#ti-content` + e-mail notices raised by configurable rules over events, with editable texts, a branded HTML layout, attached files and a per-deployment interval for what waits + scheduled jobs + What's new and Feedback screens an application turns on, Feedback with a picture of the screen, personal information blanked + a page left open across a release reloads at a safe moment + sessions that can be held in the process + its own label catalogue laid under the application's + the shell at a home other than `/` + session hooks that may read a store + Entra's object ID on the session
 │   ├── web-content/   v0.5.4      Content-publishing engine — path-index routing, deny-by-default visibility, SEO documents, feeds, email capture with an optional Turnstile check (WIP)
 │   ├── cloudflare/    v0.6.1      The Cloudflare edge — the Worker in front of an application's container, assembled: scanner probes answered there, forwarding headers made true, the container's environment and egress, the order every request is decided in, the mail relay and the jobs cron, and the template a new application copies (WIP)
 │   └── tester/        v1.3.5      Reference/example service implementation + the docker-build target
@@ -410,7 +410,7 @@ npm test    # node --test — 288 tests / 65 suites: 29 test files, plus the nin
 
 ---
 
-## Package: web-framework (v1.63.0)
+## Package: web-framework (v1.63.1)
 
 **Role**: Express.js web server + authentication layer + a reusable **admin config-management subsystem** for web-facing UIs + a CSP-safe **charting primitive library** (`ti-charts.js`) + the container-deployment surface (`TI_WEB_*` env overrides, `GET /health`) and the **route-registration seams** (1.17.0) a subclass uses to mount its own routes — what `web-content` is built on.
 
@@ -448,7 +448,7 @@ npm test    # node --test — 288 tests / 65 suites: 29 test files, plus the nin
 
 **Public exports** (`package.json` `exports`) — **ten**: `./config-management` (config-service), `./web-application` (web-app-manager), `./web-server`, `./authorization`, `./config-drift`, `./definitions`, since 1.52.0 `./notifications` and `./jobs`, and since 1.56.0 `./whats-new` and `./feedback`. `./authorization`, `./config-drift` and `./definitions` are easy to forget and a consumer does import them: competence reaches for `./authorization` and `./config-drift` directly. Anything not on this list fails with `ERR_PACKAGE_PATH_NOT_EXPORTED`, so **adding a module a consumer needs means adding its `exports` entry** — that is the API surface, and changing it is a breaking change for every consumer.
 
-**Since the skill's last sync (1.25.1 → 1.63.0):**
+**Since the skill's last sync (1.25.1 → 1.63.1):**
 - **Three seams for an application with its own public site and its people in a database** (1.63.0; found designing
   a portal's staff area on top of its public site):
   - **The shell's home is configurable** (CA-584). `application.home` / `TI_WEB_APPLICATION_HOME`, `/` unless stated,
@@ -503,7 +503,8 @@ npm test    # node --test — 288 tests / 65 suites: 29 test files, plus the nin
     contract has no compare-and-set, so `SessionStore#destroy` writes the value `ti:web:sessions:ended:<id>` (15 min,
     `SessionStore.ENDED_SECONDS`) **before** deleting the field, and `#set` reads it **after** its write lands and
     deletes the field again if set. Either order leaves no session. `touch` is safe without it (an expiry on a missing
-    field creates nothing on Redis or D1). The destroying process also remembers the ID (`#ended`, same 15 min,
+    field creates nothing on Redis or D1). **Since 1.63.1** (pushed after #226 had merged, so it shipped separately)
+    the destroying process also remembers the ID (`#ended`, same 15 min,
     bounded at `HELD_SESSIONS_LIMIT`): `get` answers null without a store read, and `set`/`touch` write nothing, so in
     that process nothing can be read between a late write and its undo, even if the mark or the delete failed. A failed
     mark read **undoes** the write and reports the error (fail closed; a sign-in is refused); a failed mark write still
