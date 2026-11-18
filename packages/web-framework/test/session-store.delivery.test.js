@@ -112,12 +112,14 @@ describe( "SessionStore — TTL writes", () => {
         assert.equal( recorder.calls.filter( ( call ) => call[ 0 ] === "expireValue" ).length, 2 );
     } );
 
-    it( "forgets a destroyed session, so a new one under the same ID is written at once", async () => {
+    it( "re-times nothing for a destroyed session: it was signed out (CA-587)", async () => {
+        // Until 1.63.0 a touch after a destroy wrote again at once, as if a new session could take the ID. None can:
+        // express-session gives a new session a new ID, and a request still holding the old one must not revive it.
         const store = new SessionStore();
         await promisify( ( done ) => store.touch( "s1", sessionData(), done ) );
         await promisify( ( done ) => store.destroy( "s1", done ) );
         await promisify( ( done ) => store.touch( "s1", sessionData(), done ) );
-        assert.equal( recorder.calls.filter( ( call ) => call[ 0 ] === "expireValue" ).length, 2 );
+        assert.equal( recorder.calls.filter( ( call ) => call[ 0 ] === "expireValue" ).length, 1 );
     } );
 
     it( "throttles per session, not per store", async () => {
